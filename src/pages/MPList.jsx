@@ -155,8 +155,8 @@ const EMPTY_ROW = {
   category: "기타",
   wOCode: "",
   workedOn: "",
-  equipmentCode: "", // → EquipmentCode (NEW — required by API)
-  equipmentName: "", // → EquipmentName (NEW — required by API)
+  equipmentCode: "-", // → EquipmentCode (NEW — required by API)
+  equipmentName: " Common", // → EquipmentName (NEW — required by API)
   // filter linkage — filled from selected dropdowns
   process: "",
   maintGroup: "",
@@ -173,10 +173,11 @@ function rowKey(row, index) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton — shimmer while dropdown options load
 // ─────────────────────────────────────────────────────────────────────────────
-function SelectSkeleton() {
+function SelectSkeleton({ width = "100%" }) {
   return (
     <div
       style={{
+        width: width,
         height: "38px",
         borderRadius: "6px",
         background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
@@ -633,13 +634,16 @@ export default function MPList({ onAddRow, onExport, searchText }) {
 
   // ── Modal add: push to pendingRows ────────────────────────────────────────
   const handleModalAdd = () => {
-    // FIX: validate all four fields the API requires
+    // Validate the 9 fields from the mockup form
     if (
       !newRow.representativeWork ||
       !newRow.work ||
-      !newRow.report ||
-      !newRow.equipmentCode ||
-      !newRow.equipmentName ||
+      !newRow.situation ||
+      !newRow.cause ||
+      !newRow.hwAsWas ||
+      !newRow.hwAsIs ||
+      !newRow.swAsWas ||
+      !newRow.swAsIs ||
       !newRow.workedOn
     ) {
       setModalError(
@@ -904,31 +908,31 @@ export default function MPList({ onAddRow, onExport, searchText }) {
           font-weight: 500;
         }
         .mp-filter-card {
-          display: grid;
-          grid-template-columns: 140px 190px 180px 140px 150px minmax(330px, 1fr) auto;
-          align-items: end;
-          gap: 14px 16px;
-          min-height: 74px;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 12px 18px;
+          min-height: 70px;
           margin-bottom: 16px;
-          padding: 18px;
+          padding: 16px 20px;
         }
-        .mp-filter-contents { display: contents; }
-        .mp-filter-card label {
+        .mp-filter-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .mp-filter-item label {
           color: var(--ref-text-muted, #94a3b8);
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 800;
           white-space: nowrap;
         }
-        .mp-filter-card .input-base {
-          margin-top: 8px;
+        .mp-filter-item .input-base {
+          margin-top: 0;
           height: 38px;
         }
         .mp-filter-alert {
-          grid-column: 1 / -1;
-        }
-        .mp-filter-count {
-          align-self: end;
-          padding-bottom: 2px;
+          width: 100%;
         }
         .mp-table-card {
           min-height: 300px;
@@ -937,16 +941,6 @@ export default function MPList({ onAddRow, onExport, searchText }) {
         .mp-table-scroll {
           height: calc(100vh - 310px);
           min-height: 258px;
-        }
-        @media (max-width: 1280px) {
-          .mp-filter-card {
-            grid-template-columns: repeat(3, minmax(160px, 1fr));
-          }
-        }
-        @media (max-width: 768px) {
-          .mp-filter-card {
-            grid-template-columns: 1fr;
-          }
         }
       `}</style>
 
@@ -990,11 +984,12 @@ export default function MPList({ onAddRow, onExport, searchText }) {
               type="button"
               className="btn-base"
               style={{
-                background: pendingRows.length > 0 ? "#16a34a" : "#d1fae5",
-                color: pendingRows.length > 0 ? "#fff" : "#6b7280",
+                background: "#16a34a",
+                color: "#fff",
                 border: "none",
                 cursor: pendingRows.length > 0 ? "pointer" : "not-allowed",
-                opacity: savingAll ? 0.7 : 1,
+                opacity: pendingRows.length > 0 ? 1 : 0.65,
+                boxShadow: pendingRows.length > 0 ? "0 10px 24px rgba(22, 163, 74, 0.2)" : "none",
               }}
               onClick={handleSaveAll}
               disabled={pendingRows.length === 0 || savingAll}
@@ -1034,177 +1029,172 @@ export default function MPList({ onAddRow, onExport, searchText }) {
             </div>
           )}
 
-          {/* Row 1 */}
-          <div className="mp-filter-contents">
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.process")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedProcessId ?? ""}
-                  onChange={handleProcessChange}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {processList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.processName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
-
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.maintenance")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedMaintenanceId ?? ""}
-                  onChange={handleMaintenanceChange}
-                  disabled={maintenanceList.length === 0}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {maintenanceList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.maintenanceGroupName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
-
-            <label className="hidden">
-              {t("field.site")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedSiteId ?? ""}
-                  onChange={handleSiteChange}
-                  disabled={siteList.length === 0}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {siteList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.siteName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
-
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.repWork")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedRepWorkId ?? ""}
-                  onChange={handleRepWorkChange}
-                  disabled={repWorkList.length === 0}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {repWorkList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.representativeWorkName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+          {/* Process Filter */}
+          <div className="mp-filter-item">
+            <label>{t("field.process")}</label>
+            {filterLoading ? (
+              <SelectSkeleton width="110px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedProcessId ?? ""}
+                onChange={handleProcessChange}
+                style={{ width: "110px" }}
+              >
+                <option value="">{t("app.all")}</option>
+                {processList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.processName}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Row 2 */}
-          <div className="mp-filter-contents">
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.priority")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedPriority}
-                  onChange={(e) => setSelectedPriority(e.target.value)}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {priorityList.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+          {/* Maintenance Filter */}
+          <div className="mp-filter-item">
+            <label>{t("field.maintenance")}</label>
+            {filterLoading ? (
+              <SelectSkeleton width="130px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedMaintenanceId ?? ""}
+                onChange={handleMaintenanceChange}
+                disabled={maintenanceList.length === 0}
+                style={{ width: "130px" }}
+              >
+                <option value="">{t("app.all")}</option>
+                {maintenanceList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.maintenanceGroupName}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.category")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {categoryList.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+          {/* Hidden Site Filter to preserve logic/bindings */}
+          <div className="hidden">
+            {filterLoading ? (
+              <SelectSkeleton />
+            ) : (
+              <select
+                value={selectedSiteId ?? ""}
+                onChange={handleSiteChange}
+                disabled={siteList.length === 0}
+              >
+                <option value="">{t("app.all")}</option>
+                {siteList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.siteName}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
-            <label className="space-y-1.5 text-sm text-text-subtle">
-              {t("field.period")}
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  className="input-base"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  style={{ minWidth: 0 }}
-                />
-                <span className="text-text-subtle shrink-0">~</span>
-                <input
-                  type="date"
-                  className="input-base"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  style={{ minWidth: 0 }}
-                />
-              </div>
-            </label>
+          {/* Representative Work Filter with count badge */}
+          <div className="mp-filter-item">
+            <label>{t("field.repWork")}</label>
+            {filterLoading ? (
+              <SelectSkeleton width="180px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedRepWorkId ?? ""}
+                onChange={handleRepWorkChange}
+                disabled={repWorkList.length === 0}
+                style={{ width: "180px" }}
+              >
+                <option value="">{t("app.all")}</option>
+                {repWorkList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.representativeWorkName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!dataLoading && (
+              <span
+                style={{
+                  color: "var(--primary, #4f46e5)",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  marginLeft: "2px",
+                }}
+              >
+                ({filtered.length}{lang === "ko" ? "개" : " rows"})
+              </span>
+            )}
+          </div>
 
-            <div className="mp-filter-count flex items-end gap-2">
-              {!dataLoading && (
-                <>
-                  <span className="badge badge-primary">{filtered.length}{t("app.rows")}</span>
-                  {pendingRows.length > 0 && (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "2px 8px",
-                        borderRadius: "9999px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        background: "#f0fdf4",
-                        color: "#16a34a",
-                        border: "1px solid #bbf7d0",
-                      }}
-                    >
-                      {t("page.mp.pending")} {pendingRows.length}{t("app.rows")}
-                    </span>
-                  )}
-                </>
-              )}
+          {/* Priority Filter */}
+          <div className="mp-filter-item">
+            <label>
+              {t("field.priority")}{" "}
+              <span className="text-red-500">*</span>
+            </label>
+            {filterLoading ? (
+              <SelectSkeleton width="120px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedPriority}
+                onChange={(e) => setSelectedPriority(e.target.value)}
+                style={{ width: "120px" }}
+              >
+                <option value="">{t("app.all")}</option>
+                {priorityList.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <div className="mp-filter-item">
+            <label>{t("field.category")}</label>
+            {filterLoading ? (
+              <SelectSkeleton width="140px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                style={{ width: "140px" }}
+              >
+                <option value="">{t("app.all")}</option>
+                {categoryList.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Period Filter */}
+          <div className="mp-filter-item ml-auto">
+            <label>{t("field.period")}</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                className="input-base"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                style={{ width: "150px" }}
+              />
+              <span className="text-text-subtle">~</span>
+              <input
+                type="date"
+                className="input-base"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                style={{ width: "150px" }}
+              />
             </div>
           </div>
         </div>
@@ -1332,16 +1322,26 @@ export default function MPList({ onAddRow, onExport, searchText }) {
         title={t("page.mp.modalTitle")}
         description={t("page.mp.modalDesc")}
         onClose={() => setShowModal(false)}
+        headerBg="var(--accent-soft, #ecfeff)"
+        titleIcon={
+          <i
+            className="fas fa-plus-circle mr-2"
+            style={{ color: "var(--accent, #06b6d4)" }}
+          ></i>
+        }
+        maxWidth="640px"
         footer={
-          <div className="flex gap-3 justify-end w-full">
-            <button type="button" className="btn-base btn-primary" onClick={handleModalAdd}>
-              <i className="fas fa-check mr-1.5" />
-              {t("app.add")}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn-base btn-primary"
+            onClick={handleModalAdd}
+          >
+            <i className="fas fa-check mr-1.5" />
+            {t("page.mp.addButton", "추가하기")}
+          </button>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {modalError && (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
               <i className="fas fa-exclamation-circle mr-1.5" />
@@ -1349,262 +1349,249 @@ export default function MPList({ onAddRow, onExport, searchText }) {
             </div>
           )}
 
-          {/* Read-only context: process + maintenance */}
-          <div className="grid gap-3 grid-cols-2">
+          {/* Grid 1: Process and Maintenance Part (read-only) */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <p
-                className="text-xs font-bold uppercase tracking-wider mb-1.5"
-                style={{ color: "var(--color-text-subtle, #6b7280)" }}
-              >
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
                 {t("field.process", "공정")}
-              </p>
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--color-border-base, #e5e7eb)",
-                  background: "var(--color-surface-raised, #f9fafb)",
-                  color: "var(--color-text-default, #111827)",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: "not-allowed",
-                }}
-              >
-                {processList.find((p) => p.id === selectedProcessId)?.processName ?? "—"}
-              </div>
+              </label>
+              <input
+                type="text"
+                className="input-base w-full mt-1"
+                value={
+                  processList.find((p) => p.id === selectedProcessId)
+                    ?.processName ?? ""
+                }
+                readOnly
+              />
             </div>
             <div>
-              <p
-                className="text-xs font-bold uppercase tracking-wider mb-1.5"
-                style={{ color: "var(--color-text-subtle, #6b7280)" }}
-              >
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
                 {t("field.maintenance", "보전파트")}
-              </p>
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--color-border-base, #e5e7eb)",
-                  background: "var(--color-surface-raised, #f9fafb)",
-                  color: "var(--color-text-default, #111827)",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: "not-allowed",
-                }}
-              >
-                {(filterPayload?.maintenance ?? []).find((m) => m.id === selectedMaintenanceId)
-                  ?.maintenanceGroupName ?? "—"}
-              </div>
+              </label>
+              <input
+                type="text"
+                className="input-base w-full mt-1"
+                value={
+                  (filterPayload?.maintenance ?? []).find(
+                    (m) => m.id === selectedMaintenanceId
+                  )?.maintenanceGroupName ?? ""
+                }
+                readOnly
+              />
             </div>
           </div>
 
-          {/* ── 기본 정보 ── */}
-          <ModalSection title={t("detail.record")} />
-
-          <label className="block space-y-1.5 text-sm text-text-subtle">
-            {t("field.repWork")} <span className="text-red-500">*</span>
-            {filterLoading ? (
-              <SelectSkeleton />
-            ) : (
-              <select
-                className="input-base"
-                value={newRow.representativeWork}
-                onChange={(e) => setField("representativeWork", e.target.value)}
-              >
-                <option value="">{t("app.all")}</option>
-                {repWorkList.map((item) => (
-                  <option key={item.id} value={item.representativeWorkName}>
-                    {item.representativeWorkName}
-                  </option>
-                ))}
-              </select>
-            )}
-          </label>
-
-          <label className="block space-y-1.5 text-sm text-text-subtle">
-            {t("field.work")} <span className="text-red-500">*</span>
-            <input
-              className="input-base"
-              value={newRow.work}
-              onChange={(e) => setField("work", e.target.value)}
-              placeholder={t("placeholder.workPurpose", "작업의 목적을 입력하세요")}
-            />
-          </label>
-
-          {/* FIX: Report field — required by API */}
-          <label className="block space-y-1.5 text-sm text-text-subtle">
-            {t("field.report")} <span className="text-red-500">*</span>
-            <input
-              className="input-base"
-              value={newRow.report}
-              onChange={(e) => setField("report", e.target.value)}
-              placeholder={t("field.report")}
-            />
-          </label>
-
-          {/* ── 설비 정보 ── */}
-          <ModalSection title={t("field.equipmentName")} />
-
-          {/* FIX: EquipmentCode + EquipmentName — both required by API */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.equipmentCode")} <span className="text-red-500">*</span>
+          {/* Grid 2: Representative Work and Work Purpose */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.repWork", "대표작업명")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              {filterLoading ? (
+                <SelectSkeleton />
+              ) : (
+                <select
+                  className="input-base w-full mt-1"
+                  value={newRow.representativeWork}
+                  onChange={(e) => setField("representativeWork", e.target.value)}
+                >
+                  <option value="">{t("app.all", "전체")}</option>
+                  {repWorkList.map((item) => (
+                    <option key={item.id} value={item.representativeWorkName}>
+                      {item.representativeWorkName}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.work", "작업 목적")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
-                value={newRow.equipmentCode}
-                onChange={(e) => setField("equipmentCode", e.target.value)}
-                placeholder={t("field.equipmentCode")}
+                className="input-base w-full mt-1"
+                value={newRow.work}
+                onChange={(e) => setField("work", e.target.value)}
+                placeholder={t(
+                  "placeholder.workPurposeInput",
+                  "작업 목적 입력"
+                )}
               />
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.equipmentName")} <span className="text-red-500">*</span>
-              <input
-                className="input-base"
-                value={newRow.equipmentName}
-                onChange={(e) => setField("equipmentName", e.target.value)}
-                placeholder={t("field.equipmentName")}
-              />
-            </label>
+            </div>
           </div>
 
-          {/* ── 문제 분석 ── */}
-          <ModalSection title={t("field.situation")} />
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.situation")}
+          {/* Grid 3: Problem Symptom and Problem Cause */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.situation", "문제 현상")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.situation}
                 onChange={(e) => setField("situation", e.target.value)}
+                placeholder={t(
+                  "placeholder.situationInput",
+                  "문제 현상 입력"
+                )}
               />
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.cause")}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.cause", "문제 원인")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.cause}
                 onChange={(e) => setField("cause", e.target.value)}
+                placeholder={t("placeholder.causeInput", "문제 원인 입력")}
               />
-            </label>
+            </div>
           </div>
 
-          {/* ── 자재 정보 ── */}
-          <ModalSection title={t("field.sparePart")} />
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              BOM
-              <input
-                className="input-base"
+          {/* Grid 4: BOM and Spare Part */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                BOM
+              </label>
+              <textarea
+                className="input-base w-full mt-1"
                 value={newRow.bom}
                 onChange={(e) => setField("bom", e.target.value)}
+                rows={2}
+                placeholder={t("placeholder.bomInput", "BOM 입력 (줄바꿈 가능)")}
+                style={{ resize: "vertical" }}
               />
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.sparePart")}
-              <input
-                className="input-base"
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.sparePart", "자재명")}
+              </label>
+              <textarea
+                className="input-base w-full mt-1"
                 value={newRow.sparePart}
                 onChange={(e) => setField("sparePart", e.target.value)}
+                rows={2}
+                placeholder={t(
+                  "placeholder.sparePartInput",
+                  "자재명 입력 (줄바꿈 가능)"
+                )}
+                style={{ resize: "vertical" }}
               />
-            </label>
+            </div>
           </div>
 
-          {/* ── 변경 이력 ── */}
-          <ModalSection title={t("nav.changeHistory")} />
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.hwBefore")}
+          {/* Grid 5: HW Before and HW After */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.hwBefore", "HW 변경 전")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.hwAsWas}
                 onChange={(e) => setField("hwAsWas", e.target.value)}
+                placeholder={t("field.hwBefore", "HW 변경 전")}
               />
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.hwAfter")}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.hwAfter", "HW 변경 후")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.hwAsIs}
                 onChange={(e) => setField("hwAsIs", e.target.value)}
+                placeholder={t("field.hwAfter", "HW 변경 후")}
               />
-            </label>
+            </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.swBefore")}
+          {/* Grid 6: SW Before and SW After */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.swBefore", "SW 변경 전")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.swAsWas}
                 onChange={(e) => setField("swAsWas", e.target.value)}
+                placeholder={t("field.swBefore", "SW 변경 전")}
               />
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.swAfter")}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.swAfter", "SW 변경 후")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.swAsIs}
                 onChange={(e) => setField("swAsIs", e.target.value)}
+                placeholder={t("field.swAfter", "SW 변경 후")}
               />
-            </label>
+            </div>
           </div>
 
-          {/* ── 분류 및 완료 ── */}
-          <ModalSection title={t("field.category")} />
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.priority")}
+          {/* Grid 7: Priority, Category, and Completion Date */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.priority", "중요도")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <select
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.priority}
                 onChange={(e) => setField("priority", e.target.value)}
               >
-                <option value="">{t("app.all")}</option>
-                {priorityList.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
+                <option value="일반">{t("priority.normal", "일반")}</option>
+                <option value="중요">{t("priority.high", "중요")}</option>
               </select>
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.category")}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.category", "효과 유형")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <select
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.category}
                 onChange={(e) => setField("category", e.target.value)}
               >
-                <option value="">{t("app.all")}</option>
-                {categoryList.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
+                <option value="기타">{t("category.etc", "기타")}</option>
+                <option value="생산성">
+                  {t("category.productivity", "생산성")}
+                </option>
+                <option value="품질">{t("category.quality", "품질")}</option>
+                <option value="보전성">
+                  {t("category.maintenance", "보전성")}
+                </option>
               </select>
-            </label>
-            <label className="block space-y-1.5 text-sm text-text-subtle">
-              {t("field.workedOn")} <span className="text-red-500">*</span>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
+                {t("field.workedOn", "작업완료일")}{" "}
+                <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
-                className="input-base"
+                className="input-base w-full mt-1"
                 value={newRow.workedOn}
                 onChange={(e) => setField("workedOn", e.target.value)}
               />
-            </label>
+            </div>
           </div>
-
-          <label className="block space-y-1.5 text-sm text-text-subtle">
-            {t("field.woCode")}
-            <input
-              className="input-base"
-              value={newRow.wOCode}
-              onChange={(e) => setField("wOCode", e.target.value)}
-            />
-          </label>
         </div>
       </Modal>
 

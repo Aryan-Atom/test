@@ -6,10 +6,11 @@ import { useI18n } from "../i18n.jsx";
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function SelectSkeleton() {
+function SelectSkeleton({ width = "100%" }) {
   return (
     <div
       style={{
+        width: width,
         height: "38px",
         borderRadius: "6px",
         background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
@@ -466,16 +467,18 @@ export default function SpecMatrix({ searchText }) {
             </div>
           )}
 
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             {/* 공정 */}
-            <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-              {t("field.process", "공정")}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase text-text-subtle">
+                {t("field.process", "공정")}
+              </label>
               {filterLoading ? (
-                <SelectSkeleton />
+                <SelectSkeleton width="120px" />
               ) : (
                 <select
                   className="input-base"
-                  style={{ minWidth: "120px" }}
+                  style={{ width: "120px", marginTop: 0 }}
                   value={selectedProcessId ?? ""}
                   onChange={handleProcessChange}
                 >
@@ -487,17 +490,19 @@ export default function SpecMatrix({ searchText }) {
                   ))}
                 </select>
               )}
-            </label>
+            </div>
 
             {/* 보전유형 */}
-            <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-              {t("field.maintenanceGroup", "보전유형")}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase text-text-subtle">
+                {t("field.maintenanceType", "보전유형")}
+              </label>
               {filterLoading ? (
-                <SelectSkeleton />
+                <SelectSkeleton width="150px" />
               ) : (
                 <select
                   className="input-base"
-                  style={{ minWidth: "150px" }}
+                  style={{ width: "150px", marginTop: 0 }}
                   value={selectedTypeId ?? ""}
                   onChange={handleTypeChange}
                   disabled={maintenanceList.length === 0}
@@ -510,18 +515,20 @@ export default function SpecMatrix({ searchText }) {
                   ))}
                 </select>
               )}
-            </label>
+            </div>
 
             {/* 버전 — hidden in VIEW2 since versions become columns */}
             {view === "view1" && (
-              <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-                {t("field.version", "버전")}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase text-text-subtle">
+                  {t("field.version", "버전")}
+                </label>
                 {filterLoading ? (
-                  <SelectSkeleton />
+                  <SelectSkeleton width="140px" />
                 ) : (
                   <select
                     className="input-base"
-                    style={{ minWidth: "140px" }}
+                    style={{ width: "140px", marginTop: 0 }}
                     value={selectedVersion}
                     onChange={(e) => setSelectedVersion(e.target.value)}
                   >
@@ -532,14 +539,16 @@ export default function SpecMatrix({ searchText }) {
                     ))}
                   </select>
                 )}
-              </label>
+              </div>
             )}
 
             {/* 변경 항목만 toggle — VIEW2 only */}
             {view === "view2" && (
-              <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-                {t("specMatrix.changesOnly", "변경 항목만")}
-                <div style={{ paddingTop: "4px" }}>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase text-text-subtle">
+                  {t("specMatrix.changesOnly", "변경 항목만")}
+                </label>
+                <div className="flex items-center">
                   <button
                     type="button"
                     onClick={() => setChangedOnly((p) => !p)}
@@ -574,11 +583,11 @@ export default function SpecMatrix({ searchText }) {
                     />
                   </button>
                 </div>
-              </label>
+              </div>
             )}
 
             {/* Badges */}
-            <div className="ml-auto flex items-end gap-2 pb-0.5">
+            <div className="ml-auto flex items-center gap-2">
               <span className="badge badge-primary">{totalCount}{t("app.rows", "건")}</span>
               {view === "view2" && changedCount > 0 && (
                 <span

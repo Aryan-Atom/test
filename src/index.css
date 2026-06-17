@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap");
 @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css");
 
 @tailwind base;
@@ -127,9 +127,9 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 999px;
-  padding: 0.9rem 1.25rem;
-  font-weight: 700;
+  border-radius: var(--radius-sm, 10px);
+  padding: 10px 20px;
+  font-weight: 600;
   transition:
     transform 0.18s ease,
     background-color 0.18s ease,
@@ -142,9 +142,9 @@ textarea {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #1168ee 0%, #1e8aee 100%);
+  background: linear-gradient(135deg, var(--primary, #4f46e5) 0%, var(--primary-light, #818cf8) 100%);
   color: white;
-  box-shadow: 0 14px 30px rgba(17, 97, 255, 0.18);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.18);
 }
 
 .btn-secondary {
@@ -299,16 +299,16 @@ body {
 }
 
 .btn-base {
-  min-height: 56px;
-  padding: 0 22px;
-  font-size: 14px;
-  font-weight: 800;
+  min-height: 38px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .btn-primary {
-  background: #1d7cf2;
+  background: var(--primary, #4f46e5);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(29, 124, 242, 0.2);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.2);
 }
 
 .btn-secondary {
@@ -485,15 +485,21 @@ tbody tr:hover {
   font-size: 15px;
 }
 
-.eq-nav-item:hover,
-.eq-nav-item.active,
-.eq-nav-item.active-parent {
+.eq-nav-item:hover {
   background: var(--primary-soft);
   color: var(--primary);
 }
 
-.eq-nav-item.active::before,
-.eq-nav-item.active-parent::before {
+.eq-nav-item.active {
+  color: var(--primary);
+}
+
+.eq-nav-item.active-parent {
+  color: var(--ref-text-secondary);
+  background: transparent;
+}
+
+.eq-nav-item.active::before {
   transform: scaleY(1);
 }
 
@@ -525,10 +531,14 @@ tbody tr:hover {
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-.eq-sub-item:hover,
-.eq-sub-item.active {
+.eq-sub-item:hover {
   background: var(--primary-soft);
   color: var(--primary);
+}
+
+.eq-sub-item.active {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .eq-system-card {

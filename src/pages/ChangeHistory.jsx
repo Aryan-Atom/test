@@ -55,10 +55,11 @@ function rowKey(row, index) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function SelectSkeleton() {
+function SelectSkeleton({ width = "120px" }) {
   return (
     <div
       style={{
+        width: width,
         height: "38px",
         borderRadius: "6px",
         background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
@@ -560,9 +561,11 @@ function EditableRow({
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
         background: isEditing
           ? "#eff6ff"
-          : index % 2 === 0
-            ? "var(--color-surface-default, #fff)"
-            : "var(--color-surface-raised, #f9fafb)",
+          : isSelected
+            ? "rgba(79, 70, 229, 0.05)"
+            : index % 2 === 0
+              ? "var(--color-surface-default, #fff)"
+              : "var(--color-surface-raised, #f9fafb)",
         outline: isEditing ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
       }}
@@ -677,8 +680,9 @@ function EditableRow({
 }
 
 const COLUMN_LABEL_KEYS = {
+  // English keys
   process: "field.process",
-  maintGroup: "field.maintenanceGroup",
+  maintGroup: "field.maintenance",
   site: "field.site",
   representativeWork: "field.repWork",
   priority: "field.priority",
@@ -698,6 +702,32 @@ const COLUMN_LABEL_KEYS = {
   swAfter: "field.swAfter",
   woCode: "field.woCode",
   workedOn: "field.workedOn",
+  improvement: "field.improvement",
+  // Korean keys
+  "법인": "field.site",
+  "공정": "field.process",
+  "보전파트": "field.maintenance",
+  "보전그룹": "field.maintenanceGroup",
+  "보전유형": "field.maintenanceType",
+  "설비코드": "field.equipmentCode",
+  "설비명": "field.equipmentName",
+  "W/O코드": "field.woCode",
+  "Report내용": "field.report",
+  "BOM": "field.bom",
+  "자재명": "field.sparePart",
+  "작업완료일": "field.workedOn",
+  "개선 작업": "field.improvement",
+  "작업목적": "field.work",
+  "문제 현상": "field.situation",
+  "문제 원인": "field.cause",
+  "HW 변경 전": "field.hwBefore",
+  "HW 변경 후": "field.hwAfter",
+  "SW 변경 전": "field.swBefore",
+  "SW 변경 후": "field.swAfter",
+  "대표 작업명": "field.repWork",
+  "중요도": "field.priority",
+  "효과 유형": "field.category",
+
   type: "field.type",
   title: "field.title",
   author: "field.author",
@@ -782,25 +812,71 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     [changeDataColumns],
   );
 
+  // ── Helper to sort keys by mockup order ───────────────────────────────────
+  const getColumnGroupIndex = useCallback((key) => {
+    const groups = [
+      ["site", "법인"],
+      ["process", "공정"],
+      ["maintGroup", "보전파트", "보전그룹"],
+      ["equipmentCode", "설비코드"],
+      ["equipmentName", "설비명"],
+      ["woCode", "wOCode", "W/O코드"],
+      ["report", "Report내용"],
+      ["bom", "BOM"],
+      ["sparePart", "자재명"],
+      ["workedOn", "작업완료일"],
+      ["improvement", "개선 작업"],
+      ["work", "작업목적"],
+      ["situation", "문제 현상"],
+      ["cause", "문제 원인"],
+      ["hwBefore", "hwAsWas", "HW 변경 전"],
+      ["hwAfter", "hwAsIs", "HW 변경 후"],
+      ["swBefore", "swAsWas", "SW 변경 전"],
+      ["swAfter", "swAsIs", "SW 변경 후"],
+      ["representativeWork", "대표 작업명"],
+      ["priority", "중요도"],
+      ["category", "효과 유형"]
+    ];
+    const idx = groups.findIndex(g => g.includes(key));
+    return idx !== -1 ? idx : 999;
+  }, []);
+
   // ── Merge prop data + API records (API records take precedence for same id) ─
+  // We also remap all rows to English jsonKeys to keep keys consistent
   const combinedData = useMemo(() => {
-    if (changedRecords.length === 0) return data;
-    const existingIds = new Set(data.map((item) => item.id));
-    const newRecords = changedRecords.filter((record) => !existingIds.has(record.id));
-    return [...newRecords, ...data];
-  }, [data, changedRecords]);
+    const remapRow = (row) => {
+      if (!row) return row;
+      return Object.entries(row).reduce((acc, [key, value]) => {
+        const mappedKey = excelToJsonKey[key.trim()] ?? key;
+        acc[mappedKey] = value;
+        return acc;
+      }, {});
+    };
+
+    const remappedData = data.map(remapRow);
+    const remappedChangedRecords = changedRecords.map(remapRow);
+
+    if (remappedChangedRecords.length === 0) return remappedData;
+    const existingIds = new Set(remappedData.map((item) => item.id));
+    const newRecords = remappedChangedRecords.filter((record) => !existingIds.has(record.id));
+    return [...newRecords, ...remappedData];
+  }, [data, changedRecords, excelToJsonKey]);
 
   // ── Table columns: sequence-sorted jsonKeys, id excluded ──────────────────
   const dynamicColumns = useMemo(() => {
     if (orderedJsonKeys.length > 0) return orderedJsonKeys;
     if (combinedData.length > 0) {
-      return Object.keys(combinedData[0]).filter((k) => k !== "id" && k !== "_sourceId");
+      const keys = Object.keys(combinedData[0]).filter((k) => k !== "id" && k !== "_sourceId");
+      return keys.sort((a, b) => getColumnGroupIndex(a) - getColumnGroupIndex(b));
     }
     return [];
-  }, [orderedJsonKeys, combinedData]);
+  }, [orderedJsonKeys, combinedData, getColumnGroupIndex]);
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
+    if (!selectedProcessId || !selectedMaintenanceId) {
+      return [];
+    }
     const selectedProcess = processList.find((p) => p.id === selectedProcessId);
     const selectedMaint = (filterPayload?.maintenance ?? []).find(
       (m) => m.id === selectedMaintenanceId,
@@ -808,10 +884,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
     return combinedData.filter((item) => {
       const matchesProc =
-        !selectedProcessId || (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
+        (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
       const matchesMaint =
-        !selectedMaintenanceId ||
         (item.maintGroup ?? item.보전파트 ?? item.보전그룹) ===
           (selectedMaint?.maintenanceGroupName ?? "");
 
@@ -850,6 +925,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     }
     setSelectedIds(new Set(filtered.map((_, i) => i)));
   };
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [selectedProcessId, selectedMaintenanceId, filter, searchText]);
 
   // ── Build a clean row for the payload (strip internal keys, fill columns) ──
   const buildCleanRow = useCallback(
@@ -1234,7 +1313,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         </header>
 
         {/* Filters */}
-        <div className="card p-5">
+        <div className="card p-4 mb-4">
           {filterError && (
             <div
               className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
@@ -1244,16 +1323,19 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               <div>{filterError}</div>
             </div>
           )}
-          <div className="grid gap-4 lg:grid-cols-5">
-            <label className="space-y-2 text-sm text-text-subtle">
-              {t("field.process")}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase text-text-subtle">
+                {t("field.process")}
+              </label>
               {filterLoading ? (
-                <SelectSkeleton />
+                <SelectSkeleton width="120px" />
               ) : (
                 <select
                   className="input-base"
                   value={selectedProcessId ?? ""}
                   onChange={handleProcessChange}
+                  style={{ width: "120px", marginTop: 0 }}
                 >
                   <option value="">{t("app.all")}</option>
                   {processList.map((item) => (
@@ -1263,18 +1345,21 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   ))}
                 </select>
               )}
-            </label>
+            </div>
 
-            <label className="space-y-2 text-sm text-text-subtle">
-              {t("field.maintenanceGroup")}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase text-text-subtle">
+                {t("field.maintenance")}
+              </label>
               {filterLoading ? (
-                <SelectSkeleton />
+                <SelectSkeleton width="130px" />
               ) : (
                 <select
                   className="input-base"
                   value={selectedMaintenanceId ?? ""}
                   onChange={handleMaintenanceChange}
                   disabled={maintenanceList.length === 0}
+                  style={{ width: "130px", marginTop: 0 }}
                 >
                   <option value="">{t("app.all")}</option>
                   {maintenanceList.map((item) => (
@@ -1284,20 +1369,35 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   ))}
                 </select>
               )}
-            </label>
+            </div>
 
-            <label className="space-y-2 text-sm text-text-subtle lg:col-span-2">
-              {t("app.search")}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase text-text-subtle">
+                {t("app.search")}
+              </label>
               <input
                 className="input-base"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder={t("app.search")}
+                placeholder="설비명, 작업명..."
+                style={{ width: "200px", marginTop: 0 }}
               />
-            </label>
+            </div>
 
-            <div className="flex w-full items-end items-center justify-end gap-3">
-              <span className="badge badge-primary">{filtered.length}{t("app.rows")}</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="badge badge-primary">
+                {filtered.length}
+                {t("app.rows")}
+              </span>
+              <button
+                type="button"
+                className="btn-base btn-ghost text-xs flex items-center gap-1.5"
+                onClick={toggleSelectAll}
+                style={{ minHeight: "38px", padding: "8px 16px" }}
+              >
+                <i className="fas fa-check-double" />
+                {t("app.selectAll", "전체선택")}
+              </button>
             </div>
           </div>
         </div>

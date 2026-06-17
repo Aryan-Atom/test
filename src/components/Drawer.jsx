@@ -3,7 +3,7 @@ import { useI18n } from "../i18n.jsx";
 const COLUMN_LABEL_KEYS = {
   // English keys
   process: "field.process",
-  maintGroup: "field.maintenanceGroup",
+  maintGroup: "field.maintenance",
   site: "field.site",
   representativeWork: "field.repWork",
   priority: "field.priority",
@@ -33,11 +33,13 @@ const COLUMN_LABEL_KEYS = {
   specValue: "field.specValue",
   specVersion: "field.specVersion",
   equipmentId: "field.equipmentId",
+  improvement: "field.improvement",
   // Korean keys
   "법인": "field.site",
   "공정": "field.process",
   "보전파트": "field.maintenance",
   "보전그룹": "field.maintenanceGroup",
+  "보전유형": "field.maintenanceType",
   "설비코드": "field.equipmentCode",
   "설비명": "field.equipmentName",
   "W/O코드": "field.woCode",
@@ -45,6 +47,7 @@ const COLUMN_LABEL_KEYS = {
   "BOM": "field.bom",
   "자재명": "field.sparePart",
   "작업완료일": "field.workedOn",
+  "개선 작업": "field.improvement",
   "작업목적": "field.work",
   "문제 현상": "field.situation",
   "문제 원인": "field.cause",

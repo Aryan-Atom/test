@@ -41,10 +41,11 @@ function rowKey(row, index) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton — prevents white-flash while dropdown options are loading
 // ─────────────────────────────────────────────────────────────────────────────
-function SelectSkeleton() {
+function SelectSkeleton({ width = "100%" }) {
   return (
     <div
       style={{
+        width: width,
         height: "38px",
         borderRadius: "6px",
         background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
@@ -546,9 +547,11 @@ function EditableRow({
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
         background: isEditing
           ? "#eff6ff"
-          : index % 2 === 0
-            ? "var(--color-surface-default, #fff)"
-            : "var(--color-surface-raised, #f9fafb)",
+          : isSelected
+            ? "rgba(79, 70, 229, 0.05)"
+            : index % 2 === 0
+              ? "var(--color-surface-default, #fff)"
+              : "var(--color-surface-raised, #f9fafb)",
         outline: isEditing ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
       }}
@@ -670,7 +673,7 @@ function EditableRow({
 
 const COLUMN_LABEL_KEYS = {
   process: "field.process",
-  maintGroup: "field.maintenanceGroup",
+  maintGroup: "field.maintenanceType",
   site: "field.site",
   representativeWork: "field.repWork",
   priority: "field.priority",
@@ -697,7 +700,7 @@ const COLUMN_LABEL_KEYS = {
   role: "field.role",
   management: "field.management",
   maintId: "field.maintenance",
-  maintGroupName: "field.maintenanceGroup",
+  maintGroupName: "field.maintenanceType",
   processName: "field.process",
   siteName: "field.site",
   representativeWorkName: "field.repWork",
@@ -778,6 +781,21 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
     [changeDataColumns],
   );
 
+  // ── Helper to sort keys by mockup order ───────────────────────────────────
+  const getColumnGroupIndex = useCallback((key) => {
+    const groups = [
+      ["process", "공정"],
+      ["maintGroup", "maintType", "maintenanceType", "보전유형", "보전그룹", "보전파트"],
+      ["equipmentCode", "설비코드"],
+      ["equipmentName", "설비명"],
+      ["version", "버전"],
+      ["specName", "사양항목"],
+      ["specValue", "사양값"]
+    ];
+    const idx = groups.findIndex(g => g.includes(key));
+    return idx !== -1 ? idx : 999;
+  }, []);
+
   // FIX 2: Columns ordered by `sequence` from changeDataColumns.
   // Falls back to dynamic key order if changeDataColumns is empty.
   const orderedJsonKeys = useMemo(() => {
@@ -789,12 +807,25 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   }, [changeDataColumns]);
 
   // ── Merge API-saved records with prop data (newest first, no duplicates) ──
+  // We also remap all rows to English jsonKeys to keep keys consistent
   const combinedData = useMemo(() => {
-    if (changedRecords.length === 0) return data;
-    const existingIds = new Set(data.map((item) => item.id));
-    const newRecords = changedRecords.filter((record) => !existingIds.has(record.id));
-    return [...newRecords, ...data];
-  }, [data, changedRecords]);
+    const remapRow = (row) => {
+      if (!row) return row;
+      return Object.entries(row).reduce((acc, [key, value]) => {
+        const mappedKey = excelToJsonKey[key.trim()] ?? key;
+        acc[mappedKey] = value;
+        return acc;
+      }, {});
+    };
+
+    const remappedData = data.map(remapRow);
+    const remappedChangedRecords = changedRecords.map(remapRow);
+
+    if (remappedChangedRecords.length === 0) return remappedData;
+    const existingIds = new Set(remappedData.map((item) => item.id));
+    const newRecords = remappedChangedRecords.filter((record) => !existingIds.has(record.id));
+    return [...newRecords, ...remappedData];
+  }, [data, changedRecords, excelToJsonKey]);
 
   // Columns to hide from the table display (used internally only)
   const HIDDEN_COLUMNS = new Set(["id"]);
@@ -816,15 +847,21 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               (k) => !orderedJsonKeys.includes(k) && !HIDDEN_COLUMNS.has(k),
             )
           : [];
-      return [...sequenced, ...extra];
+      const merged = [...sequenced, ...extra];
+      return merged.sort((a, b) => getColumnGroupIndex(a) - getColumnGroupIndex(b));
     }
-    return combinedData.length > 0
-      ? Object.keys(combinedData[0]).filter((k) => !HIDDEN_COLUMNS.has(k))
-      : [];
-  }, [combinedData, orderedJsonKeys]);
+    if (combinedData.length > 0) {
+      const keys = Object.keys(combinedData[0]).filter((k) => !HIDDEN_COLUMNS.has(k));
+      return keys.sort((a, b) => getColumnGroupIndex(a) - getColumnGroupIndex(b));
+    }
+    return [];
+  }, [combinedData, orderedJsonKeys, getColumnGroupIndex]);
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
+    if (!selectedProcessId || !selectedMaintenanceId) {
+      return [];
+    }
     const selectedProcess = processList.find((p) => p.id === selectedProcessId);
     const selectedMaint = (filterPayload?.maintenance ?? []).find(
       (m) => m.id === selectedMaintenanceId,
@@ -832,11 +869,10 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
     return combinedData.filter((item) => {
       const matchesProc =
-        !selectedProcessId || (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
+        (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
       const matchesMaint =
-        !selectedMaintenanceId ||
-        (item.maintGroup ?? item.보전파트 ?? item.보전그룹) ===
+        (item.maintGroup ?? item.보전파트 ?? item.보전그룹 ?? item.보전유형) ===
           (selectedMaint?.maintenanceGroupName ?? "");
 
       const text = Object.values(item)
@@ -872,6 +908,10 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
     }
     setSelectedIds(new Set(filtered.map((_, i) => i)));
   };
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [selectedProcessId, selectedMaintenanceId, searchText]);
 
   // ── Ref so handleModalConfirm / handleSaveRow can call getFilterData
   //    without a stale closure
@@ -1225,7 +1265,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         </header>
 
         {/* Filters */}
-        <div className="card p-5">
+        <div className="card p-4 mb-4">
           {filterError && (
             <div
               className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
@@ -1236,52 +1276,60 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-5">
-            {/* 공정 (Process) */}
-            <label className="space-y-2 text-sm text-text-subtle">
-              {t("field.process")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedProcessId ?? ""}
-                  onChange={handleProcessChange}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {processList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.processName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* 공정 (Process) */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase text-text-subtle">
+                  {t("field.process")}
+                </label>
+                {filterLoading ? (
+                  <SelectSkeleton width="120px" />
+                ) : (
+                  <select
+                    className="input-base"
+                    value={selectedProcessId ?? ""}
+                    onChange={handleProcessChange}
+                    style={{ width: "120px", marginTop: 0 }}
+                  >
+                    <option value="">{t("app.all")}</option>
+                    {processList.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.processName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
 
-            {/* 보전그룹 */}
-            <label className="space-y-2 text-sm text-text-subtle">
-              {t("field.maintenanceGroup")}
-              {filterLoading ? (
-                <SelectSkeleton />
-              ) : (
-                <select
-                  className="input-base"
-                  value={selectedMaintenanceId ?? ""}
-                  onChange={handleMaintenanceChange}
-                  disabled={maintenanceList.length === 0}
-                >
-                  <option value="">{t("app.all")}</option>
-                  {maintenanceList.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.maintenanceGroupName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+              {/* 보전유형 */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase text-text-subtle">
+                  {t("field.maintenanceType")}
+                </label>
+                {filterLoading ? (
+                  <SelectSkeleton width="140px" />
+                ) : (
+                  <select
+                    className="input-base"
+                    value={selectedMaintenanceId ?? ""}
+                    onChange={handleMaintenanceChange}
+                    disabled={maintenanceList.length === 0}
+                    style={{ width: "140px", marginTop: 0 }}
+                  >
+                    <option value="">{t("app.all")}</option>
+                    {maintenanceList.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.maintenanceGroupName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
 
             {/* Spacer + row count */}
-            <div className="flex w-full items-end items-center justify-end lg:col-span-3">
+            <div className="flex items-center">
               <span className="badge badge-primary">{filtered.length}{t("app.rows")}</span>
             </div>
           </div>
