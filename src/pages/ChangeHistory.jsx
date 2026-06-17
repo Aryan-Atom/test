@@ -6,6 +6,7 @@ import { pocEndPoints } from "../axios/endPoints.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
+import { useI18n } from "../i18n.jsx";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -297,6 +298,7 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
 // UploadPreviewModal
 // ─────────────────────────────────────────────────────────────────────────────
 export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConfirm }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState(() => initialRows ?? []);
   const [editingRowIndex, setEditingRowIndex] = useState(null);
 
@@ -363,12 +365,12 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                 className="text-base font-bold"
                 style={{ color: "var(--color-text-default, #111827)" }}
               >
-                업로드 데이터 미리보기
+                {t("preview.title")}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
-                총 <span className="font-semibold">{rows.length}행</span>
+                {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
-                {detectedColumns.length}개 컬럼 · 연필 아이콘을 눌러 수정하세요
+                {detectedColumns.length}{t("preview.subtitle")}
               </p>
             </div>
           </div>
@@ -381,7 +383,7 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
               (e.currentTarget.style.background = "var(--color-fill-active, #f3f4f6)")
             }
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            aria-label="닫기"
+            aria-label={t("app.close")}
           >
             <i className="fas fa-times text-sm" />
           </button>
@@ -395,7 +397,7 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
               style={{ color: "var(--color-text-subtle, #6b7280)" }}
             >
               <i className="fas fa-inbox text-4xl opacity-30" />
-              <p className="text-sm">데이터가 없습니다.</p>
+              <p className="text-sm">{t("preview.noData")}</p>
             </div>
           ) : (
             <table className="min-w-full text-left text-sm">
@@ -426,7 +428,7 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                       width: "64px",
                     }}
                   >
-                    편집
+                    {t("preview.edit")}
                   </th>
                   {detectedColumns.map((col) => (
                     <th
@@ -438,7 +440,7 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {col}
+                      {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
                     </th>
                   ))}
                 </tr>
@@ -471,17 +473,17 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
         >
           <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
             <i className="fas fa-info-circle mr-1" />
-            행의 연필 아이콘을 눌러 수정 후, 저장 버튼으로 전체 데이터를 저장하세요
+            {t("preview.tip")}
           </p>
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="btn-base btn-secondary">
               <i className="fas fa-times mr-1.5" />
-              취소
+              {t("app.cancel")}
             </button>
             {onConfirm && rows.length > 0 && (
               <button type="button" onClick={handleConfirm} className="btn-base btn-primary">
                 <i className="fas fa-check mr-1.5" />
-                저장 ({rows.length}건)
+                {t("preview.saveCount").replace("{count}", rows.length)}
               </button>
             )}
           </div>
@@ -674,10 +676,49 @@ function EditableRow({
   );
 }
 
+const COLUMN_LABEL_KEYS = {
+  process: "field.process",
+  maintGroup: "field.maintenanceGroup",
+  site: "field.site",
+  representativeWork: "field.repWork",
+  priority: "field.priority",
+  category: "field.category",
+  period: "field.period",
+  work: "field.work",
+  report: "field.report",
+  equipmentCode: "field.equipmentCode",
+  equipmentName: "field.equipmentName",
+  situation: "field.situation",
+  cause: "field.cause",
+  bom: "field.bom",
+  sparePart: "field.sparePart",
+  hwBefore: "field.hwBefore",
+  hwAfter: "field.hwAfter",
+  swBefore: "field.swBefore",
+  swAfter: "field.swAfter",
+  woCode: "field.woCode",
+  workedOn: "field.workedOn",
+  type: "field.type",
+  title: "field.title",
+  author: "field.author",
+  date: "field.date",
+  role: "field.role",
+  management: "field.management",
+  maintId: "field.maintenance",
+  maintGroupName: "field.maintenanceGroup",
+  processName: "field.process",
+  siteName: "field.site",
+  representativeWorkName: "field.repWork",
+  priorityName: "field.priority",
+  categoryName: "field.category",
+  version: "field.version",
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ChangeHistory component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
+  const { t } = useI18n();
   const [selectedProcessId, setSelectedProcessId] = useState(null);
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
   const [filter, setFilter] = useState("");
@@ -865,7 +906,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       setOperationStatus({
         isVisible: true,
         status: "loading",
-        message: "저장 중입니다...",
+        message: t("toast.saving"),
         autoClose: false,
       });
 
@@ -875,7 +916,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({
             isVisible: true,
             status: "success",
-            message: `데이터가 성공적으로 저장되었습니다. (전체 ${changeDataList.length}건)`,
+            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
             autoClose: true,
           });
           onUpload?.("change_rows", payload);
@@ -885,13 +926,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message: "행 저장에 실패했습니다.",
+            message: t("toast.rowSaveError"),
             autoClose: true,
           });
         }
       });
     },
-    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload],
+    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t],
   );
 
   const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
@@ -928,7 +969,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({
             isVisible: true,
             status: "success",
-            message: `${changeDataList.length}개 행이 성공적으로 저장되었습니다.`,
+            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
             autoClose: true,
           });
           onUpload?.("change_rows", payload);
@@ -938,13 +979,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message: "데이터 저장에 실패했습니다.",
+            message: t("toast.saveError"),
             autoClose: true,
           });
         }
       });
     },
-    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload],
+    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t],
   );
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
@@ -973,7 +1014,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${file.name}을(를) 업로드 중입니다...`,
+      message: `${file.name} ${t("toast.uploading")}`,
       autoClose: false,
     });
 
@@ -986,14 +1027,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             setOperationStatus({
               isVisible: true,
               status: "success",
-              message: `${res?.rows?.length || 0}개 행을 성공적으로 로드했습니다.`,
+              message: `${res?.rows?.length || 0} ${t("toast.rowsLoaded")}`,
               autoClose: true,
             });
           } else {
             setOperationStatus({
               isVisible: true,
               status: "error",
-              message: "파일 업로드에 실패했습니다.",
+              message: t("toast.uploadFailed"),
               autoClose: true,
             });
           }
@@ -1013,7 +1054,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       setOperationStatus({
         isVisible: true,
         status: "error",
-        message: "내보낼 레코드가 없습니다.",
+        message: t("toast.noRecordsExport"),
         autoClose: true,
       });
       return;
@@ -1023,7 +1064,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${rowsToExport.length}개 행을 내보내는 중입니다...`,
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
 
@@ -1047,7 +1088,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${rowsToExport.length}개 행이 성공적으로 내보내졌습니다.`,
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
       });
@@ -1056,7 +1097,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       setOperationStatus({
         isVisible: true,
         status: "error",
-        message: "파일 내보내기에 실패했습니다.",
+        message: t("toast.exportFailed"),
         autoClose: true,
       });
     } finally {
@@ -1110,14 +1151,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setFilterPayload({ process: [], maintenance: [] });
           setChangedRecords([]);
           setChangedDataId(0);
-          setFilterError("필터 데이터를 불러올 수 없습니다.");
+          setFilterError(t("toast.filterLoadError"));
         }
       } catch (error) {
         console.error("[ChangeHistory] Error processing filter data:", error);
         setFilterPayload({ process: [], maintenance: [] });
         setChangedRecords([]);
         setChangedDataId(0);
-        setFilterError("필터 데이터 처리 중 오류가 발생했습니다.");
+        setFilterError(t("toast.filterError"));
       }
     });
   }, []);
@@ -1158,9 +1199,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-text-default">변경 이력 데이터</h1>
+            <h1 className="text-3xl font-extrabold text-text-default">{t("page.change.title")}</h1>
             <p className="mt-2 text-sm text-text-subtle">
-              설비 변경 이력 데이터를 관리합니다. 변경 매트릭스 및 MP List용 데이터를 다룹니다.
+              {t("page.change.desc")}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -1171,7 +1212,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               busyLabel="Loading CSV..."
               icon="fas fa-file-import"
             >
-              CSV 불러오기
+              {t("app.importCsv")}
             </AnimatedActionButton>
             <input
               ref={fileInput}
@@ -1187,7 +1228,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               busyLabel="Exporting..."
               icon="fas fa-file-export"
             >
-              {selectedIds.size > 0 ? `CSV 내보내기 (${selectedIds.size}건 선택)` : "CSV 내보내기"}
+              {selectedIds.size > 0 ? `${t("app.exportCsv")} (${selectedIds.size}${t("app.rows")})` : t("app.exportCsv")}
             </AnimatedActionButton>
           </div>
         </header>
@@ -1205,7 +1246,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
           <div className="grid gap-4 lg:grid-cols-5">
             <label className="space-y-2 text-sm text-text-subtle">
-              공정
+              {t("field.process")}
               {filterLoading ? (
                 <SelectSkeleton />
               ) : (
@@ -1214,7 +1255,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   value={selectedProcessId ?? ""}
                   onChange={handleProcessChange}
                 >
-                  <option value="">전체</option>
+                  <option value="">{t("app.all")}</option>
                   {processList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.processName}
@@ -1225,7 +1266,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </label>
 
             <label className="space-y-2 text-sm text-text-subtle">
-              보전그룹
+              {t("field.maintenanceGroup")}
               {filterLoading ? (
                 <SelectSkeleton />
               ) : (
@@ -1235,7 +1276,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   onChange={handleMaintenanceChange}
                   disabled={maintenanceList.length === 0}
                 >
-                  <option value="">전체</option>
+                  <option value="">{t("app.all")}</option>
                   {maintenanceList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.maintenanceGroupName}
@@ -1246,17 +1287,17 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </label>
 
             <label className="space-y-2 text-sm text-text-subtle lg:col-span-2">
-              검색
+              {t("app.search")}
               <input
                 className="input-base"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="설비명, 작업명, 문제 상황..."
+                placeholder={t("app.search")}
               />
             </label>
 
             <div className="flex w-full items-end items-center justify-end gap-3">
-              <span className="badge badge-primary">{filtered.length}건</span>
+              <span className="badge badge-primary">{filtered.length}{t("app.rows")}</span>
             </div>
           </div>
         </div>
@@ -1269,9 +1310,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 <i className="fas fa-history" />
               </div>
               <h2 className="text-xl font-bold text-text-default">
-                조건에 맞는 데이터가 없습니다.
+                {t("empty.noMatch")}
               </h2>
-              <p>공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.</p>
+              <p>{t("empty.hint")}</p>
             </div>
           ) : (
             <div className="overflow-auto" style={{ height: "calc(100vh - 39vh)" }}>
@@ -1289,11 +1330,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                       className="px-3 py-3 text-text-subtle whitespace-nowrap"
                       style={{ fontSize: "11px", fontWeight: 600, width: "72px" }}
                     >
-                      편집
+                      {t("app.edit")}
                     </th>
                     {dynamicColumns.map((col) => (
                       <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
-                        {col}
+                        {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
                       </th>
                     ))}
                   </tr>

@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import "./OperationStatus.css";
+import { useI18n } from "../i18n.jsx";
 
 export function OperationStatus({
   isVisible = false,
   status = "loading", // loading, success, error
-  message = "처리 중입니다...",
+  message,
   onClose = null,
   autoClose = true, // Only auto-close for success/error, not for loading
 }) {
+  const { t } = useI18n();
   const [show, setShow] = useState(isVisible);
+  const displayMessage = message || t("toast.saving");
 
   useEffect(() => {
     setShow(isVisible);
@@ -63,13 +66,13 @@ export function OperationStatus({
     <div className={`operation-status ${status} ${config.bgColor} ${config.borderColor}`}>
       <div className="operation-status-content">
         <i className={`${config.icon} ${config.textColor} operation-status-icon`} />
-        <span className={config.textColor}>{message}</span>
+        <span className={config.textColor}>{displayMessage}</span>
       </div>
       <button
         className="operation-status-close"
         onClick={handleClose}
-        aria-label="닫기"
-        title="닫기"
+        aria-label={t("app.close")}
+        title={t("app.close")}
       >
         <i className="fas fa-times" />
       </button>

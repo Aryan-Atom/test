@@ -519,7 +519,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
             priority: [],
             category: [],
           });
-          setFilterError("필터 데이터를 불러올 수 없습니다.");
+          setFilterError(t("toast.filterLoadError", "필터 데이터를 불러올 수 없습니다."));
           setApiRows([]);
         }
       } catch (error) {
@@ -532,7 +532,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
           priority: [],
           category: [],
         });
-        setFilterError("데이터 처리 중 오류가 발생했습니다.");
+        setFilterError(t("toast.filterError", "데이터 처리 중 오류가 발생했습니다."));
         setApiRows([]);
       } finally {
         setDataLoading(false);
@@ -683,7 +683,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
       setOperationStatus({
         isVisible: true,
         status: "error",
-        message: "저장할 새 행이 없습니다.",
+        message: t("toast.noNewRows", "저장할 새 행이 없습니다."),
         autoClose: true,
       });
       return;
@@ -693,7 +693,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: "저장 중입니다...",
+      message: t("toast.saving", "저장 중입니다..."),
       autoClose: false,
     });
 
@@ -713,7 +713,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${changeDataList.length}개 행이 성공적으로 저장되었습니다.`,
+          message: `${changeDataList.length} ${t("toast.rowsSavedSuccess", "개 행이 성공적으로 저장되었습니다.")}`,
           autoClose: true,
         });
       } else {
@@ -721,12 +721,12 @@ export default function MPList({ onAddRow, onExport, searchText }) {
         setOperationStatus({
           isVisible: true,
           status: "error",
-          message: "저장에 실패했습니다.",
+          message: t("toast.saveError", "저장에 실패했습니다."),
           autoClose: true,
         });
       }
     });
-  }, [pendingRows, fetchData]);
+  }, [pendingRows, fetchData, t]);
 
   // ── Export filtered view ──────────────────────────────────────────────────
   const handleExport = () => {
@@ -734,7 +734,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
       setOperationStatus({
         isVisible: true,
         status: "error",
-        message: "내보낼 데이터가 없습니다.",
+        message: t("toast.noRecordsExport", "내보낼 데이터가 없습니다."),
         autoClose: true,
       });
       return;
@@ -756,7 +756,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
       setOperationStatus({
         isVisible: true,
         status: "success",
-        message: `${filtered.length}개 행 내보내기 완료.`,
+        message: `${filtered.length} ${t("toast.exportSuccess", "개 행 내보내기 완료.")}`,
         autoClose: true,
       });
       onExport?.();
@@ -765,7 +765,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
       setOperationStatus({
         isVisible: true,
         status: "error",
-        message: "내보내기에 실패했습니다.",
+        message: t("toast.exportFailed", "내보내기에 실패했습니다."),
         autoClose: true,
       });
     }
@@ -1356,7 +1356,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
                 className="text-xs font-bold uppercase tracking-wider mb-1.5"
                 style={{ color: "var(--color-text-subtle, #6b7280)" }}
               >
-                공정
+                {t("field.process", "공정")}
               </p>
               <div
                 style={{
@@ -1378,7 +1378,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
                 className="text-xs font-bold uppercase tracking-wider mb-1.5"
                 style={{ color: "var(--color-text-subtle, #6b7280)" }}
               >
-                보전파트
+                {t("field.maintenance", "보전파트")}
               </p>
               <div
                 style={{
@@ -1427,7 +1427,7 @@ export default function MPList({ onAddRow, onExport, searchText }) {
               className="input-base"
               value={newRow.work}
               onChange={(e) => setField("work", e.target.value)}
-              placeholder="작업의 목적을 입력하세요"
+              placeholder={t("placeholder.workPurpose", "작업의 목적을 입력하세요")}
             />
           </label>
 

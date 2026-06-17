@@ -216,7 +216,7 @@ export default function Matrix({ onOpenDetail }) {
     return (
       <section className="space-y-6">
         <div className="flex min-h-[240px] items-center justify-center text-text-subtle">
-          <i className="fas fa-spinner fa-spin mr-2" /> 데이터를 불러오는 중...
+          <i className="fas fa-spinner fa-spin mr-2" /> {t("app.loadingData", "데이터를 불러오는 중...")}
         </div>
       </section>
     );
@@ -226,9 +226,9 @@ export default function Matrix({ onOpenDetail }) {
     <section className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-text-default">변경 매트릭스</h1>
+          <h1 className="text-3xl font-extrabold text-text-default">{t("page.matrix.title", "변경 매트릭스")}</h1>
           <p className="mt-2 text-sm text-text-subtle">
-            공정과 작업별 변경 이력을 시각적으로 분석합니다.
+            {t("page.matrix.desc", "공정과 작업별 변경 이력을 시각적으로 분석합니다.")}
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-2xl bg-surface-strong p-2">
@@ -239,7 +239,7 @@ export default function Matrix({ onOpenDetail }) {
             }`}
             onClick={() => setMode("date")}
           >
-            날짜 모드
+            {t("matrix.dateMode", "날짜 모드")}
           </button>
           <button
             type="button"
@@ -248,7 +248,7 @@ export default function Matrix({ onOpenDetail }) {
             }`}
             onClick={() => setMode("task")}
           >
-            작업명 모드
+            {t("matrix.taskMode", "작업명 모드")}
           </button>
         </div>
       </header>
@@ -256,13 +256,13 @@ export default function Matrix({ onOpenDetail }) {
       <div className="card p-5">
         <div className="grid gap-4 xl:grid-cols-4">
           <label className="space-y-2 text-sm text-text-subtle">
-            공정
+            {t("field.process", "공정")}
             <select
               className="input-base"
               value={procId}
               onChange={(e) => handleProcChange(e.target.value)}
             >
-              <option value="전체">전체</option>
+              <option value="전체">{t("app.all", "전체")}</option>
               {processes.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.processName}
@@ -272,13 +272,13 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            보전파트
+            {t("field.maintenance", "보전파트")}
             <select
               className="input-base"
               value={maintId}
               onChange={(e) => setMaintId(e.target.value)}
             >
-              <option value="전체">전체</option>
+              <option value="전체">{t("app.all", "전체")}</option>
               {maintenanceGroups.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.maintenanceGroupName}
@@ -288,13 +288,13 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            법인
+            {t("field.site", "법인")}
             <select
               className="input-base"
               value={siteId}
               onChange={(e) => setSiteId(e.target.value)}
             >
-              <option value="전체">전체</option>
+              <option value="전체">{t("app.all", "전체")}</option>
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.siteName}
@@ -304,13 +304,13 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            중요도
+            {t("field.priority", "중요도")}
             <select
               className="input-base"
               value={priorityId}
               onChange={(e) => setPriorityId(e.target.value)}
             >
-              <option value="전체">전체</option>
+              <option value="전체">{t("app.all", "전체")}</option>
               {priorities.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.priorityName}
@@ -322,13 +322,13 @@ export default function Matrix({ onOpenDetail }) {
 
         <div className="mt-4 grid gap-4 xl:grid-cols-4">
           <label className="space-y-2 text-sm text-text-subtle">
-            효과 유형
+            {t("field.category", "효과 유형")}
             <select
               className="input-base"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
-              <option value="전체">전체</option>
+              <option value="전체">{t("app.all", "전체")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.categoryName}
@@ -338,7 +338,7 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            시작일
+            {t("field.startDate", "시작일")}
             <input
               type="date"
               className="input-base"
@@ -348,7 +348,7 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            종료일
+            {t("field.endDate", "종료일")}
             <input
               type="date"
               className="input-base"
@@ -358,13 +358,13 @@ export default function Matrix({ onOpenDetail }) {
           </label>
 
           <label className="space-y-2 text-sm text-text-subtle">
-            대표 작업명
+            {t("field.repWork", "대표 작업명")}
             <select
               className="input-base"
               value={repWorkId}
               onChange={(e) => setRepWorkId(e.target.value)}
             >
-              <option value="전체">전체 ({representations.length} items)</option>
+              <option value="전체">{t("app.all", "전체")} ({representations.length} {t("app.rows", "건")})</option>
               {representations.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.representativeWorkName}
@@ -382,7 +382,7 @@ export default function Matrix({ onOpenDetail }) {
               onClick={handleResetDates}
             >
               <i className="fas fa-times mr-1" />
-              날짜 초기화
+              {t("matrix.resetDate", "날짜 초기화")}
             </button>
           </div>
         )}
@@ -395,9 +395,9 @@ export default function Matrix({ onOpenDetail }) {
               <i className="fas fa-layer-group" />
             </div>
             <h2 className="text-xl font-bold text-text-default">
-              해당 조건에 맞는 데이터가 없습니다.
+              {t("matrix.noData", "해당 조건에 맞는 데이터가 없습니다.")}
             </h2>
-            <p>필터를 조정하거나 추가 데이터를 확인하세요.</p>
+            <p>{t("matrix.adjustFilter", "필터를 조정하거나 추가 데이터를 확인하세요.")}</p>
           </div>
         ) : (
           <div className="overflow-auto " style={{ height: "calc(100vh - 445px)" }}>
@@ -405,10 +405,10 @@ export default function Matrix({ onOpenDetail }) {
               <thead>
                 <tr className="border-b border-border-base">
                   <th className="sticky left-0 z-10 bg-surface-strong px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-subtle">
-                    Equipment Code
+                    {t("field.equipmentCode", "Equipment Code")}
                   </th>
                   <th className="sticky left-[140px] z-10 bg-surface-strong px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-subtle">
-                    Equipment Name
+                    {t("field.equipmentName", "Equipment Name")}
                   </th>
                   {columns.map((col) => (
                     <th

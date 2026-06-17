@@ -3,6 +3,14 @@ import Modal from "../components/Modal.jsx";
 import { boardCategories } from "../data.js";
 import { useI18n } from "../i18n.jsx";
 
+const CATEGORY_KEYS = {
+  "FAQ": "board.faq",
+  "Q&A": "board.qna",
+  "제안": "board.suggestion",
+  "공지": "board.notice",
+  "전체": "app.all"
+};
+
 export default function Board({ data, onAddPost, searchText }) {
   const { t } = useI18n();
   const [category, setCategory] = useState("전체");
@@ -65,7 +73,7 @@ export default function Board({ data, onAddPost, searchText }) {
                 }
               />
             </div>
-            <p className="font-bold text-text-default">{item}</p>
+            <p className="font-bold text-text-default">{t(CATEGORY_KEYS[item] ?? item)}</p>
           </button>
         ))}
       </div>
@@ -83,7 +91,7 @@ export default function Board({ data, onAddPost, searchText }) {
           <tbody>
             {filtered.map((post, index) => (
               <tr key={`${post.title}-${index}`} className="border-t border-border-base hover:bg-fill-active">
-                <td className="px-4 py-4 text-text-subtle">{post.type}</td>
+                <td className="px-4 py-4 text-text-subtle">{t(CATEGORY_KEYS[post.type] ?? post.type)}</td>
                 <td className="px-4 py-4 text-text-default">{post.title}</td>
                 <td className="px-4 py-4 text-text-subtle">{post.author}</td>
                 <td className="px-4 py-4 text-text-subtle">{post.date}</td>
@@ -114,7 +122,7 @@ export default function Board({ data, onAddPost, searchText }) {
             >
               {boardCategories.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {t(CATEGORY_KEYS[item] ?? item)}
                 </option>
               ))}
             </select>
@@ -132,7 +140,7 @@ export default function Board({ data, onAddPost, searchText }) {
             />
           </label>
           <label className="space-y-2 text-sm text-text-subtle">
-            {t("app.none")}
+            {t("field.content")}
             <textarea
               className="input-base min-h-[160px] resize-none"
               value={form.content}

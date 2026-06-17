@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { APIcallGet } from "../axios/apiCall.js";
+import { useI18n } from "../i18n.jsx";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton
@@ -24,6 +25,7 @@ function SelectSkeleton() {
 // Change indicator helpers (VIEW2)
 // ─────────────────────────────────────────────────────────────────────────────
 function ChangeIndicator({ curr, prev }) {
+  const { t } = useI18n();
   if (prev == null) return null; // first version — no comparison
 
   const currNum = parseFloat(curr);
@@ -35,7 +37,7 @@ function ChangeIndicator({ curr, prev }) {
       return (
         <span
           style={{ color: "#16a34a", fontSize: "10px", marginLeft: "3px", fontWeight: 700 }}
-          title="이전 대비 증가"
+          title={t("specMatrix.inc", "이전 대비 증가")}
         >
           ▲
         </span>
@@ -44,7 +46,7 @@ function ChangeIndicator({ curr, prev }) {
       return (
         <span
           style={{ color: "#dc2626", fontSize: "10px", marginLeft: "3px", fontWeight: 700 }}
-          title="이전 대비 감소"
+          title={t("specMatrix.dec", "이전 대비 감소")}
         >
           ▼
         </span>
@@ -65,7 +67,7 @@ function ChangeIndicator({ curr, prev }) {
           marginLeft: "4px",
           verticalAlign: "middle",
         }}
-        title="이전 버전에서 변경됨"
+        title={t("specMatrix.mod", "이전 버전에서 변경됨")}
       />
     );
 
@@ -78,6 +80,7 @@ function ChangeIndicator({ curr, prev }) {
 // Spec items become dynamic columns
 // ─────────────────────────────────────────────────────────────────────────────
 function View1Table({ rows }) {
+  const { t } = useI18n();
   // Collect all unique spec item names (column headers)
   const specCols = useMemo(() => {
     const set = new Set();
@@ -103,6 +106,12 @@ function View1Table({ rows }) {
     return [...map.values()];
   }, [rows]);
 
+  const headerMap = {
+    "설비ID": "field.equipmentId",
+    "설비명": "field.equipmentName",
+    "사양버전": "field.specVersion"
+  };
+
   if (pivoted.length === 0) return null;
 
   return (
@@ -126,7 +135,7 @@ function View1Table({ rows }) {
                   borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
                 }}
               >
-                {col}
+                {headerMap[col] ? t(headerMap[col], col) : col}
               </th>
             ))}
           </tr>
@@ -250,6 +259,7 @@ function View2Table({ rows, changedOnly }) {
 // Main SpecMatrix component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SpecMatrix({ searchText }) {
+  const { t } = useI18n();
   const [view, setView] = useState("view1");
   const [filterPayload, setFilterPayload] = useState(null);
   const [filterError, setFilterError] = useState(null);
@@ -292,13 +302,13 @@ export default function SpecMatrix({ searchText }) {
         } else {
           setFilterPayload({ process: [], maintenance: [] });
           setSpecRows([]);
-          setFilterError("필터 데이터를 불러올 수 없습니다.");
+          setFilterError(t("toast.filterLoadError", "필터 데이터를 불러올 수 없습니다."));
         }
       } catch (err) {
         console.error("[SpecMatrix] Error processing data:", err);
         setFilterPayload({ process: [], maintenance: [] });
         setSpecRows([]);
-        setFilterError("데이터 처리 중 오류가 발생했습니다.");
+        setFilterError(t("toast.filterError", "데이터 처리 중 오류가 발생했습니다."));
       }
     });
   }, []);
@@ -414,9 +424,9 @@ export default function SpecMatrix({ searchText }) {
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-text-default">사양 매트릭스</h1>
+            <h1 className="text-3xl font-extrabold text-text-default">{t("page.specMatrix.title", "사양 매트릭스")}</h1>
             <p className="mt-2 text-sm text-text-subtle">
-              설비별 사양 항목과 버전 간 비교를 확인합니다.
+              {t("page.specMatrix.desc", "설비별 사양 항목과 버전 간 비교를 확인합니다.")}
             </p>
           </div>
 
@@ -432,14 +442,14 @@ export default function SpecMatrix({ searchText }) {
               className={`spec-tab-btn ${view === "view1" ? "active" : ""}`}
               onClick={() => setView("view1")}
             >
-              장비별 사양 (VIEW1)
+              {t("specMatrix.view1", "장비별 사양 (VIEW1)")}
             </button>
             <button
               type="button"
               className={`spec-tab-btn ${view === "view2" ? "active" : ""}`}
               onClick={() => setView("view2")}
             >
-              버전별 비교 (VIEW2)
+              {t("specMatrix.view2", "버전별 비교 (VIEW2)")}
             </button>
           </div>
         </header>
@@ -459,7 +469,7 @@ export default function SpecMatrix({ searchText }) {
           <div className="flex flex-wrap items-end gap-4">
             {/* 공정 */}
             <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-              공정
+              {t("field.process", "공정")}
               {filterLoading ? (
                 <SelectSkeleton />
               ) : (
@@ -469,7 +479,7 @@ export default function SpecMatrix({ searchText }) {
                   value={selectedProcessId ?? ""}
                   onChange={handleProcessChange}
                 >
-                  <option value="">전체</option>
+                  <option value="">{t("app.all", "전체")}</option>
                   {processList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.processName}
@@ -481,7 +491,7 @@ export default function SpecMatrix({ searchText }) {
 
             {/* 보전유형 */}
             <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-              보전유형
+              {t("field.maintenanceGroup", "보전유형")}
               {filterLoading ? (
                 <SelectSkeleton />
               ) : (
@@ -492,7 +502,7 @@ export default function SpecMatrix({ searchText }) {
                   onChange={handleTypeChange}
                   disabled={maintenanceList.length === 0}
                 >
-                  <option value="">전체</option>
+                  <option value="">{t("app.all", "전체")}</option>
                   {maintenanceList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.maintenanceGroupName}
@@ -505,7 +515,7 @@ export default function SpecMatrix({ searchText }) {
             {/* 버전 — hidden in VIEW2 since versions become columns */}
             {view === "view1" && (
               <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-                버전
+                {t("field.version", "버전")}
                 {filterLoading ? (
                   <SelectSkeleton />
                 ) : (
@@ -517,7 +527,7 @@ export default function SpecMatrix({ searchText }) {
                   >
                     {versionList.map((v) => (
                       <option key={v} value={v}>
-                        {v}
+                        {v === "전체" ? t("app.all", "전체") : v}
                       </option>
                     ))}
                   </select>
@@ -528,7 +538,7 @@ export default function SpecMatrix({ searchText }) {
             {/* 변경 항목만 toggle — VIEW2 only */}
             {view === "view2" && (
               <label className="space-y-1.5 text-xs font-bold uppercase text-text-subtle">
-                변경 항목만
+                {t("specMatrix.changesOnly", "변경 항목만")}
                 <div style={{ paddingTop: "4px" }}>
                   <button
                     type="button"
@@ -569,7 +579,7 @@ export default function SpecMatrix({ searchText }) {
 
             {/* Badges */}
             <div className="ml-auto flex items-end gap-2 pb-0.5">
-              <span className="badge badge-primary">{totalCount}건</span>
+              <span className="badge badge-primary">{totalCount}{t("app.rows", "건")}</span>
               {view === "view2" && changedCount > 0 && (
                 <span
                   style={{
@@ -583,7 +593,7 @@ export default function SpecMatrix({ searchText }) {
                     color: "#dc2626",
                   }}
                 >
-                  {changedCount} 변경
+                  {changedCount} {t("specMatrix.changed", "변경")}
                 </span>
               )}
             </div>
@@ -615,6 +625,7 @@ export default function SpecMatrix({ searchText }) {
 // VIEW2 render component (separate from the hook-like helper above)
 // ─────────────────────────────────────────────────────────────────────────────
 function View2TableRender({ rows, versions }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 42vh)" }}>
       <table className="min-w-full text-left text-sm">
@@ -636,7 +647,7 @@ function View2TableRender({ rows, versions }) {
                 minWidth: "120px",
               }}
             >
-              사양항목
+              {t("field.specName", "사양항목")}
             </th>
             {versions.map((ver) => (
               <th
@@ -707,13 +718,14 @@ function View2TableRender({ rows, versions }) {
 // EmptyState
 // ─────────────────────────────────────────────────────────────────────────────
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
         <i className="fas fa-microscope" />
       </div>
-      <h2 className="text-xl font-bold text-text-default">공정 및 보전유형을 선택하세요</h2>
-      <p>상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.</p>
+      <h2 className="text-xl font-bold text-text-default">{t("specMatrix.emptyTitle", "공정 및 보전유형을 선택하세요")}</h2>
+      <p>{t("specMatrix.emptyDesc", "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.")}</p>
     </div>
   );
 }

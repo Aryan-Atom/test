@@ -13,6 +13,8 @@ import Admin from "./Admin.jsx";
 import { useToast } from "../components/ToastContext.jsx";
 import { uploadExcel, APIcallGet } from "../utils/api.js";
 import { changeColumns, specColumns, mpColumns } from "../data.js";
+import { useI18n } from "../i18n.jsx";
+
 
 const pageNames = {
   "dm-change": "데이터 관리 > 변경 이력",
@@ -105,6 +107,7 @@ export default function Dashboard() {
   );
   const [theme, setTheme] = useState(() => localStorage.getItem("eq_theme") || "light");
   const { pushToast } = useToast();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (location.pathname === "/dashboard") {
@@ -154,18 +157,18 @@ export default function Dashboard() {
       const text = await file.text();
       const parsed = parseCsv(text);
       if (!parsed.length) {
-        pushToast("CSV 파일을 읽을 수 없습니다.", "error");
+        pushToast(t("toast.csvReadError"), "error");
         return;
       }
       if (type === "change") {
         setChangeData(parsed);
         setPersistChange(false);
-        pushToast("변경 이력 데이터가 업로드되었습니다.", "success");
+        pushToast(t("toast.changeHistoryUploaded"), "success");
       }
       if (type === "spec") {
         setSpecData(parsed);
         setPersistSpec(false);
-        pushToast("사양 데이터가 업로드되었습니다.", "success");
+        pushToast(t("toast.specDataUploaded"), "success");
       }
       return;
     }
@@ -175,27 +178,27 @@ export default function Dashboard() {
         const uploadResponse = await uploadExcel(file);
         const rows = Array.isArray(uploadResponse?.rows) ? uploadResponse.rows : [];
         if (!rows.length) {
-          pushToast("엑셀 업로드 후 rows가 없습니다.", "error");
+          pushToast(t("toast.excelEmptyRows"), "error");
           return;
         }
 
         if (type === "change") {
           setChangeData(rows);
           setPersistChange(false);
-          pushToast("변경 이력 데이터가 업로드되었습니다.", "success");
+          pushToast(t("toast.changeHistoryUploaded"), "success");
         }
         if (type === "spec") {
           setSpecData(rows);
           setPersistSpec(false);
-          pushToast("사양 데이터가 업로드되었습니다.", "success");
+          pushToast(t("toast.specDataUploaded"), "success");
         }
       } catch (err) {
-        pushToast("엑셀 업로드 중 오류가 발생했습니다.", "error");
+        pushToast(t("toast.excelError"), "error");
       }
       return;
     }
 
-    pushToast("지원되지 않는 파일 형식입니다. CSV 또는 XLSX만 지원합니다.", "error");
+    pushToast(t("toast.unsupportedFormat"), "error");
   };
 
   const exportCsv = (type) => {
@@ -221,17 +224,17 @@ export default function Dashboard() {
 
   const addBoardPost = (post) => {
     setBoardData((prev) => [post, ...prev]);
-    pushToast("게시글이 저장되었습니다.", "success");
+    pushToast(t("toast.postSaved"), "success");
   };
 
   const addMpRow = (row) => {
     setMpRows((prev) => [row, ...prev]);
-    pushToast("MP List 행이 추가되었습니다.", "success");
+    pushToast(t("toast.mpRowAdded"), "success");
   };
 
   const updateUsers = (updated) => {
     setUsers(updated);
-    pushToast("사용자 권한 정보가 저장되었습니다.", "success");
+    pushToast(t("toast.permissionsSaved"), "success");
   };
 
   const handleNavigate = (pageId) => {
