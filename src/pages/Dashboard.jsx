@@ -149,6 +149,12 @@ export default function Dashboard() {
   }, [sidebarCollapsed]);
 
   const handleUpload = async (type, file) => {
+    if (type === "change_rows") {
+      if (Array.isArray(file?.changeDataList)) {
+        setChangeData(file.changeDataList);
+      }
+      return;
+    }
     if (!file) return;
     const name = file.name || "";
     const ext = name.split(".").pop().toLowerCase();
@@ -281,6 +287,7 @@ export default function Dashboard() {
                 searchText={searchText}
                 onOpenDetail={setDrawerItem}
                 changeDataColumns={changeDataColumns}
+                onUpload={handleUpload}
               />
             )}
             {activePage === "mx-mplist" && (
@@ -289,6 +296,9 @@ export default function Dashboard() {
                 onAddRow={addMpRow}
                 onExport={() => exportCsv("mp")}
                 searchText={searchText}
+                onOpenDetail={setDrawerItem}
+                drawerItem={drawerItem}
+                onUpload={handleUpload}
               />
             )}
             {activePage === "spec" && <SpecMatrix data={specData} searchText={searchText} />}

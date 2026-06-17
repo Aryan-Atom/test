@@ -2,6 +2,32 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { APIcallGet } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
+import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { specFilterDataAndTableData } from "./static-data/SpecData.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Version Sort Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const vkey = (v) => {
+  const s = String(v).replace(/^V/i, "");
+  if (s.includes("-")) {
+    const p = s.split("-");
+    const bp = p[0].split(".");
+    return [
+      parseInt(bp[0]) || 0,
+      bp.length > 1 ? parseInt(bp[1]) : 0,
+      parseInt(p[1]) || 0,
+    ];
+  }
+  const p = s.split(".");
+  return [parseInt(p[0]) || 0, p.length > 1 ? parseInt(p[1]) : 0, 0];
+};
+
+const vsort = (a, b) => {
+  const ka = vkey(a);
+  const kb = vkey(b);
+  return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2];
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton
@@ -27,17 +53,17 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function ChangeIndicator({ curr, prev }) {
   const { t } = useI18n();
-  if (prev == null) return null; // first version — no comparison
+  if (prev == null || prev === "") return null; // first version — no comparison
 
-  const currNum = parseFloat(curr);
-  const prevNum = parseFloat(prev);
+  const currNum = parseFloat(String(curr).replace(/,/g, ""));
+  const prevNum = parseFloat(String(prev).replace(/,/g, ""));
 
   // Numeric comparison
   if (!isNaN(currNum) && !isNaN(prevNum)) {
     if (currNum > prevNum)
       return (
         <span
-          style={{ color: "#16a34a", fontSize: "10px", marginLeft: "3px", fontWeight: 700 }}
+          className="text-[#16a34a] font-bold text-[10px] ml-1 select-none"
           title={t("specMatrix.inc", "이전 대비 증가")}
         >
           ▲
@@ -46,7 +72,7 @@ function ChangeIndicator({ curr, prev }) {
     if (currNum < prevNum)
       return (
         <span
-          style={{ color: "#dc2626", fontSize: "10px", marginLeft: "3px", fontWeight: 700 }}
+          className="text-[#dc2626] font-bold text-[10px] ml-1 select-none"
           title={t("specMatrix.dec", "이전 대비 감소")}
         >
           ▼
@@ -59,15 +85,7 @@ function ChangeIndicator({ curr, prev }) {
   if (String(curr) !== String(prev))
     return (
       <span
-        style={{
-          display: "inline-block",
-          width: "6px",
-          height: "6px",
-          borderRadius: "50%",
-          background: "#f59e0b",
-          marginLeft: "4px",
-          verticalAlign: "middle",
-        }}
+        className="inline-block w-[5px] h-[5px] rounded-full bg-[#ef4444] ml-1 align-middle animate-pulse"
         title={t("specMatrix.mod", "이전 버전에서 변경됨")}
       />
     );
@@ -77,18 +95,17 @@ function ChangeIndicator({ curr, prev }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VIEW1 — Equipment rows × spec columns
-// Each unique (설비코드, 설비명, 버전) → one row
-// Spec items become dynamic columns
 // ─────────────────────────────────────────────────────────────────────────────
 function View1Table({ rows }) {
   const { t } = useI18n();
+  
   // Collect all unique spec item names (column headers)
   const specCols = useMemo(() => {
     const set = new Set();
     rows.forEach((r) => {
       if (r.specName ?? r.사양항목) set.add(r.specName ?? r.사양항목);
     });
-    return [...set];
+    return [...set].sort();
   }, [rows]);
 
   // Pivot: group by (equipmentCode, equipmentName, version) → map of specName→value
@@ -104,7 +121,11 @@ function View1Table({ rows }) {
       const specVal = r.specValue ?? r.사양값 ?? "";
       map.get(key).specs[specName] = specVal;
     });
-    return [...map.values()];
+    return [...map.values()].sort((a, b) => 
+      a.eqName.localeCompare(b.eqName) || 
+      a.eqCode.localeCompare(b.eqCode) || 
+      vsort(a.ver, b.ver)
+    );
   }, [rows]);
 
   const headerMap = {
@@ -116,25 +137,14 @@ function View1Table({ rows }) {
   if (pivoted.length === 0) return null;
 
   return (
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 42vh)" }}>
-      <table className="min-w-full text-left text-sm">
-        <thead
-          style={{
-            background: "var(--color-surface-raised, #f9fafb)",
-            position: "sticky",
-            top: 0,
-            zIndex: 1,
-          }}
-        >
+    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+      <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+        <thead className="sticky top-0 z-10 bg-[#f8fafc]">
           <tr>
             {["설비ID", "설비명", "사양버전", ...specCols].map((col) => (
               <th
                 key={col}
-                className="px-4 py-3 text-xs font-semibold tracking-wide whitespace-nowrap"
-                style={{
-                  color: "var(--color-text-subtle, #6b7280)",
-                  borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                }}
+                className="px-4 py-3 text-xs font-bold text-[#475569] uppercase tracking-wider border-b-2 border-[#e2e8f0] whitespace-nowrap"
               >
                 {headerMap[col] ? t(headerMap[col], col) : col}
               </th>
@@ -145,52 +155,23 @@ function View1Table({ rows }) {
           {pivoted.map((row, idx) => (
             <tr
               key={`${row.eqCode}-${row.ver}-${idx}`}
-              style={{
-                borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                background:
-                  idx % 2 === 0
-                    ? "var(--color-surface-default, #fff)"
-                    : "var(--color-surface-raised, #f9fafb)",
-              }}
+              className="border-b border-[#e2e8f0] last:border-0 hover:bg-[#f1f5f9] transition-colors"
             >
-              <td
-                className="px-4 py-3 font-bold whitespace-nowrap"
-                style={{ color: "var(--color-text-default, #111827)" }}
-              >
+              <td className="px-4 py-3 font-bold text-[#1e293b] whitespace-nowrap">
                 {row.eqCode || "—"}
               </td>
-              <td
-                className="px-4 py-3 font-bold whitespace-nowrap"
-                style={{ color: "var(--color-text-default, #111827)" }}
-              >
+              <td className="px-4 py-3 font-bold text-[#1e293b] whitespace-nowrap">
                 {row.eqName || "—"}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap">
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "2px 10px",
-                    borderRadius: "9999px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    background: "var(--color-brand-10, #eff6ff)",
-                    color: "var(--color-brand-60, #2563eb)",
-                  }}
-                >
+              <td className="px-4 py-3 whitespace-nowrap align-middle">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#eff6ff] text-[#4f46e5]">
                   {row.ver || "—"}
                 </span>
               </td>
               {specCols.map((col) => (
                 <td
                   key={col}
-                  className="px-4 py-3 whitespace-nowrap"
-                  style={{
-                    color: "var(--color-text-subtle, #6b7280)",
-                    maxWidth: "160px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
+                  className="px-4 py-3 text-[#475569] whitespace-nowrap max-w-[160px] overflow-hidden text-overflow-ellipsis"
                   title={String(row.specs[col] ?? "")}
                 >
                   {row.specs[col] ?? "—"}
@@ -205,15 +186,14 @@ function View1Table({ rows }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VIEW2 — Spec items as rows × versions as columns with change indicators
-// Groups by (equipmentCode, specName) — versions become column headers
+// VIEW2 — Spec items as rows × versions as columns
 // ─────────────────────────────────────────────────────────────────────────────
 function View2Table({ rows, changedOnly }) {
   // Collect sorted unique versions
   const versions = useMemo(() => {
     const set = new Set();
     rows.forEach((r) => set.add(r.version ?? r.버전 ?? ""));
-    return [...set].sort();
+    return [...set].sort(vsort);
   }, [rows]);
 
   // Pivot: group by (equipmentCode, specName) → { ver: value }
@@ -233,23 +213,25 @@ function View2Table({ rows, changedOnly }) {
 
   // Count changed cells (value differs from previous version)
   const { displayRows, changedCount } = useMemo(() => {
-    let changed = 0;
-    const result = pivoted.map((row) => {
-      let isChanged = false;
-      versions.forEach((ver, i) => {
-        if (i === 0) return;
-        const prev = row.vals[versions[i - 1]];
-        const curr = row.vals[ver];
-        if (prev != null && curr != null && String(curr) !== String(prev)) {
-          isChanged = true;
-          changed++;
+    const changedRows = new Set();
+    pivoted.forEach((row) => {
+      for (let i = 1; i < versions.length; i++) {
+        const prev = row.vals[versions[i - 1]] || "";
+        const curr = row.vals[versions[i]] || "";
+        if (prev && curr && String(curr) !== String(prev)) {
+          changedRows.add(row.specName);
         }
-      });
-      return { ...row, isChanged };
+      }
     });
+
+    const result = pivoted.map((row) => ({
+      ...row,
+      isChanged: changedRows.has(row.specName)
+    }));
+
     return {
       displayRows: changedOnly ? result.filter((r) => r.isChanged) : result,
-      changedCount: changed,
+      changedCount: changedRows.size,
     };
   }, [pivoted, versions, changedOnly]);
 
@@ -273,8 +255,118 @@ export default function SpecMatrix({ searchText }) {
 
   const filterLoading = filterPayload === null && filterError === null;
 
-  // ── Fetch filter + spec data ──────────────────────────────────────────────
+  // ── Fetch spec data ──────────────────────────────────────────────────────
   const fetchData = useCallback(() => {
+    if (isStaticDataMode) {
+      const payload = specFilterDataAndTableData;
+      setFilterPayload(payload);
+      setFilterError(null);
+
+      let allRecords = [];
+      if (Array.isArray(payload?.specDataJson)) {
+        payload.specDataJson.forEach((item) => {
+          try {
+            if (item.content) {
+              const parsed =
+                typeof item.content === "string" ? JSON.parse(item.content) : item.content;
+              if (Array.isArray(parsed)) allRecords.push(...parsed);
+            }
+          } catch (e) {
+            console.warn("[SpecMatrix] Failed to parse static specDataJson:", e);
+          }
+        });
+      }
+
+      const hasValidSpecs = allRecords.some((r) => r.specName && r.specName.trim() !== "");
+      if (false && !hasValidSpecs) {
+        const generatedSpecs = [];
+        const numItems = ["온도", "압력", "전압", "전류", "RPM", "진동", "유량", "토크"];
+        const txtItems = ["재질", "규격", "인증", "방식"];
+
+        const getSpecValue = (p, t, it, v) => {
+          const normalizedProc = p === "03.성형" || p === "BMS" ? "03.성형" : "04.성형";
+          const normalizedMaint = t === "0307. ut coater" || t === "제어" ? "0307. ut coater" : "1307. ut coater";
+          const normalizedVer = v === "1.0" || v === "V1.0" ? "V1.0" : v === "1.1" || v === "V2.0" ? "V2.0" : "V3.0";
+
+          if (normalizedProc === '03.성형' && normalizedMaint === '0307. ut coater') {
+            if (normalizedVer === 'V1.0') {
+              const bmsMap = { 온도: '61.1', 압력: '56.9', 전압: '19.6', 전류: '26.2', RPM: '55.8', 진동: '77.3', 유량: '77.3', 토크: '95.5' };
+              if (bmsMap[it] !== undefined) return bmsMap[it];
+            }
+            if (normalizedVer === 'V2.0') {
+              const bmsMap2 = { 온도: '63.5', 압력: '56.9', 전압: '19.6', 전류: '25.8', RPM: '55.8', 진동: '77.3', 유량: '78.2', 토크: '95.5' };
+              if (bmsMap2[it] !== undefined) return bmsMap2[it];
+            }
+            if (normalizedVer === 'V3.0') {
+              const bmsMap3 = { 온도: '65.2', 압력: '57.4', 전압: '19.6', 전류: '25.8', RPM: '56.1', 진동: '77.3', 유량: '78.2', 토크: '95.5' };
+              if (bmsMap3[it] !== undefined) return bmsMap3[it];
+            }
+          }
+
+          const txtVals = {
+            재질: ['SUS304', 'SUS316', 'SUS630'],
+            규격: ['A급', 'B급', 'S급'],
+            인증: ['CE', 'UL', 'KC'],
+            방식: ['수동', '자동', '반자동']
+          };
+          if (txtVals[it]) {
+            const idx = (normalizedVer === 'V1.0' ? 0 : normalizedVer === 'V2.0' ? 1 : 2);
+            return txtVals[it][idx];
+          }
+
+          const str = `${p}-${t}-${it}-${v}`;
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const val = Math.abs(hash % 1000) / 10;
+          return val.toFixed(1);
+        };
+
+        const procs = payload.process ?? [];
+        const maints = payload.maintenance ?? [];
+        const equipments = payload.equipments ?? [];
+
+        equipments.forEach((eq) => {
+          if (!eq.equipmentCode) return;
+
+          const proc = procs.find((p) => p.id === eq.processId);
+          const maint = maints.find((m) => m.processId === eq.processId);
+
+          if (proc && maint) {
+            ["1.0", "1.1", "1.2"].forEach((v) => {
+              numItems.forEach((it) => {
+                generatedSpecs.push({
+                  process: proc.processName,
+                  maintGroup: maint.maintenanceGroupName,
+                  equipmentName: eq.equipmentName,
+                  equipmentCode: eq.equipmentCode,
+                  specName: it,
+                  version: v,
+                  specValue: getSpecValue(proc.processName, maint.maintenanceGroupName, it, v),
+                });
+              });
+              txtItems.forEach((it) => {
+                generatedSpecs.push({
+                  process: proc.processName,
+                  maintGroup: maint.maintenanceGroupName,
+                  equipmentName: eq.equipmentName,
+                  equipmentCode: eq.equipmentCode,
+                  specName: it,
+                  version: v,
+                  specValue: getSpecValue(proc.processName, maint.maintenanceGroupName, it, v),
+                });
+              });
+            });
+          }
+        });
+        allRecords = generatedSpecs;
+      }
+
+      setSpecRows(allRecords);
+      return;
+    }
+
     APIcallGet(`${pocEndPoints?.GET_SPEC_DATA}`, {}, (responseData, status) => {
       try {
         if (status === 200 && responseData) {
@@ -282,7 +374,6 @@ export default function SpecMatrix({ searchText }) {
           setFilterPayload(payload);
           setFilterError(null);
 
-          // Parse specDataJson into flat rows (same pattern as SpecData)
           if (Array.isArray(payload?.specDataJson)) {
             const allRecords = [];
             payload.specDataJson.forEach((item) => {
@@ -331,7 +422,7 @@ export default function SpecMatrix({ searchText }) {
   // All unique versions from spec rows
   const versionList = useMemo(() => {
     const set = new Set(specRows.map((r) => r.version ?? r.버전 ?? "").filter(Boolean));
-    return ["전체", ...[...set].sort()];
+    return ["전체", ...[...set].sort(vsort)];
   }, [specRows]);
 
   // ── Reset maintenance when process changes ────────────────────────────────
@@ -357,7 +448,7 @@ export default function SpecMatrix({ searchText }) {
 
       const matchesMaint =
         !selectedTypeId ||
-        (item.maintGroup ?? item.보전파트 ?? item.보전그룹) ===
+        (item.maintGroup ?? item.보전파트 ?? item.보전그룹 ?? item.보전유형) ===
           (selectedMaint?.maintenanceGroupName ?? "");
 
       const matchesVer =
@@ -383,7 +474,6 @@ export default function SpecMatrix({ searchText }) {
   ]);
 
   // ── VIEW2 pivot + change counts ───────────────────────────────────────────
-  // We call the View2Table function as a hook-like helper to get derived data
   const view2Data = View2Table({ rows: filtered, changedOnly });
   const { displayRows: view2Rows, changedCount, versions: view2Versions } = view2Data;
 
@@ -400,24 +490,11 @@ export default function SpecMatrix({ searchText }) {
           0%   { background-position:  200% 0; }
           100% { background-position: -200% 0; }
         }
-        .spec-tab-btn {
-          padding: 8px 18px;
-          font-size: 13px;
-          font-weight: 600;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          border-bottom: 2px solid transparent;
-          color: var(--color-text-subtle, #6b7280);
-          transition: color 0.15s, border-color 0.15s;
-          white-space: nowrap;
+        .row-changed td {
+          background-color: rgba(239, 68, 68, 0.05) !important;
         }
-        .spec-tab-btn.active {
-          color: var(--color-brand-60, #2563eb);
-          border-bottom-color: var(--color-brand-60, #2563eb);
-        }
-        .row-changed-bg {
-          background: #fffbeb !important;
+        .row-changed:hover td {
+          background-color: rgba(239, 68, 68, 0.09) !important;
         }
       `}</style>
 
@@ -432,22 +509,25 @@ export default function SpecMatrix({ searchText }) {
           </div>
 
           {/* Tab switcher */}
-          <div
-            style={{
-              display: "flex",
-              borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-            }}
-          >
+          <div className="flex border-b border-[#e2e8f0]">
             <button
               type="button"
-              className={`spec-tab-btn ${view === "view1" ? "active" : ""}`}
+              className={`px-5 py-2.5 text-sm font-bold border-b-2 transition-all duration-150 ${
+                view === "view1"
+                  ? "border-[#4f46e5] text-[#4f46e5]"
+                  : "border-transparent text-[#6b7280] hover:text-[#4f46e5]"
+              }`}
               onClick={() => setView("view1")}
             >
               {t("specMatrix.view1", "장비별 사양 (VIEW1)")}
             </button>
             <button
               type="button"
-              className={`spec-tab-btn ${view === "view2" ? "active" : ""}`}
+              className={`px-5 py-2.5 text-sm font-bold border-b-2 transition-all duration-150 ${
+                view === "view2"
+                  ? "border-[#4f46e5] text-[#4f46e5]"
+                  : "border-transparent text-[#6b7280] hover:text-[#4f46e5]"
+              }`}
               onClick={() => setView("view2")}
             >
               {t("specMatrix.view2", "버전별 비교 (VIEW2)")}
@@ -456,29 +536,19 @@ export default function SpecMatrix({ searchText }) {
         </header>
 
         {/* Filters */}
-        <div className="card p-5">
-          {filterError && (
-            <div
-              className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
-              role="alert"
-            >
-              <i className="fas fa-exclamation-circle mt-0.5 flex-shrink-0" />
-              <div>{filterError}</div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-6">
             {/* 공정 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase text-text-subtle">
+              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
                 {t("field.process", "공정")}
               </label>
               {filterLoading ? (
-                <SelectSkeleton width="120px" />
+                <SelectSkeleton width="110px" />
               ) : (
                 <select
-                  className="input-base"
-                  style={{ width: "120px", marginTop: 0 }}
+                  className="input-base bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
+                  style={{ width: "110px" }}
                   value={selectedProcessId ?? ""}
                   onChange={handleProcessChange}
                 >
@@ -494,15 +564,15 @@ export default function SpecMatrix({ searchText }) {
 
             {/* 보전유형 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase text-text-subtle">
+              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
                 {t("field.maintenanceType", "보전유형")}
               </label>
               {filterLoading ? (
-                <SelectSkeleton width="150px" />
+                <SelectSkeleton width="130px" />
               ) : (
                 <select
-                  className="input-base"
-                  style={{ width: "150px", marginTop: 0 }}
+                  className="input-base bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
+                  style={{ width: "130px" }}
                   value={selectedTypeId ?? ""}
                   onChange={handleTypeChange}
                   disabled={maintenanceList.length === 0}
@@ -517,112 +587,102 @@ export default function SpecMatrix({ searchText }) {
               )}
             </div>
 
-            {/* 버전 — hidden in VIEW2 since versions become columns */}
-            {view === "view1" && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold uppercase text-text-subtle">
-                  {t("field.version", "버전")}
-                </label>
-                {filterLoading ? (
-                  <SelectSkeleton width="140px" />
-                ) : (
-                  <select
-                    className="input-base"
-                    style={{ width: "140px", marginTop: 0 }}
-                    value={selectedVersion}
-                    onChange={(e) => setSelectedVersion(e.target.value)}
-                  >
-                    {versionList.map((v) => (
-                      <option key={v} value={v}>
-                        {v === "전체" ? t("app.all", "전체") : v}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
-
-            {/* 변경 항목만 toggle — VIEW2 only */}
-            {view === "view2" && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold uppercase text-text-subtle">
-                  {t("specMatrix.changesOnly", "변경 항목만")}
-                </label>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setChangedOnly((p) => !p)}
-                    style={{
-                      position: "relative",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      width: "44px",
-                      height: "24px",
-                      borderRadius: "9999px",
-                      border: "none",
-                      cursor: "pointer",
-                      background: changedOnly
-                        ? "var(--color-brand-60, #2563eb)"
-                        : "var(--color-border-base, #d1d5db)",
-                      transition: "background 0.2s",
-                      padding: 0,
-                    }}
-                    aria-pressed={changedOnly}
-                  >
-                    <span
-                      style={{
-                        position: "absolute",
-                        left: changedOnly ? "22px" : "2px",
-                        width: "20px",
-                        height: "20px",
-                        borderRadius: "50%",
-                        background: "#fff",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                        transition: "left 0.2s",
-                      }}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Badges */}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="badge badge-primary">{totalCount}{t("app.rows", "건")}</span>
-              {view === "view2" && changedCount > 0 && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "2px 10px",
-                    borderRadius: "9999px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    background: "#fee2e2",
-                    color: "#dc2626",
-                  }}
+            {/* 버전 */}
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+                {t("field.version", "버전")}
+              </label>
+              {filterLoading ? (
+                <SelectSkeleton width="110px" />
+              ) : (
+                <select
+                  className="input-base bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
+                  style={{ width: "110px" }}
+                  value={selectedVersion}
+                  onChange={(e) => setSelectedVersion(e.target.value)}
                 >
-                  {changedCount} {t("specMatrix.changed", "변경")}
-                </span>
+                  {versionList.map((v) => (
+                    <option key={v} value={v}>
+                      {v === "전체" ? t("app.all", "전체") : v}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
+
+            {/* 변경 항목만 toggle */}
+            <div className="flex items-center gap-3">
+              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+                {t("specMatrix.changesOnly", "변경 항목만")}
+              </label>
+              <button
+                type="button"
+                onClick={() => setChangedOnly((p) => !p)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  changedOnly ? "bg-[#4f46e5]" : "bg-slate-200"
+                }`}
+                aria-pressed={changedOnly}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    changedOnly ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Badges */}
+          <div className="flex items-center gap-2">
+            <span className="badge badge-primary">
+              {totalCount}
+              {t("app.rows", "건")}
+            </span>
+            {view === "view2" && changedCount > 0 && (
+              <span className="badge badge-danger">
+                {changedCount} {t("specMatrix.changed", "변경")}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Data table */}
-        <div className="card overflow-hidden" style={{ minHeight: "300px" }}>
-          {view === "view1" && (
-            <>{filtered.length === 0 ? <EmptyState /> : <View1Table rows={filtered} />}</>
+        {/* Data table card */}
+        <div className="card overflow-hidden bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm" style={{ minHeight: "360px" }}>
+          {filterError && (
+            <div className="p-5">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2">
+                <i className="fas fa-exclamation-circle mt-0.5 flex-shrink-0" />
+                <div>{filterError}</div>
+              </div>
+            </div>
           )}
 
-          {view === "view2" && (
-            <>
-              {view2Rows.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <View2TableRender rows={view2Rows} versions={view2Versions} />
-              )}
-            </>
+          {view === "view1" ? (
+            filtered.length === 0 ? (
+              <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2 bg-[#eff6ff]">
+                  <i className="fas fa-inbox text-4xl text-[#93c5fd]" />
+                </div>
+                <h3 className="text-lg font-bold text-text-default mb-1">
+                  {t("app.noData", "조건에 맞는 데이터가 없습니다.")}
+                </h3>
+              </div>
+            ) : (
+              <View1Table rows={filtered} />
+            )
+          ) : (
+            view2Rows.length === 0 ? (
+              <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2 bg-[#eff6ff]">
+                  <i className="fas fa-inbox text-4xl text-[#93c5fd]" />
+                </div>
+                <h3 className="text-lg font-bold text-text-default mb-1">
+                  {t("app.noData", "조건에 맞는 데이터가 없습니다.")}
+                </h3>
+              </div>
+            ) : (
+              <View2TableRender rows={view2Rows} versions={view2Versions} />
+            )
           )}
         </div>
       </section>
@@ -631,43 +691,25 @@ export default function SpecMatrix({ searchText }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VIEW2 render component (separate from the hook-like helper above)
+// VIEW2 render component
 // ─────────────────────────────────────────────────────────────────────────────
 function View2TableRender({ rows, versions }) {
   const { t } = useI18n();
   return (
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 42vh)" }}>
-      <table className="min-w-full text-left text-sm">
-        <thead
-          style={{
-            background: "var(--color-surface-raised, #f9fafb)",
-            position: "sticky",
-            top: 0,
-            zIndex: 1,
-          }}
-        >
+    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+      <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+        <thead className="sticky top-0 z-10 bg-[#f8fafc]">
           <tr>
             <th
-              className="px-4 py-3 text-xs font-semibold tracking-wide"
-              style={{
-                color: "var(--color-text-subtle, #6b7280)",
-                borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                textAlign: "left",
-                minWidth: "120px",
-              }}
+              className="px-4 py-3 text-xs font-bold text-[#475569] uppercase tracking-wider border-b-2 border-[#e2e8f0]"
+              style={{ minWidth: "120px" }}
             >
               {t("field.specName", "사양항목")}
             </th>
             {versions.map((ver) => (
               <th
                 key={ver}
-                className="px-4 py-3 text-xs font-semibold tracking-wide text-center"
-                style={{
-                  color: "var(--color-brand-60, #2563eb)",
-                  borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                  whiteSpace: "nowrap",
-                  minWidth: "100px",
-                }}
+                className="px-4 py-3 text-xs font-bold tracking-wider text-center border-b-2 border-[#e2e8f0] text-[#4f46e5] whitespace-nowrap min-w-[100px]"
               >
                 {ver}
               </th>
@@ -678,20 +720,11 @@ function View2TableRender({ rows, versions }) {
           {rows.map((row, idx) => (
             <tr
               key={`${row.eqCode}-${row.specName}-${idx}`}
-              className={row.isChanged ? "row-changed-bg" : ""}
-              style={{
-                borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                background: row.isChanged
-                  ? "#fffbeb"
-                  : idx % 2 === 0
-                    ? "var(--color-surface-default, #fff)"
-                    : "var(--color-surface-raised, #f9fafb)",
-              }}
+              className={`border-b border-[#e2e8f0] last:border-0 transition-colors ${
+                row.isChanged ? "row-changed" : "hover:bg-[#f1f5f9]"
+              }`}
             >
-              <td
-                className="px-4 py-3 font-bold whitespace-nowrap"
-                style={{ color: "var(--color-text-default, #111827)" }}
-              >
+              <td className="px-4 py-3 font-bold text-[#1e293b] whitespace-nowrap">
                 {row.specName || "—"}
               </td>
               {versions.map((ver, i) => {
@@ -700,11 +733,10 @@ function View2TableRender({ rows, versions }) {
                 return (
                   <td
                     key={ver}
-                    className="px-4 py-3 text-center whitespace-nowrap"
-                    style={{ color: "var(--color-text-subtle, #6b7280)" }}
+                    className="px-4 py-3 text-center text-[#475569] whitespace-nowrap"
                     title={String(curr ?? "")}
                   >
-                    {curr != null ? (
+                    {curr != null && curr !== "" ? (
                       <>
                         {String(curr)}
                         <ChangeIndicator curr={curr} prev={prev} />
@@ -726,15 +758,26 @@ function View2TableRender({ rows, versions }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EmptyState
 // ─────────────────────────────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
 function EmptyState() {
   const { t } = useI18n();
   return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
-        <i className="fas fa-microscope" />
+    <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+      <div
+        className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2"
+        style={{
+          backgroundColor: "var(--brand-10, #eff6ff)",
+          animation: "float 4s ease-in-out infinite",
+        }}
+      >
+        <i className="fas fa-microscope text-4xl text-brand-60" style={{ color: "var(--primary-light, #93c5fd)" }} />
       </div>
-      <h2 className="text-xl font-bold text-text-default">{t("specMatrix.emptyTitle", "공정 및 보전유형을 선택하세요")}</h2>
-      <p>{t("specMatrix.emptyDesc", "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.")}</p>
+      <h3 className="text-lg font-bold text-text-default mb-1">
+        {t("specMatrix.emptyTitle", "공정 및 보전유형을 선택하세요")}
+      </h3>
+      <p className="text-sm text-text-subtle max-w-[360px] mx-auto">
+        {t("specMatrix.emptyDesc", "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.")}
+      </p>
     </div>
   );
 }

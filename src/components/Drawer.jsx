@@ -1,15 +1,21 @@
 import { useI18n } from "../i18n.jsx";
 
 const COLUMN_LABEL_KEYS = {
-  // English keys
   process: "field.process",
+  processName: "field.process",
   maintGroup: "field.maintenance",
+  maintGroupName: "field.maintenance",
+  maintenanceType: "field.maintenanceType",
   site: "field.site",
+  siteName: "field.site",
   representativeWork: "field.repWork",
+  representativeWorkName: "field.repWork",
   priority: "field.priority",
+  priorityName: "field.priority",
   category: "field.category",
-  period: "field.period",
+  categoryName: "field.category",
   work: "field.work",
+  purpose: "field.work",
   report: "field.report",
   equipmentCode: "field.equipmentCode",
   equipmentName: "field.equipmentName",
@@ -21,87 +27,204 @@ const COLUMN_LABEL_KEYS = {
   hwAfter: "field.hwAfter",
   swBefore: "field.swBefore",
   swAfter: "field.swAfter",
-  woCode: "field.woCode",
-  workedOn: "field.workedOn",
-  wOCode: "field.woCode",
   hwAsWas: "field.hwBefore",
   hwAsIs: "field.hwAfter",
   swAsWas: "field.swBefore",
   swAsIs: "field.swAfter",
+  woCode: "field.woCode",
+  wOCode: "field.woCode",
+  workedOn: "field.workedOn",
+  improvement: "field.improvement",
   version: "field.version",
   specName: "field.specName",
   specValue: "field.specValue",
   specVersion: "field.specVersion",
   equipmentId: "field.equipmentId",
-  improvement: "field.improvement",
-  // Korean keys
-  "법인": "field.site",
-  "공정": "field.process",
-  "보전파트": "field.maintenance",
-  "보전그룹": "field.maintenanceGroup",
-  "보전유형": "field.maintenanceType",
-  "설비코드": "field.equipmentCode",
-  "설비명": "field.equipmentName",
-  "W/O코드": "field.woCode",
-  "Report내용": "field.report",
-  "BOM": "field.bom",
-  "자재명": "field.sparePart",
-  "작업완료일": "field.workedOn",
-  "개선 작업": "field.improvement",
-  "작업목적": "field.work",
-  "문제 현상": "field.situation",
-  "문제 원인": "field.cause",
-  "HW 변경 전": "field.hwBefore",
-  "HW 변경 후": "field.hwAfter",
-  "SW 변경 전": "field.swBefore",
-  "SW 변경 후": "field.swAfter",
-  "대표 작업명": "field.repWork",
-  "중요도": "field.priority",
-  "효과 유형": "field.category",
-  "버전": "field.version",
-  "사양항목": "field.specName",
-  "사양값": "field.specValue",
-  "설비ID": "field.equipmentId",
-  "사양버전": "field.specVersion",
 };
+
+const CHANGE_DETAIL_FIELDS = [
+  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName"] },
+  { labelKey: "field.equipmentCode", keys: ["equipmentCode"] },
+  { labelKey: "field.woCode", keys: ["wOCode", "woCode"] },
+  { labelKey: "field.process", keys: ["process", "processName"] },
+  { labelKey: "field.equipmentName", keys: ["equipmentName"] },
+  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName"] },
+  { labelKey: "field.improvement", keys: ["improvement"] },
+  { labelKey: "field.work", keys: ["work", "purpose"] },
+  { labelKey: "field.situation", keys: ["situation"] },
+  { labelKey: "field.cause", keys: ["cause"] },
+  { labelKey: "field.bom", keys: ["bom"] },
+  { labelKey: "field.sparePart", keys: ["sparePart"] },
+  { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore"] },
+  { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter"] },
+  { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore"] },
+  { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter"] },
+  { labelKey: "field.report", keys: ["report"] },
+  { labelKey: "field.site", keys: ["site", "siteName"] },
+  { labelKey: "field.workedOn", keys: ["workedOn"] },
+  { labelKey: "field.priority", keys: ["priority", "priorityName"] },
+  { labelKey: "field.category", keys: ["category", "categoryName"] },
+];
+
+const SPEC_DETAIL_FIELDS = [
+  { labelKey: "field.process", keys: ["process", "processName"] },
+  { labelKey: "field.site", keys: ["site", "siteName"] },
+  { labelKey: "field.maintenanceType", keys: ["maintGroup", "maintenanceType"] },
+  { labelKey: "field.equipmentCode", keys: ["equipmentCode"] },
+  { labelKey: "field.equipmentName", keys: ["equipmentName"] },
+  { labelKey: "field.version", keys: ["version"] },
+  { labelKey: "field.specName", keys: ["specName"] },
+  { labelKey: "field.specValue", keys: ["specValue"] },
+];
+
+function firstValue(item, keys) {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return "";
+}
+
+function rowLooksLikeSpec(item) {
+  return Boolean(firstValue(item, ["specName", "specValue", "version", "specVersion"]));
+}
+
+function visibleValue(value) {
+  if (value === undefined || value === null || value === "") return "-";
+  return String(value);
+}
+
+function getRecordDetails(item, t) {
+  const orderedFields = rowLooksLikeSpec(item) ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
+  const usedKeys = new Set(orderedFields.flatMap((field) => field.keys));
+  const orderedDetails = orderedFields.map((field) => ({
+    labelKey: field.labelKey,
+    label: t(field.labelKey),
+    value: firstValue(item, field.keys),
+  }));
+  const extraDetails = Object.entries(item)
+    .filter(
+      ([key, value]) =>
+        !usedKeys.has(key) &&
+        !key.startsWith("_") &&
+        key !== "id" &&
+        key !== "type" &&
+        value !== undefined,
+    )
+    .map(([key, value]) => ({
+      labelKey: COLUMN_LABEL_KEYS[key] ?? `field.${key}`,
+      label: t(COLUMN_LABEL_KEYS[key] ?? `field.${key}`, key),
+      value,
+    }));
+  return [...orderedDetails, ...extraDetails];
+}
 
 export default function Drawer({ item, onClose }) {
   const { t } = useI18n();
 
   if (!item) return null;
 
-  const details = Object.entries(item).filter(([key]) => key !== "id" && key !== "type");
+  const isArray = Array.isArray(item);
+  const firstItem = isArray ? item[0] : item;
+
+  const woCode = firstValue(firstItem, ["wOCode", "woCode"]);
+  const equipmentName = firstValue(firstItem, ["equipmentName"]);
+  const equipmentCode = firstValue(firstItem, ["equipmentCode"]);
+
+  const renderValue = (detail) => {
+    const val = detail.value;
+    if (val === undefined || val === null || val === "") return "-";
+
+    const key = detail.labelKey;
+    if (key === "field.priority") {
+      if (val === "중요" || val === "High") {
+        return <span className="badge badge-error">{val}</span>;
+      }
+      if (val === "일반" || val === "Normal") {
+        return <span className="badge badge-success">{val}</span>;
+      }
+    }
+    if (key === "field.category") {
+      return <span className="badge badge-primary">{val}</span>;
+    }
+    return String(val);
+  };
 
   return (
-    <div className="fixed inset-0 z-40 bg-surface-inverse/30 backdrop-blur-sm">
-      <div className="absolute right-0 top-0 h-full w-full max-w-2xl bg-surface-default shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border-base p-5">
+    <div className="eq-drawer-overlay" onClick={onClose}>
+      <aside className="eq-drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="eq-drawer-header">
           <div>
-            <h2 className="text-xl font-bold text-text-default">{t("drawer.title")}</h2>
-            <p className="text-sm text-text-subtle">{t("drawer.desc")}</p>
+            <h2 className="eq-drawer-title">{t("drawer.title")}</h2>
+            <p className="eq-drawer-subtitle flex flex-wrap items-center gap-x-2" style={{ fontSize: "12px", lineHeight: "1.4" }}>
+              {woCode && (
+                <span>
+                  <span style={{ color: "var(--text-subtlest, #7e8a9e)", fontWeight: 500 }}>{t("field.woCode", "W/O코드")}: </span>
+                  <span style={{ color: "var(--text-default, #111827)", fontWeight: 600 }}>{woCode}</span>
+                </span>
+              )}
+              {woCode && (equipmentName || equipmentCode) && (
+                <span style={{ color: "var(--border-base-strong, #b0b8c8)", margin: "0 4px" }}>|</span>
+              )}
+              {(equipmentName || equipmentCode) && (
+                <span>
+                  <span style={{ color: "var(--text-subtlest, #7e8a9e)", fontWeight: 500 }}>{t("field.equipmentName", "설비명")}: </span>
+                  <span style={{ color: "var(--text-default, #111827)", fontWeight: 600 }}>
+                    {equipmentName}
+                    {equipmentCode ? ` (${equipmentCode})` : ""}
+                  </span>
+                </span>
+              )}
+              {!woCode && !equipmentName && !equipmentCode && t("drawer.desc")}
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="btn-base btn-ghost rounded-xl p-3"
+            className="eq-drawer-close"
             aria-label={t("app.close")}
           >
             <i className="fas fa-times" />
           </button>
         </div>
-        <div className="space-y-4 overflow-y-auto p-5 pb-8" style={{ height: "calc(100vh - 10vh)" }}>
-          {details.map(([key, value]) => (
-            <div key={key} className="rounded-2xl bg-surface-strong p-4">
-              <div className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-text-subtle">
-                {t(COLUMN_LABEL_KEYS[key] ?? `field.${key}`, key)}
+
+        <div className="eq-drawer-body">
+          {isArray ? (
+            item.map((rec, idx) => {
+              const details = getRecordDetails(rec, t);
+              return (
+                <div key={idx} className="detail-group border-b border-border-base last:border-b-0 pb-4 mb-4">
+                  <div className="detail-group-title text-brand-60 font-semibold mb-2" style={{ color: "var(--brand-60, #0f62fe)" }}>
+                    {t("detail.record", "항목")} {idx + 1}
+                  </div>
+                  <dl className="detail-field">
+                    {details.map((detail, index) => (
+                      <div key={`${detail.label}-${index}`} style={{ display: "contents" }}>
+                        <dt>{detail.label}</dt>
+                        <dd>{renderValue(detail)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              );
+            })
+          ) : (
+            <div className="detail-group">
+              <div className="detail-group-title">
+                {t("detail.record")}
               </div>
-              <div className="whitespace-pre-wrap text-sm leading-6 text-text-default">
-                {value || t("app.none")}
-              </div>
+              <dl className="detail-field">
+                {getRecordDetails(item, t).map((detail, index) => (
+                  <div key={`${detail.label}-${index}`} style={{ display: "contents" }}>
+                    <dt>{detail.label}</dt>
+                    <dd>{renderValue(detail)}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-          ))}
+          )}
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

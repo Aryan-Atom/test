@@ -38,6 +38,41 @@ function remapRowKeys(row, excelToJsonKey) {
   }, {});
 }
 
+function normalizeDuplicateValue(value, key = "") {
+  if (value == null) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = String(value).trim();
+  const isDateKey = /date|workedOn/i.test(key) || key.includes("ì¼");
+
+  if (isDateKey) {
+    const serial = Number(raw);
+    if (Number.isFinite(serial) && serial > 0) {
+      const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+      if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+    }
+
+    const ddmmyyyy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (ddmmyyyy) {
+      const [, dd, mm, yyyy] = ddmmyyyy;
+      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    }
+  }
+
+  return raw;
+}
+
+function buildDuplicateKey(row, excelToJsonKey, columns) {
+  const remapped = remapRowKeys(row ?? {}, excelToJsonKey);
+  const normalized = columns.reduce((acc, key) => {
+    acc[key] = normalizeDuplicateValue(remapped[key], key);
+    return acc;
+  }, {});
+  return JSON.stringify(normalized);
+}
+
 function buildOrderedColumns(columnDefs) {
   const list = Array.isArray(columnDefs)
     ? columnDefs
@@ -89,7 +124,7 @@ function SelectSkeleton({ width = "120px" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableCell
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableCell({ value, isEditing, col, onChange }) {
+function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -109,9 +144,13 @@ function EditableCell({ value, isEditing, col, onChange }) {
           textOverflow: "ellipsis",
           maxWidth: "220px",
           color:
+            duplicate
+              ? "#dc2626"
+              :
             value == null || value === ""
               ? "var(--color-text-subtle, #9ca3af)"
               : "var(--color-text-default, #111827)",
+          fontWeight: duplicate ? 700 : undefined,
         }}
         title={String(value ?? "")}
       >
@@ -145,7 +184,17 @@ function EditableCell({ value, isEditing, col, onChange }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableModalRow — inside the upload preview modal
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, onSave, onCancel }) {
+function EditableModalRow({
+  row,
+  index,
+  columns,
+  editingRowIndex,
+  onStartEdit,
+  onSave,
+  onCancel,
+  isDuplicate = false,
+  onDelete,
+}) {
   const isEditing = editingRowIndex === index;
   const [draft, setDraft] = useState({});
   const rowRef = useRef(null);
@@ -203,6 +252,8 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
         background: isEditing
           ? "#eff6ff"
+          : isDuplicate
+            ? "#fff1f2"
           : index % 2 === 0
             ? "var(--color-surface-default, #fff)"
             : "var(--color-surface-raised, #f9fafb)",
@@ -219,7 +270,14 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
           userSelect: "none",
         }}
       >
-        {index + 1}
+        <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
+          {index + 1}
+        </span>
+        {isDuplicate && (
+          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+            DUP
+          </span>
+        )}
       </td>
 
       <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
@@ -287,6 +345,19 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
             <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
           </button>
         )}
+        {isDuplicate && !isEditing && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete?.(index);
+            }}
+            title="Delete duplicate"
+            className="ml-1 inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 bg-red-100 text-red-700 transition-transform hover:scale-110"
+          >
+            <i className="fas fa-trash-alt" style={{ fontSize: "10px" }} />
+          </button>
+        )}
       </td>
 
       {columns.map((col) => (
@@ -303,6 +374,7 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
             isEditing={isEditing}
             col={col}
             onChange={handleDraftChange}
+            duplicate={isDuplicate}
           />
         </td>
       ))}
@@ -313,7 +385,14 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
 // ─────────────────────────────────────────────────────────────────────────────
 // UploadPreviewModal
 // ─────────────────────────────────────────────────────────────────────────────
-export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConfirm }) {
+export function UploadPreviewModal({
+  rows: initialRows,
+  columns,
+  duplicateRowKeys = new Set(),
+  getDuplicateKey,
+  onClose,
+  onConfirm,
+}) {
   const { t } = useI18n();
   const [rows, setRows] = useState(() => initialRows ?? []);
   const [editingRowIndex, setEditingRowIndex] = useState(null);
@@ -324,6 +403,14 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
   }, [initialRows]);
 
   const detectedColumns = columns?.length ? columns : rows.length > 0 ? Object.keys(rows[0]) : [];
+  const isDuplicateRow = useCallback(
+    (row) => Boolean(getDuplicateKey && duplicateRowKeys.has(getDuplicateKey(row))),
+    [duplicateRowKeys, getDuplicateKey],
+  );
+  const duplicateCount = useMemo(
+    () => rows.filter((row) => isDuplicateRow(row)).length,
+    [rows, isDuplicateRow],
+  );
 
   const handleSaveRow = useCallback((index, payload) => {
     setRows((prev) => {
@@ -335,6 +422,14 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
   }, []);
 
   const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
+  const handleDeleteRow = useCallback((index) => {
+    setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
+    setEditingRowIndex(null);
+  }, []);
+  const handleRemoveDuplicates = useCallback(() => {
+    setRows((prev) => prev.filter((row) => !isDuplicateRow(row)));
+    setEditingRowIndex(null);
+  }, [isDuplicateRow]);
 
   const handleConfirm = () => {
     const confirmedRows = [...rows];
@@ -387,6 +482,11 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                 {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
                 {detectedColumns.length}{t("preview.subtitle")}
+                {duplicateCount > 0 && (
+                  <span className="ml-2 font-bold text-red-600">
+                    {duplicateCount} duplicates
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -472,6 +572,8 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                     onStartEdit={setEditingRowIndex}
                     onSave={handleSaveRow}
                     onCancel={handleCancelEdit}
+                    isDuplicate={isDuplicateRow(row)}
+                    onDelete={handleDeleteRow}
                   />
                 ))}
               </tbody>
@@ -489,9 +591,21 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
         >
           <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
             <i className="fas fa-info-circle mr-1" />
-            {t("preview.tip")}
+            {duplicateCount > 0
+              ? "Duplicate rows are marked red. Delete them before saving if needed."
+              : t("preview.tip")}
           </p>
           <div className="flex gap-3">
+            {duplicateCount > 0 && (
+              <button
+                type="button"
+                onClick={handleRemoveDuplicates}
+                className="btn-base btn-secondary text-red-700"
+              >
+                <i className="fas fa-trash-alt mr-1.5" />
+                Remove duplicates ({duplicateCount})
+              </button>
+            )}
             <button type="button" onClick={onClose} className="btn-base btn-secondary">
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
@@ -762,6 +876,181 @@ const COLUMN_LABEL_KEYS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ChangeHistory component
 // ─────────────────────────────────────────────────────────────────────────────
+function RowEditModal({ row, index, columns, onSave, onClose }) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
+
+  useEffect(() => {
+    setDraft({ ...(row ?? {}) });
+  }, [row]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (!row) return null;
+
+  const modalFields = [
+    { key: "process", labelKey: "field.process", readonly: true },
+    { key: "maintGroup", labelKey: "field.maintenance", readonly: true },
+    { key: "representativeWork", labelKey: "field.repWork", required: true },
+    { key: "work", labelKey: "field.work", required: true },
+    { key: "situation", labelKey: "field.situation", required: true },
+    { key: "cause", labelKey: "field.cause", required: true },
+    { key: "bom", labelKey: "field.bom", multiline: true },
+    { key: "sparePart", labelKey: "field.sparePart", multiline: true },
+    { key: "hwAsWas", labelKey: "field.hwBefore", required: true },
+    { key: "hwAsIs", labelKey: "field.hwAfter", required: true },
+    { key: "swAsWas", labelKey: "field.swBefore", required: true },
+    { key: "swAsIs", labelKey: "field.swAfter", required: true },
+    { key: "priority", labelKey: "field.priority", required: true, type: "select", compact: true },
+    { key: "category", labelKey: "field.category", required: true, type: "select", compact: true },
+    { key: "workedOn", labelKey: "field.workedOn", required: true, type: "date", compact: true },
+  ];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(index, draft);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(17, 24, 39, 0.55)", backdropFilter: "blur(3px)" }}
+      onMouseDown={onClose}
+    >
+      <form
+        className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl shadow-2xl"
+        style={{
+          maxHeight: "88vh",
+          background: "var(--color-surface-default, #fff)",
+          border: "1px solid var(--color-border-base, #e5e7eb)",
+        }}
+        onSubmit={handleSubmit}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-start justify-between gap-4 px-6 py-5"
+          style={{
+            background: "#ecfeff",
+            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+          }}
+        >
+          <div>
+            <h2 className="text-xl font-extrabold text-text-default">
+              <i className="fas fa-circle-plus mr-2 text-cyan-500" />
+              {t("app.edit")} {t("page.change.title")}
+            </h2>
+            <p className="mt-1 text-sm text-text-subtle">
+              {t("page.mp.modalDesc")}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-subtle"
+            onClick={onClose}
+            aria-label={t("app.close")}
+          >
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        <div
+          className="grid flex-1 grid-cols-1 gap-4 overflow-auto p-6 md:grid-cols-6"
+          style={{ background: "#f3f4f6" }}
+        >
+          {modalFields.map((field) => {
+            const label = t(field.labelKey, field.key);
+            const value = draft[field.key] ?? "";
+            const options =
+              field.type === "select"
+                ? [value, field.key === "priority" ? t("priority.normal") : t("category.etc")]
+                    .filter(Boolean)
+                    .filter((item, itemIndex, arr) => arr.indexOf(item) === itemIndex)
+                : [];
+
+            return (
+              <label
+                key={field.key}
+                className={field.compact ? "md:col-span-2" : "md:col-span-3"}
+              >
+                <span className="mb-2 block text-xs font-bold uppercase text-text-subtle">
+                  {label}
+                  {field.required && <span className="text-red-500"> *</span>}
+                </span>
+                {field.multiline ? (
+                  <textarea
+                    className="input-base"
+                    rows={3}
+                    value={value}
+                    onChange={(e) =>
+                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    style={{ width: "100%", resize: "vertical" }}
+                    disabled={field.readonly}
+                  />
+                ) : field.type === "select" ? (
+                  <select
+                    className="input-base"
+                    value={value}
+                    onChange={(e) =>
+                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    style={{ width: "100%" }}
+                    disabled={field.readonly}
+                  >
+                    {options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type === "date" ? "date" : "text"}
+                    className="input-base"
+                    value={value}
+                    onChange={(e) =>
+                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    style={{
+                      width: "100%",
+                      background: field.readonly ? "#e8eef7" : undefined,
+                      color: field.readonly ? "#334155" : undefined,
+                    }}
+                    readOnly={field.readonly}
+                    disabled={field.readonly}
+                  />
+                )}
+              </label>
+            );
+          })}
+        </div>
+
+        <div
+          className="flex justify-end gap-3 px-6 py-4"
+          style={{
+            background: "var(--color-surface-raised, #f9fafb)",
+            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
+          }}
+        >
+          <button type="button" className="btn-base btn-ghost" onClick={onClose}>
+            {t("app.cancel")}
+          </button>
+          <button type="submit" className="btn-base btn-primary">
+            <i className="fas fa-check mr-2" />
+            {t("app.save")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
   const { t } = useI18n();
   const [selectedProcessId, setSelectedProcessId] = useState(null);
@@ -868,7 +1157,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       }, {});
     };
 
-    const remappedData = data.map(remapRow);
+    const remappedData = isStaticDataMode ? [] : data.map(remapRow);
     const remappedChangedRecords = changedRecords.map(remapRow);
 
     if (remappedChangedRecords.length === 0) return remappedData;
@@ -887,17 +1176,60 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     return [];
   }, [orderedJsonKeys, combinedData, getColumnGroupIndex]);
 
+  const duplicateKeyColumns = useMemo(
+    () =>
+      (orderedJsonKeys.length > 0 ? orderedJsonKeys : dynamicColumns).filter(
+        (key) => key !== "id" && key !== "_sourceId",
+      ),
+    [orderedJsonKeys, dynamicColumns],
+  );
+
+  const existingDuplicateKeys = useMemo(
+    () =>
+      new Set(
+        combinedData.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
+      ),
+    [combinedData, excelToJsonKey, duplicateKeyColumns],
+  );
+
+  const getPreviewDuplicateKey = useCallback(
+    (row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns),
+    [excelToJsonKey, duplicateKeyColumns],
+  );
+
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId || !selectedMaintenanceId) {
-      return [];
+    if (!selectedProcessId && !selectedMaintenanceId && !filter && !searchText) {
+      return combinedData;
     }
-    const selectedProcess = processList.find((p) => p.id === selectedProcessId);
+
+    const selectedProcess = selectedProcessId
+      ? processList.find((p) => p.id === selectedProcessId)
+      : null;
     const selectedMaint = (filterPayload?.maintenance ?? []).find(
       (m) => m.id === selectedMaintenanceId,
     );
 
     return combinedData.filter((item) => {
+      const itemProcess = item.process ?? item["ê³µì •"] ?? "";
+      const itemMaint =
+        item.maintGroup ?? item["ë³´ì „íŒŒíŠ¸"] ?? item["ë³´ì „ê·¸ë£¹"] ?? "";
+
+      if (!selectedProcess || !selectedMaint) {
+        const text = Object.values(item)
+          .map((v) => String(v ?? ""))
+          .join(" ")
+          .toLowerCase();
+        const matchesProcSelection =
+          !selectedProcess || itemProcess === selectedProcess.processName;
+        const matchesMaintSelection =
+          !selectedMaint || itemMaint === selectedMaint.maintenanceGroupName;
+        const matchesSearch = searchText ? text.includes(searchText.toLowerCase()) : true;
+        const matchesFilter = filter ? text.includes(filter.toLowerCase()) : true;
+
+        return matchesProcSelection && matchesMaintSelection && matchesSearch && matchesFilter;
+      }
+
       const matchesProc =
         (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
@@ -1509,7 +1841,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               <p>{t("empty.hint")}</p>
             </div>
           ) : (
-            <div className="overflow-auto" style={{ height: "calc(100vh - 39vh)" }}>
+            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 39vh)" }}>
               <table className="min-w-full text-left text-sm">
                 <thead className="table-header">
                   <tr>
@@ -1540,7 +1872,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                       row={row}
                       index={index}
                       columns={dynamicColumns}
-                      isEditing={editingIndex === index}
+                      isEditing={false}
                       onStartEdit={setEditingIndex}
                       onSave={handleSaveRow}
                       onCancel={handleCancelEdit}
@@ -1560,11 +1892,21 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       <UploadPreviewModal
         rows={previewRows}
         columns={previewColumns}
+        duplicateRowKeys={existingDuplicateKeys}
+        getDuplicateKey={getPreviewDuplicateKey}
         onClose={() => {
           setPreviewRows(null);
           setPreviewColumns(null);
         }}
         onConfirm={handleModalConfirm}
+      />
+
+      <RowEditModal
+        row={editingIndex !== null ? filtered[editingIndex] : null}
+        index={editingIndex}
+        columns={dynamicColumns}
+        onSave={handleSaveRow}
+        onClose={handleCancelEdit}
       />
 
       {/* Operation status toast */}

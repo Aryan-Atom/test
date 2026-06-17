@@ -360,9 +360,14 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                 {t("preview.title")}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
-                {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
+                {t("preview.total")}{" "}
+                <span className="font-semibold">
+                  {rows.length}
+                  {t("preview.row")}
+                </span>
                 {" · "}
-                {detectedColumns.length}{t("preview.subtitle")}
+                {detectedColumns.length}
+                {t("preview.subtitle")}
               </p>
             </div>
           </div>
@@ -562,7 +567,7 @@ function EditableRow({
       }}
     >
       {/* Checkbox */}
-      <td className="px-4 py-3">
+      {/* <td className="px-4 py-3">
         <input
           type="checkbox"
           checked={isSelected}
@@ -571,10 +576,10 @@ function EditableRow({
             onToggleSelect(index);
           }}
         />
-      </td>
+      </td> */}
 
       {/* Edit controls */}
-      <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
+      {/* <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
         {isEditing ? (
           <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
             <button
@@ -639,7 +644,7 @@ function EditableRow({
             <i className="fas fa-pencil-alt" style={{ fontSize: "11px" }} />
           </button>
         )}
-      </td>
+      </td> */}
 
       {columns.map((col) =>
         isEditing ? (
@@ -717,6 +722,125 @@ const COLUMN_LABEL_KEYS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SpecData component
 // ─────────────────────────────────────────────────────────────────────────────
+function RowEditModal({ row, index, columns, onSave, onClose }) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
+
+  useEffect(() => {
+    setDraft({ ...(row ?? {}) });
+  }, [row]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (!row) return null;
+
+  const longTextFields = new Set(["specName", "specValue", "report", "bom", "work"]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(index, draft);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(17, 24, 39, 0.55)", backdropFilter: "blur(3px)" }}
+      onMouseDown={onClose}
+    >
+      <form
+        className="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl shadow-2xl"
+        style={{
+          maxHeight: "88vh",
+          background: "var(--color-surface-default, #fff)",
+          border: "1px solid var(--color-border-base, #e5e7eb)",
+        }}
+        onSubmit={handleSubmit}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-start justify-between gap-4 px-6 py-5"
+          style={{
+            background: "linear-gradient(90deg, #eef2ff 0%, #ecfeff 100%)",
+            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+          }}
+        >
+          <div>
+            <h2 className="text-xl font-extrabold text-text-default">
+              <i className="fas fa-pen-to-square mr-2 text-brand-60" />
+              {t("app.edit")} {t("page.specData.title")}
+            </h2>
+            <p className="mt-1 text-sm text-text-subtle">
+              {t("preview.total")} <span className="font-semibold">#{index + 1}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-subtle"
+            onClick={onClose}
+            aria-label={t("app.close")}
+          >
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-auto p-6 md:grid-cols-2">
+          {columns.map((col) => {
+            const label = t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col);
+            const value = draft[col] ?? "";
+            const useTextarea = longTextFields.has(col) || String(value).length > 80;
+
+            return (
+              <label key={col} className={useTextarea ? "md:col-span-2" : ""}>
+                <span className="mb-2 block text-xs font-bold uppercase text-text-subtle">
+                  {label}
+                </span>
+                {useTextarea ? (
+                  <textarea
+                    className="input-base"
+                    rows={3}
+                    value={value}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
+                    style={{ width: "100%", resize: "vertical" }}
+                  />
+                ) : (
+                  <input
+                    className="input-base"
+                    value={value}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
+                    style={{ width: "100%" }}
+                  />
+                )}
+              </label>
+            );
+          })}
+        </div>
+
+        <div
+          className="flex justify-end gap-3 px-6 py-4"
+          style={{
+            background: "var(--color-surface-raised, #f9fafb)",
+            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
+          }}
+        >
+          <button type="button" className="btn-base btn-ghost" onClick={onClose}>
+            {t("app.cancel")}
+          </button>
+          <button type="submit" className="btn-base btn-primary">
+            <i className="fas fa-check mr-2" />
+            {t("app.save")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function SpecData({ data, onUpload, onExport, searchText }) {
   const { t } = useI18n();
   // null = "전체" (no filter applied); a number = selected id
@@ -795,9 +919,9 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       ["equipmentName", "설비명"],
       ["version", "버전"],
       ["specName", "사양항목"],
-      ["specValue", "사양값"]
+      ["specValue", "사양값"],
     ];
-    const idx = groups.findIndex(g => g.includes(key));
+    const idx = groups.findIndex((g) => g.includes(key));
     return idx !== -1 ? idx : 999;
   }, []);
 
@@ -823,7 +947,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       }, {});
     };
 
-    const remappedData = data.map(remapRow);
+    const remappedData = isStaticDataMode ? [] : data.map(remapRow);
     const remappedChangedRecords = changedRecords.map(remapRow);
 
     if (remappedChangedRecords.length === 0) return remappedData;
@@ -864,21 +988,45 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId || !selectedMaintenanceId) {
-      return [];
+    if (!selectedProcessId && !selectedMaintenanceId && !searchText) {
+      return combinedData;
     }
-    const selectedProcess = processList.find((p) => p.id === selectedProcessId);
+
+    const selectedProcess = selectedProcessId
+      ? processList.find((p) => p.id === selectedProcessId)
+      : null;
     const selectedMaint = (filterPayload?.maintenance ?? []).find(
       (m) => m.id === selectedMaintenanceId,
     );
 
     return combinedData.filter((item) => {
-      const matchesProc =
-        (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
+      const itemProcess = item.process ?? item["ê³µì •"] ?? "";
+      const itemMaint =
+        item.maintGroup ??
+        item["ë³´ì „íŒŒíŠ¸"] ??
+        item["ë³´ì „ê·¸ë£¹"] ??
+        item["ë³´ì „ìœ í˜•"] ??
+        "";
+
+      if (!selectedProcess || !selectedMaint) {
+        const text = Object.values(item)
+          .map((v) => String(v ?? ""))
+          .join(" ")
+          .toLowerCase();
+        const matchesProcSelection =
+          !selectedProcess || itemProcess === selectedProcess.processName;
+        const matchesMaintSelection =
+          !selectedMaint || itemMaint === selectedMaint.maintenanceGroupName;
+        const matchesSearch = searchText ? text.includes(searchText.toLowerCase()) : true;
+
+        return matchesProcSelection && matchesMaintSelection && matchesSearch;
+      }
+
+      const matchesProc = (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
       const matchesMaint =
         (item.maintGroup ?? item.보전파트 ?? item.보전그룹 ?? item.보전유형) ===
-          (selectedMaint?.maintenanceGroupName ?? "");
+        (selectedMaint?.maintenanceGroupName ?? "");
 
       const text = Object.values(item)
         .map((v) => String(v ?? ""))
@@ -1323,10 +1471,10 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-text-default">{t("page.specData.title")}</h1>
-            <p className="mt-2 text-sm text-text-subtle">
-              {t("page.specData.desc")}
-            </p>
+            <h1 className="text-3xl font-extrabold text-text-default">
+              {t("page.specData.title")}
+            </h1>
+            <p className="mt-2 text-sm text-text-subtle">{t("page.specData.desc")}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <AnimatedActionButton
@@ -1425,7 +1573,10 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
             {/* Spacer + row count */}
             <div className="flex items-center">
-              <span className="badge badge-primary">{filtered.length}{t("app.rows")}</span>
+              <span className="badge badge-primary">
+                {filtered.length}
+                {t("app.rows")}
+              </span>
             </div>
           </div>
         </div>
@@ -1437,31 +1588,29 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
                 <i className="fas fa-microchip" />
               </div>
-              <h2 className="text-xl font-bold text-text-default">
-                {t("empty.noSpecMatch")}
-              </h2>
+              <h2 className="text-xl font-bold text-text-default">{t("empty.noSpecMatch")}</h2>
               <p>{t("empty.specHint")}</p>
             </div>
           ) : (
-            <div className="overflow-auto" style={{ height: "calc(100vh - 39vh)" }}>
+            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 39vh)" }}>
               <table className="min-w-full text-left text-sm">
                 <thead className="table-header">
                   <tr>
                     {/* Select-all */}
-                    <th className="px-4 py-3 w-12">
+                    {/* <th className="px-4 py-3 w-12">
                       <input
                         type="checkbox"
                         checked={selectedIds.size === filtered.length && filtered.length > 0}
                         onChange={toggleSelectAll}
                       />
-                    </th>
+                    </th> */}
                     {/* Edit column header */}
-                    <th
+                    {/* <th
                       className="px-3 py-3 text-text-subtle whitespace-nowrap"
                       style={{ fontSize: "11px", fontWeight: 600, width: "72px" }}
                     >
                       {t("app.edit")}
-                    </th>
+                    </th> */}
                     {dynamicColumns.map((col) => (
                       <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
                         {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
@@ -1476,7 +1625,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
                       row={row}
                       index={index}
                       columns={dynamicColumns}
-                      isEditing={editingIndex === index}
+                      isEditing={false}
                       onStartEdit={setEditingIndex}
                       onSave={handleSaveRow}
                       onCancel={handleCancelEdit}
@@ -1500,6 +1649,14 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           setPreviewColumns(null);
         }}
         onConfirm={handleModalConfirm}
+      />
+
+      <RowEditModal
+        row={editingIndex !== null ? filtered[editingIndex] : null}
+        index={editingIndex}
+        columns={dynamicColumns}
+        onSave={handleSaveRow}
+        onClose={handleCancelEdit}
       />
 
       {/* Operation status toast */}
