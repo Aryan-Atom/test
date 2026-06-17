@@ -7,6 +7,11 @@ import { getUserInfo } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
 import { useI18n } from "../i18n.jsx";
+import { isStaticDataMode } from "../utils/staticDataMode.js";
+import {
+  changeDataColumns as staticChangeDataColumns,
+  changeFilterDataAndTableData,
+} from "./static-data/ChangeHistoryData.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -50,6 +55,16 @@ function rowKey(row, index) {
   return `${index}__${row.id ?? ""}__${row.equipmentCode ?? ""}__${
     row.work ?? row.representativeWork ?? ""
   }`;
+}
+
+async function readSpreadsheetRows(file) {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array" });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
+  return { columnNames, rows };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -989,6 +1004,19 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         autoClose: false,
       });
 
+      if (isStaticDataMode) {
+        setChangedRecords([...changeDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setEditingIndex(null);
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+          autoClose: true,
+        });
+        onUpload?.("change_rows", payload);
+        return;
+      }
+
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
           setEditingIndex(null);
@@ -1041,6 +1069,20 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         id: changedDataId, // ← same envelope id
       };
 
+      if (isStaticDataMode) {
+        setPreviewRows(null);
+        setPreviewColumns(null);
+        setChangedRecords([...changeDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+          autoClose: true,
+        });
+        onUpload?.("change_rows", payload);
+        return;
+      }
+
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
           setPreviewRows(null);
@@ -1069,6 +1111,17 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
   const uploadExcelFile = async (file, callback) => {
+    if (isStaticDataMode) {
+      try {
+        const parsed = await readSpreadsheetRows(file);
+        callback(parsed, 200);
+      } catch (error) {
+        console.error("Static spreadsheet parsing failed:", error);
+        callback(error, 500);
+      }
+      return;
+    }
+
     const filterColumns = changeDataColumns
       .map((item) => item.excelColumnName)
       .filter(Boolean)
@@ -1188,6 +1241,41 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   // changedDataJson always has ONE object: { id, content }
   // We capture that id as changedDataId and parse content into flat rows.
   const getFilterData = useCallback(() => {
+    if (isStaticDataMode) {
+      try {
+        const payload = changeFilterDataAndTableData;
+        setFilterPayload(payload);
+        setFilterError(null);
+
+        if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+          const envelope = payload.changedDataJson[0];
+          setChangedDataId(envelope.id ?? 0);
+
+          try {
+            const parsed =
+              typeof envelope.content === "string" ? JSON.parse(envelope.content) : envelope.content;
+
+            setChangedRecords(
+              Array.isArray(parsed) ? [...parsed].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)) : [],
+            );
+          } catch (parseError) {
+            console.warn("[ChangeHistory] Failed to parse static changedDataJson:", parseError);
+            setChangedRecords([]);
+          }
+        } else {
+          setChangedDataId(0);
+          setChangedRecords([]);
+        }
+      } catch (error) {
+        console.error("[ChangeHistory] Error processing static data:", error);
+        setFilterPayload({ process: [], maintenance: [] });
+        setChangedRecords([]);
+        setChangedDataId(0);
+        setFilterError(t("toast.filterError"));
+      }
+      return;
+    }
+
     APIcallGet(`${pocEndPoints?.GET_FILTER_DATA}`, {}, (responseData, status) => {
       try {
         if (status === 200 && responseData) {
@@ -1240,13 +1328,19 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         setFilterError(t("toast.filterError"));
       }
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     getFilterDataRef.current = getFilterData;
   }, [getFilterData]);
 
   useEffect(() => {
+    if (isStaticDataMode) {
+      setChangeDataColumns(staticChangeDataColumns);
+      getFilterData();
+      return;
+    }
+
     APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
       if (status !== 200 || !responseData) return;
       if (Array.isArray(responseData) && responseData.length > 0) {

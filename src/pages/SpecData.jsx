@@ -7,6 +7,11 @@ import { getUserInfo } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
 import { useI18n } from "../i18n.jsx";
+import { isStaticDataMode } from "../utils/staticDataMode.js";
+import {
+  specDataColumns as staticSpecDataColumns,
+  specFilterDataAndTableData,
+} from "./static-data/SpecData.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -951,6 +956,19 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         autoClose: false,
       });
 
+      if (isStaticDataMode) {
+        setChangedRecords([...SpecDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setEditingIndex(null);
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${SpecDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+          autoClose: true,
+        });
+        onUpload?.("spec_rows", payload);
+        return;
+      }
+
       APIcallPost(pocEndPoints?.SAVE_SPEC_DATA, payload, {}, (responseData, status) => {
         if (status === 200) {
           setEditingIndex(null);
@@ -984,6 +1002,20 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       const SpecDataList = buildChangeDataList(updatedRows);
       const payload = { SpecDataList, id: specDataId };
 
+      if (isStaticDataMode) {
+        setPreviewRows(null);
+        setPreviewColumns(null);
+        setChangedRecords([...SpecDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${SpecDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+          autoClose: true,
+        });
+        onUpload?.("spec_rows", payload);
+        return;
+      }
+
       APIcallPost(pocEndPoints?.SAVE_SPEC_DATA, payload, {}, (responseData, status) => {
         if (status === 200) {
           setPreviewRows(null);
@@ -1013,6 +1045,21 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   // ── Upload Excel → parse via API → show preview modal ────────────────────
   const uploadExcelFile = useCallback(
     async (file, callback) => {
+      if (isStaticDataMode) {
+        try {
+          const data = await file.arrayBuffer();
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+          callback({ columnNames: rows.length > 0 ? Object.keys(rows[0]) : [], rows }, 200);
+        } catch (error) {
+          console.error("Static spreadsheet parsing failed:", error);
+          callback(error, 500);
+        }
+        return;
+      }
+
       const filterColumns = changeDataColumns
         .map((item) => item.excelColumnName)
         .filter(Boolean)
@@ -1131,6 +1178,47 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
   // ── Fetch filter data + specDataJson ──────────────────────────────────────
   const getFilterData = useCallback(() => {
+    if (isStaticDataMode) {
+      try {
+        const payload = specFilterDataAndTableData;
+        setFilterPayload(payload);
+
+        if (Array.isArray(payload?.specDataJson)) {
+          const allRecords = [];
+          let capturedId = 0;
+
+          payload.specDataJson.forEach((item) => {
+            try {
+              if (item.content) {
+                capturedId = item.id ?? capturedId;
+                const parsed =
+                  typeof item.content === "string" ? JSON.parse(item.content) : item.content;
+                if (Array.isArray(parsed)) allRecords.push(...parsed);
+              }
+            } catch (parseError) {
+              console.warn("[SpecData] Failed to parse static specDataJson:", parseError);
+            }
+          });
+
+          allRecords.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+          setChangedRecords(allRecords);
+          setSpecDataJsonId(capturedId);
+        } else {
+          setChangedRecords([]);
+          setSpecDataJsonId(0);
+        }
+
+        setFilterError(null);
+      } catch (error) {
+        console.error("[SpecData] Error processing static data:", error);
+        setFilterPayload({ process: [], maintenance: [] });
+        setChangedRecords([]);
+        setSpecDataJsonId(0);
+        setFilterError(t("toast.filterError"));
+      }
+      return;
+    }
+
     APIcallGet(`${pocEndPoints?.GET_SPEC_DATA}`, {}, (responseData, status) => {
       try {
         if (status === 200 && responseData) {
@@ -1179,7 +1267,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         setFilterError(t("toast.filterError"));
       }
     });
-  }, []);
+  }, [t]);
 
   // Keep ref in sync
   useEffect(() => {
@@ -1188,6 +1276,13 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
   // ── Fetch column definitions on mount ────────────────────────────────────
   useEffect(() => {
+    if (isStaticDataMode) {
+      setColumnDefsId(0);
+      setChangeDataColumns(staticSpecDataColumns);
+      getFilterData();
+      return;
+    }
+
     APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/2`, {}, (responseData, status) => {
       if (status !== 200 || !responseData) return;
 
