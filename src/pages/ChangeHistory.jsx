@@ -1,56 +1,799 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import AnimatedActionButton from "../components/AnimatedActionButton.jsx";
+import { OperationStatus } from "../components/OperationStatus.jsx";
+import { withMinimumDelay } from "../utils/actionTiming.js";
+import { pocEndPoints } from "../axios/endPoints.js";
+import { getUserInfo } from "../utils/cookieUtils.js";
+import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
+import * as XLSX from "xlsx";
 
-const columns = [
-  "법인",
-  "공정",
-  "보전파트",
-  "설비명",
-  "W/O코드",
-  "대표 작업명",
-  "중요도",
-  "효과 유형",
-  "작업완료일",
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function buildExcelToJsonKeyMap(columnDefs) {
+  const list = Array.isArray(columnDefs)
+    ? columnDefs
+    : Array.isArray(columnDefs?.data)
+      ? columnDefs.data
+      : [];
+  return list.reduce((acc, col) => {
+    if (col.excelColumnName && col.jsonKey) {
+      acc[col.excelColumnName.trim()] = col.jsonKey;
+    }
+    return acc;
+  }, {});
+}
 
-export default function ChangeHistory({
-  data,
-  onUpload,
-  onExport,
+function remapRowKeys(row, excelToJsonKey) {
+  return Object.entries(row).reduce((acc, [key, value]) => {
+    const mappedKey = excelToJsonKey[key.trim()] ?? key;
+    acc[mappedKey] = value;
+    return acc;
+  }, {});
+}
+
+function buildOrderedColumns(columnDefs) {
+  const list = Array.isArray(columnDefs)
+    ? columnDefs
+    : Array.isArray(columnDefs?.data)
+      ? columnDefs.data
+      : [];
+  return list
+    .filter((col) => col.isActive !== false)
+    .filter((col) => col.jsonKey && col.jsonKey !== "id")
+    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+    .map((col) => col.jsonKey);
+}
+
+function rowKey(row, index) {
+  return `${index}__${row.id ?? ""}__${row.equipmentCode ?? ""}__${
+    row.work ?? row.representativeWork ?? ""
+  }`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SelectSkeleton
+// ─────────────────────────────────────────────────────────────────────────────
+function SelectSkeleton() {
+  return (
+    <div
+      style={{
+        height: "38px",
+        borderRadius: "6px",
+        background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.4s infinite",
+        border: "1px solid var(--color-border-base, #e5e7eb)",
+      }}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EditableCell
+// ─────────────────────────────────────────────────────────────────────────────
+function EditableCell({ value, isEditing, col, onChange }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  if (!isEditing) {
+    return (
+      <span
+        style={{
+          display: "block",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "220px",
+          color:
+            value == null || value === ""
+              ? "var(--color-text-subtle, #9ca3af)"
+              : "var(--color-text-default, #111827)",
+        }}
+        title={String(value ?? "")}
+      >
+        {value == null || value === "" ? "—" : String(value)}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      style={{
+        width: "100%",
+        minWidth: "80px",
+        padding: "4px 8px",
+        fontSize: "12px",
+        border: "1.5px solid #2563eb",
+        borderRadius: "4px",
+        background: "#fff",
+        color: "#111",
+        outline: "none",
+        boxSizing: "border-box",
+      }}
+      value={value ?? ""}
+      onChange={(e) => onChange(col, e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EditableModalRow — inside the upload preview modal
+// ─────────────────────────────────────────────────────────────────────────────
+function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, onSave, onCancel }) {
+  const isEditing = editingRowIndex === index;
+  const [draft, setDraft] = useState({});
+  const rowRef = useRef(null);
+
+  const handleStartEdit = (e) => {
+    e.stopPropagation();
+    setDraft({ ...row });
+    onStartEdit(index);
+  };
+
+  const handleDraftChange = useCallback((col, value) => {
+    setDraft((prev) => ({ ...prev, [col]: value }));
+  }, []);
+
+  const handleSave = useCallback(
+    (e) => {
+      e?.stopPropagation();
+      onSave(index, { ...row, ...draft });
+    },
+    [index, draft, row, onSave],
+  );
+
+  const handleCancel = (e) => {
+    e?.stopPropagation();
+    setDraft({});
+    onCancel();
+  };
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handler = (e) => {
+      if (rowRef.current && !rowRef.current.contains(e.target)) handleSave();
+    };
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 80);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [isEditing, handleSave]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handler = (e) => {
+      if (e.key === "Enter") handleSave(e);
+      if (e.key === "Escape") handleCancel(e);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isEditing, handleSave]);
+
+  return (
+    <tr
+      ref={rowRef}
+      style={{
+        borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+        background: isEditing
+          ? "#eff6ff"
+          : index % 2 === 0
+            ? "var(--color-surface-default, #fff)"
+            : "var(--color-surface-raised, #f9fafb)",
+        outline: isEditing ? "2px solid #2563eb" : "none",
+        outlineOffset: "-1px",
+        transition: "background 0.1s",
+      }}
+    >
+      <td
+        className="px-4 py-2.5 text-xs tabular-nums"
+        style={{
+          color: "var(--color-text-subtle, #9ca3af)",
+          whiteSpace: "nowrap",
+          userSelect: "none",
+        }}
+      >
+        {index + 1}
+      </td>
+
+      <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
+        {isEditing ? (
+          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              title="저장 (Enter)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "26px",
+                height: "26px",
+                borderRadius: "5px",
+                border: "none",
+                background: "#16a34a",
+                color: "#fff",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <i className="fas fa-check" style={{ fontSize: "10px" }} />
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              title="취소 (Esc)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "26px",
+                height: "26px",
+                borderRadius: "5px",
+                border: "none",
+                background: "#e5e7eb",
+                color: "#6b7280",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <i className="fas fa-times" style={{ fontSize: "10px" }} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            title="행 편집"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "26px",
+              height: "26px",
+              borderRadius: "5px",
+              border: "none",
+              background: "var(--color-brand-10, #eff6ff)",
+              color: "var(--color-brand-60, #2563eb)",
+              cursor: "pointer",
+            }}
+          >
+            <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
+          </button>
+        )}
+      </td>
+
+      {columns.map((col) => (
+        <td
+          key={col}
+          style={{
+            padding: isEditing ? "4px 6px" : "8px 16px",
+            minWidth: isEditing ? "100px" : undefined,
+            maxWidth: "240px",
+          }}
+        >
+          <EditableCell
+            value={isEditing ? draft[col] : row[col]}
+            isEditing={isEditing}
+            col={col}
+            onChange={handleDraftChange}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UploadPreviewModal
+// ─────────────────────────────────────────────────────────────────────────────
+export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConfirm }) {
+  const [rows, setRows] = useState(() => initialRows ?? []);
+  const [editingRowIndex, setEditingRowIndex] = useState(null);
+
+  useEffect(() => {
+    setRows(initialRows ?? []);
+    setEditingRowIndex(null);
+  }, [initialRows]);
+
+  const detectedColumns = columns?.length ? columns : rows.length > 0 ? Object.keys(rows[0]) : [];
+
+  const handleSaveRow = useCallback((index, payload) => {
+    setRows((prev) => {
+      const next = [...prev];
+      next[index] = payload;
+      return next;
+    });
+    setEditingRowIndex(null);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
+
+  const handleConfirm = () => {
+    const confirmedRows = [...rows];
+    onClose();
+    window.setTimeout(() => onConfirm?.(confirmedRows), 0);
+  };
+
+  if (!initialRows) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
+    >
+      <div
+        className="flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+        style={{
+          background: "var(--color-surface-default, #fff)",
+          border: "1px solid var(--color-border-base, #e5e7eb)",
+          width: "min(95vw, 1200px)",
+          maxHeight: "88vh",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 shrink-0"
+          style={{
+            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+            background: "var(--color-surface-raised, #f9fafb)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm"
+              style={{
+                background: "var(--color-brand-10, #eff6ff)",
+                color: "var(--color-brand-60, #2563eb)",
+              }}
+            >
+              <i className="fas fa-table" />
+            </div>
+            <div>
+              <h2
+                className="text-base font-bold"
+                style={{ color: "var(--color-text-default, #111827)" }}
+              >
+                업로드 데이터 미리보기
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
+                총 <span className="font-semibold">{rows.length}행</span>
+                {" · "}
+                {detectedColumns.length}개 컬럼 · 연필 아이콘을 눌러 수정하세요
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+            style={{ color: "var(--color-text-subtle, #6b7280)", background: "transparent" }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "var(--color-fill-active, #f3f4f6)")
+            }
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            aria-label="닫기"
+          >
+            <i className="fas fa-times text-sm" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto">
+          {rows.length === 0 ? (
+            <div
+              className="flex flex-col items-center justify-center gap-3 py-16 text-center"
+              style={{ color: "var(--color-text-subtle, #6b7280)" }}
+            >
+              <i className="fas fa-inbox text-4xl opacity-30" />
+              <p className="text-sm">데이터가 없습니다.</p>
+            </div>
+          ) : (
+            <table className="min-w-full text-left text-sm">
+              <thead
+                style={{
+                  background: "var(--color-surface-raised, #f9fafb)",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
+                }}
+              >
+                <tr>
+                  <th
+                    className="px-4 py-3 text-xs font-semibold tracking-wide"
+                    style={{
+                      color: "var(--color-text-subtle, #6b7280)",
+                      borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+                      minWidth: "40px",
+                    }}
+                  >
+                    #
+                  </th>
+                  <th
+                    className="px-3 py-3 text-xs font-semibold tracking-wide"
+                    style={{
+                      color: "var(--color-text-subtle, #6b7280)",
+                      borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+                      width: "64px",
+                    }}
+                  >
+                    편집
+                  </th>
+                  {detectedColumns.map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-3 text-xs font-semibold tracking-wide"
+                      style={{
+                        color: "var(--color-text-subtle, #6b7280)",
+                        borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <EditableModalRow
+                    key={rowKey(row, index)}
+                    row={row}
+                    index={index}
+                    columns={detectedColumns}
+                    editingRowIndex={editingRowIndex}
+                    onStartEdit={setEditingRowIndex}
+                    onSave={handleSaveRow}
+                    onCancel={handleCancelEdit}
+                  />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between gap-3 px-6 py-4 shrink-0"
+          style={{
+            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
+            background: "var(--color-surface-raised, #f9fafb)",
+          }}
+        >
+          <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
+            <i className="fas fa-info-circle mr-1" />
+            행의 연필 아이콘을 눌러 수정 후, 저장 버튼으로 전체 데이터를 저장하세요
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="btn-base btn-secondary">
+              <i className="fas fa-times mr-1.5" />
+              취소
+            </button>
+            {onConfirm && rows.length > 0 && (
+              <button type="button" onClick={handleConfirm} className="btn-base btn-primary">
+                <i className="fas fa-check mr-1.5" />
+                저장 ({rows.length}건)
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EditableRow — inline editable row in the main table
+// ─────────────────────────────────────────────────────────────────────────────
+function EditableRow({
+  row,
+  index,
+  columns,
+  isEditing,
+  onStartEdit,
+  onSave,
+  onCancel,
   onOpenDetail,
-  searchText,
+  isSelected,
+  onToggleSelect,
 }) {
-  const [proc, setProc] = useState("전체");
-  const [part, setPart] = useState("전체");
+  const [draft, setDraft] = useState({});
+  const rowRef = useRef(null);
+
+  const handleStartEdit = (e) => {
+    e.stopPropagation();
+    setDraft({ ...row });
+    onStartEdit(index);
+  };
+
+  const handleSave = useCallback(
+    (e) => {
+      e?.stopPropagation();
+      onSave(index, draft);
+    },
+    [index, draft, onSave],
+  );
+
+  const handleCancel = (e) => {
+    e?.stopPropagation();
+    onCancel();
+  };
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handler = (e) => {
+      if (e.key === "Enter") handleSave(e);
+      if (e.key === "Escape") handleCancel(e);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isEditing, handleSave]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handleOutsideClick = (e) => {
+      if (rowRef.current && !rowRef.current.contains(e.target)) handleSave();
+    };
+    const timer = setTimeout(() => document.addEventListener("mousedown", handleOutsideClick), 50);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isEditing, handleSave]);
+
+  return (
+    <tr
+      ref={rowRef}
+      className={!isEditing ? "cursor-pointer" : ""}
+      style={{
+        borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+        background: isEditing
+          ? "#eff6ff"
+          : index % 2 === 0
+            ? "var(--color-surface-default, #fff)"
+            : "var(--color-surface-raised, #f9fafb)",
+        outline: isEditing ? "2px solid #2563eb" : "none",
+        outlineOffset: "-1px",
+      }}
+      onClick={() => !isEditing && onOpenDetail?.(row)}
+    >
+      {/* Checkbox */}
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(index)} />
+      </td>
+
+      {/* Edit controls */}
+      <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
+        {isEditing ? (
+          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              title="저장 (Enter)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "28px",
+                height: "28px",
+                borderRadius: "5px",
+                border: "none",
+                background: "#16a34a",
+                color: "#fff",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <i className="fas fa-check" style={{ fontSize: "11px" }} />
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              title="취소 (Esc)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "28px",
+                height: "28px",
+                borderRadius: "5px",
+                border: "none",
+                background: "#e5e7eb",
+                color: "#6b7280",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <i className="fas fa-times" style={{ fontSize: "11px" }} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            title="행 편집"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "28px",
+              height: "28px",
+              borderRadius: "5px",
+              border: "none",
+              background: "var(--color-brand-10, #eff6ff)",
+              color: "var(--color-brand-60, #2563eb)",
+              cursor: "pointer",
+            }}
+          >
+            <i className="fas fa-pencil-alt" style={{ fontSize: "11px" }} />
+          </button>
+        )}
+      </td>
+
+      {columns.map((col) =>
+        isEditing ? (
+          <td key={col} style={{ padding: "4px 6px", minWidth: "100px" }}>
+            <input
+              style={{
+                width: "100%",
+                minWidth: "80px",
+                padding: "5px 8px",
+                fontSize: "12px",
+                border: "1.5px solid #2563eb",
+                borderRadius: "4px",
+                background: "#fff",
+                color: "#111",
+                outline: "none",
+              }}
+              value={draft[col] ?? ""}
+              onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </td>
+        ) : (
+          <td
+            key={col}
+            className="px-4 py-3 text-text-subtle whitespace-nowrap"
+            style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
+            title={String(row[col] ?? "")}
+          >
+            {row[col] == null || row[col] === "" ? "—" : String(row[col])}
+          </td>
+        ),
+      )}
+    </tr>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main ChangeHistory component
+// ─────────────────────────────────────────────────────────────────────────────
+export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
+  const [selectedProcessId, setSelectedProcessId] = useState(null);
+  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
   const [filter, setFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [previewRows, setPreviewRows] = useState(null);
+  const [previewColumns, setPreviewColumns] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [changeDataColumns, setChangeDataColumns] = useState([]);
+  const [filterPayload, setFilterPayload] = useState(null);
+  const [filterError, setFilterError] = useState(null);
+
+  // ── All flat records parsed from changedDataJson[0].content ───────────────
+  const [changedRecords, setChangedRecords] = useState([]);
+
+  // ── The single envelope id from changedDataJson[0].id ─────────────────────
+  // This is the id we MUST send back on every save so the backend replaces
+  // the entire content blob for that record.
+  const [changedDataId, setChangedDataId] = useState(0);
+
+  const [importBusy, setImportBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [operationStatus, setOperationStatus] = useState({
+    isVisible: false,
+    status: "loading",
+    message: "",
+    autoClose: true,
+  });
   const fileInput = useRef(null);
+  const getFilterDataRef = useRef(null);
 
-  const processes = useMemo(
-    () => ["전체", ...new Set(data.map((item) => item.공정))],
-    [data],
+  const filterLoading = filterPayload === null && filterError === null;
+
+  // ── Filter option lists ───────────────────────────────────────────────────
+  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+
+  const maintenanceList = useMemo(() => {
+    const all = filterPayload?.maintenance ?? [];
+    if (!selectedProcessId) return all;
+    return all.filter((m) => m.processId === selectedProcessId);
+  }, [filterPayload, selectedProcessId]);
+
+  const handleProcessChange = (e) => {
+    const val = e.target.value;
+    setSelectedProcessId(val === "" ? null : Number(val));
+    setSelectedMaintenanceId(null);
+  };
+
+  const handleMaintenanceChange = (e) => {
+    const val = e.target.value;
+    setSelectedMaintenanceId(val === "" ? null : Number(val));
+  };
+
+  // ── Column helpers ────────────────────────────────────────────────────────
+  const excelToJsonKey = useMemo(
+    () => buildExcelToJsonKeyMap(changeDataColumns),
+    [changeDataColumns],
   );
-  const parts = useMemo(() => {
-    const items = data.filter((item) => proc === "전체" || item.공정 === proc);
-    return ["전체", ...new Set(items.map((item) => item.보전파트))];
-  }, [data, proc]);
-  const filtered = useMemo(() => {
-    return data.filter((item) => {
-      const matchesProc = proc === "전체" || item.공정 === proc;
-      const matchesPart = part === "전체" || item.보전파트 === part;
-      const text = (
-        String(item.설비명 ?? "") +
-        String(item["대표 작업명"] ?? "") +
-        String(item["문제 현상"] ?? "") +
-        String(item["문제 원인"] ?? "")
-      ).toLowerCase();
-      const matchesSearch = searchText
-        ? text.includes(searchText.toLowerCase())
-        : true;
-      const matchesFilter = filter ? text.includes(filter.toLowerCase()) : true;
-      return matchesProc && matchesPart && matchesSearch && matchesFilter;
-    });
-  }, [data, proc, part, filter, searchText]);
 
+  const orderedJsonKeys = useMemo(
+    () => buildOrderedColumns(changeDataColumns),
+    [changeDataColumns],
+  );
+
+  // ── Merge prop data + API records (API records take precedence for same id) ─
+  const combinedData = useMemo(() => {
+    if (changedRecords.length === 0) return data;
+    const existingIds = new Set(data.map((item) => item.id));
+    const newRecords = changedRecords.filter((record) => !existingIds.has(record.id));
+    return [...newRecords, ...data];
+  }, [data, changedRecords]);
+
+  // ── Table columns: sequence-sorted jsonKeys, id excluded ──────────────────
+  const dynamicColumns = useMemo(() => {
+    if (orderedJsonKeys.length > 0) return orderedJsonKeys;
+    if (combinedData.length > 0) {
+      return Object.keys(combinedData[0]).filter((k) => k !== "id" && k !== "_sourceId");
+    }
+    return [];
+  }, [orderedJsonKeys, combinedData]);
+
+  // ── Filtered rows ─────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    const selectedProcess = processList.find((p) => p.id === selectedProcessId);
+    const selectedMaint = (filterPayload?.maintenance ?? []).find(
+      (m) => m.id === selectedMaintenanceId,
+    );
+
+    return combinedData.filter((item) => {
+      const matchesProc =
+        !selectedProcessId || (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
+
+      const matchesMaint =
+        !selectedMaintenanceId ||
+        (item.maintGroup ?? item.보전파트 ?? item.보전그룹) ===
+          (selectedMaint?.maintenanceGroupName ?? "");
+
+      const text = Object.values(item)
+        .map((v) => String(v ?? ""))
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch = searchText ? text.includes(searchText.toLowerCase()) : true;
+      const matchesFilter = filter ? text.includes(filter.toLowerCase()) : true;
+
+      return matchesProc && matchesMaint && matchesSearch && matchesFilter;
+    });
+  }, [
+    combinedData,
+    processList,
+    filterPayload,
+    selectedProcessId,
+    selectedMaintenanceId,
+    filter,
+    searchText,
+  ]);
+
+  // ── Multi-select ──────────────────────────────────────────────────────────
   const toggleSelect = (index) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -64,157 +807,541 @@ export default function ChangeHistory({
       setSelectedIds(new Set());
       return;
     }
-    setSelectedIds(new Set(filtered.map((_, index) => index)));
+    setSelectedIds(new Set(filtered.map((_, i) => i)));
   };
 
+  // ── Build a clean row for the payload (strip internal keys, fill columns) ──
+  const buildCleanRow = useCallback(
+    (row) => {
+      // Safely strip internal tracking field (_sourceId may not exist)
+      const clean = Object.entries(row).reduce((acc, [key, value]) => {
+        if (key !== "_sourceId") acc[key] = value;
+        return acc;
+      }, {});
+      const fullRow = { id: clean.id ?? 0 };
+      orderedJsonKeys.forEach((key) => {
+        fullRow[key] = clean[key] ?? "";
+      });
+      // Carry over any extra keys not in orderedJsonKeys
+      Object.entries(clean).forEach(([key, value]) => {
+        if (!(key in fullRow)) fullRow[key] = value;
+      });
+      return fullRow;
+    },
+    [orderedJsonKeys],
+  );
+
+  // ── SAVE ROW ──────────────────────────────────────────────────────────────
+  // When saving ONE edited row, we must send the ENTIRE changedRecords list
+  // (all 20 rows) with the single edited row merged in, plus id = changedDataId.
+  // The backend replaces the whole content blob for that envelope id.
+  const handleSaveRow = useCallback(
+    (filteredIndex, draft) => {
+      const originalRow = filtered[filteredIndex];
+
+      // Merge draft into the original row
+      const mergedRow = { ...originalRow, ...draft };
+
+      // Build the full changeDataList:
+      // Take ALL changedRecords, replace the matching row (by row id) with
+      // the edited+merged version, then clean every row for the payload.
+      const changeDataList = changedRecords.map((r) => {
+        const isEditedRow = r.id != null && r.id === mergedRow.id;
+        return buildCleanRow(isEditedRow ? mergedRow : r);
+      });
+
+      // If the edited row isn't in changedRecords yet (e.g. it came from
+      // the `data` prop), append it so the backend doesn't lose it.
+      const editedExists = changedRecords.some((r) => r.id === mergedRow.id);
+      if (!editedExists) {
+        changeDataList.push(buildCleanRow(mergedRow));
+      }
+
+      const payload = {
+        changeDataList,
+        id: changedDataId, // ← the envelope id from changedDataJson[0].id
+      };
+
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: "저장 중입니다...",
+        autoClose: false,
+      });
+
+      APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+        if (status === 200) {
+          setEditingIndex(null);
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: `데이터가 성공적으로 저장되었습니다. (전체 ${changeDataList.length}건)`,
+            autoClose: true,
+          });
+          onUpload?.("change_rows", payload);
+          getFilterDataRef.current?.();
+        } else {
+          console.error("행 저장 실패:", responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: "행 저장에 실패했습니다.",
+            autoClose: true,
+          });
+        }
+      });
+    },
+    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload],
+  );
+
+  const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
+
+  // ── MODAL CONFIRM (bulk upload) ───────────────────────────────────────────
+  // For a fresh bulk upload, merge uploaded rows with existing changedRecords
+  // and send everything with changedDataId.
+  const handleModalConfirm = useCallback(
+    (updatedRows) => {
+      // Remap excel column names → json keys
+      const remappedRows = updatedRows.map((row) => {
+        const remapped = remapRowKeys(row, excelToJsonKey);
+        return buildCleanRow(remapped);
+      });
+
+      // Merge: uploaded rows override existing records with same id,
+      // then append any existing records NOT present in the upload.
+      const uploadedIds = new Set(remappedRows.map((r) => r.id));
+      const existingNotOverridden = changedRecords
+        .filter((r) => !uploadedIds.has(r.id))
+        .map((r) => buildCleanRow(r));
+
+      const changeDataList = [...remappedRows, ...existingNotOverridden];
+
+      const payload = {
+        changeDataList,
+        id: changedDataId, // ← same envelope id
+      };
+
+      APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+        if (status === 200) {
+          setPreviewRows(null);
+          setPreviewColumns(null);
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: `${changeDataList.length}개 행이 성공적으로 저장되었습니다.`,
+            autoClose: true,
+          });
+          onUpload?.("change_rows", payload);
+          getFilterDataRef.current?.();
+        } else {
+          console.error("일괄 저장 실패:", responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: "데이터 저장에 실패했습니다.",
+            autoClose: true,
+          });
+        }
+      });
+    },
+    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload],
+  );
+
+  // ── Upload Excel ──────────────────────────────────────────────────────────
+  const uploadExcelFile = async (file, callback) => {
+    const filterColumns = changeDataColumns
+      .map((item) => item.excelColumnName)
+      .filter(Boolean)
+      .join(",");
+
+    const url = `${pocEndPoints?.UPLOAD_EXCEL}?FilterColumns=${encodeURIComponent(
+      filterColumns,
+    )}&SheetName=sheet1`;
+
+    const formData = new FormData();
+    formData.append("UploadedBy", getUserInfo()?.name || "");
+    formData.append("File", file);
+
+    await APIcallPostFile(url, formData, {}, callback);
+  };
+
+  const handleUploadExcel = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+    setImportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${file.name}을(를) 업로드 중입니다...`,
+      autoClose: false,
+    });
+
+    try {
+      await withMinimumDelay(async () => {
+        await uploadExcelFile(file, (res, statusCode) => {
+          if (statusCode === 200) {
+            setPreviewColumns(Array.isArray(res?.columnNames) ? res.columnNames : null);
+            setPreviewRows(Array.isArray(res?.rows) ? res.rows : []);
+            setOperationStatus({
+              isVisible: true,
+              status: "success",
+              message: `${res?.rows?.length || 0}개 행을 성공적으로 로드했습니다.`,
+              autoClose: true,
+            });
+          } else {
+            setOperationStatus({
+              isVisible: true,
+              status: "error",
+              message: "파일 업로드에 실패했습니다.",
+              autoClose: true,
+            });
+          }
+        });
+      });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    const rowsToExport =
+      selectedIds.size > 0 ? filtered.filter((_, i) => selectedIds.has(i)) : filtered;
+
+    if (!rowsToExport || rowsToExport.length === 0) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: "내보낼 레코드가 없습니다.",
+        autoClose: true,
+      });
+      return;
+    }
+
+    setExportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToExport.length}개 행을 내보내는 중입니다...`,
+      autoClose: false,
+    });
+
+    try {
+      await withMinimumDelay(async () => {
+        const exportCols = orderedJsonKeys.length > 0 ? orderedJsonKeys : dynamicColumns;
+
+        const exportData = rowsToExport.map((row) => {
+          const orderedRow = {};
+          exportCols.forEach((key) => {
+            orderedRow[key] = row[key] ?? "";
+          });
+          return orderedRow;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+        XLSX.writeFile(workbook, "change-history.xlsx");
+
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToExport.length}개 행이 성공적으로 내보내졌습니다.`,
+          autoClose: true,
+        });
+      });
+    } catch (error) {
+      console.error("Excel export failed:", error);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: "파일 내보내기에 실패했습니다.",
+        autoClose: true,
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  // ── Fetch filter data ─────────────────────────────────────────────────────
+  // changedDataJson always has ONE object: { id, content }
+  // We capture that id as changedDataId and parse content into flat rows.
+  const getFilterData = useCallback(() => {
+    APIcallGet(`${pocEndPoints?.GET_FILTER_DATA}`, {}, (responseData, status) => {
+      try {
+        if (status === 200 && responseData) {
+          const payload = responseData?.data || responseData;
+          setFilterPayload(payload);
+          setFilterError(null);
+
+          if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+            // changedDataJson always has one item — take index 0
+            const envelope = payload.changedDataJson[0];
+
+            // Capture the envelope id for all future save payloads
+            setChangedDataId(envelope.id ?? 0);
+
+            // Parse the content array into flat records
+            try {
+              const parsed =
+                typeof envelope.content === "string"
+                  ? JSON.parse(envelope.content)
+                  : envelope.content;
+
+              if (Array.isArray(parsed)) {
+                // Sort newest first by record-level id
+                const sorted = [...parsed].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+                setChangedRecords(sorted);
+              } else {
+                setChangedRecords([]);
+              }
+            } catch (parseError) {
+              console.warn("[ChangeHistory] Failed to parse changedDataJson content:", parseError);
+              setChangedRecords([]);
+            }
+          } else {
+            // No changedDataJson yet — keep id as 0 so backend creates a new record
+            setChangedDataId(0);
+            setChangedRecords([]);
+          }
+        } else {
+          console.warn("[ChangeHistory] Filter data API returned invalid status:", status);
+          setFilterPayload({ process: [], maintenance: [] });
+          setChangedRecords([]);
+          setChangedDataId(0);
+          setFilterError("필터 데이터를 불러올 수 없습니다.");
+        }
+      } catch (error) {
+        console.error("[ChangeHistory] Error processing filter data:", error);
+        setFilterPayload({ process: [], maintenance: [] });
+        setChangedRecords([]);
+        setChangedDataId(0);
+        setFilterError("필터 데이터 처리 중 오류가 발생했습니다.");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    getFilterDataRef.current = getFilterData;
+  }, [getFilterData]);
+
+  useEffect(() => {
+    APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
+      if (status !== 200 || !responseData) return;
+      if (Array.isArray(responseData) && responseData.length > 0) {
+        setChangeDataColumns(responseData);
+        return;
+      }
+      if (Array.isArray(responseData?.data) && responseData.data.length > 0) {
+        setChangeDataColumns(responseData.data);
+        return;
+      }
+      console.warn("[ChangeHistory] Unexpected column API shape:", responseData);
+    });
+    getFilterData();
+  }, [getFilterData]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <section className="space-y-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-extrabold text-text-default">
-            변경 이력 데이터
-          </h1>
-          <p className="mt-2 text-sm text-text-subtle">
-            설비 변경 이력 데이터를 관리합니다. 변경 매트릭스 및 MP List용
-            데이터를 다룹니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            className="btn-base btn-secondary"
-            onClick={() => fileInput.current?.click()}
-          >
-            <i className="fas fa-file-import" /> CSV 불러오기
-          </button>
-          <button
-            type="button"
-            className="btn-base btn-primary"
-            onClick={onExport}
-          >
-            <i className="fas fa-file-export" /> CSV 내보내기
-          </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onUpload("change", file);
-              event.target.value = "";
-            }}
-          />
-        </div>
-      </header>
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position:  200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
 
-      <div className="card p-5">
-        <div className="grid gap-4 lg:grid-cols-5">
-          <label className="space-y-2 text-sm text-text-subtle">
-            공정
-            <select
-              className="input-base"
-              value={proc}
-              onChange={(e) => setProc(e.target.value)}
-            >
-              {processes.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2 text-sm text-text-subtle">
-            보전파트
-            <select
-              className="input-base"
-              value={part}
-              onChange={(e) => setPart(e.target.value)}
-            >
-              {parts.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2 text-sm text-text-subtle lg:col-span-2">
-            검색
-            <input
-              className="input-base"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="설비명, 작업명, 문제 상황..."
-            />
-          </label>
-          <div className="flex items-end justify-between gap-3">
-            <span className="badge badge-primary">{filtered.length}건</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="card overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
-              <i className="fas fa-history" />
-            </div>
-            <h2 className="text-xl font-bold text-text-default">
-              조건에 맞는 데이터가 없습니다.
-            </h2>
-            <p>
-              공정과 보전파트를 선택하거나 검색어를 입력해서 데이터를
-              확인하세요.
+      <section className="space-y-6">
+        {/* Page header */}
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold text-text-default">변경 이력 데이터</h1>
+            <p className="mt-2 text-sm text-text-subtle">
+              설비 변경 이력 데이터를 관리합니다. 변경 매트릭스 및 MP List용 데이터를 다룹니다.
             </p>
           </div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="table-header">
-                <tr>
-                  <th className="px-4 py-3 w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === filtered.length}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  {columns.map((column) => (
-                    <th key={column} className="px-4 py-3 text-text-subtle">
-                      {column}
-                    </th>
+          <div className="flex flex-wrap gap-3">
+            <AnimatedActionButton
+              className="btn-secondary"
+              onClick={() => fileInput.current?.click()}
+              busy={importBusy}
+              busyLabel="Loading CSV..."
+              icon="fas fa-file-import"
+            >
+              CSV 불러오기
+            </AnimatedActionButton>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleUploadExcel}
+            />
+            <AnimatedActionButton
+              className="btn-primary"
+              onClick={handleExport}
+              busy={exportBusy}
+              busyLabel="Exporting..."
+              icon="fas fa-file-export"
+            >
+              {selectedIds.size > 0 ? `CSV 내보내기 (${selectedIds.size}건 선택)` : "CSV 내보내기"}
+            </AnimatedActionButton>
+          </div>
+        </header>
+
+        {/* Filters */}
+        <div className="card p-5">
+          {filterError && (
+            <div
+              className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
+              role="alert"
+            >
+              <i className="fas fa-exclamation-circle mt-0.5 flex-shrink-0" />
+              <div>{filterError}</div>
+            </div>
+          )}
+          <div className="grid gap-4 lg:grid-cols-5">
+            <label className="space-y-2 text-sm text-text-subtle">
+              공정
+              {filterLoading ? (
+                <SelectSkeleton />
+              ) : (
+                <select
+                  className="input-base"
+                  value={selectedProcessId ?? ""}
+                  onChange={handleProcessChange}
+                >
+                  <option value="">전체</option>
+                  {processList.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.processName}
+                    </option>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row, index) => (
-                  <tr
-                    key={`${row["W/O코드"]}-${index}`}
-                    className="table-row border-t border-border-base hover:bg-fill-active cursor-pointer"
-                    onClick={() => onOpenDetail(row)}
-                  >
-                    <td className="px-4 py-3">
+                </select>
+              )}
+            </label>
+
+            <label className="space-y-2 text-sm text-text-subtle">
+              보전그룹
+              {filterLoading ? (
+                <SelectSkeleton />
+              ) : (
+                <select
+                  className="input-base"
+                  value={selectedMaintenanceId ?? ""}
+                  onChange={handleMaintenanceChange}
+                  disabled={maintenanceList.length === 0}
+                >
+                  <option value="">전체</option>
+                  {maintenanceList.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.maintenanceGroupName}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+
+            <label className="space-y-2 text-sm text-text-subtle lg:col-span-2">
+              검색
+              <input
+                className="input-base"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="설비명, 작업명, 문제 상황..."
+              />
+            </label>
+
+            <div className="flex w-full items-end items-center justify-end gap-3">
+              <span className="badge badge-primary">{filtered.length}건</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Data table */}
+        <div className="card overflow-hidden">
+          {filtered.length === 0 ? (
+            <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
+                <i className="fas fa-history" />
+              </div>
+              <h2 className="text-xl font-bold text-text-default">
+                조건에 맞는 데이터가 없습니다.
+              </h2>
+              <p>공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.</p>
+            </div>
+          ) : (
+            <div className="overflow-auto" style={{ height: "calc(100vh - 39vh)" }}>
+              <table className="min-w-full text-left text-sm">
+                <thead className="table-header">
+                  <tr>
+                    <th className="px-4 py-3 w-12">
                       <input
                         type="checkbox"
-                        checked={selectedIds.has(index)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleSelect(index);
-                        }}
+                        checked={selectedIds.size === filtered.length && filtered.length > 0}
+                        onChange={toggleSelectAll}
                       />
-                    </td>
-                    {columns.map((column) => (
-                      <td key={column} className="px-4 py-3 text-text-subtle">
-                        {row[column] ?? "—"}
-                      </td>
+                    </th>
+                    <th
+                      className="px-3 py-3 text-text-subtle whitespace-nowrap"
+                      style={{ fontSize: "11px", fontWeight: 600, width: "72px" }}
+                    >
+                      편집
+                    </th>
+                    {dynamicColumns.map((col) => (
+                      <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
+                        {col}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </section>
+                </thead>
+                <tbody>
+                  {filtered.map((row, index) => (
+                    <EditableRow
+                      key={rowKey(row, index)}
+                      row={row}
+                      index={index}
+                      columns={dynamicColumns}
+                      isEditing={editingIndex === index}
+                      onStartEdit={setEditingIndex}
+                      onSave={handleSaveRow}
+                      onCancel={handleCancelEdit}
+                      onOpenDetail={onOpenDetail}
+                      isSelected={selectedIds.has(index)}
+                      onToggleSelect={toggleSelect}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Upload preview modal */}
+      <UploadPreviewModal
+        rows={previewRows}
+        columns={previewColumns}
+        onClose={() => {
+          setPreviewRows(null);
+          setPreviewColumns(null);
+        }}
+        onConfirm={handleModalConfirm}
+      />
+
+      {/* Operation status toast */}
+      <OperationStatus
+        isVisible={operationStatus.isVisible}
+        status={operationStatus.status}
+        message={operationStatus.message}
+        autoClose={operationStatus.autoClose}
+        onClose={() =>
+          setOperationStatus({ isVisible: false, status: "loading", message: "", autoClose: true })
+        }
+      />
+    </>
   );
 }

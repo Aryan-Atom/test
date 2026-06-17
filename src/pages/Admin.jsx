@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { useI18n } from "../i18n.jsx";
 
 const roles = ["Viewer", "Editor", "Admin"];
 const processes = ["전체", "CELL", "MODULE", "PACK", "BMS"];
 
 export default function Admin({ users, onUpdateUsers, searchText }) {
+  const { t } = useI18n();
   const [filter, setFilter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [newRole, setNewRole] = useState("Viewer");
@@ -11,18 +13,10 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
 
   const filtered = useMemo(() => {
     return users.filter((user) => {
-      const permsText = Array.isArray(user.perms)
-        ? user.perms.join(",")
-        : String(user.perms ?? "");
-      const text = (
-        String(user.name ?? "") +
-        String(user.role ?? "") +
-        permsText
-      ).toLowerCase();
-      const matchesSearch = searchText
-        ? text.includes(String(searchText).toLowerCase())
-        : true;
-      const matchesFilter = filter === "전체" || user.role === filter;
+      const permsText = Array.isArray(user.perms) ? user.perms.join(",") : String(user.perms ?? "");
+      const text = `${user.name ?? ""}${user.role ?? ""}${permsText}`.toLowerCase();
+      const matchesSearch = searchText ? text.includes(String(searchText).toLowerCase()) : true;
+      const matchesFilter = !filter || filter === "전체" || user.role === filter;
       return matchesSearch && matchesFilter;
     });
   }, [users, searchText, filter]);
@@ -31,7 +25,7 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
     if (!selectedUser) return;
     const updated = users.map((user) => {
       if (user.name !== selectedUser.name) return user;
-      const perms = Array.from(new Set([...user.perms, newPerm]));
+      const perms = Array.from(new Set([...(user.perms ?? []), newPerm]));
       return { ...user, role: newRole, perms };
     });
     onUpdateUsers(updated);
@@ -41,7 +35,7 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
   const handleRemovePerm = (userName, perm) => {
     const updated = users.map((user) => {
       if (user.name !== userName) return user;
-      return { ...user, perms: user.perms.filter((item) => item !== perm) };
+      return { ...user, perms: (user.perms ?? []).filter((item) => item !== perm) };
     });
     onUpdateUsers(updated);
   };
@@ -50,50 +44,35 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
     <section className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-text-default">
-            권한 관리
-          </h1>
-          <p className="mt-2 text-sm text-text-subtle">
-            사용자별 공정 접근 권한을 세밀하게 제어합니다.
-          </p>
+          <h1 className="text-3xl font-extrabold text-text-default">{t("page.admin.title")}</h1>
+          <p className="mt-2 text-sm text-text-subtle">{t("page.admin.desc")}</p>
         </div>
-        <button
-          type="button"
-          className="btn-base btn-primary"
-          onClick={() => setFilter("전체")}
-        >
-          모든 사용자 보기
+        <button type="button" className="btn-base btn-primary" onClick={() => setFilter("전체")}>
+          {t("page.admin.showAll")}
         </button>
       </header>
 
       <div className="card p-5">
         <div className="grid gap-4 lg:grid-cols-3">
           <label className="space-y-2 text-sm text-text-subtle">
-            역할 필터
-            <select
-              className="input-base"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
+            {t("field.role")}
+            <select className="input-base" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">{t("app.all")}</option>
               {roles.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
               ))}
-              <option value="전체">전체</option>
             </select>
           </label>
           <label className="space-y-2 text-sm text-text-subtle">
-            사용자 검색
-            <input
-              className="input-base"
-              value={searchText}
-              placeholder="사용자명 검색..."
-              disabled
-            />
+            {t("app.search")}
+            <input className="input-base" value={searchText} placeholder={t("app.search")} disabled />
           </label>
           <div className="flex items-end justify-end">
-            <span className="badge badge-primary">{filtered.length}명</span>
+            <span className="badge badge-primary">
+              {filtered.length}{t("app.people")}
+            </span>
           </div>
         </div>
       </div>
@@ -102,21 +81,18 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
         <table className="min-w-full text-left text-sm">
           <thead className="table-header">
             <tr>
-              <th className="px-4 py-3 text-text-subtle">사용자명</th>
-              <th className="px-4 py-3 text-text-subtle">할당된 권한 세트</th>
-              <th className="px-4 py-3 text-text-subtle text-center">관리</th>
+              <th className="px-4 py-3 text-text-subtle">{t("app.user")}</th>
+              <th className="px-4 py-3 text-text-subtle">{t("nav.admin")}</th>
+              <th className="px-4 py-3 text-center text-text-subtle">{t("field.management")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((user) => (
-              <tr
-                key={user.name}
-                className="border-t border-border-base hover:bg-fill-active"
-              >
+              <tr key={user.name} className="border-t border-border-base hover:bg-fill-active">
                 <td className="px-4 py-4 text-text-default">{user.name}</td>
                 <td className="px-4 py-4 text-text-subtle">
                   <div className="flex flex-wrap gap-2">
-                    {user.perms.map((perm) => (
+                    {(user.perms ?? []).map((perm) => (
                       <span key={perm} className="badge badge-primary">
                         {perm}
                       </span>
@@ -124,12 +100,8 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
                   </div>
                 </td>
                 <td className="px-4 py-4 text-center">
-                  <button
-                    type="button"
-                    className="btn-base btn-ghost text-sm"
-                    onClick={() => setSelectedUser(user)}
-                  >
-                    권한 편집
+                  <button type="button" className="btn-base btn-ghost text-sm" onClick={() => setSelectedUser(user)}>
+                    {t("app.edit")}
                   </button>
                 </td>
               </tr>
@@ -139,24 +111,18 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
       </div>
 
       {selectedUser ? (
-        <div className="card rounded-3xl border border-border-base p-5">
+        <div className="card border border-border-base p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-text-default">
-                {selectedUser.name} 권한 편집
+                {selectedUser.name} {t("app.edit")}
               </h2>
-              <p className="text-sm text-text-subtle">
-                선택한 사용자에 대한 역할과 공정 권한을 업데이트합니다.
-              </p>
+              <p className="text-sm text-text-subtle">{t("page.admin.desc")}</p>
             </div>
-            <div className="grid gap-4 lg:grid-cols-3 lg:w-[60%]">
+            <div className="grid gap-4 lg:w-[60%] lg:grid-cols-3">
               <label className="space-y-2 text-sm text-text-subtle">
-                역할
-                <select
-                  className="input-base"
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                >
+                {t("field.role")}
+                <select className="input-base" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
                   {roles.map((role) => (
                     <option key={role} value={role}>
                       {role}
@@ -165,12 +131,8 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
                 </select>
               </label>
               <label className="space-y-2 text-sm text-text-subtle">
-                추가 공정
-                <select
-                  className="input-base"
-                  value={newPerm}
-                  onChange={(e) => setNewPerm(e.target.value)}
-                >
+                {t("field.process")}
+                <select className="input-base" value={newPerm} onChange={(e) => setNewPerm(e.target.value)}>
                   {processes
                     .filter((item) => item !== "전체")
                     .map((process) => (
@@ -180,26 +142,22 @@ export default function Admin({ users, onUpdateUsers, searchText }) {
                     ))}
                 </select>
               </label>
-              <button
-                type="button"
-                className="btn-base btn-primary"
-                onClick={handleAddUser}
-              >
-                저장
+              <button type="button" className="btn-base btn-primary" onClick={handleAddUser}>
+                {t("app.save")}
               </button>
             </div>
           </div>
           <div className="mt-5 space-y-3">
-            <div className="text-sm text-text-subtle">현재 권한</div>
+            <div className="text-sm text-text-subtle">{t("nav.admin")}</div>
             <div className="flex flex-wrap gap-2">
-              {selectedUser.perms.map((perm) => (
+              {(selectedUser.perms ?? []).map((perm) => (
                 <button
                   key={perm}
                   type="button"
                   className="badge badge-danger"
                   onClick={() => handleRemovePerm(selectedUser.name, perm)}
                 >
-                  {perm} 삭제
+                  {perm} {t("app.delete")}
                 </button>
               ))}
             </div>

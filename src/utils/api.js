@@ -1,17 +1,9 @@
 import axios from "axios";
-import {
-  AUTH_BASE_URL,
-  buildExcelUploadUrl,
-  DEFAULT_EXCEL_UPLOAD_BY,
-} from "./auth.js";
-
-const defaultHeaders = {
-  "Content-Type": "application/json",
-};
+import { AUTH_BASE_URL, buildExcelUploadUrl, DEFAULT_EXCEL_UPLOAD_BY } from "./auth.js";
+import { getUserInfo } from "./cookieUtils.js";
 
 const apiClient = axios.create({
   baseURL: AUTH_BASE_URL || undefined,
-  headers: defaultHeaders,
 });
 
 function buildUrl(url, params) {
@@ -26,12 +18,16 @@ async function request(method, url, body = null, options = {}) {
   const { headers = {}, params, authToken, responseType } = options;
   const requestUrl = buildUrl(url, params);
   const requestHeaders = {
-    ...defaultHeaders,
     ...headers,
   };
 
+  if (!(body instanceof FormData) && body != null) {
+    requestHeaders["Content-Type"] = requestHeaders["Content-Type"] || "application/json";
+  }
+
   if (body instanceof FormData) {
     delete requestHeaders["Content-Type"];
+    delete requestHeaders["content-type"];
   }
 
   if (authToken) {
@@ -59,32 +55,11 @@ async function request(method, url, body = null, options = {}) {
   }
 }
 
-export function apiGet(url, options) {
-  return request("GET", url, null, options);
-}
-
-export function apiPost(url, body, options) {
-  return request("POST", url, body, options);
-}
-
-export function apiDelete(url, options) {
-  return request("DELETE", url, null, options);
-}
-
-export function apiRequest(method, url, body, options) {
-  return request(method, url, body, options);
-}
-
 export function uploadExcel(file, options = {}) {
-  const {
-    headers = {},
-    filterColumns,
-    uploadedBy = DEFAULT_EXCEL_UPLOAD_BY,
-    authToken,
-  } = options;
+  const { headers = {}, filterColumns, uploadedBy = DEFAULT_EXCEL_UPLOAD_BY, authToken } = options;
   const url = buildExcelUploadUrl(filterColumns);
   const formData = new FormData();
-  formData.append("UploadedBy", uploadedBy);
+  formData.append("UploadedBy", getUserInfo()?.name);
   formData.append("File", file);
 
   return request("POST", url, formData, {
@@ -92,3 +67,56 @@ export function uploadExcel(file, options = {}) {
     authToken,
   });
 }
+
+export const APIcallGet = async (url, headers = {}, callback, logoutOnTokenExpiry = false) => {
+  try {
+    const response = await apiClient.get(url, {
+      headers: {
+        ...headers,
+      },
+    });
+    callback(response.data, response.status);
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const errorMessage = error.response?.data || error.message;
+    if (status === 401) {
+      if (logoutOnTokenExpiry) {
+        console.error("Token expired, logging out.");
+      } else {
+        await APIcallGet(url, headers, callback, true);
+      }
+    } else {
+      console.error(`GET ${url} failed:`, errorMessage);
+      callback(errorMessage, status);
+    }
+  }
+};
+
+export const APIcallPost = async (
+  url,
+  reqBody,
+  headers = {},
+  callback,
+  logoutOnTokenExpiry = false,
+) => {
+  try {
+    const response = await apiClient.post(`${url}`, reqBody, {
+      headers: {
+        ...headers,
+      },
+    });
+    callback(response.data, response.status);
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const errorMessage = error.response?.data || error.message;
+    if (401 === status) {
+      if (logoutOnTokenExpiry) {
+      } else {
+        await APIcallPost(url, reqBody, headers, callback, true);
+      }
+    } else {
+      console.error(`POST ${url} failed:`, errorMessage);
+      callback(errorMessage, status);
+    }
+  }
+};

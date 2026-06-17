@@ -1,35 +1,44 @@
-export default function Navbar({ breadcrumb, searchText, onSearchChange }) {
+import { useI18n } from "../i18n.jsx";
+
+export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }) {
+  const { language, toggleLanguage, t } = useI18n();
+  const isDark = theme === "dark";
+
   return (
-    <header className="glass flex items-center justify-between border-b border-border-base px-6 py-4">
-      <div className="flex items-center gap-4">
-        {/* <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-brand-10 text-brand-60 shadow-sm">
-          <i className="fas fa-box-open text-xl" />
-        </div> */}
-        <div>
-          <div className="text-sm font-semibold text-text-default">
-          
-          </div>
-          <div className="text-xs text-text-subtle">{breadcrumb}</div>
-        </div>
-      </div>
+    <header className="eq-topbar">
+      <button
+        type="button"
+        className="eq-topbar-icon"
+        aria-label={t("app.menu")}
+        title={collapsed ? t("app.menu") : t("app.menu")}
+        onClick={onToggleMenu}
+      >
+        <i className="fas fa-bars" />
+      </button>
 
-      <div className="flex flex-1 items-center justify-center px-4">
-        <div className="hidden w-full max-w-xl items-center gap-3 rounded-2xl bg-surface-strong p-3 shadow-sm sm:flex">
-          <i className="fas fa-search text-text-subtle" />
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="검색..."
-            className="w-full bg-transparent text-text-default placeholder:text-text-subtle outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-brand-10 text-brand-60 shadow-sm">
+      <div className="eq-topbar-actions">
+        <button
+          type="button"
+          className="eq-topbar-icon"
+          aria-label={isDark ? t("app.lightMode") : t("app.darkMode")}
+          title={isDark ? t("app.lightMode") : t("app.darkMode")}
+          onClick={onToggleTheme}
+        >
+          <i className={`fas ${isDark ? "fa-sun" : "fa-moon"}`} />
+        </button>
+        <button
+          type="button"
+          className="eq-language-button"
+          aria-label={t("app.language")}
+          title={language === "ko" ? t("app.english") : t("app.korean")}
+          onClick={toggleLanguage}
+        >
+          {language === "ko" ? "EN" : "KO"}
+        </button>
+        <div className="eq-topbar-divider" />
+        <button type="button" className="eq-user-button" aria-label={t("app.user")}>
           <i className="fas fa-user" />
-        </div>
+        </button>
       </div>
     </header>
   );
