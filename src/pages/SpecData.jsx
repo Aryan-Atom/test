@@ -82,16 +82,23 @@ function getMissingMandatoryFields(row, columns) {
   const requiredGroups = {
     site: ["site", "Site", "법인"],
     process: ["process", "Process", "공정"],
-    maintGroup: ["maintGroup", "Maintenance Part", "보전파트", "보전그룹", "maintGroupName", "보전파트명"],
-    specName: ["specName", "SpecName", "사양항목", "사양명"]
+    maintGroup: [
+      "maintGroup",
+      "Maintenance Part",
+      "보전파트",
+      "보전그룹",
+      "maintGroupName",
+      "보전파트명",
+    ],
+    specName: ["specName", "SpecName", "사양항목", "사양명"],
   };
 
   const missingFields = [];
 
   Object.entries(requiredGroups).forEach(([groupName, aliases]) => {
-    const matchingCol = columns.find(c => {
+    const matchingCol = columns.find((c) => {
       const trimmed = c.trim().toLowerCase();
-      return aliases.some(a => a.toLowerCase() === trimmed);
+      return aliases.some((a) => a.toLowerCase() === trimmed);
     });
 
     if (matchingCol) {
@@ -146,11 +153,9 @@ function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "220px",
-          color:
-            duplicate
-              ? "#dc2626"
-              :
-            value == null || value === ""
+          color: duplicate
+            ? "#dc2626"
+            : value == null || value === ""
               ? "var(--color-text-subtle, #9ca3af)"
               : "var(--color-text-default, #111827)",
           fontWeight: duplicate ? 700 : undefined,
@@ -257,9 +262,9 @@ function EditableModalRow({
           ? "#eff6ff"
           : isDuplicate
             ? "#fff1f2"
-          : index % 2 === 0
-            ? "var(--color-surface-default, #fff)"
-            : "var(--color-surface-raised, #f9fafb)",
+            : index % 2 === 0
+              ? "var(--color-surface-default, #fff)"
+              : "var(--color-surface-raised, #f9fafb)",
         outline: isEditing ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
         transition: "background 0.1s",
@@ -273,7 +278,12 @@ function EditableModalRow({
           userSelect: "none",
         }}
       >
-        <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
+        <span
+          style={{
+            color: isDuplicate ? "#dc2626" : "inherit",
+            fontWeight: isDuplicate ? 700 : undefined,
+          }}
+        >
           {index + 1}
         </span>
         {isDuplicate && (
@@ -417,28 +427,33 @@ export function UploadPreviewModal({
     [rows, isDuplicateRow],
   );
 
-  const handleSaveRow = useCallback((index, payload) => {
-    const missingFields = getMissingMandatoryFields(payload, detectedColumns);
-    if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
-      alert(
-        t(
-          "preview.mandatoryFieldsRequired",
-          "Row {rowNumber} has empty mandatory fields: {fields}"
-        )
-        .replace("{rowNumber}", index + 1)
-        .replace("{fields}", fieldNames)
-      );
-      return;
-    }
+  const handleSaveRow = useCallback(
+    (index, payload) => {
+      const missingFields = getMissingMandatoryFields(payload, detectedColumns);
+      if (missingFields.length > 0) {
+        const fieldNames = missingFields
+          .map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col))
+          .join(", ");
+        alert(
+          t(
+            "preview.mandatoryFieldsRequired",
+            "Row {rowNumber} has empty mandatory fields: {fields}",
+          )
+            .replace("{rowNumber}", index + 1)
+            .replace("{fields}", fieldNames),
+        );
+        return;
+      }
 
-    setRows((prev) => {
-      const next = [...prev];
-      next[index] = payload;
-      return next;
-    });
-    setEditingRowIndex(null);
-  }, [detectedColumns, t]);
+      setRows((prev) => {
+        const next = [...prev];
+        next[index] = payload;
+        return next;
+      });
+      setEditingRowIndex(null);
+    },
+    [detectedColumns, t],
+  );
 
   const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
   const handleDeleteRow = useCallback((index) => {
@@ -452,21 +467,28 @@ export function UploadPreviewModal({
 
   const handleConfirm = () => {
     if (duplicateCount > 0) {
-      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
+      alert(
+        t(
+          "preview.duplicateWarning",
+          "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
+        ),
+      );
       return;
     }
 
     for (let i = 0; i < rows.length; i++) {
       const missingFields = getMissingMandatoryFields(rows[i], detectedColumns);
       if (missingFields.length > 0) {
-        const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+        const fieldNames = missingFields
+          .map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col))
+          .join(", ");
         alert(
           t(
             "preview.mandatoryFieldsRequired",
-            "Row {rowNumber} has empty mandatory fields: {fields}"
+            "Row {rowNumber} has empty mandatory fields: {fields}",
           )
-          .replace("{rowNumber}", i + 1)
-          .replace("{fields}", fieldNames)
+            .replace("{rowNumber}", i + 1)
+            .replace("{fields}", fieldNames),
         );
         return;
       }
@@ -528,9 +550,7 @@ export function UploadPreviewModal({
                 {detectedColumns.length}
                 {t("preview.subtitle")}
                 {duplicateCount > 0 && (
-                  <span className="ml-2 font-bold text-red-600">
-                    {duplicateCount} duplicates
-                  </span>
+                  <span className="ml-2 font-bold text-red-600">{duplicateCount} duplicates</span>
                 )}
               </p>
             </div>
@@ -896,7 +916,7 @@ const COLUMN_LABEL_KEYS = {
   categoryName: "field.category",
   version: "field.version",
   specName: "field.specName",
-  "사양항목": "field.specName",
+  사양항목: "field.specName",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -905,9 +925,11 @@ const COLUMN_LABEL_KEYS = {
 function RowEditModal({ row, index, columns, onSave, onClose }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     setDraft({ ...(row ?? {}) });
+    setErrors({});
   }, [row]);
 
   useEffect(() => {
@@ -922,8 +944,52 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
   const longTextFields = new Set(["specName", "specValue", "report", "bom", "work"]);
 
+  const isColRequired = (colName) => {
+    const requiredGroups = {
+      site: ["site", "Site", "법인"],
+      process: ["process", "Process", "공정"],
+      maintGroup: [
+        "maintGroup",
+        "Maintenance Part",
+        "보전파트",
+        "보전그룹",
+        "maintGroupName",
+        "보전파트명",
+      ],
+      specName: ["specName", "SpecName", "사양항목", "사양명"],
+    };
+    const trimmed = colName.trim().toLowerCase();
+    return Object.values(requiredGroups).some((aliases) =>
+      aliases.some((a) => a.toLowerCase() === trimmed),
+    );
+  };
+
+  const handleFieldChange = (col, val) => {
+    setDraft((prev) => ({ ...prev, [col]: val }));
+    if (errors[col]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[col];
+        return next;
+      });
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const nextErrors = {};
+    columns.forEach((col) => {
+      if (isColRequired(col)) {
+        const val = draft[col];
+        if (val === undefined || val === null || String(val).trim() === "") {
+          nextErrors[col] = t("page.mp.requiredFieldError", "This field is required.");
+        }
+      }
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
     onSave(index, draft);
   };
 
@@ -974,27 +1040,45 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             const label = t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col);
             const value = draft[col] ?? "";
             const useTextarea = longTextFields.has(col) || String(value).length > 80;
+            const required = isColRequired(col);
+            const hasError = !!errors[col];
 
             return (
               <label key={col} className={useTextarea ? "md:col-span-2" : ""}>
                 <span className="mb-2 block text-xs font-bold uppercase text-text-subtle">
                   {label}
+                  {required && <span className="text-red-500"> *</span>}
                 </span>
                 {useTextarea ? (
                   <textarea
                     className="input-base"
                     rows={3}
                     value={value}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
-                    style={{ width: "100%", resize: "vertical" }}
+                    onChange={(e) => handleFieldChange(col, e.target.value)}
+                    style={{
+                      width: "100%",
+                      resize: "vertical",
+                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
+                      borderWidth: hasError ? "1.5px" : undefined,
+                    }}
                   />
                 ) : (
                   <input
                     className="input-base"
                     value={value}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
-                    style={{ width: "100%" }}
+                    onChange={(e) => handleFieldChange(col, e.target.value)}
+                    style={{
+                      width: "100%",
+                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
+                      borderWidth: hasError ? "1.5px" : undefined,
+                    }}
                   />
+                )}
+                {hasError && (
+                  <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                    <i className="fas fa-exclamation-circle mr-1" />
+                    {errors[col]}
+                  </span>
                 )}
               </label>
             );
@@ -1034,6 +1118,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   const [filterPayload, setFilterPayload] = useState(null);
   const [filterError, setFilterError] = useState(null);
   const [changedRecords, setChangedRecords] = useState([]);
+  const [apiRecords, setApiRecords] = useState([]);
 
   // FIX 1: specDataId now has TWO sources:
   //   - columnDefsId: the `id` from the CHANGE_DATA_COLUMNS response root (initially 0)
@@ -1115,8 +1200,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       .filter(Boolean);
   }, [changeDataColumns]);
 
-  // ── Merge API-saved records with prop data (newest first, no duplicates) ──
-  // We also remap all rows to English jsonKeys to keep keys consistent
+  // ── Remap all rows to English jsonKeys to keep keys consistent ────────────────
   const combinedData = useMemo(() => {
     const remapRow = (row) => {
       if (!row) return row;
@@ -1127,14 +1211,8 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       }, {});
     };
 
-    const remappedData = isStaticDataMode ? [] : data.map(remapRow);
-    const remappedChangedRecords = changedRecords.map(remapRow);
-
-    if (remappedChangedRecords.length === 0) return remappedData;
-    const existingIds = new Set(remappedData.map((item) => item.id));
-    const newRecords = remappedChangedRecords.filter((record) => !existingIds.has(record.id));
-    return [...newRecords, ...remappedData];
-  }, [data, changedRecords, excelToJsonKey]);
+    return changedRecords.map(remapRow);
+  }, [changedRecords, excelToJsonKey]);
 
   // Columns to hide from the table display (used internally only)
   const HIDDEN_COLUMNS = new Set(["id"]);
@@ -1175,13 +1253,20 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
     [orderedJsonKeys, dynamicColumns],
   );
 
-  const existingDuplicateKeys = useMemo(
-    () =>
-      new Set(
-        combinedData.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
-      ),
-    [combinedData, excelToJsonKey, duplicateKeyColumns],
-  );
+  const existingDuplicateKeys = useMemo(() => {
+    const remapRow = (row) => {
+      if (!row) return row;
+      return Object.entries(row).reduce((acc, [key, value]) => {
+        const mappedKey = excelToJsonKey[key.trim()] ?? key;
+        acc[mappedKey] = value;
+        return acc;
+      }, {});
+    };
+    const remappedApiRecords = apiRecords.map(remapRow);
+    return new Set(
+      remappedApiRecords.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
+    );
+  }, [apiRecords, excelToJsonKey, duplicateKeyColumns]);
 
   const getPreviewDuplicateKey = useCallback(
     (row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns),
@@ -1274,7 +1359,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   // ── Shared helper: build changeDataList from an array of rows ─────────────
   const buildChangeDataList = useCallback(
     (rows) => {
-      const requiredFields = ["Site", "SpecName"];
+      const requiredFields = [];
       return rows.map((row) => {
         const remapped = remapRowKeys(row, excelToJsonKey);
         const defaultFields = requiredFields.reduce((acc, key) => {
@@ -1562,9 +1647,11 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
           allRecords.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
           setChangedRecords(allRecords);
+          setApiRecords(allRecords);
           setSpecDataJsonId(capturedId);
         } else {
           setChangedRecords([]);
+          setApiRecords([]);
           setSpecDataJsonId(0);
         }
 
@@ -1573,6 +1660,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         console.error("[SpecData] Error processing static data:", error);
         setFilterPayload({ process: [], maintenance: [] });
         setChangedRecords([]);
+        setApiRecords([]);
         setSpecDataJsonId(0);
         setFilterError(t("toast.filterError"));
       }
@@ -1605,9 +1693,11 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
             allRecords.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
             setChangedRecords(allRecords);
+            setApiRecords(allRecords);
             setSpecDataJsonId(capturedId);
           } else {
             setChangedRecords([]);
+            setApiRecords([]);
             setSpecDataJsonId(0);
           }
 
@@ -1616,6 +1706,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           console.warn("[SpecData] Filter API invalid status:", status);
           setFilterPayload({ process: [], maintenance: [] });
           setChangedRecords([]);
+          setApiRecords([]);
           setSpecDataJsonId(0);
           setFilterError(t("toast.filterLoadError"));
         }
@@ -1623,6 +1714,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         console.error("[SpecData] Error processing filter data:", error);
         setFilterPayload({ process: [], maintenance: [] });
         setChangedRecords([]);
+        setApiRecords([]);
         setSpecDataJsonId(0);
         setFilterError(t("toast.filterError"));
       }
@@ -1883,6 +1975,44 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           setOperationStatus({ isVisible: false, status: "loading", message: "", autoClose: true })
         }
       />
+
+      {/* Modern Premium Glassmorphic Loading Overlay */}
+      {importBusy && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md"
+          style={{ backgroundColor: "rgba(15, 23, 42, 0.45)" }}
+        >
+          <div
+            className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-2xl border animate-fade-in"
+            style={{
+              background: "rgba(255, 255, 255, 0.95)",
+              borderColor: "rgba(226, 232, 240, 0.8)",
+              maxWidth: "360px",
+              width: "100%",
+            }}
+          >
+            {/* Spinning Loader Ring with Gradient */}
+            <div className="relative flex items-center justify-center mb-6">
+              <div
+                className="w-16 h-16 rounded-full border-4 border-slate-100 animate-spin"
+                style={{
+                  borderTopColor: "var(--color-brand-60, #2563eb)",
+                  borderRightColor: "var(--color-brand-60, #2563eb)",
+                }}
+              />
+              <i
+                className="fas fa-file-csv absolute text-xl text-blue-600 animate-pulse"
+                style={{ animationDuration: "1.5s" }}
+              />
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Importing Data...</h3>
+            <p className="text-sm text-slate-500 text-center animate-pulse">
+              Parsing file and loading table records. Please wait.
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -953,9 +953,11 @@ const COLUMN_LABEL_KEYS = {
 function RowEditModal({ row, index, columns, onSave, onClose }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     setDraft({ ...(row ?? {}) });
+    setErrors({});
   }, [row]);
 
   useEffect(() => {
@@ -986,8 +988,32 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
     { key: "workedOn", labelKey: "field.workedOn", required: true, type: "date", compact: true },
   ];
 
+  const handleFieldChange = (key, val) => {
+    setDraft((prev) => ({ ...prev, [key]: val }));
+    if (errors[key]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const nextErrors = {};
+    modalFields.forEach((field) => {
+      if (field.required) {
+        const val = draft[field.key];
+        if (val === undefined || val === null || String(val).trim() === "") {
+          nextErrors[field.key] = t("page.mp.requiredFieldError", "This field is required.");
+        }
+      }
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
     onSave(index, draft);
   };
 
@@ -1047,6 +1073,8 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                     .filter((item, itemIndex, arr) => arr.indexOf(item) === itemIndex)
                 : [];
 
+            const hasError = !!errors[field.key];
+
             return (
               <label
                 key={field.key}
@@ -1061,20 +1089,25 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                     className="input-base"
                     rows={3}
                     value={value}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
-                    style={{ width: "100%", resize: "vertical" }}
+                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                    style={{
+                      width: "100%",
+                      resize: "vertical",
+                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
+                      borderWidth: hasError ? "1.5px" : undefined,
+                    }}
                     disabled={field.readonly}
                   />
                 ) : field.type === "select" ? (
                   <select
                     className="input-base"
                     value={value}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
-                    style={{ width: "100%" }}
+                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                    style={{
+                      width: "100%",
+                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
+                      borderWidth: hasError ? "1.5px" : undefined,
+                    }}
                     disabled={field.readonly}
                   >
                     {options.map((option) => (
@@ -1088,17 +1121,23 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                     type={field.type === "date" ? "date" : "text"}
                     className="input-base"
                     value={value}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
+                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
                     style={{
                       width: "100%",
                       background: field.readonly ? "#e8eef7" : undefined,
                       color: field.readonly ? "#334155" : undefined,
+                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
+                      borderWidth: hasError ? "1.5px" : undefined,
                     }}
                     readOnly={field.readonly}
                     disabled={field.readonly}
                   />
+                )}
+                {hasError && (
+                  <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                    <i className="fas fa-exclamation-circle mr-1" />
+                    {errors[field.key]}
+                  </span>
                 )}
               </label>
             );
@@ -1140,6 +1179,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   // ── All flat records parsed from changedDataJson[0].content ───────────────
   const [changedRecords, setChangedRecords] = useState([]);
+  const [apiRecords, setApiRecords] = useState([]);
 
   // ── The single envelope id from changedDataJson[0].id ─────────────────────
   // This is the id we MUST send back on every save so the backend replaces
@@ -1219,8 +1259,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     return idx !== -1 ? idx : 999;
   }, []);
 
-  // ── Merge prop data + API records (API records take precedence for same id) ─
-  // We also remap all rows to English jsonKeys to keep keys consistent
+  // ── Remap all rows to English jsonKeys to keep keys consistent ────────────────
   const combinedData = useMemo(() => {
     const remapRow = (row) => {
       if (!row) return row;
@@ -1231,14 +1270,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       }, {});
     };
 
-    const remappedData = isStaticDataMode ? [] : data.map(remapRow);
-    const remappedChangedRecords = changedRecords.map(remapRow);
-
-    if (remappedChangedRecords.length === 0) return remappedData;
-    const existingIds = new Set(remappedData.map((item) => item.id));
-    const newRecords = remappedChangedRecords.filter((record) => !existingIds.has(record.id));
-    return [...newRecords, ...remappedData];
-  }, [data, changedRecords, excelToJsonKey]);
+    return changedRecords.map(remapRow);
+  }, [changedRecords, excelToJsonKey]);
 
   // ── Table columns: sequence-sorted jsonKeys, id excluded ──────────────────
   const dynamicColumns = useMemo(() => {
@@ -1259,11 +1292,21 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   );
 
   const existingDuplicateKeys = useMemo(
-    () =>
-      new Set(
-        combinedData.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
-      ),
-    [combinedData, excelToJsonKey, duplicateKeyColumns],
+    () => {
+      const remapRow = (row) => {
+        if (!row) return row;
+        return Object.entries(row).reduce((acc, [key, value]) => {
+          const mappedKey = excelToJsonKey[key.trim()] ?? key;
+          acc[mappedKey] = value;
+          return acc;
+        }, {});
+      };
+      const remappedApiRecords = apiRecords.map(remapRow);
+      return new Set(
+        remappedApiRecords.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
+      );
+    },
+    [apiRecords, excelToJsonKey, duplicateKeyColumns],
   );
 
   const getPreviewDuplicateKey = useCallback(
@@ -1661,21 +1704,24 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             const parsed =
               typeof envelope.content === "string" ? JSON.parse(envelope.content) : envelope.content;
 
-            setChangedRecords(
-              Array.isArray(parsed) ? [...parsed].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)) : [],
-            );
+            const sorted = Array.isArray(parsed) ? [...parsed].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)) : [];
+            setChangedRecords(sorted);
+            setApiRecords(sorted);
           } catch (parseError) {
             console.warn("[ChangeHistory] Failed to parse static changedDataJson:", parseError);
             setChangedRecords([]);
+            setApiRecords([]);
           }
         } else {
           setChangedDataId(0);
           setChangedRecords([]);
+          setApiRecords([]);
         }
       } catch (error) {
         console.error("[ChangeHistory] Error processing static data:", error);
         setFilterPayload({ process: [], maintenance: [] });
         setChangedRecords([]);
+        setApiRecords([]);
         setChangedDataId(0);
         setFilterError(t("toast.filterError"));
       }
@@ -1707,22 +1753,27 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 // Sort newest first by record-level id
                 const sorted = [...parsed].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
                 setChangedRecords(sorted);
+                setApiRecords(sorted);
               } else {
                 setChangedRecords([]);
+                setApiRecords([]);
               }
             } catch (parseError) {
               console.warn("[ChangeHistory] Failed to parse changedDataJson content:", parseError);
               setChangedRecords([]);
+              setApiRecords([]);
             }
           } else {
             // No changedDataJson yet — keep id as 0 so backend creates a new record
             setChangedDataId(0);
             setChangedRecords([]);
+            setApiRecords([]);
           }
         } else {
           console.warn("[ChangeHistory] Filter data API returned invalid status:", status);
           setFilterPayload({ process: [], maintenance: [] });
           setChangedRecords([]);
+          setApiRecords([]);
           setChangedDataId(0);
           setFilterError(t("toast.filterLoadError"));
         }
@@ -1730,6 +1781,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         console.error("[ChangeHistory] Error processing filter data:", error);
         setFilterPayload({ process: [], maintenance: [] });
         setChangedRecords([]);
+        setApiRecords([]);
         setChangedDataId(0);
         setFilterError(t("toast.filterError"));
       }
@@ -1993,6 +2045,46 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({ isVisible: false, status: "loading", message: "", autoClose: true })
         }
       />
+
+      {/* Modern Premium Glassmorphic Loading Overlay */}
+      {importBusy && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md"
+          style={{ backgroundColor: "rgba(15, 23, 42, 0.45)" }}
+        >
+          <div
+            className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-2xl border animate-fade-in"
+            style={{
+              background: "rgba(255, 255, 255, 0.95)",
+              borderColor: "rgba(226, 232, 240, 0.8)",
+              maxWidth: "360px",
+              width: "100%",
+            }}
+          >
+            {/* Spinning Loader Ring with Gradient */}
+            <div className="relative flex items-center justify-center mb-6">
+              <div
+                className="w-16 h-16 rounded-full border-4 border-slate-100 animate-spin"
+                style={{
+                  borderTopColor: "var(--color-brand-60, #2563eb)",
+                  borderRightColor: "var(--color-brand-60, #2563eb)",
+                }}
+              />
+              <i
+                className="fas fa-file-csv absolute text-xl text-blue-600 animate-pulse"
+                style={{ animationDuration: "1.5s" }}
+              />
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-800 mb-1">
+              Importing Data...
+            </h3>
+            <p className="text-sm text-slate-500 text-center animate-pulse">
+              Parsing file and loading table records. Please wait.
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
