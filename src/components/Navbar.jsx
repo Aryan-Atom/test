@@ -1,8 +1,23 @@
 import { useI18n } from "../i18n.jsx";
+import { getUserInfo } from "../utils/cookieUtils.js";
+
+function getUserDisplayName(userInfo) {
+  return (
+    userInfo?.name ??
+    userInfo?.userName ??
+    userInfo?.username ??
+    userInfo?.displayName ??
+    userInfo?.employeeName ??
+    userInfo?.email ??
+    ""
+  );
+}
 
 export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }) {
   const { language, toggleLanguage, t } = useI18n();
   const isDark = theme === "dark";
+  const userName = getUserDisplayName(getUserInfo());
+  const userInitial = String(userName || "User").trim().charAt(0).toUpperCase() || "U";
 
   return (
     <header className="eq-topbar">
@@ -36,8 +51,13 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
           {language === "ko" ? "EN" : "KO"}
         </button>
         <div className="eq-topbar-divider" />
-        <button type="button" className="eq-user-button" aria-label={t("app.user")}>
-          <i className="fas fa-user" />
+        <button
+          type="button"
+          className="eq-user-button"
+          aria-label={userName || t("app.user")}
+          title={userName || t("app.user")}
+        >
+          {userInitial}
         </button>
       </div>
     </header>

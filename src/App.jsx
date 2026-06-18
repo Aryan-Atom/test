@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import LoginLoader from "./pages/LoginLoader.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import { isStaticDataMode } from "./utils/staticDataMode.js";
 
 function ProtectedDashboard({ isUserAuthenticated }) {
   const location = useLocation();
@@ -14,7 +15,7 @@ function ProtectedDashboard({ isUserAuthenticated }) {
 }
 
 export default function App() {
-  const [isUserAuthenticated, setIsUserAuthenticated] = useState(true);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(() => isStaticDataMode);
   const [ssoLoginFailed, setSSOloginFailed] = useState(false);
 
   return (

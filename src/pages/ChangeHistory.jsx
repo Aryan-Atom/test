@@ -345,15 +345,17 @@ function EditableModalRow({
             <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
           </button>
         )}
-        {isDuplicate && !isEditing && (
+        {!isEditing && onDelete && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete?.(index);
             }}
-            title="Delete duplicate"
-            className="ml-1 inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 bg-red-100 text-red-700 transition-transform hover:scale-110"
+            title={isDuplicate ? "Delete duplicate" : "Delete row"}
+            className={`ml-1 inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 transition-transform hover:scale-110 ${
+              isDuplicate ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"
+            }`}
           >
             <i className="fas fa-trash-alt" style={{ fontSize: "10px" }} />
           </button>
@@ -432,6 +434,10 @@ export function UploadPreviewModal({
   }, [isDuplicateRow]);
 
   const handleConfirm = () => {
+    if (duplicateCount > 0) {
+      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
+      return;
+    }
     const confirmedRows = [...rows];
     onClose();
     window.setTimeout(() => onConfirm?.(confirmedRows), 0);
@@ -1805,7 +1811,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 className="input-base"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="설비명, 작업명..."
+                placeholder={t("placeholder.changeSearch")}
                 style={{ width: "200px", marginTop: 0 }}
               />
             </div>

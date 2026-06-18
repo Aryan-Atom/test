@@ -38,6 +38,41 @@ function remapRowKeys(row, excelToJsonKey) {
   }, {});
 }
 
+function normalizeDuplicateValue(value, key = "") {
+  if (value == null) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = String(value).trim();
+  const isDateKey = /date|workedOn/i.test(key) || key.includes("일");
+
+  if (isDateKey) {
+    const serial = Number(raw);
+    if (Number.isFinite(serial) && serial > 0) {
+      const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+      if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+    }
+
+    const ddmmyyyy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (ddmmyyyy) {
+      const [, dd, mm, yyyy] = ddmmyyyy;
+      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    }
+  }
+
+  return raw;
+}
+
+function buildDuplicateKey(row, excelToJsonKey, columns) {
+  const remapped = remapRowKeys(row ?? {}, excelToJsonKey);
+  const normalized = columns.reduce((acc, key) => {
+    acc[key] = normalizeDuplicateValue(remapped[key], key);
+    return acc;
+  }, {});
+  return JSON.stringify(normalized);
+}
+
 // Stable composite key — immune to duplicate `id` values in test/real data.
 function rowKey(row, index) {
   return `${index}__${row.id ?? ""}__${row.equipmentCode ?? row.설비코드 ?? ""}__${row.specName ?? row.사양항목 ?? ""}`;
@@ -65,7 +100,7 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableCell
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableCell({ value, isEditing, col, onChange }) {
+function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -85,9 +120,13 @@ function EditableCell({ value, isEditing, col, onChange }) {
           textOverflow: "ellipsis",
           maxWidth: "220px",
           color:
+            duplicate
+              ? "#dc2626"
+              :
             value == null || value === ""
               ? "var(--color-text-subtle, #9ca3af)"
               : "var(--color-text-default, #111827)",
+          fontWeight: duplicate ? 700 : undefined,
         }}
         title={String(value ?? "")}
       >
@@ -121,7 +160,17 @@ function EditableCell({ value, isEditing, col, onChange }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableModalRow — inside the upload preview modal
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, onSave, onCancel }) {
+function EditableModalRow({
+  row,
+  index,
+  columns,
+  editingRowIndex,
+  onStartEdit,
+  onSave,
+  onCancel,
+  isDuplicate = false,
+  onDelete,
+}) {
   const isEditing = editingRowIndex === index;
   const [draft, setDraft] = useState({});
   const rowRef = useRef(null);
@@ -179,6 +228,8 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
         background: isEditing
           ? "#eff6ff"
+          : isDuplicate
+            ? "#fff1f2"
           : index % 2 === 0
             ? "var(--color-surface-default, #fff)"
             : "var(--color-surface-raised, #f9fafb)",
@@ -195,7 +246,14 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
           userSelect: "none",
         }}
       >
-        {index + 1}
+        <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
+          {index + 1}
+        </span>
+        {isDuplicate && (
+          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+            DUP
+          </span>
+        )}
       </td>
 
       <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
@@ -263,6 +321,21 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
             <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
           </button>
         )}
+        {!isEditing && onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete?.(index);
+            }}
+            title={isDuplicate ? "Delete duplicate" : "Delete row"}
+            className={`ml-1 inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 transition-transform hover:scale-110 ${
+              isDuplicate ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            <i className="fas fa-trash-alt" style={{ fontSize: "10px" }} />
+          </button>
+        )}
       </td>
 
       {columns.map((col) => (
@@ -279,6 +352,7 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
             isEditing={isEditing}
             col={col}
             onChange={handleDraftChange}
+            duplicate={isDuplicate}
           />
         </td>
       ))}
@@ -289,7 +363,14 @@ function EditableModalRow({ row, index, columns, editingRowIndex, onStartEdit, o
 // ─────────────────────────────────────────────────────────────────────────────
 // UploadPreviewModal
 // ─────────────────────────────────────────────────────────────────────────────
-export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConfirm }) {
+export function UploadPreviewModal({
+  rows: initialRows,
+  columns,
+  duplicateRowKeys = new Set(),
+  getDuplicateKey,
+  onClose,
+  onConfirm,
+}) {
   const { t } = useI18n();
   const [rows, setRows] = useState(() => initialRows ?? []);
   const [editingRowIndex, setEditingRowIndex] = useState(null);
@@ -300,6 +381,14 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
   }, [initialRows]);
 
   const detectedColumns = columns?.length ? columns : rows.length > 0 ? Object.keys(rows[0]) : [];
+  const isDuplicateRow = useCallback(
+    (row) => Boolean(getDuplicateKey && duplicateRowKeys.has(getDuplicateKey(row))),
+    [duplicateRowKeys, getDuplicateKey],
+  );
+  const duplicateCount = useMemo(
+    () => rows.filter((row) => isDuplicateRow(row)).length,
+    [rows, isDuplicateRow],
+  );
 
   const handleSaveRow = useCallback((index, payload) => {
     setRows((prev) => {
@@ -311,8 +400,20 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
   }, []);
 
   const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
+  const handleDeleteRow = useCallback((index) => {
+    setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
+    setEditingRowIndex(null);
+  }, []);
+  const handleRemoveDuplicates = useCallback(() => {
+    setRows((prev) => prev.filter((row) => !isDuplicateRow(row)));
+    setEditingRowIndex(null);
+  }, [isDuplicateRow]);
 
   const handleConfirm = () => {
+    if (duplicateCount > 0) {
+      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
+      return;
+    }
     const confirmedRows = [...rows];
     onClose();
     window.setTimeout(() => onConfirm?.(confirmedRows), 0);
@@ -368,6 +469,11 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                 {" · "}
                 {detectedColumns.length}
                 {t("preview.subtitle")}
+                {duplicateCount > 0 && (
+                  <span className="ml-2 font-bold text-red-600">
+                    {duplicateCount} duplicates
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -422,7 +528,7 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                     style={{
                       color: "var(--color-text-subtle, #6b7280)",
                       borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                      width: "64px",
+                      width: "96px",
                     }}
                   >
                     {t("preview.edit")}
@@ -453,6 +559,8 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
                     onStartEdit={setEditingRowIndex}
                     onSave={handleSaveRow}
                     onCancel={handleCancelEdit}
+                    isDuplicate={isDuplicateRow(row)}
+                    onDelete={handleDeleteRow}
                   />
                 ))}
               </tbody>
@@ -470,9 +578,21 @@ export function UploadPreviewModal({ rows: initialRows, columns, onClose, onConf
         >
           <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
             <i className="fas fa-info-circle mr-1" />
-            {t("preview.tip")}
+            {duplicateCount > 0
+              ? "Duplicate rows are marked red. Delete them before saving if needed."
+              : t("preview.tip")}
           </p>
           <div className="flex gap-3">
+            {duplicateCount > 0 && (
+              <button
+                type="button"
+                onClick={handleRemoveDuplicates}
+                className="btn-base btn-secondary text-red-700"
+              >
+                <i className="fas fa-trash-alt mr-1.5" />
+                Remove duplicates ({duplicateCount})
+              </button>
+            )}
             <button type="button" onClick={onClose} className="btn-base btn-secondary">
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
@@ -987,6 +1107,27 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   }, [combinedData, orderedJsonKeys, getColumnGroupIndex]);
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
+  const duplicateKeyColumns = useMemo(
+    () =>
+      (orderedJsonKeys && orderedJsonKeys.length > 0 ? orderedJsonKeys : dynamicColumns).filter(
+        (key) => key !== "id" && key !== "_sourceId",
+      ),
+    [orderedJsonKeys, dynamicColumns],
+  );
+
+  const existingDuplicateKeys = useMemo(
+    () =>
+      new Set(
+        combinedData.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
+      ),
+    [combinedData, excelToJsonKey, duplicateKeyColumns],
+  );
+
+  const getPreviewDuplicateKey = useCallback(
+    (row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns),
+    [excelToJsonKey, duplicateKeyColumns],
+  );
+
   const filtered = useMemo(() => {
     if (!selectedProcessId && !selectedMaintenanceId && !searchText) {
       return combinedData;
@@ -1092,7 +1233,11 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       const originalRow = filtered[filteredIndex];
       const mergedRow = { ...originalRow, ...draft };
 
-      const updatedRows = filtered.map((row, i) => (i === filteredIndex ? mergedRow : row));
+      const updatedRows = combinedData.map((row) => {
+        const sameObject = row === originalRow;
+        const sameId = row.id != null && mergedRow.id != null && row.id === mergedRow.id;
+        return sameObject || sameId ? mergedRow : row;
+      });
 
       const SpecDataList = buildChangeDataList(updatedRows);
       const payload = { SpecDataList, id: specDataId };
@@ -1139,7 +1284,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         }
       });
     },
-    [filtered, buildChangeDataList, onUpload, specDataId, t],
+    [filtered, combinedData, buildChangeDataList, onUpload, specDataId, t],
   );
 
   const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
@@ -1147,7 +1292,14 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   // ── Modal confirm → POST ──────────────────────────────────────────────────
   const handleModalConfirm = useCallback(
     (updatedRows) => {
-      const SpecDataList = buildChangeDataList(updatedRows);
+      const uploadedRows = buildChangeDataList(updatedRows);
+      const uploadedKeys = new Set(
+        uploadedRows.map((row) => buildDuplicateKey(row, {}, duplicateKeyColumns)),
+      );
+      const existingRows = buildChangeDataList(combinedData).filter(
+        (row) => !uploadedKeys.has(buildDuplicateKey(row, {}, duplicateKeyColumns)),
+      );
+      const SpecDataList = [...uploadedRows, ...existingRows];
       const payload = { SpecDataList, id: specDataId };
 
       if (isStaticDataMode) {
@@ -1187,7 +1339,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         }
       });
     },
-    [buildChangeDataList, onUpload, specDataId, t],
+    [buildChangeDataList, combinedData, duplicateKeyColumns, onUpload, specDataId, t],
   );
 
   // ── Upload Excel → parse via API → show preview modal ────────────────────
@@ -1644,6 +1796,8 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       <UploadPreviewModal
         rows={previewRows}
         columns={previewColumns}
+        duplicateRowKeys={existingDuplicateKeys}
+        getDuplicateKey={getPreviewDuplicateKey}
         onClose={() => {
           setPreviewRows(null);
           setPreviewColumns(null);

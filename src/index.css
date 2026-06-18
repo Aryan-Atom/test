@@ -48,6 +48,17 @@
   --surface-success: #f0faf4;
   --surface-warning: #fffcf0;
   --surface-danger: #fef0f0;
+  --color-surface-default: var(--surface-default);
+  --color-surface-raised: var(--surface-strong);
+  --color-surface-strong: var(--surface-stronger);
+  --color-text-default: var(--text-default);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-subtlest: var(--text-subtlest);
+  --color-border-base: var(--border-base);
+  --color-fill-active: var(--fill-active);
+  --color-brand-10: var(--brand-10);
+  --color-brand-30: var(--brand-30);
+  --color-brand-60: var(--brand-60);
   --fill-default-hovered: #f1f3f6;
   --fill-default-pressed: #e6e9ef;
   --fill-strong: #f1f3f6;
@@ -209,8 +220,8 @@ tbody tr td {
   color: var(--text-default);
 }
 
-tbody tr:hover {
-  background: var(--fill-active);
+tbody tr:hover td {
+  background-color: var(--fill-active) !important;
 }
 
 select.input-base {
@@ -640,6 +651,9 @@ tbody tr:hover {
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .eq-language-button {
@@ -671,8 +685,24 @@ tbody tr:hover {
   --text-default: #f1f5f9;
   --text-subtle: #cbd5e1;
   --text-subtlest: #94a3b8;
+  --brand-10: #1e1b4b;
+  --brand-30: #a5b4fc;
+  --brand-60: #818cf8;
   --primary-soft: #1e1b4b;
   --border-base: #1e293b;
+  --fill-active: rgba(79, 70, 229, 0.18);
+  --fill-disabled: #263044;
+  --color-surface-default: var(--surface-default);
+  --color-surface-raised: var(--surface-strong);
+  --color-surface-strong: var(--surface-stronger);
+  --color-text-default: var(--text-default);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-subtlest: var(--text-subtlest);
+  --color-border-base: var(--border-base);
+  --color-fill-active: var(--fill-active);
+  --color-brand-10: var(--brand-10);
+  --color-brand-30: var(--brand-30);
+  --color-brand-60: var(--brand-60);
 }
 
 [data-theme="dark"] body,
@@ -697,6 +727,32 @@ tbody tr:hover {
 
 [data-theme="dark"] .table-header th {
   background: rgba(30, 34, 55, 0.92);
+}
+
+[data-theme="dark"] .card {
+  background: var(--surface-default);
+}
+
+[data-theme="dark"] tbody tr {
+  background: var(--surface-default) !important;
+}
+
+[data-theme="dark"] tbody tr:nth-child(even) {
+  background: var(--surface-strong) !important;
+}
+
+[data-theme="dark"] tbody tr:hover td {
+  background-color: var(--fill-active) !important;
+}
+
+[data-theme="dark"] tbody tr td {
+  color: var(--text-default);
+  border-color: var(--border-base);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-subtlest);
 }
 
 /* Custom Drawer Styles */

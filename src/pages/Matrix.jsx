@@ -119,6 +119,27 @@ function getFormattedDateString(raw) {
   return dateStr.slice(0, 10);
 }
 
+function normalizeName(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function hexToRgba(hex, alpha = 0.14) {
+  const value = String(hex ?? "").trim();
+  const match = value.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!match) return `rgba(15, 98, 254, ${alpha})`;
+  const [, r, g, b] = match;
+  return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`;
+}
+
+function getContrastColor(hex) {
+  const value = String(hex ?? "").trim();
+  const match = value.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!match) return "#0f62fe";
+  const [, r, g, b] = match.map((part) => parseInt(part, 16));
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.58 ? "#111827" : "#ffffff";
+}
+
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
@@ -196,6 +217,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [hoveredEquipmentKey, setHoveredEquipmentKey] = useState(null);
 
   // Records State
   const [allRecords, setAllRecords] = useState([]);
@@ -213,24 +235,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const getFilterData = useCallback(() => {
     if (isStaticDataMode) {
       try {
-        if (Array.isArray(data) && data.length > 0) {
-          setAllRecords(data);
-          setChangedDataId(0);
-        } else {
-          const payload = changeFilterDataAndTableData;
-          const parsedChanges = (payload?.changedDataJson ?? []).flatMap((item) => {
-            try {
-              return typeof item.content === "string" ? JSON.parse(item.content) : item.content;
-            } catch {
-              return [];
-            }
-          });
-          setAllRecords(parsedChanges);
-          if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
-            setChangedDataId(payload.changedDataJson[0].id ?? 0);
-          } else {
-            setChangedDataId(0);
+        const payload = changeFilterDataAndTableData;
+        const parsedChanges = (payload?.changedDataJson ?? []).flatMap((item) => {
+          try {
+            return typeof item.content === "string" ? JSON.parse(item.content) : item.content;
+          } catch {
+            return [];
           }
+        });
+        setAllRecords(parsedChanges);
+        if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+          setChangedDataId(payload.changedDataJson[0].id ?? 0);
+        } else {
+          setChangedDataId(0);
         }
         setFilterData(changeFilterDataAndTableData);
       } catch (e) {
@@ -267,7 +284,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         setLoading(false);
       }
     });
-  }, [pocEndPoints, APIcallGet, data]);
+  }, [pocEndPoints, APIcallGet]);
 
   useEffect(() => {
     getFilterData();
@@ -291,12 +308,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [allRecords, selectedProcess, selectedMaintenance]);
 
   const repWorkOptions = useMemo(() => {
-    return [...new Set(allRecords.filter(r => 
-      (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
-      (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance) &&
-      (selectedSite === "전체" || getColValue(r, "site") === selectedSite)
-    ).map(r => getColValue(r, "representativeWork")).filter(Boolean))].sort();
-  }, [allRecords, selectedProcess, selectedMaintenance, selectedSite]);
+    const reps = filterData?.representations ?? [];
+    return [...new Set(reps.map(r => r.representativeWorkName).filter(Boolean))].sort();
+  }, [filterData]);
 
   const priorityOptions = useMemo(() => {
     const rawList = [...new Set((filterData?.priority ?? []).map((p) => p.priorityName).filter(Boolean))];
@@ -313,6 +327,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
     return rawList;
   }, [filterData]);
+
+  const representativeColorMap = useMemo(() => {
+    const map = new Map();
+    (filterData?.representations ?? []).forEach((item) => {
+      if (item?.representativeWorkName && item?.colorCode) {
+        map.set(normalizeName(item.representativeWorkName), item.colorCode);
+      }
+    });
+    return map;
+  }, [filterData]);
+
+  const getRepresentativeColor = useCallback(
+    (workName) => representativeColorMap.get(normalizeName(workName)) || "#0f62fe",
+    [representativeColorMap],
+  );
 
   // Cascade Option Handlers
   const handleProcessChange = (e) => {
@@ -546,72 +575,111 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
     setReplacing(true);
 
-    const updated = allRecords.map((d) => {
-      const isMatch = 
-        getColValue(d, "process") === selectedProcess &&
-        getColValue(d, "maintGroup") === selectedMaintenance &&
-        getColValue(d, "representativeWork") === targetTask;
+    const performUpdate = () => {
+      const updated = allRecords.map((d) => {
+        const isMatch = 
+          getColValue(d, "process") === selectedProcess &&
+          getColValue(d, "maintGroup") === selectedMaintenance &&
+          getColValue(d, "representativeWork") === targetTask;
 
-      if (isMatch) {
-        const item = { ...d };
-        if (newRepresentativeWork.trim()) {
-          if ("representativeWork" in item) item.representativeWork = newRepresentativeWork.trim();
-          else if ("대표작작업명" in item) item["대표작업명"] = newRepresentativeWork.trim();
-          else if ("대표 작업명" in item) item["대표 작업명"] = newRepresentativeWork.trim();
-          else item.representativeWork = newRepresentativeWork.trim();
+        if (isMatch) {
+          const item = { ...d };
+          if (newRepresentativeWork.trim()) {
+            if ("representativeWork" in item) item.representativeWork = newRepresentativeWork.trim();
+            else if ("대표작업명" in item) item["대표작업명"] = newRepresentativeWork.trim();
+            else if ("대표 작업명" in item) item["대표 작업명"] = newRepresentativeWork.trim();
+            else item.representativeWork = newRepresentativeWork.trim();
+          }
+          if (newPriority) {
+            if ("priority" in item) item.priority = newPriority;
+            else if ("중요도" in item) item["중요도"] = newPriority;
+            else item.priority = newPriority;
+          }
+          if (newCategory) {
+            if ("category" in item) item.category = newCategory;
+            else if ("효과 유형" in item) item["효과 유형"] = newCategory;
+            else if ("효과유형" in item) item["효과유형"] = newCategory;
+            else item.category = newCategory;
+          }
+          return item;
         }
-        if (newPriority) {
-          if ("priority" in item) item.priority = newPriority;
-          else if ("중요도" in item) item["중요도"] = newPriority;
-          else item.priority = newPriority;
+        return d;
+      });
+
+      setAllRecords(updated);
+
+      const cleanRecords = updated.map((row) => {
+        const clean = {};
+        Object.keys(row).forEach((key) => {
+          if (!key.startsWith("_")) {
+            clean[key] = row[key];
+          }
+        });
+        return {
+          ...clean,
+          id: clean.id ?? 0,
+        };
+      });
+
+      const payload = {
+        changeDataList: cleanRecords,
+        id: changedDataId,
+      };
+
+      if (isStaticDataMode) {
+        if (filterData?.representations && newRepresentativeWork.trim()) {
+          const updatedReps = filterData.representations.map(rep => {
+            if (normalizeName(rep.representativeWorkName) === normalizeName(targetTask)) {
+              return { ...rep, representativeWorkName: newRepresentativeWork.trim() };
+            }
+            return rep;
+          });
+          setFilterData({ ...filterData, representations: updatedReps });
         }
-        if (newCategory) {
-          if ("category" in item) item.category = newCategory;
-          else if ("효과 유형" in item) item["효과 유형"] = newCategory;
-          else if ("효과유형" in item) item["효과유형"] = newCategory;
-          else item.category = newCategory;
-        }
-        return item;
+        onUpload?.("change_rows", payload);
+        setReplacing(false);
+        setShowReplaceModal(false);
+        return;
       }
-      return d;
-    });
 
-    setAllRecords(updated);
-
-    const cleanRecords = updated.map((row) => {
-      const clean = {};
-      Object.keys(row).forEach((key) => {
-        if (!key.startsWith("_")) {
-          clean[key] = row[key];
+      APIcallPost(pocEndPoints.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+        setReplacing(false);
+        if (status === 200) {
+          setShowReplaceModal(false);
+          onUpload?.("change_rows", payload);
+          getFilterData();
+        } else {
+          alert(t("toast.saveError", "저장에 실패했습니다."));
         }
       });
-      return {
-        ...clean,
-        id: clean.id ?? 0,
-      };
-    });
-
-    const payload = {
-      changeDataList: cleanRecords,
-      id: changedDataId,
     };
 
-    if (isStaticDataMode) {
-      onUpload?.("change_rows", payload);
-      setReplacing(false);
-      setShowReplaceModal(false);
-      return;
-    }
+    if (newRepresentativeWork.trim() && !isStaticDataMode) {
+      const representationItem = (filterData?.representations ?? []).find(
+        (rep) => normalizeName(rep.representativeWorkName) === normalizeName(targetTask)
+      );
+      const repId = representationItem ? representationItem.id : null;
 
-    APIcallPost(pocEndPoints.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-      setReplacing(false);
-      if (status === 200) {
-        setShowReplaceModal(false);
-        onUpload?.("change_rows", payload);
+      if (repId !== null && repId !== undefined) {
+        APIcallPost(
+          pocEndPoints.UPDATE_REPRESENTATIVE_WORK,
+          { id: repId, name: newRepresentativeWork.trim() },
+          {},
+          (repData, repStatus) => {
+            if (repStatus === 200) {
+              performUpdate();
+            } else {
+              setReplacing(false);
+              alert(t("toast.saveError", "대표 작업명 수정에 실패했습니다."));
+            }
+          }
+        );
       } else {
-        alert(t("toast.saveError", "저장에 실패했습니다."));
+        performUpdate();
       }
-    });
+    } else {
+      performUpdate();
+    }
   };
 
   const showLanding = selectedProcess === "전체" || selectedMaintenance === "전체";
@@ -923,12 +991,22 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
                       const isImportant = matched.some(d => getColValue(d, "priority") === "중요");
                       
-                      const cellBg = isImportant 
-                        ? "rgba(239, 68, 68, 0.12)" 
-                        : "rgba(15, 98, 254, 0.08)";
-                      const cellColor = isImportant 
-                        ? "#dc2626" 
-                        : "#0f62fe";
+                      const repWork = matched.map(d => getColValue(d, "representativeWork")).find(Boolean) || "";
+                      const colorCode = representativeColorMap.get(normalizeName(repWork));
+                      
+                      let cellBg;
+                      let cellColor;
+                      if (colorCode) {
+                        cellBg = hexToRgba(colorCode, 0.12);
+                        cellColor = colorCode;
+                      } else {
+                        cellBg = isImportant 
+                          ? "rgba(239, 68, 68, 0.12)" 
+                          : "rgba(15, 98, 254, 0.08)";
+                        cellColor = isImportant 
+                          ? "#dc2626" 
+                          : "#0f62fe";
+                      }
 
                       return (
                         <td key={col} className="px-3 py-2 align-middle">
@@ -1046,7 +1124,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 />
                 <datalist id="replaceSuggestions">
                   {repWorkOptions.map(opt => (
-                    <option key={opt.value} value={opt.value} />
+                    <option key={opt} value={opt} />
                   ))}
                 </datalist>
                 <p className="text-[11px] text-[#94a3b8] mt-1.5 flex items-center gap-1">
