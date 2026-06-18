@@ -439,6 +439,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const [newRow, setNewRow] = useState(EMPTY_ROW);
   const [editingRowLocalId, setEditingRowLocalId] = useState(null);
   const [modalError, setModalError] = useState("");
+  const [errors, setErrors] = useState({});
 
   // ── Unsaved edits tracking ────────────────────────────────────────────────
   const [isDirty, setIsDirty] = useState(false);
@@ -827,29 +828,37 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         maintGroup: getColValue(row, "maintGroup"),
         site: getColValue(row, "site"),
       });
-      setEditingRowLocalId(row._localId || row.id || "temp");
+       setEditingRowLocalId(row._localId || row.id || "temp");
       setModalError("");
+      setErrors({});
       setShowModal(true);
     }
   };
 
   // ── Modal submit: Add or Edit row ─────────────────────────────────────────
   const handleModalAdd = () => {
-    if (
-      !newRow.representativeWork ||
-      !newRow.work ||
-      !newRow.situation ||
-      !newRow.cause ||
-      !newRow.hwAsWas ||
-      !newRow.hwAsIs ||
-      !newRow.swAsWas ||
-      !newRow.swAsIs ||
-      !newRow.workedOn
-    ) {
-      setModalError(t("page.mp.requiredError", "모든 필수 항목을 입력하세요."));
+    const fieldsToValidate = [
+      "representativeWork",
+      "work",
+      "situation",
+      "cause",
+      "hwAsWas",
+      "hwAsIs",
+      "swAsWas",
+      "swAsIs",
+      "workedOn"
+    ];
+    const nextErrors = {};
+    fieldsToValidate.forEach((key) => {
+      const val = newRow[key];
+      if (!val || !String(val).trim()) {
+        nextErrors[key] = t("page.mp.requiredFieldError", "필수 입력 항목입니다.");
+      }
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
-    setModalError("");
 
     const selProcess = processList.find((p) => p.id === selectedProcessId);
     const selMaint = (filterPayload?.maintenance ?? []).find((m) => m.id === selectedMaintenanceId);
@@ -1028,7 +1037,16 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     }
   };
 
-  const setField = (key, val) => setNewRow((prev) => ({ ...prev, [key]: val }));
+  const setField = (key, val) => {
+    setNewRow((prev) => ({ ...prev, [key]: val }));
+    if (errors[key]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
 
   const handleRowClick = (row) => {
     onOpenDetail?.(row);
@@ -1210,6 +1228,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 });
                 setEditingRowLocalId(null);
                 setModalError("");
+                setErrors({});
                 setShowModal(true);
               }}
             >
@@ -1626,6 +1645,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         onClose={() => {
           setShowModal(false);
           setEditingRowLocalId(null);
+          setErrors({});
         }}
         headerBg="var(--accent-soft, #ecfeff)"
         titleIcon={
@@ -1647,13 +1667,6 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         }
       >
         <div className="space-y-3">
-          {modalError && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              <i className="fas fa-exclamation-circle mr-1.5" />
-              {modalError}
-            </div>
-          )}
-
           {/* Grid 1: Process and Maintenance Part (read-only) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1700,7 +1713,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.representativeWork}
                 onChange={(e) => setField("representativeWork", e.target.value)}
                 placeholder={t("placeholder.representativeWorkInput", "대표작업명 입력")}
+                style={{
+                  borderColor: errors.representativeWork ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.representativeWork ? "1.5px" : undefined
+                }}
               />
+              {errors.representativeWork && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.representativeWork}
+                </span>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
@@ -1715,7 +1738,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   "placeholder.workPurposeInput",
                   "작업 목적 입력"
                 )}
+                style={{
+                  borderColor: errors.work ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.work ? "1.5px" : undefined
+                }}
               />
+              {errors.work && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.work}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1734,7 +1767,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   "placeholder.situationInput",
                   "문제 현상 입력"
                 )}
+                style={{
+                  borderColor: errors.situation ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.situation ? "1.5px" : undefined
+                }}
               />
+              {errors.situation && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.situation}
+                </span>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
@@ -1746,7 +1789,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.cause}
                 onChange={(e) => setField("cause", e.target.value)}
                 placeholder={t("placeholder.causeInput", "문제 원인 입력")}
+                style={{
+                  borderColor: errors.cause ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.cause ? "1.5px" : undefined
+                }}
               />
+              {errors.cause && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.cause}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1795,7 +1848,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.hwAsWas}
                 onChange={(e) => setField("hwAsWas", e.target.value)}
                 placeholder={t("field.hwBefore", "HW 변경 전")}
+                style={{
+                  borderColor: errors.hwAsWas ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.hwAsWas ? "1.5px" : undefined
+                }}
               />
+              {errors.hwAsWas && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.hwAsWas}
+                </span>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
@@ -1807,7 +1870,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.hwAsIs}
                 onChange={(e) => setField("hwAsIs", e.target.value)}
                 placeholder={t("field.hwAfter", "HW 변경 후")}
+                style={{
+                  borderColor: errors.hwAsIs ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.hwAsIs ? "1.5px" : undefined
+                }}
               />
+              {errors.hwAsIs && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.hwAsIs}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1823,7 +1896,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.swAsWas}
                 onChange={(e) => setField("swAsWas", e.target.value)}
                 placeholder={t("field.swBefore", "SW 변경 전")}
+                style={{
+                  borderColor: errors.swAsWas ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.swAsWas ? "1.5px" : undefined
+                }}
               />
+              {errors.swAsWas && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.swAsWas}
+                </span>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
@@ -1835,7 +1918,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 value={newRow.swAsIs}
                 onChange={(e) => setField("swAsIs", e.target.value)}
                 placeholder={t("field.swAfter", "SW 변경 후")}
+                style={{
+                  borderColor: errors.swAsIs ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.swAsIs ? "1.5px" : undefined
+                }}
               />
+              {errors.swAsIs && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.swAsIs}
+                </span>
+              )}
             </div>
           </div>
 
@@ -1885,7 +1978,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 className="input-base w-full mt-1"
                 value={newRow.workedOn}
                 onChange={(e) => setField("workedOn", e.target.value)}
+                style={{
+                  borderColor: errors.workedOn ? "var(--color-text-danger, #dc2626)" : undefined,
+                  borderWidth: errors.workedOn ? "1.5px" : undefined
+                }}
               />
+              {errors.workedOn && (
+                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {errors.workedOn}
+                </span>
+              )}
             </div>
           </div>
         </div>

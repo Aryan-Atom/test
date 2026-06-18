@@ -53,6 +53,7 @@ const translations = {
     "page.mp.modalDesc": "새로운 항목을 추가합니다. W/O코드는 자동으로 비워지며, 시스템 데이터와 구분됩니다.",
     "page.mp.requiredError":
       "대표작업명, 작업 목적, 문제 현상, 문제 원인, HW 변경 전/후, SW 변경 전/후, 작업완료일은 필수 입력입니다.",
+    "page.mp.requiredFieldError": "필수 입력 항목입니다.",
     "page.mp.pending": "미저장",
     "page.board.title": "공통 게시판",
     "page.board.desc": "자유롭게 질문하고 정보를 공유합니다.",
@@ -181,6 +182,7 @@ const translations = {
     "preview.edit": "편집",
     "preview.saveCount": "저장 ({count}건)",
     "preview.duplicateWarning": "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
+    "preview.mandatoryFieldsRequired": "{rowNumber}행의 필수 입력 항목이 비어 있습니다: {fields}",
     "empty.noMatch": "조건에 맞는 데이터가 없습니다.",
     "empty.hint": "공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.",
     "empty.noSpecMatch": "조건에 맞는 사양 데이터가 없습니다.",
@@ -252,6 +254,7 @@ const translations = {
     "page.mp.modalDesc": "Add a new item. W/O code is left blank automatically and separated from system data.",
     "page.mp.requiredError":
       "Representative work, purpose, symptom, cause, HW before/after, SW before/after, and completion date are required.",
+    "page.mp.requiredFieldError": "This field is required.",
     "page.mp.pending": "Unsaved",
     "page.board.title": "Community Board",
     "page.board.desc": "Ask questions and share information freely.",
@@ -380,6 +383,7 @@ const translations = {
     "preview.edit": "Edit",
     "preview.saveCount": "Save ({count} rows)",
     "preview.duplicateWarning": "Duplicate items are present. Please remove duplicates first before saving.",
+    "preview.mandatoryFieldsRequired": "Row {rowNumber} has empty mandatory fields: {fields}",
     "empty.noMatch": "No data matches the conditions.",
     "empty.hint": "Please select a process and maintenance group or enter a search query to check the data.",
     "empty.noSpecMatch": "No spec data matches the conditions.",

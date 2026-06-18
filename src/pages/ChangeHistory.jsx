@@ -92,6 +92,43 @@ function rowKey(row, index) {
   }`;
 }
 
+function getMissingMandatoryFields(row, columns) {
+  const requiredGroups = {
+    site: ["site", "Site", "법인"],
+    process: ["process", "Process", "공정"],
+    maintGroup: ["maintGroup", "Maintenance Part", "보전파트", "보전그룹"],
+    representativeWork: ["representativeWork", "Representative Work", "대표 작업명", "대표작업명"],
+    work: ["work", "Work", "작업 목적", "작업목적"],
+    situation: ["situation", "Situation", "문제 현상"],
+    cause: ["cause", "Cause", "문제 원인"],
+    hwBefore: ["hwBefore", "hwAsWas", "HW Before", "HW 변경 전"],
+    hwAfter: ["hwAfter", "hwAsIs", "HW After", "HW 변경 후"],
+    swBefore: ["swBefore", "swAsWas", "SW Before", "SW 변경 전"],
+    swAfter: ["swAfter", "swAsIs", "SW After", "SW 변경 후"],
+    priority: ["priority", "Priority", "중요도"],
+    category: ["category", "Category", "효과 유형"],
+    workedOn: ["workedOn", "workedon", "작업완료일"]
+  };
+
+  const missingFields = [];
+
+  Object.entries(requiredGroups).forEach(([groupName, aliases]) => {
+    const matchingCol = columns.find(c => {
+      const trimmed = c.trim().toLowerCase();
+      return aliases.some(a => a.toLowerCase() === trimmed);
+    });
+
+    if (matchingCol) {
+      const val = row[matchingCol];
+      if (val === undefined || val === null || String(val).trim() === "") {
+        missingFields.push(matchingCol);
+      }
+    }
+  });
+
+  return missingFields;
+}
+
 async function readSpreadsheetRows(file) {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: "array" });
@@ -415,13 +452,27 @@ export function UploadPreviewModal({
   );
 
   const handleSaveRow = useCallback((index, payload) => {
+    const missingFields = getMissingMandatoryFields(payload, detectedColumns);
+    if (missingFields.length > 0) {
+      const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+      alert(
+        t(
+          "preview.mandatoryFieldsRequired",
+          "Row {rowNumber} has empty mandatory fields: {fields}"
+        )
+        .replace("{rowNumber}", index + 1)
+        .replace("{fields}", fieldNames)
+      );
+      return;
+    }
+
     setRows((prev) => {
       const next = [...prev];
       next[index] = payload;
       return next;
     });
     setEditingRowIndex(null);
-  }, []);
+  }, [detectedColumns, t]);
 
   const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
   const handleDeleteRow = useCallback((index) => {
@@ -438,6 +489,23 @@ export function UploadPreviewModal({
       alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
       return;
     }
+
+    for (let i = 0; i < rows.length; i++) {
+      const missingFields = getMissingMandatoryFields(rows[i], detectedColumns);
+      if (missingFields.length > 0) {
+        const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+        alert(
+          t(
+            "preview.mandatoryFieldsRequired",
+            "Row {rowNumber} has empty mandatory fields: {fields}"
+          )
+          .replace("{rowNumber}", i + 1)
+          .replace("{fields}", fieldNames)
+        );
+        return;
+      }
+    }
+
     const confirmedRows = [...rows];
     onClose();
     window.setTimeout(() => onConfirm?.(confirmedRows), 0);

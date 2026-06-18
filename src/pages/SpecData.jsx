@@ -78,6 +78,33 @@ function rowKey(row, index) {
   return `${index}__${row.id ?? ""}__${row.equipmentCode ?? row.설비코드 ?? ""}__${row.specName ?? row.사양항목 ?? ""}`;
 }
 
+function getMissingMandatoryFields(row, columns) {
+  const requiredGroups = {
+    site: ["site", "Site", "법인"],
+    process: ["process", "Process", "공정"],
+    maintGroup: ["maintGroup", "Maintenance Part", "보전파트", "보전그룹", "maintGroupName", "보전파트명"],
+    specName: ["specName", "SpecName", "사양항목", "사양명"]
+  };
+
+  const missingFields = [];
+
+  Object.entries(requiredGroups).forEach(([groupName, aliases]) => {
+    const matchingCol = columns.find(c => {
+      const trimmed = c.trim().toLowerCase();
+      return aliases.some(a => a.toLowerCase() === trimmed);
+    });
+
+    if (matchingCol) {
+      const val = row[matchingCol];
+      if (val === undefined || val === null || String(val).trim() === "") {
+        missingFields.push(matchingCol);
+      }
+    }
+  });
+
+  return missingFields;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton — prevents white-flash while dropdown options are loading
 // ─────────────────────────────────────────────────────────────────────────────
@@ -391,13 +418,27 @@ export function UploadPreviewModal({
   );
 
   const handleSaveRow = useCallback((index, payload) => {
+    const missingFields = getMissingMandatoryFields(payload, detectedColumns);
+    if (missingFields.length > 0) {
+      const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+      alert(
+        t(
+          "preview.mandatoryFieldsRequired",
+          "Row {rowNumber} has empty mandatory fields: {fields}"
+        )
+        .replace("{rowNumber}", index + 1)
+        .replace("{fields}", fieldNames)
+      );
+      return;
+    }
+
     setRows((prev) => {
       const next = [...prev];
       next[index] = payload;
       return next;
     });
     setEditingRowIndex(null);
-  }, []);
+  }, [detectedColumns, t]);
 
   const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
   const handleDeleteRow = useCallback((index) => {
@@ -414,6 +455,23 @@ export function UploadPreviewModal({
       alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
       return;
     }
+
+    for (let i = 0; i < rows.length; i++) {
+      const missingFields = getMissingMandatoryFields(rows[i], detectedColumns);
+      if (missingFields.length > 0) {
+        const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+        alert(
+          t(
+            "preview.mandatoryFieldsRequired",
+            "Row {rowNumber} has empty mandatory fields: {fields}"
+          )
+          .replace("{rowNumber}", i + 1)
+          .replace("{fields}", fieldNames)
+        );
+        return;
+      }
+    }
+
     const confirmedRows = [...rows];
     onClose();
     window.setTimeout(() => onConfirm?.(confirmedRows), 0);
@@ -837,6 +895,8 @@ const COLUMN_LABEL_KEYS = {
   priorityName: "field.priority",
   categoryName: "field.category",
   version: "field.version",
+  specName: "field.specName",
+  "사양항목": "field.specName",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
