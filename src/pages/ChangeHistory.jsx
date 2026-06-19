@@ -1205,6 +1205,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [changedDataId, setChangedDataId] = useState(0);
 
   const [importBusy, setImportBusy] = useState(false);
+  const [importFileName, setImportFileName] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
   const [operationStatus, setOperationStatus] = useState({
     isVisible: false,
@@ -1672,13 +1673,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = "";
+    setImportFileName(file.name);
     setImportBusy(true);
-    setOperationStatus({
-      isVisible: true,
-      status: "loading",
-      message: `${file.name} ${t("toast.uploading")}`,
-      autoClose: false,
-    });
 
     try {
       await withMinimumDelay(async () => {
@@ -2188,6 +2184,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             <h3 className="text-lg font-bold text-slate-800 mb-1">
               Importing Data...
             </h3>
+            {importFileName && (
+              <p className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full" title={importFileName}>
+                {importFileName}
+              </p>
+            )}
             <p className="text-sm text-slate-500 text-center animate-pulse">
               Parsing file and loading table records. Please wait.
             </p>

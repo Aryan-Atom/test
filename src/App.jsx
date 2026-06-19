@@ -25,7 +25,7 @@ export default function App() {
           path="/"
           element={
             isUserAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to="/data-management/change-history-data" replace />
             ) : (
               <LoginLoader
                 setIsUserAuthenticated={setIsUserAuthenticated}
@@ -36,7 +36,7 @@ export default function App() {
           }
         />
         <Route
-          path="/dashboard/*"
+          path="/*"
           element={<ProtectedDashboard isUserAuthenticated={isUserAuthenticated} />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />

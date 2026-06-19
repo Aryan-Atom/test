@@ -6,7 +6,7 @@ import { isStaticDataMode } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
 // Reusable MultiSelect Dropdown Component with Checkboxes
-function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
+function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -21,6 +21,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
   }, []);
 
   const handleToggleOption = (value) => {
+    if (disabled) return;
     let next;
     if (selectedValues.includes(value)) {
       next = selectedValues.filter((v) => v !== value);
@@ -45,12 +46,14 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
     <div ref={containerRef} className="relative w-full">
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
         className="input-base flex w-full items-center justify-between text-left font-semibold text-text-default"
         style={{
           height: "38px",
-          cursor: "pointer",
-          background: "var(--surface-default, #ffffff)",
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          opacity: disabled ? 0.6 : 1,
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
           padding: "8px 14px",
@@ -62,13 +65,13 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
         <span className="truncate">{displayText}</span>
         <i
           className={`fas fa-chevron-down text-[10px] text-text-subtle transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
+            isOpen && !disabled ? "rotate-180" : ""
           }`}
           style={{ marginLeft: "8px" }}
         />
       </button>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div
           className="absolute left-0 right-0 z-[100] mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-border-base bg-surface-default py-1 shadow-lg"
           style={{
@@ -87,9 +90,10 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
                 <input
                   type="checkbox"
                   checked={isChecked}
+                  disabled={disabled}
                   onChange={() => handleToggleOption(opt.value)}
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
-                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: "pointer" }}
+                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
                 />
                 <span className="truncate" style={{ fontSize: "13px" }}>{opt.label}</span>
               </label>
@@ -143,7 +147,7 @@ function getContrastColor(hex) {
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
+    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? row["ëŒ€í‘œì ‘ì—…ëª…"] ?? row["ëŒ€í‘œ ì ‘ì—…ëª…"] ?? "";
   }
   if (col === "work") {
     return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
@@ -173,10 +177,10 @@ function getColValue(row, col) {
     return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
-    return row.priority ?? row["중요도"] ?? "";
+    return row.priority ?? row["중요도"] ?? row["ì¤‘ìš”ë „"] ?? "";
   }
   if (col === "category") {
-    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? "";
+    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? row["íš¨ê³¼ ìœ í˜•"] ?? row["íš¨ê³¼ìœ í˜•"] ?? "";
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
@@ -185,10 +189,10 @@ function getColValue(row, col) {
     return row.workedOn ?? row["작업완료일"] ?? "";
   }
   if (col === "process") {
-    return row.process ?? row["공정"] ?? "";
+    return row.process ?? row["공정"] ?? row["ê³µì •"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? "";
+    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? row["유지보수 그룹"] ?? row["유지보수그룹"] ?? row.equipment ?? row["ë³´ì „íŒŒíŠ¸"] ?? row["ë³´ì „ê·¸ë£¹"] ?? row["ìœ ì§€ë³´ìˆ˜ ê·¸ë£¹"] ?? "";
   }
   if (col === "site") {
     return row.site ?? row["법인"] ?? row["사이트"] ?? "";
@@ -231,6 +235,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [newPriority, setNewPriority] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [replacing, setReplacing] = useState(false);
+  const [clickedRecord, setClickedRecord] = useState(null);
 
   const getFilterData = useCallback(() => {
     if (isStaticDataMode) {
@@ -517,20 +522,25 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [filtered, mode, columns, equipmentRows]);
 
   // Open replace modal prefilled
-  const openReplaceModal = (taskName, colKey) => {
+  const openReplaceModal = (taskName, colKey, record = null) => {
     if (selectedProcess === "전체" || selectedMaintenance === "전체") {
       alert(t("page.matrix.selectWarning", "공정과 보전파트를 먼저 선택하세요."));
       return;
     }
+    
+    setClickedRecord(record);
     
     const currentMaintRecords = allRecords.filter(r => 
       getColValue(r, "process") === selectedProcess && 
       getColValue(r, "maintGroup") === selectedMaintenance
     );
     
+    let resolvedTaskName = taskName;
+    let resolvedTasksList = [];
+
     if (taskName) {
-      setReplaceTargetTask(taskName);
-      setReplaceTargetTasksList([]);
+      resolvedTaskName = taskName;
+      resolvedTasksList = [];
     } else if (colKey) {
       const matchedTasks = [...new Set(currentMaintRecords.filter(r => {
         if (mode === "date") {
@@ -541,23 +551,46 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       }).map(r => getColValue(r, "representativeWork")).filter(Boolean))];
 
       if (matchedTasks.length === 1) {
-        setReplaceTargetTask(matchedTasks[0]);
-        setReplaceTargetTasksList([]);
+        resolvedTaskName = matchedTasks[0];
+        resolvedTasksList = [];
       } else if (matchedTasks.length > 1) {
-        setReplaceTargetTask(matchedTasks[0]);
-        setReplaceTargetTasksList(matchedTasks);
+        resolvedTaskName = matchedTasks[0];
+        resolvedTasksList = matchedTasks;
       } else {
-        setReplaceTargetTask("");
-        setReplaceTargetTasksList([]);
+        resolvedTaskName = "";
+        resolvedTasksList = [];
       }
     } else {
-      setReplaceTargetTask("");
-      setReplaceTargetTasksList([]);
+      resolvedTaskName = "";
+      resolvedTasksList = [];
+    }
+
+    setReplaceTargetTask(resolvedTaskName);
+    setReplaceTargetTasksList(resolvedTasksList);
+
+    // Prepopulate priority and effect type if they already exist in the matched records / clicked record
+    let existingPriority = "";
+    let existingCategory = "";
+    
+    if (record) {
+      existingPriority = getColValue(record, "priority");
+      existingCategory = getColValue(record, "category");
+    }
+
+    if (!existingPriority && !existingCategory && resolvedTaskName) {
+      const matchedRecords = currentMaintRecords.filter(
+        (r) => getColValue(r, "representativeWork") === resolvedTaskName
+      );
+      if (matchedRecords.length > 0) {
+        const firstWithPriority = matchedRecords.find(r => getColValue(r, "priority") || getColValue(r, "category")) || matchedRecords[0];
+        existingPriority = getColValue(firstWithPriority, "priority");
+        existingCategory = getColValue(firstWithPriority, "category");
+      }
     }
 
     setNewRepresentativeWork("");
-    setNewPriority("");
-    setNewCategory("");
+    setNewPriority(existingPriority);
+    setNewCategory(existingCategory);
     setShowReplaceModal(true);
   };
 
@@ -585,21 +618,35 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         if (isMatch) {
           const item = { ...d };
           if (newRepresentativeWork.trim()) {
-            if ("representativeWork" in item) item.representativeWork = newRepresentativeWork.trim();
-            else if ("대표작업명" in item) item["대표작업명"] = newRepresentativeWork.trim();
-            else if ("대표 작업명" in item) item["대표 작업명"] = newRepresentativeWork.trim();
-            else item.representativeWork = newRepresentativeWork.trim();
+            let updatedKey = false;
+            if ("representativeWork" in item) { item.representativeWork = newRepresentativeWork.trim(); updatedKey = true; }
+            if ("대표작업명" in item) { item["대표작업명"] = newRepresentativeWork.trim(); updatedKey = true; }
+            if ("대표 작업명" in item) { item["대표 작업명"] = newRepresentativeWork.trim(); updatedKey = true; }
+            if ("ëŒ€í‘œì ‘ì—…ëª…" in item) { item["ëŒ€í‘œì ‘ì—…ëª…"] = newRepresentativeWork.trim(); updatedKey = true; }
+            if ("ëŒ€í‘œ ì ‘ì—…ëª…" in item) { item["ëŒ€í‘œ ì ‘ì—…ëª…"] = newRepresentativeWork.trim(); updatedKey = true; }
+            if (!updatedKey) {
+              item.representativeWork = newRepresentativeWork.trim();
+            }
           }
           if (newPriority) {
-            if ("priority" in item) item.priority = newPriority;
-            else if ("중요도" in item) item["중요도"] = newPriority;
-            else item.priority = newPriority;
+            let updatedKey = false;
+            if ("priority" in item) { item.priority = newPriority; updatedKey = true; }
+            if ("중요도" in item) { item["중요도"] = newPriority; updatedKey = true; }
+            if ("ì¤‘ìš”ë „" in item) { item["ì¤‘ìš”ë „"] = newPriority; updatedKey = true; }
+            if (!updatedKey) {
+              item.priority = newPriority;
+            }
           }
           if (newCategory) {
-            if ("category" in item) item.category = newCategory;
-            else if ("효과 유형" in item) item["효과 유형"] = newCategory;
-            else if ("효과유형" in item) item["효과유형"] = newCategory;
-            else item.category = newCategory;
+            let updatedKey = false;
+            if ("category" in item) { item.category = newCategory; updatedKey = true; }
+            if ("효과 유형" in item) { item["효과 유형"] = newCategory; updatedKey = true; }
+            if ("효과유형" in item) { item["효과유형"] = newCategory; updatedKey = true; }
+            if ("íš¨ê³¼ ìœ í˜•" in item) { item["íš¨ê³¼ ìœ í˜•"] = newCategory; updatedKey = true; }
+            if ("íš¨ê³¼ìœ í˜•" in item) { item["íš¨ê³¼ìœ í˜•"] = newCategory; updatedKey = true; }
+            if (!updatedKey) {
+              item.category = newCategory;
+            }
           }
           return item;
         }
@@ -682,7 +729,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
   };
 
-  const showLanding = selectedProcess === "전체" || selectedMaintenance === "전체";
+  const showLanding = false;
 
   if (loading) {
     return (
@@ -703,21 +750,17 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             {t("page.matrix.desc", "공정과 작업별 변경 이력을 시각적으로 분석합니다.")}
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-2xl bg-surface-strong p-2">
+        <div className="toggle-group">
           <button
             type="button"
-            className={`btn-base ${
-              mode === "date" ? "btn-primary text-white" : "btn-ghost text-text-subtle"
-            }`}
+            className={`toggle-btn ${mode === "date" ? "active" : ""}`}
             onClick={() => setMode("date")}
           >
             {t("matrix.dateMode", "날짜 모드")}
           </button>
           <button
             type="button"
-            className={`btn-base ${
-              mode === "task" ? "btn-primary text-white" : "btn-ghost text-text-subtle"
-            }`}
+            className={`toggle-btn ${mode === "task" ? "active" : ""}`}
             onClick={() => setMode("task")}
           >
             {t("matrix.taskMode", "작업명 모드")}
@@ -726,7 +769,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       </header>
 
       {/* Filter Card */}
-      <div className="card p-4">
+      <div className="card p-4 relative z-30">
         <div className="flex flex-wrap items-center gap-4">
           {/* 공정 */}
           <div className="flex items-center gap-2">
@@ -753,6 +796,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               className="input-base"
               value={selectedMaintenance}
               onChange={handleMaintenanceChange}
+              disabled={selectedProcess === "전체"}
               style={{ width: "130px" }}
             >
               <option value="전체">{t("app.all", "전체")}</option>
@@ -771,6 +815,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               className="input-base"
               value={selectedSite}
               onChange={handleSiteChange}
+              disabled={selectedProcess === "전체"}
               style={{ width: "140px" }}
             >
               <option value="전체">{t("app.all", "전체")}</option>
@@ -789,6 +834,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               className="input-base"
               value={selectedRepWork}
               onChange={(e) => setSelectedRepWork(e.target.value)}
+              disabled={selectedProcess === "전체"}
               style={{ width: "180px" }}
             >
               <option value="전체">{t("app.all", "전체")}</option>
@@ -1031,7 +1077,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               onClick={(e) => {
                                   e.stopPropagation();
                                   const firstTask = getColValue(matched[0], "representativeWork");
-                                  openReplaceModal(firstTask, null);
+                                  openReplaceModal(firstTask, null, matched[0]);
                               }}
                             >
                               <i className="fas fa-pen text-[8px]" />
@@ -1083,7 +1129,47 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       className="input-base w-full bg-white font-medium text-text-default transition-all duration-150"
                       style={{ borderColor: "#f59e0b", borderWidth: "1.5px" }}
                       value={replaceTargetTask}
-                      onChange={(e) => setReplaceTargetTask(e.target.value)}
+                      onChange={(e) => {
+                        const nextTask = e.target.value;
+                        setReplaceTargetTask(nextTask);
+                        if (nextTask) {
+                          const currentMaintRecords = allRecords.filter(r => 
+                            getColValue(r, "process") === selectedProcess && 
+                            getColValue(r, "maintGroup") === selectedMaintenance
+                          );
+                          
+                          let foundRecord = null;
+                          if (clickedRecord) {
+                            const eqCode = getColValue(clickedRecord, "equipmentCode");
+                            const eqName = getColValue(clickedRecord, "equipmentName");
+                            foundRecord = allRecords.find(r => 
+                              getColValue(r, "equipmentCode") === eqCode &&
+                              getColValue(r, "equipmentName") === eqName &&
+                              getColValue(r, "representativeWork") === nextTask
+                            );
+                          }
+                          
+                          if (foundRecord) {
+                            setNewPriority(getColValue(foundRecord, "priority"));
+                            setNewCategory(getColValue(foundRecord, "category"));
+                          } else {
+                            const matchedRecords = currentMaintRecords.filter(
+                              (r) => getColValue(r, "representativeWork") === nextTask
+                            );
+                            if (matchedRecords.length > 0) {
+                              const firstWithVal = matchedRecords.find(r => getColValue(r, "priority") || getColValue(r, "category")) || matchedRecords[0];
+                              setNewPriority(getColValue(firstWithVal, "priority"));
+                              setNewCategory(getColValue(firstWithVal, "category"));
+                            } else {
+                              setNewPriority("");
+                              setNewCategory("");
+                            }
+                          }
+                        } else {
+                          setNewPriority("");
+                          setNewCategory("");
+                        }
+                      }}
                     >
                       {replaceTargetTasksList.map((t) => (
                         <option key={t} value={t}>{t}</option>

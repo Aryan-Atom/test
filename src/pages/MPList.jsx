@@ -8,7 +8,7 @@ import { isStaticDataMode } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
 // Reusable MultiSelect Dropdown Component with Checkboxes
-function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
+function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -23,6 +23,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
   }, []);
 
   const handleToggleOption = (value) => {
+    if (disabled) return;
     let next;
     if (selectedValues.includes(value)) {
       next = selectedValues.filter((v) => v !== value);
@@ -47,12 +48,14 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
     <div ref={containerRef} className="relative w-full">
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
         className="input-base flex w-full items-center justify-between text-left font-semibold text-text-default"
         style={{
           height: "38px",
-          cursor: "pointer",
-          background: "var(--surface-default, #ffffff)",
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          opacity: disabled ? 0.6 : 1,
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
           padding: "8px 14px",
@@ -65,13 +68,13 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
         <span className="truncate">{displayText}</span>
         <i
           className={`fas fa-chevron-down text-[10px] text-text-subtle transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
+            isOpen && !disabled ? "rotate-180" : ""
           }`}
           style={{ marginLeft: "8px" }}
         />
       </button>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div
           className="absolute left-0 right-0 z-[1000] mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-border-base bg-surface-default py-1 shadow-lg"
           style={{
@@ -90,9 +93,10 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t }) {
                 <input
                   type="checkbox"
                   checked={isChecked}
+                  disabled={disabled}
                   onChange={() => handleToggleOption(opt.value)}
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
-                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: "pointer" }}
+                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
                 />
                 <span className="truncate" style={{ fontSize: "13px" }}>{opt.label}</span>
               </label>
@@ -263,7 +267,7 @@ const EMPTY_ROW = {
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
+    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? row["ëŒ€í‘œì ‘ì—…ëª…"] ?? row["ëŒ€í‘œ ì ‘ì—…ëª…"] ?? "";
   }
   if (col === "work") {
     return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
@@ -293,10 +297,10 @@ function getColValue(row, col) {
     return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
-    return row.priority ?? row["중요도"] ?? "";
+    return row.priority ?? row["중요도"] ?? row["ì¤‘ìš”ë „"] ?? "";
   }
   if (col === "category") {
-    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? "";
+    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? row["íš¨ê³¼ ìœ í˜•"] ?? row["íš¨ê³¼ìœ í˜•"] ?? "";
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
@@ -305,10 +309,10 @@ function getColValue(row, col) {
     return row.workedOn ?? row["작업완료일"] ?? "";
   }
   if (col === "process") {
-    return row.process ?? row["공정"] ?? "";
+    return row.process ?? row["공정"] ?? row["ê³µì •"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? "";
+    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? row["유지보수 그룹"] ?? row["유지보수그룹"] ?? row.equipment ?? row["ë³´ì „íŒŒíŠ¸"] ?? row["ë³´ì „ê·¸ë£¹"] ?? row["ìœ ì§€ë³´ìˆ˜ ê·¸ë£¹"] ?? "";
   }
   if (col === "site") {
     return row.site ?? row["법인"] ?? row["사이트"] ?? "";
@@ -1316,7 +1320,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 className="input-base"
                 value={selectedMaintenanceId ?? ""}
                 onChange={handleMaintenanceChange}
-                disabled={maintenanceList.length === 0}
+                disabled={!selectedProcessId}
                 style={{ width: "130px" }}
               >
                 <option value="">{t("app.all", "전체")}</option>
@@ -1354,6 +1358,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   onChange={setSelectedRepWorks}
                   placeholder={t("app.all", "전체")}
                   t={t}
+                  disabled={!selectedProcessId}
                 />
               </div>
             )}

@@ -29,13 +29,13 @@ const pageNames = {
 const defaultPage = "dm-change";
 
 const pageRoutes = {
-  "dm-change": "/dashboard/change-history",
-  "dm-spec": "/dashboard/spec-data",
-  "mx-matrix": "/dashboard/matrix",
-  "mx-mplist": "/dashboard/mp-list",
-  spec: "/dashboard/spec-matrix",
-  board: "/dashboard/board",
-  admin: "/dashboard/admin",
+  "dm-change": "/data-management/change-history-data",
+  "dm-spec": "/data-management/spec-data",
+  "mx-matrix": "/change-matrix/matrix-view",
+  "mx-mplist": "/change-matrix/mp-list",
+  spec: "/spec-matrix",
+  board: "/board",
+  admin: "/admin",
 };
 
 const routePages = Object.fromEntries(
@@ -110,11 +110,6 @@ export default function Dashboard() {
   const { t } = useI18n();
 
   useEffect(() => {
-    if (location.pathname === "/dashboard") {
-      navigate(pageRoutes[defaultPage], { replace: true });
-      return;
-    }
-
     if (!routePages[location.pathname]) {
       navigate(pageRoutes[defaultPage], { replace: true });
     }

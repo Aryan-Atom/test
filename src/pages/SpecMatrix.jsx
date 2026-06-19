@@ -575,7 +575,7 @@ export default function SpecMatrix({ searchText }) {
                   style={{ width: "130px" }}
                   value={selectedTypeId ?? ""}
                   onChange={handleTypeChange}
-                  disabled={maintenanceList.length === 0}
+                  disabled={!selectedProcessId}
                 >
                   <option value="">{t("app.all", "전체")}</option>
                   {maintenanceList.map((item) => (
