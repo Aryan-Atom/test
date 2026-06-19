@@ -647,7 +647,7 @@ export default function SpecMatrix({ searchText }) {
         </div>
 
         {/* Data table card */}
-        <div className="card overflow-hidden bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm" style={{ minHeight: "360px" }}>
+        <div className="card overflow-hidden bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm">
           {filterError && (
             <div className="p-5">
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2">
