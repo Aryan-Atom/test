@@ -909,7 +909,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       </div>
 
       {/* Grid Container */}
-      <div className="card overflow-hidden flex flex-col relative" style={{ minHeight: "360px" }}>
+      <div className="card overflow-hidden flex flex-col relative">
         {showLanding ? (
           <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1" style={{ minHeight: "360px" }}>
             <div
