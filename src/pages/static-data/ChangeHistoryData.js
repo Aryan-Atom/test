@@ -10,6 +10,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "site",
     jsonKey: "site",
+    isMandatory: true,
   },
   {
     id: 2,
@@ -20,6 +21,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "process",
     jsonKey: "process",
+    isMandatory: true,
   },
   {
     id: 3,
@@ -30,6 +32,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "equipment",
     jsonKey: "maintGroup",
+    isMandatory: true,
   },
   {
     id: 4,
@@ -40,6 +43,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "equipment_code",
     jsonKey: "equipmentCode",
+    isMandatory: true,
   },
   {
     id: 5,
@@ -50,6 +54,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "equipment_name",
     jsonKey: "equipmentName",
+    isMandatory: true,
   },
   {
     id: 6,
@@ -60,6 +65,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "wo_code",
     jsonKey: "wOCode",
+    isMandatory: false,
   },
   {
     id: 7,
@@ -70,6 +76,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "report_content",
     jsonKey: "report",
+    isMandatory: false,
   },
   {
     id: 8,
@@ -80,6 +87,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "bom",
     jsonKey: "bom",
+    isMandatory: false,
   },
   {
     id: 9,
@@ -90,6 +98,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "spare part",
     jsonKey: "sparePart",
+    isMandatory: false,
   },
   {
     id: 10,
@@ -100,6 +109,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "work_date",
     jsonKey: "workedOn",
+    isMandatory: false,
   },
   {
     id: 11,
@@ -110,6 +120,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "work",
     jsonKey: "work",
+    isMandatory: false,
   },
   {
     id: 12,
@@ -120,6 +131,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "purpose",
     jsonKey: "purpose",
+    isMandatory: false,
   },
   {
     id: 13,
@@ -130,6 +142,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "situation",
     jsonKey: "situation",
+    isMandatory: false,
   },
   {
     id: 14,
@@ -140,6 +153,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "cause",
     jsonKey: "cause",
+    isMandatory: false,
   },
   {
     id: 15,
@@ -150,6 +164,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "hw_was",
     jsonKey: "hwAsWas",
+    isMandatory: false,
   },
   {
     id: 16,
@@ -160,6 +175,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "hw_is",
     jsonKey: "hwAsIs",
+    isMandatory: false,
   },
   {
     id: 17,
@@ -170,6 +186,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "sw_was",
     jsonKey: "swAsWas",
+    isMandatory: false,
   },
   {
     id: 18,
@@ -180,6 +197,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "sw_is",
     jsonKey: "swAsIs",
+    isMandatory: false,
   },
   {
     id: 19,
@@ -190,6 +208,7 @@ export const changeDataColumns = [
     isMasterData: false,
     excelColumnName: "rep_work",
     jsonKey: "representativeWork",
+    isMandatory: true,
   },
   {
     id: 20,
@@ -200,6 +219,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "priority",
     jsonKey: "priority",
+    isMandatory: true,
   },
   {
     id: 21,
@@ -210,6 +230,7 @@ export const changeDataColumns = [
     isMasterData: true,
     excelColumnName: "category",
     jsonKey: "category",
+    isMandatory: true,
   },
 ];
 

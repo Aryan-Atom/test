@@ -30,10 +30,13 @@ function buildExcelToJsonKeyMap(columnDefs) {
   }, {});
 }
 
-function remapRowKeys(row, excelToJsonKey) {
+function remapRowKeys(row, excelToJsonKey, validKeys = null) {
   return Object.entries(row).reduce((acc, [key, value]) => {
-    const mappedKey = excelToJsonKey[key.trim()] ?? key;
-    acc[mappedKey] = value;
+    const trimmedKey = key.trim();
+    const mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
+    if (!validKeys || validKeys.has(trimmedKey.toLowerCase()) || validKeys.has(mappedKey.toLowerCase()) || mappedKey === "id") {
+      acc[mappedKey] = value;
+    }
     return acc;
   }, {});
 }
@@ -41,27 +44,47 @@ function remapRowKeys(row, excelToJsonKey) {
 function normalizeDuplicateValue(value, key = "") {
   if (value == null) return "";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}${month}${day}`;
   }
 
-  const raw = String(value).trim();
-  const isDateKey = /date|workedOn/i.test(key) || key.includes("ì¼");
-
-  if (isDateKey) {
-    const serial = Number(raw);
-    if (Number.isFinite(serial) && serial > 0) {
-      const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
-      if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  let str = String(value).trim();
+  if (key.toLowerCase().includes("date") || key === "workedon") {
+    str = str.split(/[T ]/)[0];
+    
+    // Check if it's in DD-MM-YYYY format or similar
+    const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, "0");
+      const month = dmyMatch[2].padStart(2, "0");
+      const year = dmyMatch[3];
+      return `${year}${month}${day}`;
+    }
+    
+    // Check if it's in YYYY-MM-DD format
+    const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (ymdMatch) {
+      const year = ymdMatch[1];
+      const month = ymdMatch[2].padStart(2, "0");
+      const day = ymdMatch[3].padStart(2, "0");
+      return `${year}${month}${day}`;
     }
 
-    const ddmmyyyy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
-    if (ddmmyyyy) {
-      const [, dd, mm, yyyy] = ddmmyyyy;
-      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    // Try to parse using Javascript Date
+    const parsedDate = new Date(str);
+    if (!isNaN(parsedDate.getTime())) {
+      const year = parsedDate.getFullYear();
+      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(parsedDate.getDate()).padStart(2, "0");
+      return `${year}${month}${day}`;
     }
+
+    return str.replace(/[-/.]/g, "").toLowerCase();
   }
 
-  return raw;
+  return str.toLowerCase();
 }
 
 function buildDuplicateKey(row, excelToJsonKey, columns) {
@@ -92,41 +115,32 @@ function rowKey(row, index) {
   }`;
 }
 
-function getMissingMandatoryFields(row, columns) {
-  const requiredGroups = {
-    site: ["site", "Site", "법인"],
-    process: ["process", "Process", "공정"],
-    maintGroup: ["maintGroup", "Maintenance Part", "보전파트", "보전그룹"],
-    representativeWork: ["representativeWork", "Representative Work", "대표 작업명", "대표작업명"],
-    work: ["work", "Work", "작업 목적", "작업목적"],
-    situation: ["situation", "Situation", "문제 현상"],
-    cause: ["cause", "Cause", "문제 원인"],
-    hwBefore: ["hwBefore", "hwAsWas", "HW Before", "HW 변경 전"],
-    hwAfter: ["hwAfter", "hwAsIs", "HW After", "HW 변경 후"],
-    swBefore: ["swBefore", "swAsWas", "SW Before", "SW 변경 전"],
-    swAfter: ["swAfter", "swAsIs", "SW After", "SW 변경 후"],
-    priority: ["priority", "Priority", "중요도"],
-    category: ["category", "Category", "효과 유형"],
-    workedOn: ["workedOn", "workedon", "작업완료일"]
-  };
+function getMissingMandatoryFields(row, columns, columnDefs) {
+  const list = Array.isArray(columnDefs)
+    ? columnDefs
+    : Array.isArray(columnDefs?.data)
+      ? columnDefs.data
+      : [];
 
-  const missingFields = [];
+  const missing = [];
+  list.forEach((col) => {
+    if (col.isMandatory) {
+      const excelName = col.excelColumnName?.trim().toLowerCase();
+      const jsonKey = col.jsonKey?.trim().toLowerCase();
+      const krName = col.columnNameKr?.trim().toLowerCase();
 
-  Object.entries(requiredGroups).forEach(([groupName, aliases]) => {
-    const matchingCol = columns.find(c => {
-      const trimmed = c.trim().toLowerCase();
-      return aliases.some(a => a.toLowerCase() === trimmed);
-    });
+      const matchedKey = Object.keys(row).find((k) => {
+        const lk = k.trim().toLowerCase();
+        return lk === excelName || lk === jsonKey || lk === krName;
+      });
 
-    if (matchingCol) {
-      const val = row[matchingCol];
+      const val = matchedKey !== undefined ? row[matchedKey] : undefined;
       if (val === undefined || val === null || String(val).trim() === "") {
-        missingFields.push(matchingCol);
+        missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey);
       }
     }
   });
-
-  return missingFields;
+  return missing;
 }
 
 async function readSpreadsheetRows(file) {
@@ -191,7 +205,7 @@ function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
         }}
         title={String(value ?? "")}
       >
-        {value == null || value === "" ? "—" : String(value)}
+        {value == null || value === "" ? "-" : String(value)}
       </span>
     );
   }
@@ -225,21 +239,24 @@ function EditableModalRow({
   row,
   index,
   columns,
-  editingRowIndex,
+  editingCell,
   onStartEdit,
   onSave,
   onCancel,
   isDuplicate = false,
   onDelete,
 }) {
-  const isEditing = editingRowIndex === index;
+  const isEditingAnyCell = editingCell && editingCell.rowIndex === index;
+  const isCellEditing = useCallback(
+    (col) => editingCell && editingCell.rowIndex === index && editingCell.colKey === col,
+    [editingCell, index]
+  );
   const [draft, setDraft] = useState({});
   const rowRef = useRef(null);
 
-  const handleStartEdit = (e) => {
-    e.stopPropagation();
+  const handleStartEdit = (col) => {
     setDraft({ ...row });
-    onStartEdit(index);
+    onStartEdit(index, col);
   };
 
   const handleDraftChange = useCallback((col, value) => {
@@ -261,42 +278,50 @@ function EditableModalRow({
   };
 
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditingAnyCell) return;
     const handler = (e) => {
-      if (rowRef.current && !rowRef.current.contains(e.target)) handleSave();
+      if (rowRef.current && rowRef.current.contains(e.target)) return;
+      const clickedRow = e.target.closest("tr");
+      const isHeaderRow = clickedRow && clickedRow.closest("thead");
+      const insideModal = e.target.closest(".fixed");
+      if (insideModal && (!clickedRow || isHeaderRow)) {
+        return;
+      }
+      handleSave();
     };
     const t = setTimeout(() => document.addEventListener("mousedown", handler), 80);
     return () => {
       clearTimeout(t);
       document.removeEventListener("mousedown", handler);
     };
-  }, [isEditing, handleSave]);
+  }, [isEditingAnyCell, handleSave]);
 
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditingAnyCell) return;
     const handler = (e) => {
       if (e.key === "Enter") handleSave(e);
       if (e.key === "Escape") handleCancel(e);
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isEditing, handleSave]);
+  }, [isEditingAnyCell, handleSave]);
 
   return (
     <tr
       ref={rowRef}
       style={{
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-        background: isEditing
+        background: isEditingAnyCell
           ? "#eff6ff"
           : isDuplicate
             ? "#fff1f2"
           : index % 2 === 0
             ? "var(--color-surface-default, #fff)"
             : "var(--color-surface-raised, #f9fafb)",
-        outline: isEditing ? "2px solid #2563eb" : "none",
+        outline: isEditingAnyCell ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
         transition: "background 0.1s",
+        cursor: isEditingAnyCell ? "default" : "pointer"
       }}
     >
       <td
@@ -310,15 +335,10 @@ function EditableModalRow({
         <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
           {index + 1}
         </span>
-        {isDuplicate && (
-          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
-            DUP
-          </span>
-        )}
       </td>
 
       <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
-        {isEditing ? (
+        {isEditingAnyCell ? (
           <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
             <button
               type="button"
@@ -364,10 +384,13 @@ function EditableModalRow({
         ) : (
           <button
             type="button"
-            onClick={handleStartEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStartEdit(columns[0]);
+            }}
             title="행 편집"
             style={{
-              display: "inline-flex",
+              display: "none", // Hide edit button visually
               alignItems: "center",
               justifyContent: "center",
               width: "26px",
@@ -382,7 +405,7 @@ function EditableModalRow({
             <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
           </button>
         )}
-        {!isEditing && onDelete && (
+        {!isEditingAnyCell && onDelete && (
           <button
             type="button"
             onClick={(e) => {
@@ -399,24 +422,32 @@ function EditableModalRow({
         )}
       </td>
 
-      {columns.map((col) => (
-        <td
-          key={col}
-          style={{
-            padding: isEditing ? "4px 6px" : "8px 16px",
-            minWidth: isEditing ? "100px" : undefined,
-            maxWidth: "240px",
-          }}
-        >
-          <EditableCell
-            value={isEditing ? draft[col] : row[col]}
-            isEditing={isEditing}
-            col={col}
-            onChange={handleDraftChange}
-            duplicate={isDuplicate}
-          />
-        </td>
-      ))}
+      {columns.map((col) => {
+        const editing = isCellEditing(col);
+        return (
+          <td
+            key={col}
+            onDoubleClick={(e) => {
+              if (editing) return;
+              e.stopPropagation();
+              handleStartEdit(col);
+            }}
+            style={{
+              padding: editing ? "4px 6px" : "8px 16px",
+              minWidth: editing ? "100px" : undefined,
+              maxWidth: "240px",
+            }}
+          >
+            <EditableCell
+              value={editing ? draft[col] : row[col]}
+              isEditing={editing}
+              col={col}
+              onChange={handleDraftChange}
+              duplicate={isDuplicate}
+            />
+          </td>
+        );
+      })}
     </tr>
   );
 }
@@ -431,14 +462,15 @@ export function UploadPreviewModal({
   getDuplicateKey,
   onClose,
   onConfirm,
+  columnDefs = [],
 }) {
   const { t } = useI18n();
   const [rows, setRows] = useState(() => initialRows ?? []);
-  const [editingRowIndex, setEditingRowIndex] = useState(null);
+  const [editingCell, setEditingCell] = useState(null);
 
   useEffect(() => {
     setRows(initialRows ?? []);
-    setEditingRowIndex(null);
+    setEditingCell(null);
   }, [initialRows]);
 
   const detectedColumns = columns?.length ? columns : rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -452,36 +484,22 @@ export function UploadPreviewModal({
   );
 
   const handleSaveRow = useCallback((index, payload) => {
-    const missingFields = getMissingMandatoryFields(payload, detectedColumns);
-    if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
-      alert(
-        t(
-          "preview.mandatoryFieldsRequired",
-          "Row {rowNumber} has empty mandatory fields: {fields}"
-        )
-        .replace("{rowNumber}", index + 1)
-        .replace("{fields}", fieldNames)
-      );
-      return;
-    }
-
     setRows((prev) => {
       const next = [...prev];
       next[index] = payload;
       return next;
     });
-    setEditingRowIndex(null);
-  }, [detectedColumns, t]);
+    setEditingCell(null);
+  }, []);
 
-  const handleCancelEdit = useCallback(() => setEditingRowIndex(null), []);
+  const handleCancelEdit = useCallback(() => setEditingCell(null), []);
   const handleDeleteRow = useCallback((index) => {
     setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
-    setEditingRowIndex(null);
+    setEditingCell(null);
   }, []);
   const handleRemoveDuplicates = useCallback(() => {
     setRows((prev) => prev.filter((row) => !isDuplicateRow(row)));
-    setEditingRowIndex(null);
+    setEditingCell(null);
   }, [isDuplicateRow]);
 
   const handleConfirm = () => {
@@ -491,7 +509,7 @@ export function UploadPreviewModal({
     }
 
     for (let i = 0; i < rows.length; i++) {
-      const missingFields = getMissingMandatoryFields(rows[i], detectedColumns);
+      const missingFields = getMissingMandatoryFields(rows[i], detectedColumns, columnDefs);
       if (missingFields.length > 0) {
         const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
         alert(
@@ -642,8 +660,8 @@ export function UploadPreviewModal({
                     row={row}
                     index={index}
                     columns={detectedColumns}
-                    editingRowIndex={editingRowIndex}
-                    onStartEdit={setEditingRowIndex}
+                    editingCell={editingCell}
+                    onStartEdit={(rowIndex, colKey) => setEditingCell({ rowIndex, colKey })}
                     onSave={handleSaveRow}
                     onCancel={handleCancelEdit}
                     isDuplicate={isDuplicateRow(row)}
@@ -1230,6 +1248,69 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     [changeDataColumns],
   );
 
+  const validKeys = useMemo(() => {
+    const allowedKeys = new Set([
+      "site",
+      "process",
+      "maintgroup",
+      "equipmentcode",
+      "equipmentname",
+      "wocode",
+      "report",
+      "bom",
+      "sparepart",
+      "workedon",
+      "work",
+      "purpose",
+      "situation",
+      "cause",
+      "hwaswas",
+      "hwasis",
+      "swaswas",
+      "swasis",
+      "representativework",
+      "priority",
+      "category",
+      // Excel names
+      "site",
+      "process",
+      "equipment",
+      "equipment_code",
+      "equipment_name",
+      "wo_code",
+      "report_content",
+      "bom",
+      "spare part",
+      "work_date",
+      "work",
+      "purpose",
+      "situation",
+      "cause",
+      "hw_was",
+      "hw_is",
+      "sw_was",
+      "sw_is",
+      "rep_work",
+      "priority",
+      "category"
+    ]);
+
+    if (!changeDataColumns || changeDataColumns.length === 0) return null;
+    const keys = new Set();
+    changeDataColumns.forEach(c => {
+      const excelName = c.excelColumnName?.trim().toLowerCase();
+      const jsonKey = c.jsonKey?.trim().toLowerCase();
+      const krName = c.columnNameKr?.trim().toLowerCase();
+      
+      if (allowedKeys.has(excelName) || allowedKeys.has(jsonKey)) {
+        if (excelName) keys.add(excelName);
+        if (jsonKey) keys.add(jsonKey);
+        if (krName) keys.add(krName);
+      }
+    });
+    return keys;
+  }, [changeDataColumns]);
+
   // ── Helper to sort keys by mockup order ───────────────────────────────────
   const getColumnGroupIndex = useCallback((key) => {
     const groups = [
@@ -1500,7 +1581,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     (updatedRows) => {
       // Remap excel column names → json keys
       const remappedRows = updatedRows.map((row) => {
-        const remapped = remapRowKeys(row, excelToJsonKey);
+        const remapped = remapRowKeys(row, excelToJsonKey, validKeys);
         return buildCleanRow(remapped);
       });
 
@@ -1555,7 +1636,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       });
     },
-    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t],
+    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys],
   );
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
@@ -1603,12 +1684,34 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       await withMinimumDelay(async () => {
         await uploadExcelFile(file, (res, statusCode) => {
           if (statusCode === 200) {
-            setPreviewColumns(Array.isArray(res?.columnNames) ? res.columnNames : null);
-            setPreviewRows(Array.isArray(res?.rows) ? res.rows : []);
+            // Always show all active columns from changeDataColumns in sequence order
+            const orderedCols = [...changeDataColumns]
+              .filter(c => c.isActive !== false)
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((c) => c.excelColumnName)
+              .filter(Boolean);
+
+            // Normalize row keys to match excelColumnName exactly (case-insensitive fallback)
+            const rawRows = Array.isArray(res?.rows) ? res.rows : [];
+            const normalizedRows = rawRows.map((row) => {
+              const cleanRow = {};
+              changeDataColumns.forEach((col) => {
+                if (col.excelColumnName) {
+                  const matchedKey = Object.keys(row).find(
+                    (k) => k.trim().toLowerCase() === col.excelColumnName.trim().toLowerCase()
+                  );
+                  cleanRow[col.excelColumnName] = matchedKey !== undefined ? row[matchedKey] : undefined;
+                }
+              });
+              return cleanRow;
+            });
+
+            setPreviewColumns(orderedCols);
+            setPreviewRows(normalizedRows);
             setOperationStatus({
               isVisible: true,
               status: "success",
-              message: `${res?.rows?.length || 0} ${t("toast.rowsLoaded")}`,
+              message: `${normalizedRows.length} ${t("toast.rowsLoaded")}`,
               autoClose: true,
             });
           } else {
@@ -1651,12 +1754,17 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
     try {
       await withMinimumDelay(async () => {
-        const exportCols = orderedJsonKeys.length > 0 ? orderedJsonKeys : dynamicColumns;
+        const sortedCols = [...changeDataColumns]
+          .filter((col) => col.isActive !== false && col.jsonKey && col.jsonKey !== "id")
+          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+        const exportCols = sortedCols.map((col) => col.excelColumnName || col.jsonKey);
 
         const exportData = rowsToExport.map((row) => {
           const orderedRow = {};
-          exportCols.forEach((key) => {
-            orderedRow[key] = row[key] ?? "";
+          sortedCols.forEach((col) => {
+            const header = col.excelColumnName || col.jsonKey;
+            orderedRow[header] = row[col.jsonKey] ?? "";
           });
           return orderedRow;
         });
@@ -1910,7 +2018,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   className="input-base"
                   value={selectedMaintenanceId ?? ""}
                   onChange={handleMaintenanceChange}
-                  disabled={maintenanceList.length === 0}
+                  disabled={!selectedProcessId}
                   style={{ width: "130px", marginTop: 0 }}
                 >
                   <option value="">{t("app.all")}</option>
@@ -2025,6 +2133,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setPreviewColumns(null);
         }}
         onConfirm={handleModalConfirm}
+        columnDefs={changeDataColumns}
       />
 
       <RowEditModal

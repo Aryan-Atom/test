@@ -10,6 +10,7 @@ export const specDataColumns = [
     isMasterData: true,
     excelColumnName: "공정",
     jsonKey: "process",
+    isMandatory: true,
   },
   {
     id: 28,
@@ -20,6 +21,7 @@ export const specDataColumns = [
     isMasterData: true,
     excelColumnName: "site",
     jsonKey: "site",
+    isMandatory: true,
   },
   {
     id: 25,
@@ -30,6 +32,7 @@ export const specDataColumns = [
     isMasterData: true,
     excelColumnName: "보전타입",
     jsonKey: "maintGroup",
+    isMandatory: true,
   },
   {
     id: 29,
@@ -40,6 +43,7 @@ export const specDataColumns = [
     isMasterData: true,
     excelColumnName: "설비코드",
     jsonKey: "equipmentCode",
+    isMandatory: true,
   },
   {
     id: 30,
@@ -50,6 +54,7 @@ export const specDataColumns = [
     isMasterData: true,
     excelColumnName: "설비명",
     jsonKey: "equipmentName",
+    isMandatory: true,
   },
   {
     id: 26,
@@ -60,6 +65,7 @@ export const specDataColumns = [
     isMasterData: false,
     excelColumnName: "버전",
     jsonKey: "version",
+    isMandatory: true,
   },
   {
     id: 31,
@@ -70,6 +76,7 @@ export const specDataColumns = [
     isMasterData: false,
     excelColumnName: "검수 항목(단위) ",
     jsonKey: "specName",
+    isMandatory: true,
   },
   {
     id: 32,
@@ -80,9 +87,9 @@ export const specDataColumns = [
     isMasterData: false,
     excelColumnName: "Spec.",
     jsonKey: "specValue",
+    isMandatory: true,
   },
 ];
-
 export const specFilterDataAndTableData = {
   process: [
     {
