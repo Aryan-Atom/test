@@ -219,8 +219,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [hoveredEquipmentKey, setHoveredEquipmentKey] = useState(null);
 
   // Records State
@@ -1056,28 +1069,25 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       const colorCode = representativeColorMap.get(normalizeName(repWork));
                       
                       let cellBg;
-                      let cellColor;
+                      let cellColor = "#000000";
                       if (colorCode) {
                         cellBg = hexToRgba(colorCode, 0.12);
-                        cellColor = colorCode;
                       } else {
                         cellBg = isImportant 
                           ? "rgba(239, 68, 68, 0.12)" 
                           : "rgba(15, 98, 254, 0.08)";
-                        cellColor = isImportant 
-                          ? "#dc2626" 
-                          : "#0f62fe";
                       }
 
                       return (
                         <td key={col} className="px-3 py-2 align-middle">
                           <div
                             onClick={() => onOpenDetail?.(matched)}
-                            className="matrix-cell p-2 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center font-medium relative group transition-all duration-200 hover:scale-[1.04] hover:shadow-md hover:z-10"
+                            className="matrix-cell p-2 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:shadow-md hover:z-10"
                             style={{
                               backgroundColor: cellBg,
                               color: cellColor,
                               fontSize: "11px",
+                              fontWeight: 700,
                               lineHeight: "1.4",
                               minHeight: "36px",
                               whiteSpace: "pre-line",
