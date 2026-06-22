@@ -1423,13 +1423,17 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   const filterLoading = filterPayload === null && filterError === null;
 
   // ── Process list (flat) ───────────────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    const all = filterPayload?.process ?? [];
+    return all.filter((p) => p.isSpecData === true);
+  }, [filterPayload]);
 
   // ── Maintenance list — cascade-filtered by selected process ───────────────
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const filtered = all.filter((m) => m.isSpecData === true);
+    if (!selectedProcessId) return filtered;
+    return filtered.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   // ── Process change → reset maintenance selection ──────────────────────────

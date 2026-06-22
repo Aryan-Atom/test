@@ -410,13 +410,17 @@ export default function SpecMatrix({ searchText }) {
   }, [fetchData]);
 
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    const all = filterPayload?.process ?? [];
+    return all.filter((p) => p.isSpecData === true);
+  }, [filterPayload]);
 
   // Maintenance list cascades from selected process
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const filtered = all.filter((m) => m.isSpecData === true);
+    if (!selectedProcessId) return filtered;
+    return filtered.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   // All unique versions from spec rows

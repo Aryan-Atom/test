@@ -297,20 +297,35 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
-    return [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))].sort();
-  }, [allRecords]);
+    const raw = [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))];
+    const allowed = filterData?.process?.filter(p => p.isChangedData === true).map(p => p.processName) ?? [];
+    if (filterData?.process) {
+      return raw.filter(p => allowed.includes(p)).sort();
+    }
+    return raw.sort();
+  }, [allRecords, filterData]);
 
   const maintenanceOptions = useMemo(() => {
     if (selectedProcess === "전체") return [];
-    return [...new Set(allRecords.filter(r => getColValue(r, "process") === selectedProcess).map(r => getColValue(r, "maintGroup")).filter(Boolean))].sort();
-  }, [allRecords, selectedProcess]);
+    const raw = [...new Set(allRecords.filter(r => getColValue(r, "process") === selectedProcess).map(r => getColValue(r, "maintGroup")).filter(Boolean))];
+    const allowed = filterData?.maintenance?.filter(m => m.isChangedData === true).map(m => m.maintenanceGroupName) ?? [];
+    if (filterData?.maintenance) {
+      return raw.filter(m => allowed.includes(m)).sort();
+    }
+    return raw.sort();
+  }, [allRecords, selectedProcess, filterData]);
 
   const siteOptions = useMemo(() => {
-    return [...new Set(allRecords.filter(r => 
+    const raw = [...new Set(allRecords.filter(r => 
       (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
       (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance)
-    ).map(r => getColValue(r, "site")).filter(Boolean))].sort();
-  }, [allRecords, selectedProcess, selectedMaintenance]);
+    ).map(r => getColValue(r, "site")).filter(Boolean))];
+    const allowed = filterData?.site?.filter(s => s.isChangedData === true).map(s => s.siteName) ?? [];
+    if (filterData?.site) {
+      return raw.filter(s => allowed.includes(s)).sort();
+    }
+    return raw.sort();
+  }, [allRecords, selectedProcess, selectedMaintenance, filterData]);
 
   const repWorkOptions = useMemo(() => {
     const reps = filterData?.representations ?? [];

@@ -1485,12 +1485,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const filterLoading = filterPayload === null && filterError === null;
 
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    const all = filterPayload?.process ?? [];
+    return all.filter((p) => p.isChangedData === true);
+  }, [filterPayload]);
 
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const filtered = all.filter((m) => m.isChangedData === true);
+    if (!selectedProcessId) return filtered;
+    return filtered.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const handleProcessChange = (e) => {

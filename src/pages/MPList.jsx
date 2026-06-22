@@ -460,18 +460,23 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const filterLoading = filterPayload === null && filterError === null;
 
   // ── Derived cascade option lists ──────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    const all = filterPayload?.process ?? [];
+    return all.filter((p) => p.isChangedData === true);
+  }, [filterPayload]);
 
   const siteList = useMemo(() => {
     const all = filterPayload?.site ?? [];
-    if (!selectedProcessId) return all;
-    return all.filter((s) => s.processId === selectedProcessId);
+    const filtered = all.filter((s) => s.isChangedData === true);
+    if (!selectedProcessId) return filtered;
+    return filtered.filter((s) => s.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const filtered = all.filter((m) => m.isChangedData === true);
+    if (!selectedProcessId) return filtered;
+    return filtered.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const repWorkOptions = useMemo(() => {
