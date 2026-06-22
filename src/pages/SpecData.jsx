@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect, forwardRef } from "react";
 import AnimatedActionButton from "../components/AnimatedActionButton.jsx";
 import { OperationStatus } from "../components/OperationStatus.jsx";
 import { withMinimumDelay } from "../utils/actionTiming.js";
@@ -12,6 +12,14 @@ import {
   specDataColumns as staticSpecDataColumns,
   specFilterDataAndTableData,
 } from "./static-data/SpecData.js";
+import { List } from "react-window";
+import {
+  savePreviewRows,
+  getAllPreviewRows,
+  updatePreviewRow,
+  deletePreviewRow,
+  clearPreviewRows,
+} from "../utils/previewDb.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -34,7 +42,12 @@ function remapRowKeys(row, excelToJsonKey, validKeys = null) {
   return Object.entries(row).reduce((acc, [key, value]) => {
     const trimmedKey = key.trim();
     const mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
-    if (!validKeys || validKeys.has(trimmedKey.toLowerCase()) || validKeys.has(mappedKey.toLowerCase()) || mappedKey === "id") {
+    if (
+      !validKeys ||
+      validKeys.has(trimmedKey.toLowerCase()) ||
+      validKeys.has(mappedKey.toLowerCase()) ||
+      mappedKey === "id"
+    ) {
       acc[mappedKey] = value;
     }
     return acc;
@@ -53,7 +66,7 @@ function normalizeDuplicateValue(value, key = "") {
   let str = String(value).trim();
   if (key.toLowerCase().includes("date") || key === "workedon") {
     str = str.split(/[T ]/)[0];
-    
+
     // Check if it's in DD-MM-YYYY format or similar
     const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
     if (dmyMatch) {
@@ -62,7 +75,7 @@ function normalizeDuplicateValue(value, key = "") {
       const year = dmyMatch[3];
       return `${year}${month}${day}`;
     }
-    
+
     // Check if it's in YYYY-MM-DD format
     const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
     if (ymdMatch) {
@@ -151,7 +164,8 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableCell
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
+function EditableCell({ value, isEditing, col, onChange, duplicate = false, isEmptyMandatory = false }) {
+  const { t } = useI18n();
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -170,16 +184,18 @@ function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "220px",
-          color: duplicate
+          color: duplicate || isEmptyMandatory
             ? "#dc2626"
             : value == null || value === ""
               ? "var(--color-text-subtle, #9ca3af)"
               : "var(--color-text-default, #111827)",
-          fontWeight: duplicate ? 700 : undefined,
+          fontWeight: duplicate || isEmptyMandatory ? 700 : undefined,
         }}
         title={String(value ?? "")}
       >
-        {value == null || value === "" ? "-" : String(value)}
+        {value == null || value === ""
+          ? (isEmptyMandatory ? t("preview.required", "Required") : "-")
+          : String(value)}
       </span>
     );
   }
@@ -210,16 +226,21 @@ function EditableCell({ value, isEditing, col, onChange, duplicate = false }) {
 // EditableModalRow — inside the upload preview modal
 // ─────────────────────────────────────────────────────────────────────────────
 function EditableModalRow({
-  row,
   index,
+  style,
+  rows,
   columns,
+  columnDefs,
   editingCell,
   onStartEdit,
   onSave,
   onCancel,
-  isDuplicate = false,
+  isDuplicateRow,
   onDelete,
 }) {
+  const row = rows[index];
+  if (!row) return null;
+  const isDuplicate = isDuplicateRow(row);
   const isEditingAnyCell = editingCell && editingCell.rowIndex === index;
   const isCellEditing = useCallback(
     (col) => editingCell && editingCell.rowIndex === index && editingCell.colKey === col,
@@ -236,6 +257,17 @@ function EditableModalRow({
   const handleDraftChange = useCallback((col, value) => {
     setDraft((prev) => ({ ...prev, [col]: value }));
   }, []);
+
+  const isMandatoryField = useCallback((colKey) => {
+    if (!columnDefs) return false;
+    const keyLower = colKey.trim().toLowerCase();
+    const colDef = columnDefs.find(c =>
+      c.excelColumnName?.trim().toLowerCase() === keyLower ||
+      c.jsonKey?.trim().toLowerCase() === keyLower ||
+      c.columnNameKr?.trim().toLowerCase() === keyLower
+    );
+    return colDef?.isMandatory === true;
+  }, [columnDefs]);
 
   const handleSave = useCallback(
     (e) => {
@@ -255,10 +287,9 @@ function EditableModalRow({
     if (!isEditingAnyCell) return;
     const handler = (e) => {
       if (rowRef.current && rowRef.current.contains(e.target)) return;
-      const clickedRow = e.target.closest("tr");
-      const isHeaderRow = clickedRow && clickedRow.closest("thead");
+      const clickedRow = e.target.closest(".table-row");
       const insideModal = e.target.closest(".fixed");
-      if (insideModal && (!clickedRow || isHeaderRow)) {
+      if (insideModal && !clickedRow) {
         return;
       }
       handleSave();
@@ -280,110 +311,69 @@ function EditableModalRow({
     return () => document.removeEventListener("keydown", handler);
   }, [isEditingAnyCell, handleSave]);
 
+  const totalWidth = 60 + 80 + columns.length * 180;
+
+  const hasMissingMandatory = useMemo(() => {
+    return columns.some((col) => {
+      const val = row[col];
+      return isMandatoryField(col) && (val === undefined || val === null || String(val).trim() === "");
+    });
+  }, [row, columns, isMandatoryField]);
+
   return (
-    <tr
+    <div
       ref={rowRef}
+      className="table-row"
       style={{
+        ...style,
+        zIndex: isEditingAnyCell ? 10 : 1,
+        width: totalWidth,
+        display: "flex",
+        alignItems: "center",
         borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
         background: isEditingAnyCell
           ? "#eff6ff"
           : isDuplicate
             ? "#fff1f2"
-            : index % 2 === 0
-              ? "var(--color-surface-default, #fff)"
-              : "var(--color-surface-raised, #f9fafb)",
+          : hasMissingMandatory
+            ? "#fff7ed"
+          : index % 2 === 0
+            ? "var(--color-surface-default, #fff)"
+            : "var(--color-surface-raised, #f9fafb)",
         outline: isEditingAnyCell ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
         transition: "background 0.1s",
-        cursor: isEditingAnyCell ? "default" : "pointer"
+        cursor: isEditingAnyCell ? "default" : "pointer",
+        boxSizing: "border-box",
       }}
     >
-      <td
+      <div
         className="px-4 py-2.5 text-xs tabular-nums"
         style={{
           color: "var(--color-text-subtle, #9ca3af)",
           whiteSpace: "nowrap",
           userSelect: "none",
+          width: "60px",
+          flexShrink: 0,
+          boxSizing: "border-box",
         }}
       >
-        <span
-          style={{
-            color: isDuplicate ? "#dc2626" : "inherit",
-            fontWeight: isDuplicate ? 700 : undefined,
-          }}
-        >
-          {index + 1}
+        <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
+          {(row._originalIndex ?? index) + 1}
         </span>
-      </td>
+      </div>
 
-      <td className="px-3 py-2" style={{ whiteSpace: "nowrap" }}>
-        {isEditingAnyCell ? (
-          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={handleSave}
-              title="저장 (Enter)"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "26px",
-                height: "26px",
-                borderRadius: "5px",
-                border: "none",
-                background: "#16a34a",
-                color: "#fff",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              <i className="fas fa-check" style={{ fontSize: "10px" }} />
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              title="취소 (Esc)"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "26px",
-                height: "26px",
-                borderRadius: "5px",
-                border: "none",
-                background: "#e5e7eb",
-                color: "#6b7280",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              <i className="fas fa-times" style={{ fontSize: "10px" }} />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleStartEdit(columns[0]);
-            }}
-            title="행 편집"
-            style={{
-              display: "none", // Hide edit button visually
-              alignItems: "center",
-              justifyContent: "center",
-              width: "26px",
-              height: "26px",
-              borderRadius: "5px",
-              border: "none",
-              background: "var(--color-brand-10, #eff6ff)",
-              color: "var(--color-brand-60, #2563eb)",
-              cursor: "pointer",
-            }}
-          >
-            <i className="fas fa-pencil-alt" style={{ fontSize: "10px" }} />
-          </button>
-        )}
+      <div
+        className="px-3 py-2"
+        style={{
+          whiteSpace: "nowrap",
+          width: "80px",
+          flexShrink: 0,
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
         {!isEditingAnyCell && onDelete && (
           <button
             type="button"
@@ -392,19 +382,21 @@ function EditableModalRow({
               onDelete?.(index);
             }}
             title={isDuplicate ? "Delete duplicate" : "Delete row"}
-            className={`ml-1 inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 transition-transform hover:scale-110 ${
+            className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 transition-transform hover:scale-110 ${
               isDuplicate ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"
             }`}
           >
             <i className="fas fa-trash-alt" style={{ fontSize: "10px" }} />
           </button>
         )}
-      </td>
+      </div>
 
       {columns.map((col) => {
         const editing = isCellEditing(col);
+        const val = editing ? draft[col] : row[col];
+        const isEmptyMandatory = isMandatoryField(col) && (val === undefined || val === null || String(val).trim() === "");
         return (
-          <td
+          <div
             key={col}
             onDoubleClick={(e) => {
               if (editing) return;
@@ -413,21 +405,87 @@ function EditableModalRow({
             }}
             style={{
               padding: editing ? "4px 6px" : "8px 16px",
-              minWidth: editing ? "100px" : undefined,
-              maxWidth: "240px",
+              width: "180px",
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              overflow: editing ? "visible" : "hidden",
+              textOverflow: "ellipsis",
+              boxSizing: "border-box",
+              background: isEmptyMandatory ? "#fef2f2" : undefined,
+              border: isEmptyMandatory ? "1px solid #f87171" : undefined,
+              position: "relative",
             }}
           >
             <EditableCell
-              value={editing ? draft[col] : row[col]}
+              value={val}
               isEditing={editing}
               col={col}
               onChange={handleDraftChange}
               duplicate={isDuplicate}
+              isEmptyMandatory={isEmptyMandatory}
             />
-          </td>
+            {editing && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: "6px",
+                  top: "100%",
+                  marginTop: "4px",
+                  display: "flex",
+                  gap: "4px",
+                  zIndex: 40,
+                  background: "#fff",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "6px",
+                  padding: "4px",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  title="저장 (Enter)"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "22px",
+                    height: "22px",
+                    borderRadius: "4px",
+                    border: "none",
+                    background: "#16a34a",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  <i className="fas fa-check" style={{ fontSize: "9px" }} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  title="취소 (Esc)"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "22px",
+                    height: "22px",
+                    borderRadius: "4px",
+                    border: "none",
+                    background: "#e5e7eb",
+                    color: "#6b7280",
+                    cursor: "pointer",
+                  }}
+                >
+                  <i className="fas fa-times" style={{ fontSize: "9px" }} />
+                </button>
+              </div>
+            )}
+          </div>
         );
       })}
-    </tr>
+    </div>
   );
 }
 
@@ -444,81 +502,198 @@ export function UploadPreviewModal({
   columnDefs = [],
 }) {
   const { t } = useI18n();
-  const [rows, setRows] = useState(() => initialRows ?? []);
+  const [rows, setRows] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
+  const [filterType, setFilterType] = useState("all"); // "all" | "duplicate" | "missing"
+  const headerRef = useRef(null);
 
+  // Synchronize initialRows with IndexedDB
   useEffect(() => {
-    setRows(initialRows ?? []);
+    if (initialRows && initialRows.length > 0) {
+      const rowsWithIndex = initialRows.map((row, idx) => ({
+        ...row,
+        _originalIndex: idx,
+      }));
+      savePreviewRows(rowsWithIndex, "spec_preview_rows")
+        .then(() => {
+          setRows(rowsWithIndex);
+        })
+        .catch(console.error);
+    } else {
+      clearPreviewRows("spec_preview_rows")
+        .then(() => {
+          setRows([]);
+        })
+        .catch(console.error);
+    }
     setEditingCell(null);
+    setFilterType("all");
   }, [initialRows]);
 
+  // Cleanup preview rows on unmount
+  useEffect(() => {
+    return () => {
+      clearPreviewRows("spec_preview_rows").catch(console.error);
+    };
+  }, []);
+
   const detectedColumns = columns?.length ? columns : rows.length > 0 ? Object.keys(rows[0]) : [];
+
+  const previewKeysCount = useMemo(() => {
+    const counts = {};
+    if (!getDuplicateKey) return counts;
+    rows.forEach((row) => {
+      const key = getDuplicateKey(row);
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [rows, getDuplicateKey]);
+
   const isDuplicateRow = useCallback(
-    (row) => Boolean(getDuplicateKey && duplicateRowKeys.has(getDuplicateKey(row))),
-    [duplicateRowKeys, getDuplicateKey],
+    (row) => {
+      if (!getDuplicateKey) return false;
+      const key = getDuplicateKey(row);
+      
+      try {
+        const parsedKey = JSON.parse(key);
+        const isEmptyRow = Object.values(parsedKey).every(v => v === undefined || v === null || String(v).trim() === "");
+        if (isEmptyRow) return false;
+      } catch (e) {
+        // Safe fallback
+      }
+
+      if (duplicateRowKeys.has(key)) return true;
+      if ((previewKeysCount[key] || 0) > 1) return true;
+      return false;
+    },
+    [duplicateRowKeys, getDuplicateKey, previewKeysCount],
   );
+
   const duplicateCount = useMemo(
     () => rows.filter((row) => isDuplicateRow(row)).length,
     [rows, isDuplicateRow],
   );
 
-  const handleSaveRow = useCallback(
-    (index, payload) => {
-      setRows((prev) => {
-        const next = [...prev];
-        next[index] = payload;
-        return next;
-      });
-      setEditingCell(null);
-    },
-    [],
-  );
+  const getRowMissingMandatoryFields = useCallback((row) => {
+    return getMissingMandatoryFields(row, detectedColumns, columnDefs);
+  }, [detectedColumns, columnDefs]);
 
-  const handleCancelEdit = useCallback(() => setEditingCell(null), []);
-  const handleDeleteRow = useCallback((index) => {
-    setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
+  const missingMandatoryCount = useMemo(() => {
+    return rows.filter((row) => getRowMissingMandatoryFields(row).length > 0).length;
+  }, [rows, getRowMissingMandatoryFields]);
+
+  const filteredRows = useMemo(() => {
+    if (filterType === "all") return rows;
+    if (filterType === "duplicate") {
+      return rows.filter((row) => isDuplicateRow(row));
+    }
+    if (filterType === "missing") {
+      return rows.filter((row) => getRowMissingMandatoryFields(row).length > 0);
+    }
+    return rows;
+  }, [rows, filterType, isDuplicateRow, getRowMissingMandatoryFields]);
+
+  const handleSaveRow = useCallback((filteredIndex, payload) => {
+    const originalIndex = payload._originalIndex;
+    setRows((prev) => {
+      const next = [...prev];
+      const realIndex = next.findIndex(r => r._originalIndex === originalIndex);
+      if (realIndex !== -1) {
+        next[realIndex] = payload;
+        updatePreviewRow(realIndex, payload, "spec_preview_rows").catch(console.error);
+      }
+      return next;
+    });
     setEditingCell(null);
   }, []);
+
+  const handleCancelEdit = useCallback(() => setEditingCell(null), []);
+
+  const handleDeleteRow = useCallback((filteredIndex) => {
+    const rowToDelete = filteredRows[filteredIndex];
+    if (!rowToDelete) return;
+    const originalIndex = rowToDelete._originalIndex;
+
+    setRows((prev) => {
+      const realIndex = prev.findIndex(r => r._originalIndex === originalIndex);
+      if (realIndex === -1) return prev;
+
+      const next = prev.filter((_, rowIndex) => rowIndex !== realIndex);
+      deletePreviewRow(realIndex, prev.length, "spec_preview_rows").catch(console.error);
+
+      const updatedNext = next.map((row, idx) => ({
+        ...row,
+        _originalIndex: idx,
+      }));
+      savePreviewRows(updatedNext, "spec_preview_rows").catch(console.error);
+
+      return updatedNext;
+    });
+    setEditingCell(null);
+  }, [filteredRows]);
+
   const handleRemoveDuplicates = useCallback(() => {
-    setRows((prev) => prev.filter((row) => !isDuplicateRow(row)));
+    setRows((prev) => {
+      const filtered = prev.filter((row) => !isDuplicateRow(row));
+      const updatedNext = filtered.map((row, idx) => ({
+        ...row,
+        _originalIndex: idx,
+      }));
+      savePreviewRows(updatedNext, "spec_preview_rows").catch(console.error);
+      return updatedNext;
+    });
     setEditingCell(null);
   }, [isDuplicateRow]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (duplicateCount > 0) {
-      alert(
-        t(
-          "preview.duplicateWarning",
-          "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
-        ),
-      );
+      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
       return;
     }
 
-    for (let i = 0; i < rows.length; i++) {
-      const missingFields = getMissingMandatoryFields(rows[i], detectedColumns, columnDefs);
-      if (missingFields.length > 0) {
-        const fieldNames = missingFields
-          .map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col))
-          .join(", ");
-        alert(
-          t(
-            "preview.mandatoryFieldsRequired",
-            "Row {rowNumber} has empty mandatory fields: {fields}",
-          )
-            .replace("{rowNumber}", i + 1)
-            .replace("{fields}", fieldNames),
-        );
-        return;
-      }
-    }
+    try {
+      const currentRows = await getAllPreviewRows("spec_preview_rows");
 
-    const confirmedRows = [...rows];
-    onClose();
-    window.setTimeout(() => onConfirm?.(confirmedRows), 0);
+      for (let i = 0; i < currentRows.length; i++) {
+        const missingFields = getMissingMandatoryFields(currentRows[i], detectedColumns, columnDefs);
+        if (missingFields.length > 0) {
+          const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+          alert(
+            t(
+              "preview.mandatoryFieldsRequired",
+              "Row {rowNumber} has empty mandatory fields: {fields}"
+            )
+            .replace("{rowNumber}", i + 1)
+            .replace("{fields}", fieldNames)
+          );
+          return;
+        }
+      }
+
+      await clearPreviewRows("spec_preview_rows");
+      onClose();
+      window.setTimeout(() => onConfirm?.(currentRows), 0);
+    } catch (error) {
+      console.error("Failed to read confirmed rows from IndexedDB:", error);
+      alert("Error saving data. Please try again.");
+    }
   };
 
+  const handleClose = () => {
+    clearPreviewRows("spec_preview_rows").catch(console.error);
+    onClose();
+  };
+
+  // Synchronize header scroll with virtual list horizontal scroll
+  const handleScroll = useCallback((event) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = event.currentTarget.scrollLeft;
+    }
+  }, []);
+
   if (!initialRows) return null;
+
+  const totalWidth = 60 + 80 + detectedColumns.length * 180;
 
   return (
     <div
@@ -536,7 +711,7 @@ export function UploadPreviewModal({
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 shrink-0"
+          className="flex items-center justify-between px-6 py-4 shrink-0 gap-4"
           style={{
             borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
             background: "var(--color-surface-raised, #f9fafb)",
@@ -560,108 +735,188 @@ export function UploadPreviewModal({
                 {t("preview.title")}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
-                {t("preview.total")}{" "}
-                <span className="font-semibold">
-                  {rows.length}
-                  {t("preview.row")}
-                </span>
+                {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
-                {detectedColumns.length}
-                {t("preview.subtitle")}
+                {detectedColumns.length}{t("preview.subtitle")}
                 {duplicateCount > 0 && (
-                  <span className="ml-2 font-bold text-red-600">{duplicateCount} duplicates</span>
+                  <span className="ml-2 font-bold text-red-600">
+                    {duplicateCount} duplicates
+                  </span>
+                )}
+                {missingMandatoryCount > 0 && (
+                  <span className="ml-2 font-bold text-red-600">
+                    {missingMandatoryCount}{t("preview.missingRequired")}
+                  </span>
                 )}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-            style={{ color: "var(--color-text-subtle, #6b7280)", background: "transparent" }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "var(--color-fill-active, #f3f4f6)")
-            }
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            aria-label={t("app.close")}
-          >
-            <i className="fas fa-times text-sm" />
-          </button>
+
+          <div className="flex items-center gap-4">
+            {/* Filters Segmented Control */}
+            <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs" style={{ border: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                onClick={() => setFilterType("all")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                  filterType === "all"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {t("preview.filterAll", "전체")} ({rows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("duplicate")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                  filterType === "duplicate"
+                    ? "bg-white text-red-600 shadow-sm font-semibold"
+                    : "text-slate-500 hover:text-red-600"
+                }`}
+              >
+                {t("preview.filterDuplicate", "중복")} ({duplicateCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("missing")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                  filterType === "missing"
+                    ? "bg-white text-orange-600 shadow-sm font-semibold"
+                    : "text-slate-500 hover:text-orange-600"
+                }`}
+              >
+                {t("preview.filterMissing", "필수 누락")} ({missingMandatoryCount})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+              style={{ color: "var(--color-text-subtle, #6b7280)", background: "transparent" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--color-fill-active, #f3f4f6)")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              aria-label={t("app.close")}
+            >
+              <i className="fas fa-times text-sm" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {rows.length === 0 ? (
             <div
-              className="flex flex-col items-center justify-center gap-3 py-16 text-center"
+              className="flex flex-col items-center justify-center gap-3 py-16 text-center flex-1"
               style={{ color: "var(--color-text-subtle, #6b7280)" }}
             >
               <i className="fas fa-inbox text-4xl opacity-30" />
               <p className="text-sm">{t("preview.noData")}</p>
             </div>
           ) : (
-            <table className="min-w-full text-left text-sm">
-              <thead
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Table Header Row (Horizontal Scrolling Only) */}
+              <div
+                ref={headerRef}
                 style={{
                   background: "var(--color-surface-raised, #f9fafb)",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 1,
+                  borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+                  display: "flex",
+                  width: "100%",
+                  overflowX: "hidden",
+                  boxSizing: "border-box",
                 }}
               >
-                <tr>
-                  <th
+                <div
+                  style={{
+                    display: "flex",
+                    width: totalWidth,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
                     className="px-4 py-3 text-xs font-semibold tracking-wide"
                     style={{
                       color: "var(--color-text-subtle, #6b7280)",
-                      borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                      minWidth: "40px",
+                      width: "60px",
+                      flexShrink: 0,
+                      boxSizing: "border-box",
                     }}
                   >
                     #
-                  </th>
-                  <th
+                  </div>
+                  <div
                     className="px-3 py-3 text-xs font-semibold tracking-wide"
                     style={{
                       color: "var(--color-text-subtle, #6b7280)",
-                      borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-                      width: "96px",
+                      width: "80px",
+                      flexShrink: 0,
+                      boxSizing: "border-box",
                     }}
                   >
                     {t("preview.edit")}
-                  </th>
+                  </div>
                   {detectedColumns.map((col) => (
-                    <th
+                    <div
                       key={col}
                       className="px-4 py-3 text-xs font-semibold tracking-wide"
                       style={{
                         color: "var(--color-text-subtle, #6b7280)",
-                        borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+                        width: "180px",
+                        flexShrink: 0,
                         whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        boxSizing: "border-box",
                       }}
                     >
                       {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
-                    </th>
+                    </div>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <EditableModalRow
-                    key={rowKey(row, index)}
-                    row={row}
-                    index={index}
-                    columns={detectedColumns}
-                    editingCell={editingCell}
-                    onStartEdit={(rowIndex, colKey) => setEditingCell({ rowIndex, colKey })}
-                    onSave={handleSaveRow}
-                    onCancel={handleCancelEdit}
-                    isDuplicate={isDuplicateRow(row)}
-                    onDelete={handleDeleteRow}
-                  />
-                ))}
-              </tbody>
-            </table>
+                </div>
+              </div>
+
+              {/* Table Body (Virtualized Scrolling) */}
+              <div className="flex-1 overflow-hidden" style={{ position: "relative" }}>
+                {filteredRows.length === 0 ? (
+                  <div
+                    className="flex flex-col items-center justify-center gap-3 py-16 text-center flex-1"
+                    style={{ color: "var(--color-text-subtle, #6b7280)" }}
+                  >
+                    <i className="fas fa-search text-4xl opacity-30" />
+                    <p className="text-sm">
+                      {filterType === "duplicate"
+                        ? t("preview.noDuplicates", "중복된 항목이 없습니다.")
+                        : t("preview.noMissing", "누락된 필수 항목이 없습니다.")}
+                    </p>
+                  </div>
+                ) : (
+                  <List
+                    style={{ height: 440, width: "100%", overflowX: "auto" }}
+                    rowCount={filteredRows.length}
+                    rowHeight={44}
+                    onScroll={handleScroll}
+                    rowComponent={EditableModalRow}
+                    rowProps={{
+                      rows: filteredRows,
+                      columns: detectedColumns,
+                      columnDefs,
+                      editingCell,
+                      onStartEdit: (rowIndex, colKey) => setEditingCell({ rowIndex, colKey }),
+                      onSave: handleSaveRow,
+                      onCancel: handleCancelEdit,
+                      isDuplicateRow,
+                      onDelete: handleDeleteRow,
+                    }}
+                  >
+                    <div style={{ width: totalWidth, height: 1, pointerEvents: "none" }} />
+                  </List>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
@@ -690,7 +945,7 @@ export function UploadPreviewModal({
                 Remove duplicates ({duplicateCount})
               </button>
             )}
-            <button type="button" onClick={onClose} className="btn-base btn-secondary">
+            <button type="button" onClick={handleClose} className="btn-base btn-secondary">
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
             </button>
@@ -1221,13 +1476,17 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   }, [changeDataColumns]);
 
   const validKeys = useMemo(() => {
-    return changeDataColumns?.length > 0 ? new Set(
-      changeDataColumns.flatMap(c => [
-        c.excelColumnName?.trim().toLowerCase(),
-        c.columnNameKr?.trim().toLowerCase(),
-        c.jsonKey?.trim().toLowerCase()
-      ]).filter(Boolean)
-    ) : null;
+    return changeDataColumns?.length > 0
+      ? new Set(
+          changeDataColumns
+            .flatMap((c) => [
+              c.excelColumnName?.trim().toLowerCase(),
+              c.columnNameKr?.trim().toLowerCase(),
+              c.jsonKey?.trim().toLowerCase(),
+            ])
+            .filter(Boolean),
+        )
+      : null;
   }, [changeDataColumns]);
 
   // ── Remap all rows to English jsonKeys to keep keys consistent ────────────────
@@ -1567,7 +1826,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           if (statusCode === 200) {
             // Always show all active columns from changeDataColumns in sequence order
             const orderedCols = [...changeDataColumns]
-              .filter(c => c.isActive !== false)
+              .filter((c) => c.isActive !== false)
               .sort((a, b) => a.sequence - b.sequence)
               .map((c) => c.excelColumnName)
               .filter(Boolean);
@@ -1579,9 +1838,10 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               changeDataColumns.forEach((col) => {
                 if (col.excelColumnName) {
                   const matchedKey = Object.keys(row).find(
-                    (k) => k.trim().toLowerCase() === col.excelColumnName.trim().toLowerCase()
+                    (k) => k.trim().toLowerCase() === col.excelColumnName.trim().toLowerCase(),
                   );
-                  cleanRow[col.excelColumnName] = matchedKey !== undefined ? row[matchedKey] : undefined;
+                  cleanRow[col.excelColumnName] =
+                    matchedKey !== undefined ? row[matchedKey] : undefined;
                 }
               });
               return cleanRow;
@@ -2060,13 +2320,14 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
             <h3 className="text-lg font-bold text-slate-800 mb-1">Importing Data...</h3>
             {importFileName && (
-              <p className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full" title={importFileName}>
+              <p
+                className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full"
+                title={importFileName}
+              >
                 {importFileName}
               </p>
             )}
-            <p className="text-sm text-slate-500 text-center animate-pulse">
-              Parsing file and loading table records. Please wait.
-            </p>
+            <p className="text-sm text-slate-500 text-center animate-pulse">Please wait.</p>
           </div>
         </div>
       )}
