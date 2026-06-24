@@ -208,6 +208,13 @@ const translations = {
     "specMatrix.inc": "이전 대비 증가",
     "specMatrix.dec": "이전 대비 감소",
     "specMatrix.mod": "이전 버전에서 변경됨",
+    "landing.selectProcessAndMaint": "공정 및 보전파트를 선택하세요",
+    "landing.selectProcessAndMaintDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 이력 데이터가 표시됩니다.",
+    "landing.selectProcessAndMaintType": "공정 및 보전유형을 선택하세요",
+    "landing.selectProcessAndMaintTypeDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 데이터가 표시됩니다.",
+    "landing.selectProcessAndMaintTypeMatrixDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
+    "landing.selectProcessAndMaintMatrixDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 매트릭스가 표시됩니다.",
+    "landing.selectProcessAndMaintMPDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 MP List가 표시됩니다.",
   },
   en: {
     "app.menu": "Menu",
@@ -416,6 +423,13 @@ const translations = {
     "specMatrix.inc": "Increase compared to previous",
     "specMatrix.dec": "Decrease compared to previous",
     "specMatrix.mod": "Changed from previous version",
+    "landing.selectProcessAndMaint": "Please select process and maintenance part",
+    "landing.selectProcessAndMaintDesc": "Select process and maintenance part in the top filter first to display the change history data.",
+    "landing.selectProcessAndMaintType": "Please select process and maintenance type",
+    "landing.selectProcessAndMaintTypeDesc": "Select process and maintenance type in the top filter first to display the spec data.",
+    "landing.selectProcessAndMaintTypeMatrixDesc": "Select process and maintenance type in the top filter first to display the spec matrix.",
+    "landing.selectProcessAndMaintMatrixDesc": "Select process and maintenance part in the top filter first to display the change matrix.",
+    "landing.selectProcessAndMaintMPDesc": "Select process and maintenance part in the top filter first to display the MP List.",
   },
 };
 

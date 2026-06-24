@@ -181,6 +181,48 @@ function SelectSkeleton({ width = "120px" }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TableSkeleton
+// ─────────────────────────────────────────────────────────────────────────────
+function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
+  return (
+    <div className="w-full overflow-hidden bg-white p-4">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead>
+            <tr>
+              {Array.from({ length: colsCount }).map((_, i) => (
+                <th key={i} className="px-4 py-3">
+                  <div
+                    className="h-4 bg-gray-200 rounded animate-pulse"
+                    style={{ width: i === 0 ? "24px" : "80px" }}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {Array.from({ length: rowsCount }).map((_, rIdx) => (
+              <tr key={rIdx}>
+                {Array.from({ length: colsCount }).map((_, cIdx) => (
+                  <td key={cIdx} className="px-4 py-3">
+                    <div
+                      className="h-4 bg-gray-100 rounded animate-pulse"
+                      style={{
+                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
+                      }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EditableCell
 // ─────────────────────────────────────────────────────────────────────────────
 function EditableCell({ value, isEditing, col, onChange, duplicate = false, isEmptyMandatory = false }) {
@@ -1484,17 +1526,25 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   const filterLoading = filterPayload === null && filterError === null;
 
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  useEffect(() => {
+    if (selectedProcessId !== null) {
+      setIsFiltering(true);
+      const timer = setTimeout(() => {
+        setIsFiltering(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProcessId, selectedMaintenanceId, filter, searchText]);
+
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => {
-    const all = filterPayload?.process ?? [];
-    return all.filter((p) => p.isChangedData === true);
-  }, [filterPayload]);
+  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
 
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    const filtered = all.filter((m) => m.isChangedData === true);
-    if (!selectedProcessId) return filtered;
-    return filtered.filter((m) => m.processId === selectedProcessId);
+    if (!selectedProcessId) return all;
+    return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const handleProcessChange = (e) => {
@@ -1668,8 +1718,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId && !selectedMaintenanceId && !filter && !searchText) {
-      return combinedData;
+    if (!selectedProcessId) {
+      return [];
     }
 
     const selectedProcess = selectedProcessId
@@ -2295,7 +2345,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase text-text-subtle">
+              <label className="text-sm font-medium text-gray-600">
                 {t("field.process")}
               </label>
               {filterLoading ? (
@@ -2318,7 +2368,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase text-text-subtle">
+              <label className="text-sm font-medium text-gray-600">
                 {t("field.maintenance")}
               </label>
               {filterLoading ? (
@@ -2342,7 +2392,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase text-text-subtle">
+              <label className="text-sm font-medium text-gray-600">
                 {t("app.search")}
               </label>
               <input
@@ -2374,7 +2424,21 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
         {/* Data table */}
         <div className="card overflow-hidden">
-          {filtered.length === 0 ? (
+          {selectedProcessId === null ? (
+            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
+                <i className="fas fa-history" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">
+                {t("landing.selectProcessAndMaint")}
+              </h2>
+              <p className="text-sm text-gray-400 max-w-md">
+                {t("landing.selectProcessAndMaintDesc")}
+              </p>
+            </div>
+          ) : isFiltering ? (
+            <TableSkeleton colsCount={dynamicColumns.length + 2} />
+          ) : filtered.length === 0 ? (
             <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
                 <i className="fas fa-history" />

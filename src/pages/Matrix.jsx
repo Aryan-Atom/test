@@ -5,6 +5,48 @@ import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TableSkeleton
+// ─────────────────────────────────────────────────────────────────────────────
+function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
+  return (
+    <div className="w-full overflow-hidden bg-white p-4">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead>
+            <tr>
+              {Array.from({ length: colsCount }).map((_, i) => (
+                <th key={i} className="px-4 py-3">
+                  <div
+                    className="h-4 bg-gray-200 rounded animate-pulse"
+                    style={{ width: i === 0 ? "24px" : "80px" }}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {Array.from({ length: rowsCount }).map((_, rIdx) => (
+              <tr key={rIdx}>
+                {Array.from({ length: colsCount }).map((_, cIdx) => (
+                  <td key={cIdx} className="px-4 py-3">
+                    <div
+                      className="h-4 bg-gray-100 rounded animate-pulse"
+                      style={{
+                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
+                      }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // Reusable MultiSelect Dropdown Component with Checkboxes
 function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -250,6 +292,28 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [replacing, setReplacing] = useState(false);
   const [clickedRecord, setClickedRecord] = useState(null);
 
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  useEffect(() => {
+    if (selectedProcess !== "전체") {
+      setIsFiltering(true);
+      const timer = setTimeout(() => {
+        setIsFiltering(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    selectedProcess,
+    selectedMaintenance,
+    selectedSite,
+    selectedRepWork,
+    selectedPriorities,
+    selectedCategories,
+    startDate,
+    endDate,
+    searchText,
+  ]);
+
   const getFilterData = useCallback(() => {
     if (isStaticDataMode) {
       try {
@@ -311,7 +375,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
     const raw = [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))];
-    const allowed = filterData?.process?.filter(p => p.isChangedData === true).map(p => p.processName) ?? [];
+    const allowed = filterData?.process?.map(p => p.processName) ?? [];
     if (filterData?.process) {
       return raw.filter(p => allowed.includes(p)).sort();
     }
@@ -321,7 +385,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const maintenanceOptions = useMemo(() => {
     if (selectedProcess === "전체") return [];
     const raw = [...new Set(allRecords.filter(r => getColValue(r, "process") === selectedProcess).map(r => getColValue(r, "maintGroup")).filter(Boolean))];
-    const allowed = filterData?.maintenance?.filter(m => m.isChangedData === true).map(m => m.maintenanceGroupName) ?? [];
+    const allowed = filterData?.maintenance?.map(m => m.maintenanceGroupName) ?? [];
     if (filterData?.maintenance) {
       return raw.filter(m => allowed.includes(m)).sort();
     }
@@ -333,7 +397,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
       (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance)
     ).map(r => getColValue(r, "site")).filter(Boolean))];
-    const allowed = filterData?.site?.filter(s => s.isChangedData === true).map(s => s.siteName) ?? [];
+    const allowed = filterData?.site?.map(s => s.siteName) ?? [];
     if (filterData?.site) {
       return raw.filter(s => allowed.includes(s)).sort();
     }
@@ -437,6 +501,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // Filtered rows for the matrix table
   const filtered = useMemo(() => {
+    if (selectedProcess === "전체") {
+      return [];
+    }
     return allRecords.filter((item) => {
       const itemProc = getColValue(item, "process");
       if (selectedProcess !== "전체" && itemProc !== selectedProcess) return false;
@@ -757,7 +824,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
   };
 
-  const showLanding = false;
+  const showLanding = selectedProcess === "전체";
 
   if (loading) {
     return (
@@ -801,7 +868,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         <div className="flex flex-wrap items-center gap-4">
           {/* 공정 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.process", "공정")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.process", "공정")}</label>
             <select
               className="input-base"
               value={selectedProcess}
@@ -819,7 +886,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 보전파트 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.maintenance", "보전파트")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.maintenance", "보전파트")}</label>
             <select
               className="input-base"
               value={selectedMaintenance}
@@ -838,7 +905,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 법인 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.site", "법인")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.site", "법인")}</label>
             <select
               className="input-base"
               value={selectedSite}
@@ -857,7 +924,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 대표 작업명 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.repWork", "대표 작업명")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.repWork", "대표 작업명")}</label>
             <select
               className="input-base"
               value={selectedRepWork}
@@ -879,7 +946,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 중요도 */}
           <div className="flex items-center gap-2" style={{ width: "130px" }}>
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
               {t("field.priority", "중요도")} <span className="text-red-500">*</span>
             </label>
             <MultiSelect
@@ -892,7 +959,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 효과 유형 */}
           <div className="flex items-center gap-2" style={{ width: "130px" }}>
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.category", "효과유형")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.category", "효과유형")}</label>
             <MultiSelect
               options={categoryOptions.map((c) => ({ label: c, value: c }))}
               selectedValues={selectedCategories}
@@ -903,7 +970,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 기간 */}
           <div className="flex items-center gap-2 ml-auto">
-            <label className="text-xs font-bold uppercase text-text-subtle whitespace-nowrap">{t("field.period", "기간")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.period", "기간")}</label>
             <input
               type="date"
               className="input-base py-1 px-2 text-xs"
@@ -919,41 +986,35 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                className="btn-base btn-ghost text-xs text-text-subtle ml-1 whitespace-nowrap"
+                onClick={handleResetDates}
+                style={{ minHeight: "38px", paddingLeft: "8px", paddingRight: "8px" }}
+                title={t("matrix.resetDate", "날짜 초기화")}
+              >
+                <i className="fas fa-times" />
+              </button>
+            )}
           </div>
         </div>
-
-        {(startDate || endDate) && (
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              className="btn-base btn-ghost text-xs text-text-subtle"
-              onClick={handleResetDates}
-            >
-              <i className="fas fa-times mr-1" />
-              {t("matrix.resetDate", "날짜 초기화")}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Grid Container */}
       <div className="card overflow-hidden flex flex-col relative">
         {showLanding ? (
-          <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1" style={{ minHeight: "360px" }}>
-            <div
-              className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-6"
-              style={{
-                backgroundColor: "var(--brand-10, #eff6ff)",
-                animation: "float 4s ease-in-out infinite",
-              }}
-            >
-              <i className="fas fa-layer-group text-4xl text-brand-60" style={{ color: "var(--primary-light, #93c5fd)" }} />
+          <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1" style={{ minHeight: "400px" }}>
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl mb-4">
+              <i className="fas fa-history" />
             </div>
-            <h3 className="text-lg font-bold text-text-default mb-2">{t("page.matrix.landingTitle", "공정 및 보전파트를 선택하세요")}</h3>
-            <p className="text-sm text-text-subtle max-w-[360px] mx-auto">
-              {t("page.matrix.landingDesc", "상단 필터에서 공정과 보전파트를 먼저 선택하면 매트릭스가 표시됩니다.")}
+            <h3 className="text-xl font-bold text-gray-800 mb-2">{t("landing.selectProcessAndMaint")}</h3>
+            <p className="text-sm text-gray-400 max-w-md mx-auto">
+              {t("landing.selectProcessAndMaintMatrixDesc")}
             </p>
           </div>
+        ) : isFiltering ? (
+          <TableSkeleton colsCount={8} />
         ) : filtered.length === 0 ? (
           <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle flex-1">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl" style={{ backgroundColor: "var(--brand-10, #eff6ff)", color: "var(--brand-60, #0f62fe)" }}>

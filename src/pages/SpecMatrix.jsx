@@ -49,6 +49,48 @@ function SelectSkeleton({ width = "100%" }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TableSkeleton
+// ─────────────────────────────────────────────────────────────────────────────
+function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
+  return (
+    <div className="w-full overflow-hidden bg-white p-4">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead>
+            <tr>
+              {Array.from({ length: colsCount }).map((_, i) => (
+                <th key={i} className="px-4 py-3">
+                  <div
+                    className="h-4 bg-gray-200 rounded animate-pulse"
+                    style={{ width: i === 0 ? "24px" : "80px" }}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {Array.from({ length: rowsCount }).map((_, rIdx) => (
+              <tr key={rIdx}>
+                {Array.from({ length: colsCount }).map((_, cIdx) => (
+                  <td key={cIdx} className="px-4 py-3">
+                    <div
+                      className="h-4 bg-gray-100 rounded animate-pulse"
+                      style={{
+                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
+                      }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Change indicator helpers (VIEW2)
 // ─────────────────────────────────────────────────────────────────────────────
 function ChangeIndicator({ curr, prev }) {
@@ -255,6 +297,18 @@ export default function SpecMatrix({ searchText }) {
 
   const filterLoading = filterPayload === null && filterError === null;
 
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  useEffect(() => {
+    if (selectedProcessId !== null) {
+      setIsFiltering(true);
+      const timer = setTimeout(() => {
+        setIsFiltering(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProcessId, selectedTypeId, selectedVersion, changedOnly, searchText]);
+
   // ── Fetch spec data ──────────────────────────────────────────────────────
   const fetchData = useCallback(() => {
     if (isStaticDataMode) {
@@ -410,17 +464,13 @@ export default function SpecMatrix({ searchText }) {
   }, [fetchData]);
 
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => {
-    const all = filterPayload?.process ?? [];
-    return all.filter((p) => p.isSpecData === true);
-  }, [filterPayload]);
+  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
 
   // Maintenance list cascades from selected process
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    const filtered = all.filter((m) => m.isSpecData === true);
-    if (!selectedProcessId) return filtered;
-    return filtered.filter((m) => m.processId === selectedProcessId);
+    if (!selectedProcessId) return all;
+    return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   // All unique versions from spec rows
@@ -443,6 +493,9 @@ export default function SpecMatrix({ searchText }) {
 
   // ── Apply all filters to spec rows ────────────────────────────────────────
   const filtered = useMemo(() => {
+    if (!selectedProcessId) {
+      return [];
+    }
     const selectedProcess = processList.find((p) => p.id === selectedProcessId);
     const selectedMaint = (filterPayload?.maintenance ?? []).find((m) => m.id === selectedTypeId);
 
@@ -544,7 +597,7 @@ export default function SpecMatrix({ searchText }) {
           <div className="flex flex-wrap items-center gap-6">
             {/* 공정 */}
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+              <label className="text-sm font-medium text-gray-600">
                 {t("field.process", "공정")}
               </label>
               {filterLoading ? (
@@ -568,7 +621,7 @@ export default function SpecMatrix({ searchText }) {
 
             {/* 보전유형 */}
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+              <label className="text-sm font-medium text-gray-600">
                 {t("field.maintenanceType", "보전유형")}
               </label>
               {filterLoading ? (
@@ -593,7 +646,7 @@ export default function SpecMatrix({ searchText }) {
 
             {/* 버전 */}
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+              <label className="text-sm font-medium text-gray-600">
                 {t("field.version", "버전")}
               </label>
               {filterLoading ? (
@@ -616,7 +669,7 @@ export default function SpecMatrix({ searchText }) {
 
             {/* 변경 항목만 toggle */}
             <div className="flex items-center gap-3">
-              <label className="text-[11px] font-extrabold uppercase text-[#475569] tracking-wider">
+              <label className="text-sm font-medium text-gray-600">
                 {t("specMatrix.changesOnly", "변경 항목만")}
               </label>
               <button
@@ -661,7 +714,21 @@ export default function SpecMatrix({ searchText }) {
             </div>
           )}
 
-          {view === "view1" ? (
+          {selectedProcessId === null ? (
+            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
+                <i className="fas fa-history" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">
+                {t("landing.selectProcessAndMaintType")}
+              </h2>
+              <p className="text-sm text-gray-400 max-w-md">
+                {t("landing.selectProcessAndMaintTypeMatrixDesc")}
+              </p>
+            </div>
+          ) : isFiltering ? (
+            <TableSkeleton colsCount={6} />
+          ) : view === "view1" ? (
             filtered.length === 0 ? (
               <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2 bg-[#eff6ff]">

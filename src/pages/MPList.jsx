@@ -378,6 +378,7 @@ function SelectSkeleton({ width = "100%" }) {
   );
 }
 
+
 function TableSkeleton({ rows = 6, t }) {
   return (
     <div className="overflow-auto">
@@ -444,6 +445,28 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     return `${yyyy}-${mm}-${dd}`;
   });
 
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  useEffect(() => {
+    if (selectedProcessId !== null) {
+      setIsFiltering(true);
+      const timer = setTimeout(() => {
+        setIsFiltering(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    selectedProcessId,
+    selectedSiteId,
+    selectedMaintenanceId,
+    selectedRepWorks,
+    selectedPriorities,
+    selectedCategories,
+    dateFrom,
+    dateTo,
+    searchText,
+  ]);
+
   // ── Master data ───────────────────────────────────────────────────────────
   const [allRecords, setAllRecords] = useState([]);
   const [changedDataId, setChangedDataId] = useState(0);
@@ -474,22 +497,19 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   // ── Derived cascade option lists ──────────────────────────────────────────
   const processList = useMemo(() => {
-    const all = filterPayload?.process ?? [];
-    return all.filter((p) => p.isChangedData === true);
+    return filterPayload?.process ?? [];
   }, [filterPayload]);
 
   const siteList = useMemo(() => {
     const all = filterPayload?.site ?? [];
-    const filtered = all.filter((s) => s.isChangedData === true);
-    if (!selectedProcessId) return filtered;
-    return filtered.filter((s) => s.processId === selectedProcessId);
+    if (!selectedProcessId) return all;
+    return all.filter((s) => s.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const maintenanceList = useMemo(() => {
     const all = filterPayload?.maintenance ?? [];
-    const filtered = all.filter((m) => m.isChangedData === true);
-    if (!selectedProcessId) return filtered;
-    return filtered.filter((m) => m.processId === selectedProcessId);
+    if (!selectedProcessId) return all;
+    return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const repWorkOptions = useMemo(() => {
@@ -541,6 +561,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const handleMaintenanceChange = (e) => {
     const val = e.target.value;
     setSelectedMaintenanceId(val === "" ? null : Number(val));
+  };
+
+  const handleResetDates = () => {
+    setDateFrom("");
+    setDateTo("");
   };
 
   // Auto-select first item effects
@@ -671,6 +696,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
+    if (!selectedProcessId) {
+      return [];
+    }
     const selProcessName = processList.find((p) => p.id === selectedProcessId)?.processName;
     const selMaintName = (filterPayload?.maintenance ?? []).find((m) => m.id === selectedMaintenanceId)?.maintenanceGroupName;
 
@@ -1124,9 +1152,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           gap: 8px;
         }
         .mp-filter-item label {
-          color: var(--ref-text-muted, #94a3b8);
-          font-size: 13px;
-          font-weight: 800;
+          color: #4b5563;
+          font-size: 14px;
+          font-weight: 500;
           white-space: nowrap;
         }
         .mp-filter-item .input-base {
@@ -1452,13 +1480,36 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 onChange={(e) => setDateTo(e.target.value)}
                 style={{ width: "150px" }}
               />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  className="btn-base btn-ghost text-xs text-text-subtle ml-1 whitespace-nowrap"
+                  onClick={handleResetDates}
+                  style={{ minHeight: "38px", paddingLeft: "8px", paddingRight: "8px" }}
+                  title={t("matrix.resetDate", "날짜 초기화")}
+                >
+                  <i className="fas fa-times" />
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* ── Table or Empty Landing state ── */}
         <div className="card mp-table-card overflow-hidden">
-            {dataLoading ? (
+            {selectedProcessId === null ? (
+              <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
+                  <i className="fas fa-history" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {t("landing.selectProcessAndMaint")}
+                </h2>
+                <p className="text-sm text-gray-400 max-w-md">
+                  {t("landing.selectProcessAndMaintMPDesc")}
+                </p>
+              </div>
+            ) : (dataLoading || isFiltering) ? (
               <TableSkeleton rows={6} t={t} />
             ) : (
               <div className="mp-table-scroll overflow-auto">
