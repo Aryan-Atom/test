@@ -183,41 +183,47 @@ function SelectSkeleton({ width = "120px" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
+function TableSkeleton({ rowsCount = 8, columns = [], t, COLUMN_LABEL_KEYS = {} }) {
   return (
-    <div className="w-full overflow-hidden bg-white p-4">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead>
-            <tr>
-              {Array.from({ length: colsCount }).map((_, i) => (
-                <th key={i} className="px-4 py-3">
+    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 39vh)" }}>
+      <table className="min-w-full text-left text-sm">
+        <thead className="table-header">
+          <tr>
+            <th className="px-4 py-3 w-12">
+              <input type="checkbox" disabled />
+            </th>
+            <th
+              className="px-3 py-3 text-text-subtle whitespace-nowrap"
+              style={{ fontSize: "11px", fontWeight: 600, width: "72px" }}
+            >
+              {t("app.edit")}
+            </th>
+            {columns.map((col) => (
+              <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
+                {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {Array.from({ length: rowsCount }).map((_, rIdx) => (
+            <tr key={rIdx} className="border-t border-border-base">
+              <td className="px-4 py-3"></td>
+              <td className="px-4 py-3"></td>
+              {columns.map((col, cIdx) => (
+                <td key={cIdx} className="px-4 py-3">
                   <div
-                    className="h-4 bg-gray-200 rounded animate-pulse"
-                    style={{ width: i === 0 ? "24px" : "80px" }}
+                    className="h-4 bg-gray-100 rounded animate-pulse"
+                    style={{
+                      width: `${50 + ((rIdx * col.length * 3) % 40)}%`,
+                    }}
                   />
-                </th>
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {Array.from({ length: rowsCount }).map((_, rIdx) => (
-              <tr key={rIdx}>
-                {Array.from({ length: colsCount }).map((_, cIdx) => (
-                  <td key={cIdx} className="px-4 py-3">
-                    <div
-                      className="h-4 bg-gray-100 rounded animate-pulse"
-                      style={{
-                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
-                      }}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1527,22 +1533,46 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const filterLoading = filterPayload === null && filterError === null;
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [prevFilters, setPrevFilters] = useState({
+    processId: null,
+    maintenanceId: null,
+    filter: "",
+    searchText: "",
+  });
 
-  useEffect(() => {
+  if (
+    selectedProcessId !== prevFilters.processId ||
+    selectedMaintenanceId !== prevFilters.maintenanceId ||
+    filter !== prevFilters.filter ||
+    searchText !== prevFilters.searchText
+  ) {
+    setPrevFilters({
+      processId: selectedProcessId,
+      maintenanceId: selectedMaintenanceId,
+      filter,
+      searchText,
+    });
     if (selectedProcessId !== null) {
       setIsFiltering(true);
+    }
+  }
+
+  useEffect(() => {
+    if (isFiltering) {
       const timer = setTimeout(() => {
         setIsFiltering(false);
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [selectedProcessId, selectedMaintenanceId, filter, searchText]);
+  }, [isFiltering]);
 
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    return (filterPayload?.process ?? []).filter((p) => p.isChangedData === true);
+  }, [filterPayload]);
 
   const maintenanceList = useMemo(() => {
-    const all = filterPayload?.maintenance ?? [];
+    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData === true);
     if (!selectedProcessId) return all;
     return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
@@ -2437,7 +2467,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               </p>
             </div>
           ) : isFiltering ? (
-            <TableSkeleton colsCount={dynamicColumns.length + 2} />
+            <TableSkeleton
+              rowsCount={filtered.length > 0 ? filtered.length : 8}
+              columns={dynamicColumns}
+              t={t}
+              COLUMN_LABEL_KEYS={COLUMN_LABEL_KEYS}
+            />
           ) : filtered.length === 0 ? (
             <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">

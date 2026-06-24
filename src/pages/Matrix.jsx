@@ -8,41 +8,68 @@ import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
+function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
+  const rowsCount = equipmentRows.length > 0 ? equipmentRows.length : 8;
+  const displayCols = columns.length > 0 ? columns : Array.from({ length: 6 }).map((_, i) => `Col ${i + 1}`);
+
   return (
-    <div className="w-full overflow-hidden bg-white p-4">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead>
-            <tr>
-              {Array.from({ length: colsCount }).map((_, i) => (
-                <th key={i} className="px-4 py-3">
-                  <div
-                    className="h-4 bg-gray-200 rounded animate-pulse"
-                    style={{ width: i === 0 ? "24px" : "80px" }}
-                  />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {Array.from({ length: rowsCount }).map((_, rIdx) => (
-              <tr key={rIdx}>
-                {Array.from({ length: colsCount }).map((_, cIdx) => (
-                  <td key={cIdx} className="px-4 py-3">
-                    <div
-                      className="h-4 bg-gray-100 rounded animate-pulse"
-                      style={{
-                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
-                      }}
-                    />
+    <div className="overflow-auto flex-1" style={{ height: "calc(100vh - 350px)" }}>
+      <table className="w-full min-w-max text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+        <thead>
+          <tr className="border-b border-border-base bg-surface-strong">
+            <th
+              className="sticky left-0 z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "120px", position: "sticky", left: 0 }}
+            >
+              {t("field.equipmentCode", "설비코드")}
+            </th>
+            <th
+              className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "180px", position: "sticky", left: "120px" }}
+            >
+              {t("field.equipmentName", "설비명")}
+            </th>
+            {displayCols.map((col) => (
+              <th
+                key={col}
+                className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
+                style={{ width: "160px" }}
+              >
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rowsCount }).map((_, rIdx) => {
+            const eq = equipmentRows[rIdx] || { equipmentCode: "", equipmentName: "" };
+            return (
+              <tr
+                key={rIdx}
+                className="group border-b border-border-base last:border-0 hover:bg-fill-active transition-colors"
+              >
+                <td
+                  className="sticky left-0 z-20 bg-surface-default px-4 py-3 font-semibold text-text-default transition-colors"
+                  style={{ position: "sticky", left: 0 }}
+                >
+                  <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
+                </td>
+                <td
+                  className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default transition-colors"
+                  style={{ position: "sticky", left: "120px" }}
+                >
+                  <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
+                </td>
+                {displayCols.map((col, cIdx) => (
+                  <td key={col} className="px-4 py-3">
+                    <div className="h-4 bg-gray-100 rounded animate-pulse w-16 mx-auto" />
                   </td>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -293,26 +320,56 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [clickedRecord, setClickedRecord] = useState(null);
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [prevFilters, setPrevFilters] = useState({
+    process: "전체",
+    maintenance: "전체",
+    site: "전체",
+    repWork: "전체",
+    prioritiesJson: "[]",
+    categoriesJson: "[]",
+    startDate: "",
+    endDate: "",
+    searchText: "",
+  });
 
-  useEffect(() => {
+  const currentPrioritiesJson = JSON.stringify(selectedPriorities);
+  const currentCategoriesJson = JSON.stringify(selectedCategories);
+
+  if (
+    selectedProcess !== prevFilters.process ||
+    selectedMaintenance !== prevFilters.maintenance ||
+    selectedSite !== prevFilters.site ||
+    selectedRepWork !== prevFilters.repWork ||
+    currentPrioritiesJson !== prevFilters.prioritiesJson ||
+    currentCategoriesJson !== prevFilters.categoriesJson ||
+    startDate !== prevFilters.startDate ||
+    endDate !== prevFilters.endDate ||
+    searchText !== prevFilters.searchText
+  ) {
+    setPrevFilters({
+      process: selectedProcess,
+      maintenance: selectedMaintenance,
+      site: selectedSite,
+      repWork: selectedRepWork,
+      prioritiesJson: currentPrioritiesJson,
+      categoriesJson: currentCategoriesJson,
+      startDate,
+      endDate,
+      searchText,
+    });
     if (selectedProcess !== "전체") {
       setIsFiltering(true);
+    }
+  }
+
+  useEffect(() => {
+    if (isFiltering) {
       const timer = setTimeout(() => {
         setIsFiltering(false);
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [
-    selectedProcess,
-    selectedMaintenance,
-    selectedSite,
-    selectedRepWork,
-    selectedPriorities,
-    selectedCategories,
-    startDate,
-    endDate,
-    searchText,
-  ]);
+  }, [isFiltering]);
 
   const getFilterData = useCallback(() => {
     if (isStaticDataMode) {
@@ -375,7 +432,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
     const raw = [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))];
-    const allowed = filterData?.process?.map(p => p.processName) ?? [];
+    const allowed = filterData?.process?.filter(p => p.isChangedData === true).map(p => p.processName) ?? [];
     if (filterData?.process) {
       return raw.filter(p => allowed.includes(p)).sort();
     }
@@ -385,7 +442,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const maintenanceOptions = useMemo(() => {
     if (selectedProcess === "전체") return [];
     const raw = [...new Set(allRecords.filter(r => getColValue(r, "process") === selectedProcess).map(r => getColValue(r, "maintGroup")).filter(Boolean))];
-    const allowed = filterData?.maintenance?.map(m => m.maintenanceGroupName) ?? [];
+    const allowed = filterData?.maintenance?.filter(m => m.isChangedData === true).map(m => m.maintenanceGroupName) ?? [];
     if (filterData?.maintenance) {
       return raw.filter(m => allowed.includes(m)).sort();
     }
@@ -397,7 +454,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
       (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance)
     ).map(r => getColValue(r, "site")).filter(Boolean))];
-    const allowed = filterData?.site?.map(s => s.siteName) ?? [];
+    const allowed = filterData?.site?.filter(s => s.isChangedData === true).map(s => s.siteName) ?? [];
     if (filterData?.site) {
       return raw.filter(s => allowed.includes(s)).sort();
     }
@@ -1014,7 +1071,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             </p>
           </div>
         ) : isFiltering ? (
-          <TableSkeleton colsCount={8} />
+          <TableSkeleton
+            columns={columns}
+            equipmentRows={equipmentRows}
+            mode={mode}
+            t={t}
+          />
         ) : filtered.length === 0 ? (
           <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle flex-1">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl" style={{ backgroundColor: "var(--brand-10, #eff6ff)", color: "var(--brand-60, #0f62fe)" }}>
@@ -1124,19 +1186,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         mode === "date" ? getColValue(d, "representativeWork") : getFormattedDateString(getColValue(d, "workedOn"))
                       ).filter(Boolean))].sort();
 
-                      const isImportant = matched.some(d => getColValue(d, "priority") === "중요");
-                      
-                      const repWork = matched.map(d => getColValue(d, "representativeWork")).find(Boolean) || "";
-                      const colorCode = representativeColorMap.get(normalizeName(repWork));
-                      
-                      let cellBg;
-                      let cellColor = "#000000";
-                      if (colorCode) {
-                        cellBg = hexToRgba(colorCode, 0.12);
-                      } else {
-                        cellBg = isImportant 
-                          ? "rgba(239, 68, 68, 0.12)" 
-                          : "rgba(15, 98, 254, 0.08)";
+                      let cellBg = "transparent";
+                      let cellColor = "inherit";
+
+                      if (mode !== "date") {
+                        const isImportant = matched.some(d => getColValue(d, "priority") === "중요");
+                        if (isImportant) {
+                          cellBg = "var(--primary-soft)";
+                          cellColor = "var(--primary)";
+                        }
                       }
 
                       return (
@@ -1155,9 +1213,49 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               wordBreak: "break-all"
                             }}
                           >
-                            <div>
-                              {displayValues.join("\n")}
-                            </div>
+                            {mode === "date" ? (
+                              <div className="w-full flex flex-col gap-1">
+                                {displayValues.map((val, idx) => {
+                                  const isValImportant = matched.some(d => 
+                                    getColValue(d, "representativeWork") === val && 
+                                    getColValue(d, "priority") === "중요"
+                                  );
+                                  
+                                  let itemBg = "transparent";
+                                  let itemColor = "inherit";
+                                  let paddingClass = "";
+                                  if (isValImportant) {
+                                    let h = 0;
+                                    for (let i = 0; i < val.length; i++) {
+                                      h = ((h << 5) - h) + val.charCodeAt(i);
+                                      h = h | 0;
+                                    }
+                                    const hue = ((h % 360) + 360) % 360;
+                                    itemBg = `hsl(${hue}, 65%, 82%)`;
+                                    itemColor = "var(--text-primary)";
+                                    paddingClass = "px-2 py-1 rounded-[6px] shadow-sm";
+                                  }
+
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`w-full text-center ${paddingClass}`}
+                                      style={{
+                                        backgroundColor: itemBg,
+                                        color: itemColor,
+                                        fontWeight: isValImportant ? 700 : 500,
+                                      }}
+                                    >
+                                      {val}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div>
+                                {displayValues.join("\n")}
+                              </div>
+                            )}
                             <span 
                               className="absolute top-[2px] right-[4px] text-[9px] opacity-0 group-hover:opacity-100 transition-all duration-200 text-text-subtle bg-white border border-[#e2e8f0] rounded-[4px] px-1 py-0.5 shadow-sm hover:text-[#4f46e5] hover:scale-105 active:scale-95 z-20 cursor-pointer"
                               onClick={(e) => {

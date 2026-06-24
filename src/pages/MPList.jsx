@@ -381,13 +381,36 @@ function SelectSkeleton({ width = "100%" }) {
 
 function TableSkeleton({ rows = 6, t }) {
   return (
-    <div className="overflow-auto">
-      <table className="min-w-full text-left text-sm">
-        <thead className="table-header">
+    <div className="mp-table-scroll overflow-auto">
+      <table
+        className="min-w-full text-left text-sm"
+        style={{ tableLayout: "fixed", width: "100%", minWidth: "1280px" }}
+      >
+        <colgroup>
+          <col style={{ width: "3%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "10%" }} />
+        </colgroup>
+        <thead className="table-header" style={{ position: "sticky", top: 0, zIndex: 1 }}>
           <tr>
-            <th style={{ width: "3%" }}></th>
-            {TABLE_COLUMNS.slice(0, 6).map((col) => (
-              <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
+            <th style={{ textAlign: "center" }}></th>
+            {TABLE_COLUMNS.map((col) => (
+              <th
+                key={col}
+                className="px-3 py-3 text-text-subtle whitespace-nowrap text-xs font-semibold"
+              >
                 {columnLabel(col, t)}
               </th>
             ))}
@@ -397,7 +420,7 @@ function TableSkeleton({ rows = 6, t }) {
           {Array.from({ length: rows }).map((_, i) => (
             <tr key={i} className="border-t border-border-base">
               <td className="px-3 py-3"></td>
-              {TABLE_COLUMNS.slice(0, 6).map((col) => (
+              {TABLE_COLUMNS.map((col) => (
                 <td key={col} className="px-4 py-3">
                   <div
                     style={{
@@ -446,26 +469,57 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   });
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [prevFilters, setPrevFilters] = useState({
+    processId: null,
+    siteId: null,
+    maintenanceId: null,
+    repWorksJson: "[]",
+    prioritiesJson: "[]",
+    categoriesJson: "[]",
+    dateFrom: "",
+    dateTo: "",
+    searchText: "",
+  });
 
-  useEffect(() => {
+  const currentRepWorksJson = JSON.stringify(selectedRepWorks);
+  const currentPrioritiesJson = JSON.stringify(selectedPriorities);
+  const currentCategoriesJson = JSON.stringify(selectedCategories);
+
+  if (
+    selectedProcessId !== prevFilters.processId ||
+    selectedSiteId !== prevFilters.siteId ||
+    selectedMaintenanceId !== prevFilters.maintenanceId ||
+    currentRepWorksJson !== prevFilters.repWorksJson ||
+    currentPrioritiesJson !== prevFilters.prioritiesJson ||
+    currentCategoriesJson !== prevFilters.categoriesJson ||
+    dateFrom !== prevFilters.dateFrom ||
+    dateTo !== prevFilters.dateTo ||
+    searchText !== prevFilters.searchText
+  ) {
+    setPrevFilters({
+      processId: selectedProcessId,
+      siteId: selectedSiteId,
+      maintenanceId: selectedMaintenanceId,
+      repWorksJson: currentRepWorksJson,
+      prioritiesJson: currentPrioritiesJson,
+      categoriesJson: currentCategoriesJson,
+      dateFrom,
+      dateTo,
+      searchText,
+    });
     if (selectedProcessId !== null) {
       setIsFiltering(true);
+    }
+  }
+
+  useEffect(() => {
+    if (isFiltering) {
       const timer = setTimeout(() => {
         setIsFiltering(false);
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [
-    selectedProcessId,
-    selectedSiteId,
-    selectedMaintenanceId,
-    selectedRepWorks,
-    selectedPriorities,
-    selectedCategories,
-    dateFrom,
-    dateTo,
-    searchText,
-  ]);
+  }, [isFiltering]);
 
   // ── Master data ───────────────────────────────────────────────────────────
   const [allRecords, setAllRecords] = useState([]);
@@ -497,17 +551,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   // ── Derived cascade option lists ──────────────────────────────────────────
   const processList = useMemo(() => {
-    return filterPayload?.process ?? [];
+    return (filterPayload?.process ?? []).filter((p) => p.isChangedData === true);
   }, [filterPayload]);
 
   const siteList = useMemo(() => {
-    const all = filterPayload?.site ?? [];
+    const all = (filterPayload?.site ?? []).filter((s) => s.isChangedData === true);
     if (!selectedProcessId) return all;
     return all.filter((s) => s.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
   const maintenanceList = useMemo(() => {
-    const all = filterPayload?.maintenance ?? [];
+    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData === true);
     if (!selectedProcessId) return all;
     return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);

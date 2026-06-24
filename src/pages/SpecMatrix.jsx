@@ -51,34 +51,56 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
-  return (
-    <div className="w-full overflow-hidden bg-white p-4">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead>
+function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = [], t }) {
+  if (view === "view1") {
+    const specCols = [];
+    const set = new Set();
+    filtered.forEach((r) => {
+      if (r.specName ?? r.사양항목) set.add(r.specName ?? r.사양항목);
+    });
+    const specColsList = [...set].sort();
+    const displayCols = specColsList.length > 0 ? specColsList : Array.from({ length: 3 }).map((_, i) => `Col ${i + 1}`);
+
+    const map = new Map();
+    filtered.forEach((r) => {
+      const eqCode = r.equipmentCode ?? r.설비코드 ?? "";
+      const eqName = r.equipmentName ?? r.설비명 ?? "";
+      const ver = r.version ?? r.버전 ?? "";
+      const key = `${eqCode}||${eqName}||${ver}`;
+      if (!map.has(key)) map.set(key, true);
+    });
+    const pivotedCount = map.size > 0 ? map.size : 8;
+
+    const headerMap = {
+      "설비ID": "field.equipmentId",
+      "설비명": "field.equipmentName",
+      "사양버전": "field.specVersion"
+    };
+
+    return (
+      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+        <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-10 bg-[#f8fafc]">
             <tr>
-              {Array.from({ length: colsCount }).map((_, i) => (
-                <th key={i} className="px-4 py-3">
-                  <div
-                    className="h-4 bg-gray-200 rounded animate-pulse"
-                    style={{ width: i === 0 ? "24px" : "80px" }}
-                  />
+              {["설비ID", "설비명", "사양버전", ...displayCols].map((col) => (
+                <th
+                  key={col}
+                  className="px-4 py-3 text-xs font-bold text-[#475569] uppercase tracking-wider border-b-2 border-[#e2e8f0] whitespace-nowrap"
+                >
+                  {headerMap[col] ? t(headerMap[col], col) : col}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {Array.from({ length: rowsCount }).map((_, rIdx) => (
-              <tr key={rIdx}>
-                {Array.from({ length: colsCount }).map((_, cIdx) => (
+          <tbody>
+            {Array.from({ length: pivotedCount }).map((_, rIdx) => (
+              <tr key={rIdx} className="border-b border-[#e2e8f0]">
+                <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-16" /></td>
+                <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-24" /></td>
+                <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-12" /></td>
+                {displayCols.map((col, cIdx) => (
                   <td key={cIdx} className="px-4 py-3">
-                    <div
-                      className="h-4 bg-gray-100 rounded animate-pulse"
-                      style={{
-                        width: cIdx === 0 ? "16px" : `${Math.floor(Math.random() * 40) + 60}px`,
-                      }}
-                    />
+                    <div className="h-4 bg-gray-100 rounded animate-pulse w-16" />
                   </td>
                 ))}
               </tr>
@@ -86,8 +108,56 @@ function TableSkeleton({ rowsCount = 8, colsCount = 6 }) {
           </tbody>
         </table>
       </div>
-    </div>
-  );
+    );
+  } else {
+    const versions = view2Versions.length > 0 ? view2Versions : ["1.0", "1.1", "1.2"];
+
+    const map = new Map();
+    view2Rows.forEach((r) => {
+      const eqCode = r.equipmentCode ?? r.설비코드 ?? "";
+      const specName = r.specName ?? r.사양항목 ?? "";
+      const key = `${eqCode}||${specName}`;
+      if (!map.has(key)) map.set(key, true);
+    });
+    const pivotedCount = map.size > 0 ? map.size : 8;
+
+    return (
+      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+        <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-10 bg-[#f8fafc]">
+            <tr>
+              <th
+                className="px-4 py-3 text-xs font-bold text-[#475569] uppercase tracking-wider border-b-2 border-[#e2e8f0]"
+                style={{ minWidth: "120px" }}
+              >
+                {t("field.specName", "사양항목")}
+              </th>
+              {versions.map((ver) => (
+                <th
+                  key={ver}
+                  className="px-4 py-3 text-xs font-bold tracking-wider text-center border-b-2 border-[#e2e8f0] text-[#4f46e5] whitespace-nowrap min-w-[100px]"
+                >
+                  {ver}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: pivotedCount }).map((_, rIdx) => (
+              <tr key={rIdx} className="border-b border-[#e2e8f0]">
+                <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-28" /></td>
+                {versions.map((ver, cIdx) => (
+                  <td key={cIdx} className="px-4 py-3">
+                    <div className="h-4 bg-gray-100 rounded animate-pulse w-16 mx-auto" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,16 +368,41 @@ export default function SpecMatrix({ searchText }) {
   const filterLoading = filterPayload === null && filterError === null;
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [prevFilters, setPrevFilters] = useState({
+    processId: null,
+    typeId: null,
+    version: "전체",
+    changedOnly: false,
+    searchText: "",
+  });
 
-  useEffect(() => {
+  if (
+    selectedProcessId !== prevFilters.processId ||
+    selectedTypeId !== prevFilters.typeId ||
+    selectedVersion !== prevFilters.version ||
+    changedOnly !== prevFilters.changedOnly ||
+    searchText !== prevFilters.searchText
+  ) {
+    setPrevFilters({
+      processId: selectedProcessId,
+      typeId: selectedTypeId,
+      version: selectedVersion,
+      changedOnly,
+      searchText,
+    });
     if (selectedProcessId !== null) {
       setIsFiltering(true);
+    }
+  }
+
+  useEffect(() => {
+    if (isFiltering) {
       const timer = setTimeout(() => {
         setIsFiltering(false);
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [selectedProcessId, selectedTypeId, selectedVersion, changedOnly, searchText]);
+  }, [isFiltering]);
 
   // ── Fetch spec data ──────────────────────────────────────────────────────
   const fetchData = useCallback(() => {
@@ -377,9 +472,9 @@ export default function SpecMatrix({ searchText }) {
           return val.toFixed(1);
         };
 
-        const procs = payload.process ?? [];
-        const maints = payload.maintenance ?? [];
-        const equipments = payload.equipments ?? [];
+        const procs = (payload.process ?? []).filter((p) => p.isSpecData === true);
+        const maints = (payload.maintenance ?? []).filter((m) => m.isSpecData === true);
+        const equipments = (payload.equipments ?? []).filter((e) => e.isSpecData === true);
 
         equipments.forEach((eq) => {
           if (!eq.equipmentCode) return;
@@ -464,11 +559,13 @@ export default function SpecMatrix({ searchText }) {
   }, [fetchData]);
 
   // ── Filter option lists ───────────────────────────────────────────────────
-  const processList = useMemo(() => filterPayload?.process ?? [], [filterPayload]);
+  const processList = useMemo(() => {
+    return (filterPayload?.process ?? []).filter((p) => p.isSpecData === true);
+  }, [filterPayload]);
 
   // Maintenance list cascades from selected process
   const maintenanceList = useMemo(() => {
-    const all = filterPayload?.maintenance ?? [];
+    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isSpecData === true);
     if (!selectedProcessId) return all;
     return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
@@ -727,7 +824,13 @@ export default function SpecMatrix({ searchText }) {
               </p>
             </div>
           ) : isFiltering ? (
-            <TableSkeleton colsCount={6} />
+            <TableSkeleton
+              view={view}
+              filtered={filtered}
+              view2Rows={view2Rows}
+              view2Versions={view2Versions}
+              t={t}
+            />
           ) : view === "view1" ? (
             filtered.length === 0 ? (
               <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
