@@ -10,6 +10,7 @@ const pocEndPoints = {
   GET_SPEC_DATA: "api/SpecData/GetSpecData",
   SAVE_SPEC_DATA: "api/SpecData",
   UPDATE_REPRESENTATIVE_WORK: "api/CommonData/UpdateRepresentativeWork",
+  RESET_DATA: "api/CommonData/ResetData",
 };
 
 const auth = {

@@ -1175,7 +1175,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         .mp-row-pending { background: #f0fdf4 !important; border-left: 3px solid #16a34a; }
         .mp-row-clickable { cursor: pointer; }
         .mp-row-selected { background: var(--fill-active, #ddeaff) !important; }
-        .mp-page { color: var(--ref-text-primary, #0f172a); }
+        .mp-page {
+          color: var(--ref-text-primary, #0f172a);
+          display: flex;
+          flex-direction: column;
+          flex: 1 1 0%;
+          min-height: 0;
+        }
         .mp-page-header { margin-bottom: 20px; }
         .mp-page-title {
           color: var(--ref-text-primary, #0f172a);
@@ -1223,8 +1229,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           border-radius: 16px;
         }
         .mp-table-scroll {
-          height: calc(100vh - 310px);
-          min-height: 258px;
+          flex: 1 1 0%;
+          min-height: 0;
         }
         .user-row { background: rgba(6, 182, 212, 0.04) !important; }
         .user-row:hover td { background: rgba(6, 182, 212, 0.08) !important; }
@@ -1550,9 +1556,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         </div>
 
         {/* ── Table or Empty Landing state ── */}
-        <div className="card mp-table-card overflow-hidden">
+        <div className="card mp-table-card flex-1 min-h-0 flex flex-col overflow-hidden">
             {selectedProcessId === null ? (
-              <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
                 <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
                   <i className="fas fa-history" />
                 </div>

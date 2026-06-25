@@ -215,6 +215,11 @@ const translations = {
     "landing.selectProcessAndMaintTypeMatrixDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
     "landing.selectProcessAndMaintMatrixDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 매트릭스가 표시됩니다.",
     "landing.selectProcessAndMaintMPDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 MP List가 표시됩니다.",
+    "app.resetData": "데이터 초기화",
+    "app.resetDataConfirmTitle": "데이터 초기화 확인",
+    "app.resetDataConfirmDesc": "정말로 전체 변경 이력 및 사양 데이터를 삭제하시겠습니까? 이 작업은 공통 데이터베이스의 모든 데이터를 영구적으로 삭제하며 되돌릴 수 없습니다. 계속 진행하시겠습니까?",
+    "app.resetDataSuccess": "모든 데이터가 성공적으로 초기화되었습니다.",
+    "app.resetDataError": "데이터 초기화에 실패했습니다.",
   },
   en: {
     "app.menu": "Menu",
@@ -430,6 +435,11 @@ const translations = {
     "landing.selectProcessAndMaintTypeMatrixDesc": "Select process and maintenance type in the top filter first to display the spec matrix.",
     "landing.selectProcessAndMaintMatrixDesc": "Select process and maintenance part in the top filter first to display the change matrix.",
     "landing.selectProcessAndMaintMPDesc": "Select process and maintenance part in the top filter first to display the MP List.",
+    "app.resetData": "Reset Data",
+    "app.resetDataConfirmTitle": "Confirm Reset Data",
+    "app.resetDataConfirmDesc": "Do you want to delete the entire change history and spec data? This action will permanently remove all data from the shared database and cannot be undone. Are you sure you want to proceed?",
+    "app.resetDataSuccess": "All data has been successfully reset.",
+    "app.resetDataError": "Failed to reset data.",
   },
 };
 

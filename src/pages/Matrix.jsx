@@ -13,7 +13,7 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
   const displayCols = columns.length > 0 ? columns : Array.from({ length: 6 }).map((_, i) => `Col ${i + 1}`);
 
   return (
-    <div className="overflow-auto flex-1" style={{ height: "calc(100vh - 350px)" }}>
+    <div className="overflow-auto flex-1 min-h-0">
       <table className="w-full min-w-max text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
         <thead>
           <tr className="border-b border-border-base bg-surface-strong">
@@ -894,7 +894,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="flex-1 flex flex-col min-h-0 space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-text-default">{t("page.matrix.title", "변경 매트릭스")}</h1>
@@ -1059,9 +1059,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       </div>
 
       {/* Grid Container */}
-      <div className="card overflow-hidden flex flex-col relative">
+      <div className="card flex-1 min-h-0 flex flex-col overflow-hidden relative">
         {showLanding ? (
-          <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1" style={{ minHeight: "400px" }}>
+          <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1">
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl mb-4">
               <i className="fas fa-history" />
             </div>
@@ -1078,7 +1078,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             t={t}
           />
         ) : filtered.length === 0 ? (
-          <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle flex-1">
+          <div className="flex flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle flex-1">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl" style={{ backgroundColor: "var(--brand-10, #eff6ff)", color: "var(--brand-60, #0f62fe)" }}>
               <i className="fas fa-layer-group" />
             </div>
@@ -1088,7 +1088,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             <p>{t("matrix.adjustFilter", "필터를 조정하거나 추가 데이터를 확인하세요.")}</p>
           </div>
         ) : (
-          <div className="overflow-auto flex-1" style={{ height: "calc(100vh - 350px)" }}>
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="w-full min-w-max text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
               <thead>
                 <tr className="border-b border-border-base bg-surface-strong">

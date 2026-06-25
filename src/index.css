@@ -644,6 +644,20 @@ tbody tr:hover {
   color: var(--primary);
 }
 
+.eq-topbar-icon.eq-reset-btn {
+  color: #ef4444;
+  width: auto;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.eq-topbar-icon.eq-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
 .eq-topbar-actions {
   display: flex;
   align-items: center;

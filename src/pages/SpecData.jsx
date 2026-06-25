@@ -166,7 +166,7 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function TableSkeleton({ rowsCount = 8, columns = [], t, COLUMN_LABEL_KEYS = {} }) {
   return (
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 39vh)" }}>
+    <div className="overflow-auto flex-1 min-h-0">
       <table className="min-w-full text-left text-sm">
         <thead className="table-header">
           <tr>
@@ -2152,7 +2152,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         }
       `}</style>
 
-      <section className="space-y-6">
+      <section className="flex-1 flex flex-col min-h-0 space-y-6">
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -2267,9 +2267,9 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         </div>
 
         {/* Data table */}
-        <div className="card overflow-hidden">
+        <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
           {selectedProcessId === null ? (
-            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center">
+            <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
                 <i className="fas fa-history" />
               </div>
@@ -2288,7 +2288,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               COLUMN_LABEL_KEYS={COLUMN_LABEL_KEYS}
             />
           ) : filtered.length === 0 ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
+            <div className="flex-grow flex flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
                 <i className="fas fa-microchip" />
               </div>
@@ -2296,9 +2296,9 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               <p>{t("empty.specHint")}</p>
             </div>
           ) : (
-            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 39vh)" }}>
+            <div className="overflow-auto flex-1 min-h-0">
               <table className="min-w-full text-left text-sm">
-                <thead className="table-header">
+                <thead className="table-header sticky top-0 z-[1]">
                   <tr>
                     {/* Select-all */}
                     {/* <th className="px-4 py-3 w-12">

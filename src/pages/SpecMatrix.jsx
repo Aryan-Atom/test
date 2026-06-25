@@ -78,7 +78,7 @@ function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = []
     };
 
     return (
-      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+      <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
           <thead className="sticky top-0 z-10 bg-[#f8fafc]">
             <tr>
@@ -122,7 +122,7 @@ function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = []
     const pivotedCount = map.size > 0 ? map.size : 8;
 
     return (
-      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+      <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
           <thead className="sticky top-0 z-10 bg-[#f8fafc]">
             <tr>
@@ -249,7 +249,7 @@ function View1Table({ rows }) {
   if (pivoted.length === 0) return null;
 
   return (
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+    <div className="overflow-auto flex-1 min-h-0">
       <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
         <thead className="sticky top-0 z-10 bg-[#f8fafc]">
           <tr>
@@ -652,7 +652,7 @@ export default function SpecMatrix({ searchText }) {
         }
       `}</style>
 
-      <section className="space-y-6">
+      <section className="flex-1 flex flex-col min-h-0 space-y-6">
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -801,7 +801,7 @@ export default function SpecMatrix({ searchText }) {
         </div>
 
         {/* Data table card */}
-        <div className="card overflow-hidden bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm">
+        <div className="card flex-1 min-h-0 flex flex-col overflow-hidden bg-white border border-[#e2e8f0] rounded-[16px] shadow-sm">
           {filterError && (
             <div className="p-5">
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2">
@@ -812,7 +812,7 @@ export default function SpecMatrix({ searchText }) {
           )}
 
           {selectedProcessId === null ? (
-            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+            <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
                 <i className="fas fa-history" />
               </div>
@@ -833,7 +833,7 @@ export default function SpecMatrix({ searchText }) {
             />
           ) : view === "view1" ? (
             filtered.length === 0 ? (
-              <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+              <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2 bg-[#eff6ff]">
                   <i className="fas fa-inbox text-4xl text-[#93c5fd]" />
                 </div>
@@ -846,7 +846,7 @@ export default function SpecMatrix({ searchText }) {
             )
           ) : (
             view2Rows.length === 0 ? (
-              <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
+              <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center relative flex-1">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-2 bg-[#eff6ff]">
                   <i className="fas fa-inbox text-4xl text-[#93c5fd]" />
                 </div>
@@ -870,7 +870,7 @@ export default function SpecMatrix({ searchText }) {
 function View2TableRender({ rows, versions }) {
   const { t } = useI18n();
   return (
-    <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+    <div className="overflow-auto flex-1 min-h-0">
       <table className="w-full text-left text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
         <thead className="sticky top-0 z-10 bg-[#f8fafc]">
           <tr>
