@@ -4,3 +4,9 @@ export const isStaticDataMode =
     .replace(/^["']|["']$/g, "")
     .toLowerCase() === "true";
 
+export const staticAppRole = String(import.meta.env.VITE_APP_ROLE ?? "USER")
+  .trim()
+  .replace(/^["']|["']$/g, "")
+  .toUpperCase();
+
+export const isStaticAdminRole = staticAppRole === "ADMIN";

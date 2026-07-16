@@ -15,6 +15,7 @@ import { uploadExcel, APIcallGet } from "../utils/api.js";
 import { changeColumns, specColumns, mpColumns } from "../data.js";
 import { useI18n } from "../i18n.jsx";
 import { getUserInfo } from "../utils/cookieUtils.js";
+import { isStaticAdminRole, isStaticDataMode } from "../utils/staticDataMode.js";
 
 const pageNames = {
   "dm-change": "데이터 관리 > 변경 이력",
@@ -92,7 +93,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const userInfo = getUserInfo();
-  const isAdminUser = Boolean(userInfo?.isAdmin);
+  const isAdminUser = isStaticDataMode ? isStaticAdminRole : Boolean(userInfo?.isAdmin);
   const isPageAllowed = (pageId) => (isAdminUser ? true : !adminOnlyPages.has(pageId));
   const activePage =
     routePages[location.pathname] ?? (isAdminUser ? defaultPage : nonAdminDefaultPage);
