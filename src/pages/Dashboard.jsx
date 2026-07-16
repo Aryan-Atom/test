@@ -14,7 +14,7 @@ import { useToast } from "../components/ToastContext.jsx";
 import { uploadExcel, APIcallGet } from "../utils/api.js";
 import { changeColumns, specColumns, mpColumns } from "../data.js";
 import { useI18n } from "../i18n.jsx";
-
+import { getUserInfo } from "../utils/cookieUtils.js";
 
 const pageNames = {
   "dm-change": "데이터 관리 > 변경 이력",
@@ -41,6 +41,9 @@ const pageRoutes = {
 const routePages = Object.fromEntries(
   Object.entries(pageRoutes).map(([pageId, route]) => [route, pageId]),
 );
+
+const adminOnlyPages = new Set(["dm-change", "dm-spec", "spec", "admin"]);
+const nonAdminDefaultPage = "mx-matrix";
 
 const loadLocal = (key, fallback) => {
   try {
@@ -88,7 +91,11 @@ const parseCsv = (text) => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const activePage = routePages[location.pathname] ?? defaultPage;
+  const userInfo = getUserInfo();
+  const isAdminUser = Boolean(userInfo?.isAdmin);
+  const isPageAllowed = (pageId) => (isAdminUser ? true : !adminOnlyPages.has(pageId));
+  const activePage =
+    routePages[location.pathname] ?? (isAdminUser ? defaultPage : nonAdminDefaultPage);
   const [searchText, setSearchText] = useState("");
   const [changeData, setChangeData] = useState(() => loadLocal("eq_chg", []));
   const [specData, setSpecData] = useState(() => loadLocal("eq_spec", []));
@@ -110,10 +117,16 @@ export default function Dashboard() {
   const { t } = useI18n();
 
   useEffect(() => {
-    if (!routePages[location.pathname]) {
-      navigate(pageRoutes[defaultPage], { replace: true });
+    const currentPage = routePages[location.pathname];
+    if (!currentPage) {
+      navigate(pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage], { replace: true });
+      return;
     }
-  }, [location.pathname, navigate]);
+
+    if (!isPageAllowed(currentPage)) {
+      navigate(pageRoutes[nonAdminDefaultPage], { replace: true });
+    }
+  }, [location.pathname, navigate, isAdminUser]);
 
   useEffect(() => {
     if (persistChange) saveLocal("eq_chg", changeData);
@@ -239,7 +252,8 @@ export default function Dashboard() {
   };
 
   const handleNavigate = (pageId) => {
-    navigate(pageRoutes[pageId] ?? pageRoutes[defaultPage]);
+    if (!isPageAllowed(pageId)) return;
+    navigate(pageRoutes[pageId] ?? pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage]);
   };
 
   return (
@@ -249,6 +263,7 @@ export default function Dashboard() {
           activePage={activePage}
           onNavigate={handleNavigate}
           collapsed={sidebarCollapsed}
+          isAdminUser={isAdminUser}
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Navbar
@@ -258,7 +273,7 @@ export default function Dashboard() {
             onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
           />
           <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc] p-6">
-            {activePage === "dm-change" && (
+            {activePage === "dm-change" && isPageAllowed("dm-change") && (
               <ChangeHistory
                 data={changeData}
                 onUpload={handleUpload}
@@ -268,7 +283,7 @@ export default function Dashboard() {
                 changeDataColumns={changeDataColumns}
               />
             )}
-            {activePage === "dm-spec" && (
+            {activePage === "dm-spec" && isPageAllowed("dm-spec") && (
               <SpecData
                 data={specData}
                 onUpload={handleUpload}
@@ -296,11 +311,13 @@ export default function Dashboard() {
                 onUpload={handleUpload}
               />
             )}
-            {activePage === "spec" && <SpecMatrix data={specData} searchText={searchText} />}
+            {activePage === "spec" && isPageAllowed("spec") && (
+              <SpecMatrix data={specData} searchText={searchText} />
+            )}
             {activePage === "board" && (
               <Board data={boardData} onAddPost={addBoardPost} searchText={searchText} />
             )}
-            {activePage === "admin" && (
+            {activePage === "admin" && isPageAllowed("admin") && (
               <Admin users={users} onUpdateUsers={updateUsers} searchText={searchText} />
             )}
           </main>

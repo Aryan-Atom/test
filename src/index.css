@@ -984,3 +984,264 @@ tbody tr:hover {
   color: #ffffff;
   border-color: transparent;
 }
+
+/* Role-based permissions page */
+.rbp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.rbp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+
+.rbp-kicker {
+  margin: 0;
+  color: var(--ref-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rbp-title {
+  margin: 6px 0 0;
+  color: var(--ref-text-primary);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.rbp-subtitle {
+  margin: 10px 0 0;
+  color: var(--ref-text-secondary);
+  font-size: 13px;
+  max-width: 660px;
+}
+
+.rbp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rbp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--ref-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 7px 10px;
+  color: var(--ref-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rbp-legend-item.allowed i {
+  color: #15803d;
+}
+
+.rbp-legend-item.denied i {
+  color: #b91c1c;
+}
+
+.rbp-columns-head {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  color: var(--ref-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rbp-columns-head span:nth-child(2),
+.rbp-columns-head span:nth-child(3) {
+  justify-self: center;
+}
+
+.rbp-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rbp-section {
+  overflow: hidden;
+}
+
+.rbp-section-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  padding: 14px 16px;
+  color: var(--ref-text-primary);
+  transition: background 0.2s ease;
+}
+
+.rbp-section-toggle:hover {
+  background: rgba(79, 70, 229, 0.05);
+}
+
+.rbp-section-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.rbp-section-title-wrap h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.rbp-section-count {
+  color: var(--ref-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rbp-rows {
+  border-top: 1px solid var(--ref-border);
+}
+
+.rbp-row {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--ref-border);
+  padding: 11px 16px;
+  transition: background 0.18s ease;
+}
+
+.rbp-row:first-child {
+  border-top: none;
+}
+
+.rbp-row:hover {
+  background: rgba(17, 104, 238, 0.06);
+}
+
+.rbp-permission-name {
+  color: var(--ref-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rbp-cell {
+  justify-self: center;
+}
+
+.rbp-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 64px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rbp-status.allowed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.rbp-status.denied {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.rbp-status-code {
+  letter-spacing: 0.03em;
+}
+
+[data-theme="dark"] .rbp-legend-item {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: var(--ref-border);
+}
+
+[data-theme="dark"] .rbp-row:hover,
+[data-theme="dark"] .rbp-section-toggle:hover {
+  background: rgba(129, 140, 248, 0.12);
+}
+
+[data-theme="dark"] .rbp-status.allowed {
+  border-color: rgba(22, 163, 74, 0.5);
+  background: rgba(22, 163, 74, 0.18);
+  color: #86efac;
+}
+
+[data-theme="dark"] .rbp-status.denied {
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}
+
+@media (max-width: 860px) {
+  .rbp-header {
+    flex-direction: column;
+  }
+
+  .rbp-legend {
+    justify-content: flex-start;
+  }
+
+  .rbp-columns-head {
+    display: none;
+  }
+
+  .rbp-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rbp-permission-name {
+    font-size: 14px;
+    color: var(--ref-text-primary);
+  }
+
+  .rbp-cell {
+    justify-self: start;
+  }
+
+  .rbp-cell::before {
+    display: inline-block;
+    margin-right: 8px;
+    color: var(--ref-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .rbp-cell:nth-child(2)::before {
+    content: "Admin";
+  }
+
+  .rbp-cell:nth-child(3)::before {
+    content: "User";
+  }
+}

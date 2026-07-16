@@ -10,8 +10,8 @@ const navSections = [
         labelKey: "nav.data",
         icon: "fa-database",
         children: [
-          { id: "dm-change", labelKey: "nav.changeHistory" },
-          { id: "dm-spec", labelKey: "nav.specData" },
+          { id: "dm-change", labelKey: "nav.changeHistory", adminOnly: true },
+          { id: "dm-spec", labelKey: "nav.specData", adminOnly: true },
         ],
       },
       {
@@ -23,7 +23,7 @@ const navSections = [
           { id: "mx-mplist", labelKey: "nav.mpList" },
         ],
       },
-      { id: "spec", labelKey: "nav.specMatrix", icon: "fa-diagram-project" },
+      { id: "spec", labelKey: "nav.specMatrix", icon: "fa-diagram-project", adminOnly: true },
     ],
   },
   {
@@ -32,7 +32,7 @@ const navSections = [
   },
   {
     titleKey: "nav.system",
-    items: [{ id: "admin", labelKey: "nav.admin", icon: "fa-user-shield" }],
+    items: [{ id: "admin", labelKey: "nav.admin", icon: "fa-user-shield", adminOnly: true }],
   },
 ];
 
@@ -40,12 +40,19 @@ function hasActiveChild(item, activePage) {
   return item.children?.some((child) => child.id === activePage);
 }
 
-export default function Sidebar({ activePage, onNavigate, collapsed = false }) {
+export default function Sidebar({
+  activePage,
+  onNavigate,
+  collapsed = false,
+  isAdminUser = false,
+}) {
   const { t } = useI18n();
   const [openGroups, setOpenGroups] = useState({
     data: true,
     matrix: true,
   });
+
+  const canAccess = (item) => (item?.adminOnly ? isAdminUser : true);
 
   const toggleGroup = (groupId) => {
     setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -64,60 +71,77 @@ export default function Sidebar({ activePage, onNavigate, collapsed = false }) {
       </div>
 
       <nav className="eq-sidebar-nav">
-        {navSections.map((section) => (
-          <div key={section.titleKey} className="eq-nav-section">
-            <div className="eq-section-title">{t(section.titleKey)}</div>
-            {section.items.map((item) => {
-              const isGroup = item.children?.length > 0;
-              const isActive = activePage === item.id || hasActiveChild(item, activePage);
-              const isOpen = isGroup ? openGroups[item.id] : false;
-              const label = t(item.labelKey);
-
-              if (!isGroup) {
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onNavigate(item.id)}
-                    className={`eq-nav-item ${activePage === item.id ? "active" : ""}`}
-                    title={label}
-                  >
-                    <i className={`fas ${item.icon}`} />
-                    <span>{label}</span>
-                  </button>
-                );
+        {navSections.map((section) => {
+          const visibleItems = section.items
+            .map((item) => {
+              if (item.children?.length) {
+                const visibleChildren = item.children.filter(canAccess);
+                return visibleChildren.length ? { ...item, children: visibleChildren } : null;
               }
 
-              return (
-                <div key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(item.id)}
-                    className={`eq-nav-item ${isActive ? "active-parent" : ""}`}
-                    title={label}
-                  >
-                    <i className={`fas ${item.icon}`} />
-                    <span>{label}</span>
-                    <i className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron`} />
-                  </button>
-                  <div className={`eq-sub-menu ${isOpen ? "open" : ""}`}>
-                    {item.children.map((child) => (
-                      <button
-                        key={child.id}
-                        type="button"
-                        onClick={() => onNavigate(child.id)}
-                        className={`eq-sub-item ${activePage === child.id ? "active" : ""}`}
-                        title={t(child.labelKey)}
-                      >
-                        {t(child.labelKey)}
-                      </button>
-                    ))}
+              return canAccess(item) ? item : null;
+            })
+            .filter(Boolean);
+
+          if (!visibleItems.length) {
+            return null;
+          }
+
+          return (
+            <div key={section.titleKey} className="eq-nav-section">
+              <div className="eq-section-title">{t(section.titleKey)}</div>
+              {visibleItems.map((item) => {
+                const isGroup = item.children?.length > 0;
+                const isActive = activePage === item.id || hasActiveChild(item, activePage);
+                const isOpen = isGroup ? openGroups[item.id] : false;
+                const label = t(item.labelKey);
+
+                if (!isGroup) {
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onNavigate(item.id)}
+                      className={`eq-nav-item ${activePage === item.id ? "active" : ""}`}
+                      title={label}
+                    >
+                      <i className={`fas ${item.icon}`} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <div key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(item.id)}
+                      className={`eq-nav-item ${isActive ? "active-parent" : ""}`}
+                      title={label}
+                    >
+                      <i className={`fas ${item.icon}`} />
+                      <span>{label}</span>
+                      <i className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron`} />
+                    </button>
+                    <div className={`eq-sub-menu ${isOpen ? "open" : ""}`}>
+                      {item.children.map((child) => (
+                        <button
+                          key={child.id}
+                          type="button"
+                          onClick={() => onNavigate(child.id)}
+                          className={`eq-sub-item ${activePage === child.id ? "active" : ""}`}
+                          title={t(child.labelKey)}
+                        >
+                          {t(child.labelKey)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="eq-system-card">

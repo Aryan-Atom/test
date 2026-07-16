@@ -373,7 +373,6 @@ export const changeFilterDataAndTableData = {
     {
       id: 5,
       representativeWorkName: "펌프 배선 플렉시블 관 적용",
-      colorCode: "#0E7707",
       processId: 2,
       siteId: 2,
       maintenanceGroupId: 4,
@@ -381,7 +380,6 @@ export const changeFilterDataAndTableData = {
     {
       id: 6,
       representativeWorkName: "3기어 펌프 교체",
-      colorCode: "#AD60B6",
       processId: 2,
       siteId: 2,
       maintenanceGroupId: 4,
@@ -389,7 +387,6 @@ export const changeFilterDataAndTableData = {
     {
       id: 7,
       representativeWorkName: "2차소성 타이머 유지시간 보정",
-      colorCode: "#772022",
       processId: 3,
       siteId: 5,
       maintenanceGroupId: 7,
@@ -397,7 +394,6 @@ export const changeFilterDataAndTableData = {
     {
       id: 8,
       representativeWorkName: "2차소성 타이머 유지시간 보정",
-      colorCode: "#3C9F6E",
       processId: 3,
       siteId: 6,
       maintenanceGroupId: 8,

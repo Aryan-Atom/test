@@ -220,6 +220,8 @@ const translations = {
     "app.resetDataConfirmDesc": "정말로 전체 변경 이력 및 사양 데이터를 삭제하시겠습니까? 이 작업은 공통 데이터베이스의 모든 데이터를 영구적으로 삭제하며 되돌릴 수 없습니다. 계속 진행하시겠습니까?",
     "app.resetDataSuccess": "모든 데이터가 성공적으로 초기화되었습니다.",
     "app.resetDataError": "데이터 초기화에 실패했습니다.",
+    "app.resettingData": "데이터 초기화 중...",
+    "app.resettingDataDesc": "서버에서 모든 변경 이력 및 사양 데이터를 삭제하고 있습니다. 잠시만 기다려 주세요.",
   },
   en: {
     "app.menu": "Menu",
@@ -440,6 +442,8 @@ const translations = {
     "app.resetDataConfirmDesc": "Do you want to delete the entire change history and spec data? This action will permanently remove all data from the shared database and cannot be undone. Are you sure you want to proceed?",
     "app.resetDataSuccess": "All data has been successfully reset.",
     "app.resetDataError": "Failed to reset data.",
+    "app.resettingData": "Resetting Data...",
+    "app.resettingDataDesc": "Deleting all change history and spec data from the server. Please wait.",
   },
 };
 

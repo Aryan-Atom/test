@@ -133,6 +133,42 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
           </div>
         </Modal>
       )}
+
+      {isResetting && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm">
+          <div
+            className="flex flex-col items-center p-8 rounded-2xl shadow-2xl border text-center"
+            style={{
+              background: "var(--surface-default, #ffffff)",
+              borderColor: "var(--border-base, rgba(226, 232, 240, 0.8))",
+              maxWidth: "380px",
+              width: "90%",
+            }}
+          >
+            {/* Spinning Loader Ring with Gradient */}
+            <div className="relative flex items-center justify-center mb-6">
+              <div
+                className="w-16 h-16 rounded-full border-4 border-slate-100 animate-spin"
+                style={{
+                  borderTopColor: "#ef4444",
+                  borderRightColor: "#ef4444",
+                }}
+              />
+              <i
+                className="fas fa-trash-alt absolute text-xl text-red-500 animate-pulse"
+                style={{ animationDuration: "1.5s" }}
+              />
+            </div>
+
+            <h3 className="text-lg font-bold text-text-default mb-2">
+              {t("app.resettingData")}
+            </h3>
+            <p className="text-sm text-text-subtle">
+              {t("app.resettingDataDesc")}
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

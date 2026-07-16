@@ -3,6 +3,7 @@ import { APIcallGet, APIcallPost } from "../axios/apiCall";
 import { pocEndPoints } from "../axios/endPoints";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
 }
 
 // Reusable MultiSelect Dropdown Component with Checkboxes
-function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
+function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled, minWidth = "120px" }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -112,7 +113,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
   }
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative flex-none" style={{ minWidth }}>
       <button
         type="button"
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
@@ -145,7 +146,8 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
           className="absolute left-0 right-0 z-[100] mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-border-base bg-surface-default py-1 shadow-lg"
           style={{
             borderColor: "var(--border-base, #e6e9ef)",
-            backgroundColor: "var(--surface-default, #ffffff)"
+            backgroundColor: "var(--surface-default, #ffffff)",
+            minWidth: "100%"
           }}
         >
           {options.map((opt) => {
@@ -164,7 +166,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
                   style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
                 />
-                <span className="truncate" style={{ fontSize: "13px" }}>{opt.label}</span>
+                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>{opt.label}</span>
               </label>
             );
           })}
@@ -194,23 +196,6 @@ function getFormattedDateString(raw) {
 
 function normalizeName(value) {
   return String(value ?? "").trim().toLowerCase();
-}
-
-function hexToRgba(hex, alpha = 0.14) {
-  const value = String(hex ?? "").trim();
-  const match = value.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
-  if (!match) return `rgba(15, 98, 254, ${alpha})`;
-  const [, r, g, b] = match;
-  return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`;
-}
-
-function getContrastColor(hex) {
-  const value = String(hex ?? "").trim();
-  const match = value.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
-  if (!match) return "#0f62fe";
-  const [, r, g, b] = match.map((part) => parseInt(part, 16));
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.58 ? "#111827" : "#ffffff";
 }
 
 function getColValue(row, col) {
@@ -481,21 +466,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
     return rawList;
   }, [filterData]);
-
-  const representativeColorMap = useMemo(() => {
-    const map = new Map();
-    (filterData?.representations ?? []).forEach((item) => {
-      if (item?.representativeWorkName && item?.colorCode) {
-        map.set(normalizeName(item.representativeWorkName), item.colorCode);
-      }
-    });
-    return map;
-  }, [filterData]);
-
-  const getRepresentativeColor = useCallback(
-    (workName) => representativeColorMap.get(normalizeName(workName)) || "#0f62fe",
-    [representativeColorMap],
-  );
 
   // Cascade Option Handlers
   const handleProcessChange = (e) => {
@@ -922,7 +892,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       {/* Filter Card */}
       <div className="card p-4 relative z-30">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {/* 공정 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.process", "공정")}</label>
@@ -1002,7 +972,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
           </div>
 
           {/* 중요도 */}
-          <div className="flex items-center gap-2" style={{ width: "130px" }}>
+          <div className="flex items-center gap-2 flex-none" style={{ minWidth: "175px" }}>
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
               {t("field.priority", "중요도")} <span className="text-red-500">*</span>
             </label>
@@ -1011,17 +981,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               selectedValues={selectedPriorities}
               onChange={setSelectedPriorities}
               t={t}
+              minWidth="96px"
             />
           </div>
 
           {/* 효과 유형 */}
-          <div className="flex items-center gap-2" style={{ width: "130px" }}>
+          <div className="flex items-center gap-2 flex-none" style={{ minWidth: "190px" }}>
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.category", "효과유형")}</label>
             <MultiSelect
               options={categoryOptions.map((c) => ({ label: c, value: c }))}
               selectedValues={selectedCategories}
               onChange={setSelectedCategories}
               t={t}
+              minWidth="104px"
             />
           </div>
 
@@ -1182,20 +1154,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         return <td key={col} className="px-4 py-3" />;
                       }
 
-                      const displayValues = [...new Set(matched.map(d => 
-                        mode === "date" ? getColValue(d, "representativeWork") : getFormattedDateString(getColValue(d, "workedOn"))
+                      const displayValues = [...new Set(matched.map(d =>
+                        mode === X_AXIS_MODE.DATE ? getColValue(d, "representativeWork") : getFormattedDateString(getColValue(d, "workedOn"))
                       ).filter(Boolean))].sort();
 
-                      let cellBg = "transparent";
-                      let cellColor = "inherit";
-
-                      if (mode !== "date") {
-                        const isImportant = matched.some(d => getColValue(d, "priority") === "중요");
-                        if (isImportant) {
-                          cellBg = "var(--primary-soft)";
-                          cellColor = "var(--primary)";
-                        }
-                      }
+                      const cellStyle = getCellStyle(
+                        matched,
+                        mode,
+                        (item) => getColValue(item, "priority"),
+                      );
 
                       return (
                         <td key={col} className="px-3 py-2 align-middle">
@@ -1203,8 +1170,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                             onClick={() => onOpenDetail?.(matched)}
                             className="matrix-cell p-2 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:shadow-md hover:z-10"
                             style={{
-                              backgroundColor: cellBg,
-                              color: cellColor,
+                              backgroundColor: cellStyle.backgroundColor,
+                              color: cellStyle.color,
                               fontSize: "11px",
                               fontWeight: 700,
                               lineHeight: "1.4",
@@ -1213,37 +1180,26 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               wordBreak: "break-all"
                             }}
                           >
-                            {mode === "date" ? (
+                            {mode === X_AXIS_MODE.DATE ? (
                               <div className="w-full flex flex-col gap-1">
                                 {displayValues.map((val, idx) => {
-                                  const isValImportant = matched.some(d => 
-                                    getColValue(d, "representativeWork") === val && 
-                                    getColValue(d, "priority") === "중요"
+                                  const representativeWorkItems = matched.filter(d =>
+                                    getColValue(d, "representativeWork") === val
                                   );
-                                  
-                                  let itemBg = "transparent";
-                                  let itemColor = "inherit";
-                                  let paddingClass = "";
-                                  if (isValImportant) {
-                                    let h = 0;
-                                    for (let i = 0; i < val.length; i++) {
-                                      h = ((h << 5) - h) + val.charCodeAt(i);
-                                      h = h | 0;
-                                    }
-                                    const hue = ((h % 360) + 360) % 360;
-                                    itemBg = `hsl(${hue}, 65%, 82%)`;
-                                    itemColor = "var(--text-primary)";
-                                    paddingClass = "px-2 py-1 rounded-[6px] shadow-sm";
-                                  }
+                                  const itemStyle = getDateModeItemStyle(
+                                    representativeWorkItems,
+                                    (item) => getColValue(item, "priority"),
+                                    (item) => getColValue(item, "representativeWork"),
+                                  );
 
                                   return (
                                     <div
                                       key={idx}
-                                      className={`w-full text-center ${paddingClass}`}
+                                      className={`w-full text-center ${itemStyle.className}`}
                                       style={{
-                                        backgroundColor: itemBg,
-                                        color: itemColor,
-                                        fontWeight: isValImportant ? 700 : 500,
+                                        backgroundColor: itemStyle.backgroundColor,
+                                        color: itemStyle.color,
+                                        fontWeight: itemStyle.fontWeight,
                                       }}
                                     >
                                       {val}

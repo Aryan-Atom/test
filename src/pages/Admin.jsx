@@ -1,169 +1,120 @@
-import { useMemo, useState } from "react";
-import { useI18n } from "../i18n.jsx";
+import { useState } from "react";
 
-const roles = ["Viewer", "Editor", "Admin"];
-const processes = ["전체", "CELL", "MODULE", "PACK", "BMS"];
+const permissionSections = [
+  {
+    id: "data-management",
+    title: "Data Management",
+    items: [
+      { label: "Change Data", adminAllowed: true, userAllowed: false },
+      { label: "Spec. Data", adminAllowed: true, userAllowed: false },
+    ],
+  },
+  {
+    id: "change-matrix",
+    title: "Change Matrix",
+    items: [
+      { label: "Matrix View", adminAllowed: true, userAllowed: true },
+      { label: "MP List Check", adminAllowed: true, userAllowed: true },
+      { label: "MP List Management", adminAllowed: true, userAllowed: true },
+      { label: "Spec. Matrix", adminAllowed: true, userAllowed: false },
+    ],
+  },
+  {
+    id: "board",
+    title: "Board",
+    items: [{ label: "Board", adminAllowed: true, userAllowed: true }],
+  },
+];
 
-export default function Admin({ users, onUpdateUsers, searchText }) {
-  const { t } = useI18n();
-  const [filter, setFilter] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [newRole, setNewRole] = useState("Viewer");
-  const [newPerm, setNewPerm] = useState("CELL");
+function PermissionStatus({ allowed }) {
+  return (
+    <span
+      className={`rbp-status ${allowed ? "allowed" : "denied"}`}
+      title={allowed ? "Allowed (O)" : "Not Allowed (X)"}
+    >
+      <i className={`fas ${allowed ? "fa-check" : "fa-xmark"}`} aria-hidden="true" />
+      <span className="rbp-status-code">{allowed ? "O" : "X"}</span>
+      <span className="sr-only">{allowed ? "Allowed" : "Not Allowed"}</span>
+    </span>
+  );
+}
 
-  const filtered = useMemo(() => {
-    return users.filter((user) => {
-      const permsText = Array.isArray(user.perms) ? user.perms.join(",") : String(user.perms ?? "");
-      const text = `${user.name ?? ""}${user.role ?? ""}${permsText}`.toLowerCase();
-      const matchesSearch = searchText ? text.includes(String(searchText).toLowerCase()) : true;
-      const matchesFilter = !filter || filter === "전체" || user.role === filter;
-      return matchesSearch && matchesFilter;
-    });
-  }, [users, searchText, filter]);
+export default function Admin() {
+  const [openSections, setOpenSections] = useState(() => ({
+    "data-management": true,
+    "change-matrix": true,
+    board: true,
+  }));
 
-  const handleAddUser = () => {
-    if (!selectedUser) return;
-    const updated = users.map((user) => {
-      if (user.name !== selectedUser.name) return user;
-      const perms = Array.from(new Set([...(user.perms ?? []), newPerm]));
-      return { ...user, role: newRole, perms };
-    });
-    onUpdateUsers(updated);
-    setSelectedUser(null);
-  };
-
-  const handleRemovePerm = (userName, perm) => {
-    const updated = users.map((user) => {
-      if (user.name !== userName) return user;
-      return { ...user, perms: (user.perms ?? []).filter((item) => item !== perm) };
-    });
-    onUpdateUsers(updated);
+  const toggleSection = (sectionId) => {
+    setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
   return (
-    <section className="space-y-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <section className="rbp-page">
+      <header className="rbp-header card">
         <div>
-          <h1 className="text-3xl font-extrabold text-text-default">{t("page.admin.title")}</h1>
-          <p className="mt-2 text-sm text-text-subtle">{t("page.admin.desc")}</p>
+          <p className="rbp-kicker">Access Control</p>
+          <h1 className="rbp-title">Role-Based Permissions</h1>
+          <p className="rbp-subtitle">
+            Compare Admin and User permissions by category with a clear enterprise access matrix.
+          </p>
         </div>
-        <button type="button" className="btn-base btn-primary" onClick={() => setFilter("전체")}>
-          {t("page.admin.showAll")}
-        </button>
+        <div className="rbp-legend" aria-label="Permissions legend">
+          <span className="rbp-legend-item allowed">
+            <i className="fas fa-check" aria-hidden="true" /> O = Allowed
+          </span>
+          <span className="rbp-legend-item denied">
+            <i className="fas fa-xmark" aria-hidden="true" /> X = Not Allowed
+          </span>
+        </div>
       </header>
 
-      <div className="card p-5">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <label className="space-y-2 text-sm text-text-subtle">
-            {t("field.role")}
-            <select className="input-base" value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">{t("app.all")}</option>
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2 text-sm text-text-subtle">
-            {t("app.search")}
-            <input className="input-base" value={searchText} placeholder={t("app.search")} disabled />
-          </label>
-          <div className="flex items-end justify-end">
-            <span className="badge badge-primary">
-              {filtered.length}{t("app.people")}
-            </span>
-          </div>
-        </div>
+      <div className="rbp-columns-head card" role="presentation">
+        <span>Permission</span>
+        <span>Admin</span>
+        <span>User</span>
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="min-w-full text-left text-sm">
-          <thead className="table-header">
-            <tr>
-              <th className="px-4 py-3 text-text-subtle">{t("app.user")}</th>
-              <th className="px-4 py-3 text-text-subtle">{t("nav.admin")}</th>
-              <th className="px-4 py-3 text-center text-text-subtle">{t("field.management")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((user) => (
-              <tr key={user.name} className="border-t border-border-base hover:bg-fill-active">
-                <td className="px-4 py-4 text-text-default">{user.name}</td>
-                <td className="px-4 py-4 text-text-subtle">
-                  <div className="flex flex-wrap gap-2">
-                    {(user.perms ?? []).map((perm) => (
-                      <span key={perm} className="badge badge-primary">
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <button type="button" className="btn-base btn-ghost text-sm" onClick={() => setSelectedUser(user)}>
-                    {t("app.edit")}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <div className="rbp-sections">
+        {permissionSections.map((section) => {
+          const isOpen = Boolean(openSections[section.id]);
 
-      {selectedUser ? (
-        <div className="card border border-border-base p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-text-default">
-                {selectedUser.name} {t("app.edit")}
-              </h2>
-              <p className="text-sm text-text-subtle">{t("page.admin.desc")}</p>
-            </div>
-            <div className="grid gap-4 lg:w-[60%] lg:grid-cols-3">
-              <label className="space-y-2 text-sm text-text-subtle">
-                {t("field.role")}
-                <select className="input-base" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2 text-sm text-text-subtle">
-                {t("field.process")}
-                <select className="input-base" value={newPerm} onChange={(e) => setNewPerm(e.target.value)}>
-                  {processes
-                    .filter((item) => item !== "전체")
-                    .map((process) => (
-                      <option key={process} value={process}>
-                        {process}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <button type="button" className="btn-base btn-primary" onClick={handleAddUser}>
-                {t("app.save")}
+          return (
+            <article key={section.id} className="rbp-section card">
+              <button
+                type="button"
+                className="rbp-section-toggle"
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={isOpen}
+                aria-controls={`rbp-panel-${section.id}`}
+              >
+                <div className="rbp-section-title-wrap">
+                  <h2>{section.title}</h2>
+                  <span className="rbp-section-count">{section.items.length} items</span>
+                </div>
+                <i className={`fas fa-chevron-${isOpen ? "up" : "down"}`} aria-hidden="true" />
               </button>
-            </div>
-          </div>
-          <div className="mt-5 space-y-3">
-            <div className="text-sm text-text-subtle">{t("nav.admin")}</div>
-            <div className="flex flex-wrap gap-2">
-              {(selectedUser.perms ?? []).map((perm) => (
-                <button
-                  key={perm}
-                  type="button"
-                  className="badge badge-danger"
-                  onClick={() => handleRemovePerm(selectedUser.name, perm)}
-                >
-                  {perm} {t("app.delete")}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
+
+              {isOpen && (
+                <div className="rbp-rows" id={`rbp-panel-${section.id}`}>
+                  {section.items.map((item) => (
+                    <div className="rbp-row" key={item.label}>
+                      <div className="rbp-permission-name">{item.label}</div>
+                      <div className="rbp-cell">
+                        <PermissionStatus allowed={item.adminAllowed} />
+                      </div>
+                      <div className="rbp-cell">
+                        <PermissionStatus allowed={item.userAllowed} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
