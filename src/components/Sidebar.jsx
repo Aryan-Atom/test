@@ -5,6 +5,7 @@ const navSections = [
   {
     titleKey: "nav.main",
     items: [
+      { id: "home", labelKey: "nav.home", icon: "fa-home" },
       {
         id: "data",
         labelKey: "nav.data",
@@ -23,7 +24,12 @@ const navSections = [
           { id: "mx-mplist", labelKey: "nav.mpList" },
         ],
       },
-      { id: "spec", labelKey: "nav.specMatrix", icon: "fa-diagram-project", adminOnly: true },
+      {
+        id: "spec",
+        labelKey: "nav.specMatrix",
+        icon: "fa-diagram-project",
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -32,7 +38,14 @@ const navSections = [
   },
   {
     titleKey: "nav.system",
-    items: [{ id: "admin", labelKey: "nav.admin", icon: "fa-user-shield", adminOnly: true }],
+    items: [
+      {
+        id: "admin",
+        labelKey: "nav.admin",
+        icon: "fa-user-shield",
+        adminOnly: true,
+      },
+    ],
   },
 ];
 
@@ -76,7 +89,9 @@ export default function Sidebar({
             .map((item) => {
               if (item.children?.length) {
                 const visibleChildren = item.children.filter(canAccess);
-                return visibleChildren.length ? { ...item, children: visibleChildren } : null;
+                return visibleChildren.length
+                  ? { ...item, children: visibleChildren }
+                  : null;
               }
 
               return canAccess(item) ? item : null;
@@ -92,7 +107,8 @@ export default function Sidebar({
               <div className="eq-section-title">{t(section.titleKey)}</div>
               {visibleItems.map((item) => {
                 const isGroup = item.children?.length > 0;
-                const isActive = activePage === item.id || hasActiveChild(item, activePage);
+                const isActive =
+                  activePage === item.id || hasActiveChild(item, activePage);
                 const isOpen = isGroup ? openGroups[item.id] : false;
                 const label = t(item.labelKey);
 
@@ -121,7 +137,9 @@ export default function Sidebar({
                     >
                       <i className={`fas ${item.icon}`} />
                       <span>{label}</span>
-                      <i className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron`} />
+                      <i
+                        className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron`}
+                      />
                     </button>
                     <div className={`eq-sub-menu ${isOpen ? "open" : ""}`}>
                       {item.children.map((child) => (

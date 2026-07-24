@@ -11,6 +11,7 @@ const pocEndPoints = {
   SAVE_SPEC_DATA: "api/SpecData",
   UPDATE_REPRESENTATIVE_WORK: "api/CommonData/UpdateRepresentativeWork",
   RESET_DATA: "api/CommonData/ResetData",
+  GET_HOME_STATS: "api/CommonData/GetDashboardStats",
 };
 
 const auth = {

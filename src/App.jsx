@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import LoginLoader from "./pages/LoginLoader.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import { getToken } from "./utils/cookieUtils.js";
@@ -28,7 +34,7 @@ export default function App() {
           path="/"
           element={
             isUserAuthenticated ? (
-              <Navigate to="/data-management/change-history-data" replace />
+              <Navigate to="/home" replace />
             ) : (
               <LoginLoader
                 setIsUserAuthenticated={setIsUserAuthenticated}
@@ -40,7 +46,9 @@ export default function App() {
         />
         <Route
           path="/*"
-          element={<ProtectedDashboard isUserAuthenticated={isUserAuthenticated} />}
+          element={
+            <ProtectedDashboard isUserAuthenticated={isUserAuthenticated} />
+          }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

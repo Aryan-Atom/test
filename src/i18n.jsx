@@ -29,6 +29,7 @@ const translations = {
     "app.loadingData": "데이터를 불러오는 중...",
     "brand.subtitle": "EQUAL EQUIPMENT\nENSURED QUALITY",
     "nav.main": "MAIN",
+    "nav.home": "홈",
     "nav.community": "COMMUNITY",
     "nav.system": "SYSTEM",
     "nav.data": "데이터 관리",
@@ -42,7 +43,8 @@ const translations = {
     "nav.admin": "권한 관리",
     "nav.online": "Online",
     "page.mp.title": "MP List 조회",
-    "page.mp.desc": "보전파트별 대표 작업명을 최신순으로 조회합니다. 저장하기를 클릭해야 변경사항이 영구 반영됩니다.",
+    "page.mp.desc":
+      "보전파트별 대표 작업명을 최신순으로 조회합니다. 저장하기를 클릭해야 변경사항이 영구 반영됩니다.",
     "page.mp.saveHint": "저장하기를 눌러 반영하세요.",
     "page.mp.addRow": "행 추가",
     "page.mp.saveButton": "저장하기",
@@ -50,7 +52,8 @@ const translations = {
     "page.mp.emptyTitle": "MP List를 찾을 수 없습니다.",
     "page.mp.emptyDesc": "필터를 조정하거나 새 항목을 추가해 보세요.",
     "page.mp.modalTitle": "MP List 행 추가",
-    "page.mp.modalDesc": "새로운 항목을 추가합니다. W/O코드는 자동으로 비워지며, 시스템 데이터와 구분됩니다.",
+    "page.mp.modalDesc":
+      "새로운 항목을 추가합니다. W/O코드는 자동으로 비워지며, 시스템 데이터와 구분됩니다.",
     "page.mp.requiredError":
       "대표작업명, 작업 목적, 문제 현상, 문제 원인, HW 변경 전/후, SW 변경 전/후, 작업완료일은 필수 입력입니다.",
     "page.mp.requiredFieldError": "필수 입력 항목입니다.",
@@ -69,22 +72,28 @@ const translations = {
     "page.matrix.replaceTargetWarning": "변경할 작업명을 지정하세요.",
     "page.matrix.replaceContentWarning": "변경할 내용을 입력하거나 선택하세요.",
     "page.matrix.replaceModalTitle": "대표 작업명 일괄 수정",
-    "page.matrix.replaceModalDesc": "일치하는 모든 대표 작업명과 속성을 한 번에 변경합니다.",
+    "page.matrix.replaceModalDesc":
+      "일치하는 모든 대표 작업명과 속성을 한 번에 변경합니다.",
     "page.matrix.replaceBefore": "변경 전 (대표 작업명)",
     "app.readonly": "수정 불가",
-    "page.matrix.multipleTasksNotice": "해당 셀에 2개 이상의 대표 작업명이 있습니다. 변경할 작업명을 선택하세요.",
+    "page.matrix.multipleTasksNotice":
+      "해당 셀에 2개 이상의 대표 작업명이 있습니다. 변경할 작업명을 선택하세요.",
     "page.matrix.replaceAfter": "변경 후 (대표 작업명)",
     "page.matrix.replaceAfterPlaceholder": "새로운 대표 작업명을 입력하세요",
-    "page.matrix.replaceSuggestionTip": "기존 작업명 중 선택하거나 새로운 이름을 입력할 수 있습니다.",
+    "page.matrix.replaceSuggestionTip":
+      "기존 작업명 중 선택하거나 새로운 이름을 입력할 수 있습니다.",
     "page.matrix.noChange": "변경 없음",
     "page.matrix.applyScopeTitle": "적용 범위",
-    "page.matrix.applyScopeDesc": "현재 보전파트 내에서 '변경 전' 작업명과 일치하는 모든 데이터의 대표 작업명, 중요도, 효과 유형이 일괄 변경됩니다.",
+    "page.matrix.applyScopeDesc":
+      "현재 보전파트 내에서 '변경 전' 작업명과 일치하는 모든 데이터의 대표 작업명, 중요도, 효과 유형이 일괄 변경됩니다.",
     "app.applying": "적용 중...",
     "app.apply": "적용하기",
     "page.change.title": "변경 이력 데이터",
-    "page.change.desc": "설비 변경 이력 데이터를 관리합니다. 변경 매트릭스 및 MP List용 데이터를 다룹니다.",
+    "page.change.desc":
+      "설비 변경 이력 데이터를 관리합니다. 변경 매트릭스 및 MP List용 데이터를 다룹니다.",
     "page.specData.title": "사양 데이터",
-    "page.specData.desc": "설비 사양 항목 데이터를 관리합니다. 사양 매트릭스용 데이터를 업로드 및 확인하세요.",
+    "page.specData.desc":
+      "설비 사양 항목 데이터를 관리합니다. 사양 매트릭스용 데이터를 업로드 및 확인하세요.",
     "page.specMatrix.title": "사양 매트릭스",
     "page.specMatrix.desc": "설비별 사양 항목과 버전 간 비교를 확인합니다.",
     "drawer.title": "상세 정보",
@@ -139,7 +148,8 @@ const translations = {
     "toast.specDataUploaded": "사양 데이터가 업로드되었습니다.",
     "toast.excelEmptyRows": "엑셀 업로드 후 rows가 없습니다.",
     "toast.excelError": "엑셀 업로드 중 오류가 발생했습니다.",
-    "toast.unsupportedFormat": "지원되지 않는 파일 형식입니다. CSV 또는 XLSX만 지원합니다.",
+    "toast.unsupportedFormat":
+      "지원되지 않는 파일 형식입니다. CSV 또는 XLSX만 지원합니다.",
     "toast.postSaved": "게시글이 저장되었습니다.",
     "toast.mpRowAdded": "MP List 행이 추가되었습니다.",
     "toast.permissionsSaved": "사용자 권한 정보가 저장되었습니다.",
@@ -175,7 +185,8 @@ const translations = {
     "toast.saving": "저장 중입니다...",
     "preview.title": "업로드 데이터 미리보기",
     "preview.subtitle": "개 컬럼 · 셀을 더블 클릭하여 수정하세요",
-    "preview.tip": "셀을 더블 클릭하여 수정한 후, 저장 버튼으로 전체 데이터를 저장하세요",
+    "preview.tip":
+      "셀을 더블 클릭하여 수정한 후, 저장 버튼으로 전체 데이터를 저장하세요",
     "preview.total": "총",
     "preview.row": "행",
     "preview.noData": "미리보기할 데이터가 없습니다.",
@@ -183,15 +194,18 @@ const translations = {
     "preview.saveCount": "저장 ({count}건)",
     "preview.missingRequired": "건 필수 항목 누락",
     "preview.required": "필수 입력",
-    "preview.duplicateWarning": "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
-    "preview.mandatoryFieldsRequired": "{rowNumber}행의 필수 입력 항목이 비어 있습니다: {fields}",
+    "preview.duplicateWarning":
+      "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
+    "preview.mandatoryFieldsRequired":
+      "{rowNumber}행의 필수 입력 항목이 비어 있습니다: {fields}",
     "preview.filterAll": "전체",
     "preview.filterDuplicate": "중복",
     "preview.filterMissing": "필수 누락",
     "preview.noDuplicates": "중복된 항목이 없습니다.",
     "preview.noMissing": "누락된 필수 항목이 없습니다.",
     "empty.noMatch": "조건에 맞는 데이터가 없습니다.",
-    "empty.hint": "공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.",
+    "empty.hint":
+      "공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.",
     "empty.noSpecMatch": "조건에 맞는 사양 데이터가 없습니다.",
     "empty.specHint": "공정과 보전그룹을 선택하거나 검색어를 입력해 주세요.",
     "matrix.dateMode": "날짜 모드",
@@ -204,24 +218,32 @@ const translations = {
     "specMatrix.changesOnly": "변경 항목만",
     "specMatrix.changed": "변경",
     "specMatrix.emptyTitle": "공정 및 보전유형을 선택하세요",
-    "specMatrix.emptyDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
+    "specMatrix.emptyDesc":
+      "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
     "specMatrix.inc": "이전 대비 증가",
     "specMatrix.dec": "이전 대비 감소",
     "specMatrix.mod": "이전 버전에서 변경됨",
     "landing.selectProcessAndMaint": "공정 및 보전파트를 선택하세요",
-    "landing.selectProcessAndMaintDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 이력 데이터가 표시됩니다.",
+    "landing.selectProcessAndMaintDesc":
+      "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 이력 데이터가 표시됩니다.",
     "landing.selectProcessAndMaintType": "공정 및 보전유형을 선택하세요",
-    "landing.selectProcessAndMaintTypeDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 데이터가 표시됩니다.",
-    "landing.selectProcessAndMaintTypeMatrixDesc": "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
-    "landing.selectProcessAndMaintMatrixDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 매트릭스가 표시됩니다.",
-    "landing.selectProcessAndMaintMPDesc": "상단 필터에서 공정과 보전파트를 먼저 선택하면 MP List가 표시됩니다.",
+    "landing.selectProcessAndMaintTypeDesc":
+      "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 데이터가 표시됩니다.",
+    "landing.selectProcessAndMaintTypeMatrixDesc":
+      "상단 필터에서 공정과 보전유형을 먼저 선택하면 사양 매트릭스가 표시됩니다.",
+    "landing.selectProcessAndMaintMatrixDesc":
+      "상단 필터에서 공정과 보전파트를 먼저 선택하면 변경 매트릭스가 표시됩니다.",
+    "landing.selectProcessAndMaintMPDesc":
+      "상단 필터에서 공정과 보전파트를 먼저 선택하면 MP List가 표시됩니다.",
     "app.resetData": "데이터 초기화",
     "app.resetDataConfirmTitle": "데이터 초기화 확인",
-    "app.resetDataConfirmDesc": "정말로 전체 변경 이력 및 사양 데이터를 삭제하시겠습니까? 이 작업은 공통 데이터베이스의 모든 데이터를 영구적으로 삭제하며 되돌릴 수 없습니다. 계속 진행하시겠습니까?",
+    "app.resetDataConfirmDesc":
+      "정말로 전체 변경 이력 및 사양 데이터를 삭제하시겠습니까? 이 작업은 공통 데이터베이스의 모든 데이터를 영구적으로 삭제하며 되돌릴 수 없습니다. 계속 진행하시겠습니까?",
     "app.resetDataSuccess": "모든 데이터가 성공적으로 초기화되었습니다.",
     "app.resetDataError": "데이터 초기화에 실패했습니다.",
     "app.resettingData": "데이터 초기화 중...",
-    "app.resettingDataDesc": "서버에서 모든 변경 이력 및 사양 데이터를 삭제하고 있습니다. 잠시만 기다려 주세요.",
+    "app.resettingDataDesc":
+      "서버에서 모든 변경 이력 및 사양 데이터를 삭제하고 있습니다. 잠시만 기다려 주세요.",
   },
   en: {
     "app.menu": "Menu",
@@ -251,6 +273,7 @@ const translations = {
     "app.loadingData": "Loading data...",
     "brand.subtitle": "EQUAL EQUIPMENT\nENSURED QUALITY",
     "nav.main": "MAIN",
+    "nav.home": "Home",
     "nav.community": "COMMUNITY",
     "nav.system": "SYSTEM",
     "nav.data": "Data Management",
@@ -264,7 +287,8 @@ const translations = {
     "nav.admin": "Permission Management",
     "nav.online": "Online",
     "page.mp.title": "MP List View",
-    "page.mp.desc": "View representative work by maintenance part in latest order. Click Save to apply changes permanently.",
+    "page.mp.desc":
+      "View representative work by maintenance part in latest order. Click Save to apply changes permanently.",
     "page.mp.saveHint": "Click Save to apply changes.",
     "page.mp.addRow": "Add Row",
     "page.mp.saveButton": "Save",
@@ -272,7 +296,8 @@ const translations = {
     "page.mp.emptyTitle": "No MP List records found.",
     "page.mp.emptyDesc": "Adjust filters or add a new item.",
     "page.mp.modalTitle": "Add MP List Row",
-    "page.mp.modalDesc": "Add a new item. W/O code is left blank automatically and separated from system data.",
+    "page.mp.modalDesc":
+      "Add a new item. W/O code is left blank automatically and separated from system data.",
     "page.mp.requiredError":
       "Representative work, purpose, symptom, cause, HW before/after, SW before/after, and completion date are required.",
     "page.mp.requiredFieldError": "This field is required.",
@@ -286,29 +311,40 @@ const translations = {
     "page.admin.desc": "Control process access permissions for each user.",
     "page.admin.showAll": "Show All Users",
     "page.matrix.title": "Change Matrix",
-    "page.matrix.desc": "Analyze change history visually by process and work item.",
-    "page.matrix.selectWarning": "Please select process and maintenance part first.",
-    "page.matrix.replaceTargetWarning": "Please specify the work name to change.",
-    "page.matrix.replaceContentWarning": "Please enter or select content to change.",
+    "page.matrix.desc":
+      "Analyze change history visually by process and work item.",
+    "page.matrix.selectWarning":
+      "Please select process and maintenance part first.",
+    "page.matrix.replaceTargetWarning":
+      "Please specify the work name to change.",
+    "page.matrix.replaceContentWarning":
+      "Please enter or select content to change.",
     "page.matrix.replaceModalTitle": "Batch Edit Representative Work",
-    "page.matrix.replaceModalDesc": "Modify all matching representative work names and attributes at once.",
+    "page.matrix.replaceModalDesc":
+      "Modify all matching representative work names and attributes at once.",
     "page.matrix.replaceBefore": "Before Change (Representative Work)",
     "app.readonly": "Read-only",
-    "page.matrix.multipleTasksNotice": "There are 2 or more representative work names in this cell. Please select the name to change.",
+    "page.matrix.multipleTasksNotice":
+      "There are 2 or more representative work names in this cell. Please select the name to change.",
     "page.matrix.replaceAfter": "After Change (Representative Work)",
     "page.matrix.replaceAfterPlaceholder": "Enter new representative work name",
-    "page.matrix.replaceSuggestionTip": "You can select from existing work names or enter a new one.",
+    "page.matrix.replaceSuggestionTip":
+      "You can select from existing work names or enter a new one.",
     "page.matrix.noChange": "No Change",
     "page.matrix.applyScopeTitle": "Application Scope",
-    "page.matrix.applyScopeDesc": "All data matching the 'Before Change' work name within the current maintenance part will be batch-updated (including representative work name, priority, and effect type).",
+    "page.matrix.applyScopeDesc":
+      "All data matching the 'Before Change' work name within the current maintenance part will be batch-updated (including representative work name, priority, and effect type).",
     "app.applying": "Applying...",
     "app.apply": "Apply",
     "page.change.title": "Change History Data",
-    "page.change.desc": "Manage equipment change history data used for Change Matrix and MP List.",
+    "page.change.desc":
+      "Manage equipment change history data used for Change Matrix and MP List.",
     "page.specData.title": "Spec Data",
-    "page.specData.desc": "Manage equipment specification data for the Spec Matrix.",
+    "page.specData.desc":
+      "Manage equipment specification data for the Spec Matrix.",
     "page.specMatrix.title": "Spec Matrix",
-    "page.specMatrix.desc": "Compare equipment specification items and versions.",
+    "page.specMatrix.desc":
+      "Compare equipment specification items and versions.",
     "drawer.title": "Details",
     "drawer.desc": "Full detail history for the selected record",
     "detail.record": "Record Detail",
@@ -361,7 +397,8 @@ const translations = {
     "toast.specDataUploaded": "Spec data uploaded.",
     "toast.excelEmptyRows": "No rows found after Excel upload.",
     "toast.excelError": "Error occurred during Excel upload.",
-    "toast.unsupportedFormat": "Unsupported file format. Only CSV or XLSX are supported.",
+    "toast.unsupportedFormat":
+      "Unsupported file format. Only CSV or XLSX are supported.",
     "toast.postSaved": "Post saved.",
     "toast.mpRowAdded": "MP List row added.",
     "toast.permissionsSaved": "User permissions saved.",
@@ -397,7 +434,8 @@ const translations = {
     "toast.saving": "Saving...",
     "preview.title": "Upload Data Preview",
     "preview.subtitle": "columns · double click on the field to edit",
-    "preview.tip": "Double click on the field to edit, then click the Save button to save the entire data.",
+    "preview.tip":
+      "Double click on the field to edit, then click the Save button to save the entire data.",
     "preview.total": "Total",
     "preview.row": "rows",
     "preview.noData": "No preview data available.",
@@ -405,17 +443,21 @@ const translations = {
     "preview.saveCount": "Save ({count} rows)",
     "preview.missingRequired": "missing required",
     "preview.required": "Required",
-    "preview.duplicateWarning": "Duplicate items are present. Please remove duplicates first before saving.",
-    "preview.mandatoryFieldsRequired": "Row {rowNumber} has empty mandatory fields: {fields}",
+    "preview.duplicateWarning":
+      "Duplicate items are present. Please remove duplicates first before saving.",
+    "preview.mandatoryFieldsRequired":
+      "Row {rowNumber} has empty mandatory fields: {fields}",
     "preview.filterAll": "All",
     "preview.filterDuplicate": "Duplicates",
     "preview.filterMissing": "Missing Required",
     "preview.noDuplicates": "No duplicate rows found.",
     "preview.noMissing": "No rows with missing required fields found.",
     "empty.noMatch": "No data matches the conditions.",
-    "empty.hint": "Please select a process and maintenance group or enter a search query to check the data.",
+    "empty.hint":
+      "Please select a process and maintenance group or enter a search query to check the data.",
     "empty.noSpecMatch": "No spec data matches the conditions.",
-    "empty.specHint": "Please select a process and maintenance group or enter a search query.",
+    "empty.specHint":
+      "Please select a process and maintenance group or enter a search query.",
     "matrix.dateMode": "Date Mode",
     "matrix.taskMode": "Work Name Mode",
     "matrix.resetDate": "Reset Date",
@@ -426,31 +468,43 @@ const translations = {
     "specMatrix.changesOnly": "Changes Only",
     "specMatrix.changed": "changed",
     "specMatrix.emptyTitle": "Please select process and maintenance type",
-    "specMatrix.emptyDesc": "Select process and maintenance type from the filter above to view the spec matrix.",
+    "specMatrix.emptyDesc":
+      "Select process and maintenance type from the filter above to view the spec matrix.",
     "specMatrix.inc": "Increase compared to previous",
     "specMatrix.dec": "Decrease compared to previous",
     "specMatrix.mod": "Changed from previous version",
-    "landing.selectProcessAndMaint": "Please select process and maintenance part",
-    "landing.selectProcessAndMaintDesc": "Select process and maintenance part in the top filter first to display the change history data.",
-    "landing.selectProcessAndMaintType": "Please select process and maintenance type",
-    "landing.selectProcessAndMaintTypeDesc": "Select process and maintenance type in the top filter first to display the spec data.",
-    "landing.selectProcessAndMaintTypeMatrixDesc": "Select process and maintenance type in the top filter first to display the spec matrix.",
-    "landing.selectProcessAndMaintMatrixDesc": "Select process and maintenance part in the top filter first to display the change matrix.",
-    "landing.selectProcessAndMaintMPDesc": "Select process and maintenance part in the top filter first to display the MP List.",
+    "landing.selectProcessAndMaint":
+      "Please select process and maintenance part",
+    "landing.selectProcessAndMaintDesc":
+      "Select process and maintenance part in the top filter first to display the change history data.",
+    "landing.selectProcessAndMaintType":
+      "Please select process and maintenance type",
+    "landing.selectProcessAndMaintTypeDesc":
+      "Select process and maintenance type in the top filter first to display the spec data.",
+    "landing.selectProcessAndMaintTypeMatrixDesc":
+      "Select process and maintenance type in the top filter first to display the spec matrix.",
+    "landing.selectProcessAndMaintMatrixDesc":
+      "Select process and maintenance part in the top filter first to display the change matrix.",
+    "landing.selectProcessAndMaintMPDesc":
+      "Select process and maintenance part in the top filter first to display the MP List.",
     "app.resetData": "Reset Data",
     "app.resetDataConfirmTitle": "Confirm Reset Data",
-    "app.resetDataConfirmDesc": "Do you want to delete the entire change history and spec data? This action will permanently remove all data from the shared database and cannot be undone. Are you sure you want to proceed?",
+    "app.resetDataConfirmDesc":
+      "Do you want to delete the entire change history and spec data? This action will permanently remove all data from the shared database and cannot be undone. Are you sure you want to proceed?",
     "app.resetDataSuccess": "All data has been successfully reset.",
     "app.resetDataError": "Failed to reset data.",
     "app.resettingData": "Resetting Data...",
-    "app.resettingDataDesc": "Deleting all change history and spec data from the server. Please wait.",
+    "app.resettingDataDesc":
+      "Deleting all change history and spec data from the server. Please wait.",
   },
 };
 
 const I18nContext = createContext(null);
 
 export function I18nProvider({ children }) {
-  const [language, setLanguage] = useState(() => localStorage.getItem("eq_language") || "ko");
+  const [language, setLanguage] = useState(
+    () => localStorage.getItem("eq_language") || "ko",
+  );
 
   useEffect(() => {
     localStorage.setItem("eq_language", language);
@@ -458,11 +512,13 @@ export function I18nProvider({ children }) {
   }, [language]);
 
   const value = useMemo(() => {
-    const t = (key, fallback) => translations[language]?.[key] ?? translations.ko[key] ?? fallback ?? key;
+    const t = (key, fallback) =>
+      translations[language]?.[key] ?? translations.ko[key] ?? fallback ?? key;
     return {
       language,
       setLanguage,
-      toggleLanguage: () => setLanguage((current) => (current === "ko" ? "en" : "ko")),
+      toggleLanguage: () =>
+        setLanguage((current) => (current === "ko" ? "en" : "ko")),
       t,
     };
   }, [language]);

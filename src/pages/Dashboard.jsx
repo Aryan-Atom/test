@@ -10,14 +10,19 @@ import MPList from "./MPList.jsx";
 import SpecMatrix from "./SpecMatrix.jsx";
 import Board from "./Board.jsx";
 import Admin from "./Admin.jsx";
+import HomePage from "./HomePage.jsx";
 import { useToast } from "../components/ToastContext.jsx";
 import { uploadExcel, APIcallGet } from "../utils/api.js";
 import { changeColumns, specColumns, mpColumns } from "../data.js";
 import { useI18n } from "../i18n.jsx";
 import { getUserInfo } from "../utils/cookieUtils.js";
-import { isStaticAdminRole, isStaticDataMode } from "../utils/staticDataMode.js";
+import {
+  isStaticAdminRole,
+  isStaticDataMode,
+} from "../utils/staticDataMode.js";
 
 const pageNames = {
+  home: "홈",
   "dm-change": "데이터 관리 > 변경 이력",
   "dm-spec": "데이터 관리 > 사양 데이터",
   "mx-matrix": "변경 매트릭스 > 매트릭스 조회",
@@ -27,9 +32,10 @@ const pageNames = {
   admin: "권한 관리",
 };
 
-const defaultPage = "dm-change";
+const defaultPage = "home";
 
 const pageRoutes = {
+  home: "/home",
   "dm-change": "/data-management/change-history-data",
   "dm-spec": "/data-management/spec-data",
   "mx-matrix": "/change-matrix/matrix-view",
@@ -44,7 +50,7 @@ const routePages = Object.fromEntries(
 );
 
 const adminOnlyPages = new Set(["dm-change", "dm-spec", "spec", "admin"]);
-const nonAdminDefaultPage = "mx-matrix";
+const nonAdminDefaultPage = "home";
 
 const loadLocal = (key, fallback) => {
   try {
@@ -66,7 +72,11 @@ const saveLocal = (key, value) => {
 const formatCsv = (items, columns) => {
   const rows = [columns.map((col) => `"${col.replace(/"/g, '""')}"`).join(",")];
   items.forEach((item) => {
-    rows.push(columns.map((col) => `"${String(item[col] ?? "").replace(/"/g, '""')}"`).join(","));
+    rows.push(
+      columns
+        .map((col) => `"${String(item[col] ?? "").replace(/"/g, '""')}"`)
+        .join(","),
+    );
   });
   return rows.join("\n");
 };
@@ -77,7 +87,9 @@ const parseCsv = (text) => {
     .map((line) => line.trim())
     .filter(Boolean);
   if (!lines.length) return [];
-  const headers = lines[0].split(",").map((value) => value.replace(/^"|"$/g, "").trim());
+  const headers = lines[0]
+    .split(",")
+    .map((value) => value.replace(/^"|"$/g, "").trim());
   return lines.slice(1).map((line) => {
     const values = line
       .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
@@ -93,17 +105,23 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const userInfo = getUserInfo();
-  const isAdminUser = isStaticDataMode ? isStaticAdminRole : Boolean(userInfo?.isAdmin);
-  const isPageAllowed = (pageId) => (isAdminUser ? true : !adminOnlyPages.has(pageId));
+  const isAdminUser = isStaticDataMode
+    ? isStaticAdminRole
+    : Boolean(userInfo?.isAdmin);
+  const isPageAllowed = (pageId) =>
+    isAdminUser ? true : !adminOnlyPages.has(pageId);
   const activePage =
-    routePages[location.pathname] ?? (isAdminUser ? defaultPage : nonAdminDefaultPage);
+    routePages[location.pathname] ??
+    (isAdminUser ? defaultPage : nonAdminDefaultPage);
   const [searchText, setSearchText] = useState("");
   const [changeData, setChangeData] = useState(() => loadLocal("eq_chg", []));
   const [specData, setSpecData] = useState(() => loadLocal("eq_spec", []));
   const [boardData, setBoardData] = useState(() => loadLocal("eq_board", []));
   const [users, setUsers] = useState(() => loadLocal("eq_users", []));
   const [mpRows, setMpRows] = useState(() => loadLocal("eq_mp", []));
-  const [changeDataColumns, setChangeDataColumns] = useState(() => loadLocal("eq_chg_cols", []));
+  const [changeDataColumns, setChangeDataColumns] = useState(() =>
+    loadLocal("eq_chg_cols", []),
+  );
   const [persistChange, setPersistChange] = useState(true);
   const [persistSpec, setPersistSpec] = useState(true);
   const [persistBoard, setPersistBoard] = useState(true);
@@ -113,14 +131,18 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem("eq_sidebar_collapsed") === "true",
   );
-  const [theme, setTheme] = useState(() => localStorage.getItem("eq_theme") || "light");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("eq_theme") || "light",
+  );
   const { pushToast } = useToast();
   const { t } = useI18n();
 
   useEffect(() => {
     const currentPage = routePages[location.pathname];
     if (!currentPage) {
-      navigate(pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage], { replace: true });
+      navigate(pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage], {
+        replace: true,
+      });
       return;
     }
 
@@ -191,7 +213,9 @@ export default function Dashboard() {
     if (ext === "xlsx" || ext === "xls") {
       try {
         const uploadResponse = await uploadExcel(file);
-        const rows = Array.isArray(uploadResponse?.rows) ? uploadResponse.rows : [];
+        const rows = Array.isArray(uploadResponse?.rows)
+          ? uploadResponse.rows
+          : [];
         if (!rows.length) {
           pushToast(t("toast.excelEmptyRows"), "error");
           return;
@@ -254,7 +278,10 @@ export default function Dashboard() {
 
   const handleNavigate = (pageId) => {
     if (!isPageAllowed(pageId)) return;
-    navigate(pageRoutes[pageId] ?? pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage]);
+    navigate(
+      pageRoutes[pageId] ??
+        pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage],
+    );
   };
 
   return (
@@ -271,9 +298,19 @@ export default function Dashboard() {
             collapsed={sidebarCollapsed}
             onToggleMenu={() => setSidebarCollapsed((current) => !current)}
             theme={theme}
-            onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+            onToggleTheme={() =>
+              setTheme((current) => (current === "dark" ? "light" : "dark"))
+            }
           />
-          <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc] p-6">
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc]">
+            {activePage === "home" && (
+              <HomePage
+                changeData={changeData}
+                specData={specData}
+                mpRows={mpRows}
+                onNavigate={handleNavigate}
+              />
+            )}
             {activePage === "dm-change" && isPageAllowed("dm-change") && (
               <ChangeHistory
                 data={changeData}
@@ -316,10 +353,18 @@ export default function Dashboard() {
               <SpecMatrix data={specData} searchText={searchText} />
             )}
             {activePage === "board" && (
-              <Board data={boardData} onAddPost={addBoardPost} searchText={searchText} />
+              <Board
+                data={boardData}
+                onAddPost={addBoardPost}
+                searchText={searchText}
+              />
             )}
             {activePage === "admin" && isPageAllowed("admin") && (
-              <Admin users={users} onUpdateUsers={updateUsers} searchText={searchText} />
+              <Admin
+                users={users}
+                onUpdateUsers={updateUsers}
+                searchText={searchText}
+              />
             )}
           </main>
         </div>
