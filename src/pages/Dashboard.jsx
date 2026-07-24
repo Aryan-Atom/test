@@ -302,7 +302,11 @@ export default function Dashboard() {
               setTheme((current) => (current === "dark" ? "light" : "dark"))
             }
           />
-          <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc]">
+          <main
+            className={`flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc] ${
+              activePage === "home" ? "p-0" : "p-6"
+            }`}
+          >
             {activePage === "home" && (
               <HomePage
                 changeData={changeData}
