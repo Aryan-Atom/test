@@ -22,6 +22,7 @@ const navSections = [
         children: [
           { id: "mx-matrix", labelKey: "nav.matrixView" },
           { id: "mx-mplist", labelKey: "nav.mpList" },
+          { id: "mx-mplist-mgmt", labelKey: "nav.mpListManagement" },
         ],
       },
       {
@@ -64,8 +65,30 @@ export default function Sidebar({
     data: true,
     matrix: true,
   });
+  const showOnlyFourPages =
+    String(import.meta.env.VITE_SHOW_ONLY_FOUR_PAGES ?? "")
+      .trim()
+      .replace(/^['"]|['"]$/g, "")
+      .toLowerCase() === "true";
+  const allowedFourPageSet = new Set([
+    "home",
+    "dm-change",
+    "mx-matrix",
+    "mx-mplist",
+    "mx-mplist-mgmt",
+  ]);
 
-  const canAccess = (item) => (item?.adminOnly ? isAdminUser : true);
+  const canAccess = (item) => {
+    if (showOnlyFourPages) {
+      if (item?.children?.length) {
+        return item.children.some((child) => allowedFourPageSet.has(child.id));
+      }
+
+      return allowedFourPageSet.has(item?.id);
+    }
+
+    return item?.adminOnly ? isAdminUser : true;
+  };
 
   const toggleGroup = (groupId) => {
     setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));

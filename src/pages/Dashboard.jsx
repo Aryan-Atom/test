@@ -7,6 +7,7 @@ import ChangeHistory from "./ChangeHistory.jsx";
 import SpecData from "./SpecData.jsx";
 import Matrix from "./Matrix.jsx";
 import MPList from "./MPList.jsx";
+import MPListManagement from "./MPListManagement.jsx";
 import SpecMatrix from "./SpecMatrix.jsx";
 import Board from "./Board.jsx";
 import Admin from "./Admin.jsx";
@@ -27,12 +28,19 @@ const pageNames = {
   "dm-spec": "데이터 관리 > 사양 데이터",
   "mx-matrix": "변경 매트릭스 > 매트릭스 조회",
   "mx-mplist": "변경 매트릭스 > MP List",
+  "mx-mplist-mgmt": "변경 매트릭스 > MP List 관리",
   spec: "사양 매트릭스",
   board: "게시판",
   admin: "권한 관리",
 };
 
-const defaultPage = "home";
+const showOnlyFourPages =
+  String(import.meta.env.VITE_SHOW_ONLY_FOUR_PAGES ?? "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .toLowerCase() === "true";
+
+const defaultPage = showOnlyFourPages ? "dm-change" : "home";
 
 const pageRoutes = {
   home: "/home",
@@ -40,6 +48,7 @@ const pageRoutes = {
   "dm-spec": "/data-management/spec-data",
   "mx-matrix": "/change-matrix/matrix-view",
   "mx-mplist": "/change-matrix/mp-list",
+  "mx-mplist-mgmt": "/change-matrix/mp-list-management",
   spec: "/spec-matrix",
   board: "/board",
   admin: "/admin",
@@ -50,7 +59,14 @@ const routePages = Object.fromEntries(
 );
 
 const adminOnlyPages = new Set(["dm-change", "dm-spec", "spec", "admin"]);
-const nonAdminDefaultPage = "home";
+const nonAdminDefaultPage = showOnlyFourPages ? "dm-change" : "home";
+const allowedFourPageSet = new Set([
+  "home",
+  "dm-change",
+  "mx-matrix",
+  "mx-mplist",
+  "mx-mplist-mgmt",
+]);
 
 const loadLocal = (key, fallback) => {
   try {
@@ -108,8 +124,13 @@ export default function Dashboard() {
   const isAdminUser = isStaticDataMode
     ? isStaticAdminRole
     : Boolean(userInfo?.isAdmin);
-  const isPageAllowed = (pageId) =>
-    isAdminUser ? true : !adminOnlyPages.has(pageId);
+  const isPageAllowed = (pageId) => {
+    if (showOnlyFourPages) {
+      return allowedFourPageSet.has(pageId);
+    }
+
+    return isAdminUser ? true : !adminOnlyPages.has(pageId);
+  };
   const activePage =
     routePages[location.pathname] ??
     (isAdminUser ? defaultPage : nonAdminDefaultPage);
@@ -352,6 +373,9 @@ export default function Dashboard() {
                 drawerItem={drawerItem}
                 onUpload={handleUpload}
               />
+            )}
+            {activePage === "mx-mplist-mgmt" && (
+              <MPListManagement data={mpRows} searchText={searchText} />
             )}
             {activePage === "spec" && isPageAllowed("spec") && (
               <SpecMatrix data={specData} searchText={searchText} />
