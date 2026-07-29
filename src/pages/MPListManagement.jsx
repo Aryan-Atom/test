@@ -95,7 +95,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const versionRows = useMemo(() => {
     const grouped = new Map();
 
-    filteredRows.forEach((row, index) => {
+    filteredRows.forEach((row) => {
       const date = getDateValue(getRowValue(row, "workedOn", "작업완료일"));
       const groupKey = `${selectedProcess}__${selectedMaint}__${date || "unknown"}`;
       const entry = grouped.get(groupKey) ?? {
@@ -129,13 +129,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           ),
         ],
         reviewLabel: entry.rows.length
-          ? `${entry.rows.length}건 협의 이력`
-          : "협의 이력 없음",
+          ? `${entry.rows.length} ${t("page.mpManagement.reviewCount", "건 협의 이력")}`
+          : t("page.mpManagement.noReview", "협의 이력 없음"),
       }))
       .sort((a, b) =>
         (b.registeredAt || "").localeCompare(a.registeredAt || ""),
       );
-  }, [filteredRows, selectedMaint, selectedProcess]);
+  }, [filteredRows, selectedMaint, selectedProcess, t]);
 
   const showLanding = !selectedProcess || !selectedMaint;
 
@@ -143,21 +143,24 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     <section className="flex h-full flex-col overflow-hidden p-6">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-text-default">
+          <h1 className="flex items-center text-2xl font-semibold text-text-default">
             <i className="fas fa-list-check mr-2 text-brand-60" />
-            MP List 관리
+            {t("page.mpManagement.title", "MP List 관리")}
           </h1>
           <p className="mt-1 text-sm text-text-subtle">
-            공정·보전파트별 저장된 MP List를 버전별로 관리합니다
+            {t(
+              "page.mpManagement.desc",
+              "공정·보전파트별 저장된 MP List를 버전별로 관리합니다",
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="btn-base bg-brand-60 text-white hover:bg-brand-70"
+            className="btn-base flex items-center bg-brand-60 text-white hover:bg-brand-70"
           >
             <i className="fas fa-code-compare mr-1" />
-            MP 비교
+            {t("page.mpManagement.compare", "MP 비교")}
           </button>
         </div>
       </div>
@@ -166,18 +169,18 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold uppercase text-text-subtle">
-              공정
+              {t("field.process", "공정")}
             </label>
             <select
-              className="input"
-              style={{ width: 130 }}
+              className="input-base"
+              style={{ width: 140 }}
               value={selectedProcess}
               onChange={(event) => {
                 setSelectedProcess(event.target.value);
                 setSelectedMaint("");
               }}
             >
-              <option value="">선택하세요</option>
+              <option value="">{t("app.choose", "Choose")}</option>
               {processOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -188,16 +191,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold uppercase text-text-subtle">
-              보전파트
+              {t("field.maintenance", "보전파트")}
             </label>
             <select
-              className="input"
+              className="input-base"
               style={{ width: 280 }}
               value={selectedMaint}
               onChange={(event) => setSelectedMaint(event.target.value)}
               disabled={!selectedProcess}
             >
-              <option value="">선택하세요</option>
+              <option value="">{t("app.choose", "Choose")}</option>
               {maintenanceOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -215,12 +218,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               <i className="fas fa-list-check" />
             </div>
             <h3 className="text-lg font-bold text-text-default">
-              공정 및 보전파트를 선택하세요
+              {t(
+                "page.mpManagement.emptyTitle",
+                "공정 및 보전파트를 선택하세요",
+              )}
             </h3>
-            <p className="mt-2 max-w-md text-sm text-text-subtle">
-              필터에서 공정과 보전파트를 선택하면
-              <br />
-              저장된 MP List 버전 목록이 표시됩니다.
+            <p className="mt-2 max-w-md text-sm text-text-subtle whitespace-pre-line">
+              {t(
+                "page.mpManagement.emptyDesc",
+                "필터에서 공정과 보전파트를 선택하면\n저장된 MP List 버전 목록이 표시됩니다.",
+              )}
             </p>
           </div>
         </div>
@@ -231,31 +238,30 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             style={{ tableLayout: "fixed", width: "100%" }}
           >
             <colgroup>
-              <col style={{ width: "4%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "18%" }} />
-              <col style={{ width: "6%" }} />
               <col style={{ width: "6%" }} />
               <col style={{ width: "10%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "8%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "12%" }} />
               <col style={{ width: "14%" }} />
               <col style={{ width: "8%" }} />
-              <col style={{ width: "14%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "10%" }} />
               <col style={{ width: "10%" }} />
             </colgroup>
             <thead>
               <tr>
-                <th>버전</th>
-                <th>기간</th>
-                <th>적용</th>
-                <th>미적용</th>
-                <th>설비ID</th>
-                <th>협의</th>
-                <th>등록자</th>
-                <th>등록일시</th>
-                <th>편집자</th>
-                <th>편집일시</th>
+                <th>{t("field.version", "버전")}</th>
+                <th>{t("field.period", "기간")}</th>
+                <th>{t("page.mpManagement.applied", "적용")}</th>
+                <th>{t("page.mpManagement.excluded", "미적용")}</th>
+                <th>{t("field.equipmentId", "설비ID")}</th>
+                <th>{t("page.mpManagement.review", "협의")}</th>
+                <th>{t("page.mpManagement.registeredBy", "등록자")}</th>
+                <th>{t("page.mpManagement.registeredAt", "등록일시")}</th>
+                <th>{t("page.mpManagement.editedBy", "편집자")}</th>
+                <th>{t("page.mpManagement.editedAt", "편집일시")}</th>
                 <th />
               </tr>
             </thead>
@@ -278,7 +284,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       className="btn-base btn-ghost"
                       onClick={() => setSelectedVersion(version)}
                     >
-                      보기
+                      {t("app.view", "보기")}
                     </button>
                   </td>
                 </tr>
@@ -291,7 +297,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       <Modal
         open={Boolean(selectedVersion)}
         onClose={() => setSelectedVersion(null)}
-        title="MP List 조회"
+        title={t("page.mp.title", "MP List 조회")}
         description={`${selectedProcess} · ${selectedMaint}`}
         maxWidth="1100px"
         footer={
@@ -300,7 +306,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             className="btn-base bg-brand-60 text-white hover:bg-brand-70"
             onClick={() => setSelectedVersion(null)}
           >
-            {t("app.close")}
+            {t("app.close", "닫기")}
           </button>
         }
       >
@@ -311,14 +317,14 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 {selectedVersion.version}
               </span>
               <span className="text-sm text-text-subtle">
-                기간: {selectedVersion.period}
+                {t("field.period", "기간")}: {selectedVersion.period}
               </span>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-border-base bg-surface-strong p-3">
                 <div className="text-xs font-bold uppercase text-text-subtle">
-                  설비 ID
+                  {t("field.equipmentId", "설비 ID")}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedVersion.equipmentIds.length ? (
@@ -338,7 +344,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
               <div className="rounded-xl border border-border-base bg-surface-strong p-3">
                 <div className="text-xs font-bold uppercase text-text-subtle">
-                  협의 이력
+                  {t("page.mpManagement.reviewHistory", "협의 이력")}
                 </div>
                 <div className="mt-2 text-sm text-text-default">
                   {selectedVersion.reviewLabel}
@@ -353,13 +359,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               >
                 <thead>
                   <tr>
-                    <th>대표 작업명</th>
-                    <th>작업 목적</th>
-                    <th>HW 변경 전</th>
-                    <th>HW 변경 후</th>
-                    <th>SW 변경 전</th>
-                    <th>SW 변경 후</th>
-                    <th>작업완료일</th>
+                    <th>{t("field.repWork", "대표 작업명")}</th>
+                    <th>{t("field.work", "작업 목적")}</th>
+                    <th>{t("field.hwBefore", "HW 변경 전")}</th>
+                    <th>{t("field.hwAfter", "HW 변경 후")}</th>
+                    <th>{t("field.swBefore", "SW 변경 전")}</th>
+                    <th>{t("field.swAfter", "SW 변경 후")}</th>
+                    <th>{t("field.workedOn", "작업완료일")}</th>
                   </tr>
                 </thead>
                 <tbody>

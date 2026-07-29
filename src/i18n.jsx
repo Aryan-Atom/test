@@ -246,6 +246,60 @@ const translations = {
     "app.resettingData": "데이터 초기화 중...",
     "app.resettingDataDesc":
       "서버에서 모든 변경 이력 및 사양 데이터를 삭제하고 있습니다. 잠시만 기다려 주세요.",
+    "app.choose": "선택",
+    "app.view": "보기",
+    "page.home.subtitle":
+      "EMS의 Work order(설비 작업 이력)를 AI가 분석해서,\n변경점을 한 눈에 확인할 수 있고, 차세대 설비 설계에도 반영할 수 있습니다.",
+    "page.home.totalChanges": "총 변경 이력",
+    "page.home.totalEquip": "등록 설비",
+    "page.home.totalProc": "공정 수",
+    "page.home.totalPart": "보전파트 수",
+    "page.home.keyFeatures": "주요 기능",
+    "page.home.changeHistoryDesc":
+      "설비별 작업 이력을 테이블로 관리하고, CSV/Excel로 내보낼 수 있습니다.",
+    "page.home.changeMatrixDesc":
+      "설비×작업 이력을 매트릭스로 시각화하여 횡전개를 관리하고, 설비 산포를 개선합니다.",
+    "page.home.mpListDesc":
+      "설비 변경 이력을 리포트로 저장 및 관리해서 다음 설계에 반영합니다.",
+    "page.home.aiProcessTitle": "✨ AI가 데이터를 만드는 과정",
+    "page.home.step1.title": "WO 원본",
+    "page.home.step1.desc":
+      "EMS 시스템에서 수집된 설비 작업 이력입니다. 보고서 형태의 비정형 데이터로, 자유롭게 작성된 텍스트입니다.",
+    "page.home.step2.title": "분석 AI",
+    "page.home.step2.desc": "비정형 보고서 내용을 읽고 분석해서 정형화합니다.",
+    "page.home.step3.title": "클러스터링 AI",
+    "page.home.step3.desc":
+      "정형화한 내용을 분석해서 유사한 작업끼리 그룹으로 구분하고, 각 그룹에 대표 작업명을 작성합니다.",
+    "page.home.step4.title": "가치 판단 AI",
+    "page.home.step4.desc":
+      "해당 작업이 중요한지 일반인지, 효과 유형은 생산성·품질·보전성·기타 중 무엇인지 판단합니다.",
+    "page.home.step5.title": "데이터 완료!",
+    "page.home.step5.desc":
+      "사용자가 변경 이력을 쉽게 파악할 수 있는 데이터가 준비되었습니다. 매트릭스와 리포트로 바로 확인해보세요.",
+    "page.home.guideTitle": "사용 가이드",
+    "page.home.guide1.title": "공정 선택",
+    "page.home.guide1.desc": "필터에서 공정을 선택합니다",
+    "page.home.guide2.title": "보전파트 선택",
+    "page.home.guide2.desc": "해당 보전파트를 선택합니다",
+    "page.home.guide3.title": "매트릭스 확인",
+    "page.home.guide3.desc": "변경 이력 매트릭스를 확인합니다",
+    "page.mpManagement.title": "MP List 관리",
+    "page.mpManagement.desc":
+      "공정·보전파트별 저장된 MP List를 버전별로 관리합니다",
+    "page.mpManagement.compare": "MP 비교",
+    "page.mpManagement.emptyTitle": "공정 및 보전파트를 선택하세요",
+    "page.mpManagement.emptyDesc":
+      "필터에서 공정과 보전파트를 선택하면\n저장된 MP List 버전 목록이 표시됩니다.",
+    "page.mpManagement.applied": "적용",
+    "page.mpManagement.excluded": "미적용",
+    "page.mpManagement.review": "협의",
+    "page.mpManagement.registeredBy": "등록자",
+    "page.mpManagement.registeredAt": "등록일시",
+    "page.mpManagement.editedBy": "편집자",
+    "page.mpManagement.editedAt": "편집일시",
+    "page.mpManagement.reviewHistory": "협의 이력",
+    "page.mpManagement.reviewCount": "건 협의 이력",
+    "page.mpManagement.noReview": "협의 이력 없음",
   },
   en: {
     "app.menu": "Menu",
@@ -500,6 +554,61 @@ const translations = {
     "app.resettingData": "Resetting Data...",
     "app.resettingDataDesc":
       "Deleting all change history and spec data from the server. Please wait.",
+    "app.choose": "Choose",
+    "app.view": "View",
+    "page.home.subtitle":
+      "AI analyzes EMS Work Orders (equipment work history)\nto easily identify changes and reflect them in next-generation equipment design.",
+    "page.home.totalChanges": "Total Changes",
+    "page.home.totalEquip": "Registered Equipment",
+    "page.home.totalProc": "Process Count",
+    "page.home.totalPart": "Maintenance Part Count",
+    "page.home.keyFeatures": "Key Features",
+    "page.home.changeHistoryDesc":
+      "Manage equipment work history in tables and export to CSV/Excel.",
+    "page.home.changeMatrixDesc":
+      "Visualize equipment x work history as a matrix to manage horizontal expansion and improve equipment variance.",
+    "page.home.mpListDesc":
+      "Save and manage equipment change history as reports to reflect in future designs.",
+    "page.home.aiProcessTitle": "✨ AI Data Generation Process",
+    "page.home.step1.title": "Original WO",
+    "page.home.step1.desc":
+      "Equipment work history collected from EMS system. Unstructured data in report format as free-form text.",
+    "page.home.step2.title": "Analysis AI",
+    "page.home.step2.desc":
+      "Reads and analyzes unstructured report content to structure it.",
+    "page.home.step3.title": "Clustering AI",
+    "page.home.step3.desc":
+      "Analyzes structured content to group similar work and create representative work names for each group.",
+    "page.home.step4.title": "Value Assessment AI",
+    "page.home.step4.desc":
+      "Determines whether work is high or normal priority, and categorizes effect type as productivity, quality, maintenance, or other.",
+    "page.home.step5.title": "Data Complete!",
+    "page.home.step5.desc":
+      "Data is ready for users to easily track change history. Check it out in matrices and reports.",
+    "page.home.guideTitle": "User Guide",
+    "page.home.guide1.title": "Select Process",
+    "page.home.guide1.desc": "Select process from the filter",
+    "page.home.guide2.title": "Select Maintenance Part",
+    "page.home.guide2.desc": "Select the maintenance part",
+    "page.home.guide3.title": "Check Matrix",
+    "page.home.guide3.desc": "Check the change history matrix",
+    "page.mpManagement.title": "MP List Management",
+    "page.mpManagement.desc":
+      "Manage stored MP lists for each process and maintenance part by version",
+    "page.mpManagement.compare": "MP Comparison",
+    "page.mpManagement.emptyTitle": "Select process and maintenance parts",
+    "page.mpManagement.emptyDesc":
+      "When you select Process and Maintenance Part in the filter,\na list of saved MP List versions will be displayed.",
+    "page.mpManagement.applied": "Applied",
+    "page.mpManagement.excluded": "Unapplied",
+    "page.mpManagement.review": "Review",
+    "page.mpManagement.registeredBy": "Registered By",
+    "page.mpManagement.registeredAt": "Registered At",
+    "page.mpManagement.editedBy": "Edited By",
+    "page.mpManagement.editedAt": "Edited At",
+    "page.mpManagement.reviewHistory": "Review History",
+    "page.mpManagement.reviewCount": "Review Records",
+    "page.mpManagement.noReview": "No Review History",
   },
 };
 

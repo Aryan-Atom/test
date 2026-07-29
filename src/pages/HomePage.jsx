@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { APIcallGet } from "../utils/api.js";
 import { pocEndPoints } from "../axios/endPoints.js";
+import { useI18n } from "../i18n.jsx";
 
 function normalizeValue(value) {
   return String(value ?? "")
@@ -27,6 +28,7 @@ function countUniqueValues(rows, keys) {
 }
 
 function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
+  const { t } = useI18n();
   const [activeStep, setActiveStep] = useState(0);
   const [stats, setStats] = useState({
     totalChanges: 0,
@@ -137,32 +139,44 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
   const steps = [
     {
       icon: "fa-file-alt",
-      title: "WO 원본",
-      desc: "EMS 시스템에서 수집된 설비 작업 이력입니다. 보고서 형태의 비정형 데이터로, 자유롭게 작성된 텍스트입니다.",
+      title: t("page.home.step1.title", "WO 원본"),
+      desc: t(
+        "page.home.step1.desc",
+        "EMS 시스템에서 수집된 설비 작업 이력입니다. 보고서 형태의 비정형 데이터로, 자유롭게 작성된 텍스트입니다.",
+      ),
       tone: "var(--primary)",
     },
     {
       icon: "fa-robot",
-      title: "분석 AI",
-      desc: "비정형 보고서 내용을 읽고 분석해서 정형화합니다.",
+      title: t("page.home.step2.title", "분석 AI"),
+      desc: t("page.home.step2.desc", "비정형 보고서 내용을 읽고 분석해서 정형화합니다."),
       tone: "var(--primary)",
     },
     {
       icon: "fa-puzzle-piece",
-      title: "클러스터링 AI",
-      desc: "정형화한 내용을 분석해서 유사한 작업끼리 그룹으로 구분하고, 각 그룹에 대표 작업명을 작성합니다.",
+      title: t("page.home.step3.title", "클러스터링 AI"),
+      desc: t(
+        "page.home.step3.desc",
+        "정형화한 내용을 분석해서 유사한 작업끼리 그룹으로 구분하고, 각 그룹에 대표 작업명을 작성합니다.",
+      ),
       tone: "var(--primary)",
     },
     {
       icon: "fa-balance-scale",
-      title: "가치 판단 AI",
-      desc: "해당 작업이 중요한지 일반인지, 효과 유형은 생산성·품질·보전성·기타 중 무엇인지 판단합니다.",
+      title: t("page.home.step4.title", "가치 판단 AI"),
+      desc: t(
+        "page.home.step4.desc",
+        "해당 작업이 중요한지 일반인지, 효과 유형은 생산성·품질·보전성·기타 중 무엇인지 판단합니다.",
+      ),
       tone: "var(--primary)",
     },
     {
       icon: "fa-check-circle",
-      title: "데이터 완료!",
-      desc: "사용자가 변경 이력을 쉽게 파악할 수 있는 데이터가 준비되었습니다. 매트릭스와 리포트로 바로 확인해보세요.",
+      title: t("page.home.step5.title", "데이터 완료!"),
+      desc: t(
+        "page.home.step5.desc",
+        "사용자가 변경 이력을 쉽게 파악할 수 있는 데이터가 준비되었습니다. 매트릭스와 리포트로 바로 확인해보세요.",
+      ),
       tone: "oklch(0.55 0.17 155)",
     },
   ];
@@ -213,11 +227,11 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
           <h2 className="mb-3 text-[1.25rem] font-bold tracking-[0.5px] text-[oklch(0.88_0.1_264)]">
             Equal Equipment, Ensured Quality!
           </h2>
-          <p className="mx-auto max-w-[600px] text-[0.9rem] leading-8 text-[oklch(0.82_0.05_264)]">
-            EMS의 Work order(설비 작업 이력)를 AI가 분석해서,
-            <br />
-            변경점을 한 눈에 확인할 수 있고, 차세대 설비 설계에도 반영할 수
-            있습니다.
+          <p className="mx-auto max-w-[600px] text-[0.9rem] leading-8 text-[oklch(0.82_0.05_264)] whitespace-pre-line">
+            {t(
+              "page.home.subtitle",
+              "EMS의 Work order(설비 작업 이력)를 AI가 분석해서,\n변경점을 한 눈에 확인할 수 있고, 차세대 설비 설계에도 반영할 수 있습니다.",
+            )}
           </p>
         </div>
       </div>
@@ -228,25 +242,25 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
             {
               id: "lsTotalChanges",
               value: displayedStats.totalChanges,
-              label: "총 변경 이력",
+              label: t("page.home.totalChanges", "총 변경 이력"),
               tone: "var(--primary)",
             },
             {
               id: "lsTotalEquip",
               value: displayedStats.totalEquip,
-              label: "등록 설비",
+              label: t("page.home.totalEquip", "등록 설비"),
               tone: "oklch(0.55 0.17 155)",
             },
             {
               id: "lsTotalProc",
               value: displayedStats.totalProc,
-              label: "공정 수",
+              label: t("page.home.totalProc", "공정 수"),
               tone: "oklch(0.65 0.18 50)",
             },
             {
               id: "lsTotalPart",
               value: displayedStats.totalPart,
-              label: "보전파트 수",
+              label: t("page.home.totalPart", "보전파트 수"),
               tone: "oklch(0.55 0.15 280)",
             },
           ].map((stat) => (
@@ -270,7 +284,7 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
 
       <div className="px-8 pt-5">
         <h3 className="mb-2 text-center text-[1rem] font-bold text-[var(--text-primary)]">
-          주요 기능
+          {t("page.home.keyFeatures", "주요 기능")}
         </h3>
         <div className="grid grid-cols-3 gap-3.5">
           <button
@@ -282,11 +296,13 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
               <i className="fas fa-database text-[1rem] text-[var(--primary)]" />
             </div>
             <div className="mb-1 text-[0.9375rem] font-bold text-[var(--text-primary)]">
-              변경 이력 데이터
+              {t("nav.changeHistory", "변경 이력 데이터")}
             </div>
             <div className="text-[0.8rem] leading-6 text-[var(--text-secondary)]">
-              설비별 작업 이력을 테이블로 관리하고, CSV/Excel로 내보낼 수
-              있습니다.
+              {t(
+                "page.home.changeHistoryDesc",
+                "설비별 작업 이력을 테이블로 관리하고, CSV/Excel로 내보낼 수 있습니다.",
+              )}
             </div>
           </button>
 
@@ -299,11 +315,13 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
               <i className="fas fa-th text-[1rem] text-[oklch(0.55_0.17_155)]" />
             </div>
             <div className="mb-1 text-[0.9375rem] font-bold text-[var(--text-primary)]">
-              변경 매트릭스
+              {t("nav.matrix", "변경 매트릭스")}
             </div>
             <div className="text-[0.8rem] leading-6 text-[var(--text-secondary)]">
-              설비×작업 이력을 매트릭스로 시각화하여 횡전개를 관리하고, 설비
-              산포를 개선합니다.
+              {t(
+                "page.home.changeMatrixDesc",
+                "설비×작업 이력을 매트릭스로 시각화하여 횡전개를 관리하고, 설비 산포를 개선합니다.",
+              )}
             </div>
           </button>
 
@@ -316,10 +334,13 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
               <i className="fas fa-clipboard-list text-[1rem] text-[oklch(0.65_0.18_50)]" />
             </div>
             <div className="mb-1 text-[0.9375rem] font-bold text-[var(--text-primary)]">
-              MP List
+              {t("nav.mpList", "MP List")}
             </div>
             <div className="text-[0.8rem] leading-6 text-[var(--text-secondary)]">
-              설비 변경 이력을 리포트로 저장 및 관리해서 다음 설계에 반영합니다.
+              {t(
+                "page.home.mpListDesc",
+                "설비 변경 이력을 리포트로 저장 및 관리해서 다음 설계에 반영합니다.",
+              )}
             </div>
           </button>
         </div>
@@ -327,14 +348,14 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
 
       <div className="px-8 py-5">
         <h3 className="mb-3 text-center text-[1rem] font-bold text-[var(--text-primary)]">
-          ✨ AI가 데이터를 만드는 과정
+          {t("page.home.aiProcessTitle", "✨ AI가 데이터를 만드는 과정")}
         </h3>
         <div
           className="mb-3 flex items-center justify-center gap-0"
           id="aiPipeline"
         >
           {steps.map((step, index) => (
-            <div key={step.title} className="flex items-center">
+            <div key={`${step.title}-${index}`} className="flex items-center">
               <button
                 type="button"
                 onClick={() => handleStepChange(index)}
@@ -394,26 +415,26 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
 
       <div className="px-8 pb-8">
         <h3 className="mb-2 text-center text-[1rem] font-bold text-[var(--text-primary)]">
-          사용 가이드
+          {t("page.home.guideTitle", "사용 가이드")}
         </h3>
         <div className="grid grid-cols-3 gap-3.5">
           {[
             {
               index: "1",
-              title: "공정 선택",
-              desc: "필터에서 공정을 선택합니다",
+              title: t("page.home.guide1.title", "공정 선택"),
+              desc: t("page.home.guide1.desc", "필터에서 공정을 선택합니다"),
               tone: "var(--primary)",
             },
             {
               index: "2",
-              title: "보전파트 선택",
-              desc: "해당 보전파트를 선택합니다",
+              title: t("page.home.guide2.title", "보전파트 선택"),
+              desc: t("page.home.guide2.desc", "해당 보전파트를 선택합니다"),
               tone: "oklch(0.55 0.17 155)",
             },
             {
               index: "3",
-              title: "매트릭스 확인",
-              desc: "변경 이력 매트릭스를 확인합니다",
+              title: t("page.home.guide3.title", "매트릭스 확인"),
+              desc: t("page.home.guide3.desc", "변경 이력 매트릭스를 확인합니다"),
               tone: "oklch(0.65 0.18 50)",
             },
           ].map((item) => (
