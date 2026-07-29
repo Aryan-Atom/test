@@ -162,6 +162,107 @@ async function readSpreadsheetRows(file) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MultiSelect — checkbox dropdown for column filter
+// ─────────────────────────────────────────────────────────────────────────────
+function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled, minWidth = "120px" }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleToggleOption = (value) => {
+    if (disabled) return;
+    const next = selectedValues.includes(value)
+      ? selectedValues.filter((v) => v !== value)
+      : [...selectedValues, value];
+    onChange(next);
+  };
+
+  const isAllSelected = selectedValues.length === options.length || selectedValues.length === 0;
+
+  let displayText = placeholder || t("app.all", "전체");
+  if (!isAllSelected) {
+    if (selectedValues.length === 1) {
+      const opt = options.find((o) => o.value === selectedValues[0]);
+      displayText = opt?.label ?? String(selectedValues[0]);
+    } else {
+      displayText = `${selectedValues.length}${t("app.selectedCount", "개 선택")}`;
+    }
+  }
+
+  return (
+    <div ref={containerRef} className="relative flex-none" style={{ minWidth }}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        disabled={disabled}
+        className="input-base flex w-full items-center justify-between text-left font-semibold text-text-default"
+        style={{
+          height: "38px",
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          opacity: disabled ? 0.6 : 1,
+          border: "1px solid var(--border-base, #e6e9ef)",
+          borderRadius: "10px",
+          padding: "8px 14px",
+          width: "100%",
+          textAlign: "left",
+          marginTop: "0px",
+        }}
+      >
+        <span className="truncate">{displayText}</span>
+        <i
+          className={`fas fa-chevron-down text-[10px] text-text-subtle transition-transform duration-200 ${
+            isOpen && !disabled ? "rotate-180" : ""
+          }`}
+          style={{ marginLeft: "8px" }}
+        />
+      </button>
+
+      {isOpen && !disabled && (
+        <div
+          className="absolute left-0 right-0 z-[1000] mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-border-base bg-surface-default py-1 shadow-lg"
+          style={{
+            borderColor: "var(--border-base, #e6e9ef)",
+            backgroundColor: "var(--surface-default, #ffffff)",
+            minWidth: "100%",
+          }}
+        >
+          {options.map((opt) => {
+            const isChecked = selectedValues.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-text-default hover:bg-surface-strong cursor-pointer"
+                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", cursor: "pointer" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={disabled}
+                  onChange={() => handleToggleOption(opt.value)}
+                  className="rounded border-border-base text-brand-60 focus:ring-brand-50"
+                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
+                />
+                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SelectSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
 function SelectSkeleton({ width = "120px" }) {
@@ -1500,6 +1601,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const { t } = useI18n();
   const [selectedProcessId, setSelectedProcessId] = useState(null);
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
+  const [selectedColumnIds, setSelectedColumnIds] = useState([]);
   const [filter, setFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [previewRows, setPreviewRows] = useState(null);
@@ -1533,22 +1635,42 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const filterLoading = filterPayload === null && filterError === null;
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [prevFilters, setPrevFilters] = useState({
     processId: null,
     maintenanceId: null,
+    columnIds: [],
     filter: "",
     searchText: "",
   });
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(filter || searchText || "");
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filter, searchText]);
+
+  const columnIdsKey = useMemo(
+    () => [...selectedColumnIds].sort((a, b) => a - b).join(","),
+    [selectedColumnIds],
+  );
+  const prevColumnIdsKey = useMemo(
+    () => [...prevFilters.columnIds].sort((a, b) => a - b).join(","),
+    [prevFilters.columnIds],
+  );
+
   if (
     selectedProcessId !== prevFilters.processId ||
     selectedMaintenanceId !== prevFilters.maintenanceId ||
+    columnIdsKey !== prevColumnIdsKey ||
     filter !== prevFilters.filter ||
     searchText !== prevFilters.searchText
   ) {
     setPrevFilters({
       processId: selectedProcessId,
       maintenanceId: selectedMaintenanceId,
+      columnIds: selectedColumnIds,
       filter,
       searchText,
     });
@@ -1576,6 +1698,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     if (!selectedProcessId) return all;
     return all.filter((m) => m.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
+
+  const columnFilterOptions = useMemo(() => {
+    return (changeDataColumns ?? [])
+      .filter((col) => col.isActive !== false)
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .map((col) => ({
+        label: col.columnNameKr || col.excelColumnNameKr || col.jsonKey,
+        value: col.id,
+      }));
+  }, [changeDataColumns]);
 
   const handleProcessChange = (e) => {
     const val = e.target.value;
@@ -1824,7 +1956,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [selectedProcessId, selectedMaintenanceId, filter, searchText]);
+  }, [selectedProcessId, selectedMaintenanceId, selectedColumnIds, filter, searchText]);
 
   // ── Build a clean row for the payload (strip internal keys, fill columns) ──
   const buildCleanRow = useCallback(
@@ -2214,77 +2346,87 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       return;
     }
 
-    APIcallGet(`${pocEndPoints?.GET_FILTER_DATA}`, {}, (responseData, status) => {
-      try {
-        if (status === 200 && responseData) {
-          const payload = responseData?.data || responseData;
-          setFilterPayload(payload);
-          setFilterError(null);
+    APIcallPost(
+      pocEndPoints?.GET_FILTER_DATA,
+      {
+        processId: selectedProcessId ?? 0,
+        equipmentTypeId: selectedMaintenanceId ?? 0,
+        columnIds: selectedColumnIds,
+        searchText: debouncedSearchText,
+      },
+      {},
+      (responseData, status) => {
+        try {
+          if (status === 200 && responseData) {
+            const payload = responseData?.data || responseData;
+            setFilterPayload(payload);
+            setFilterError(null);
 
-          if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
-            // changedDataJson always has one item — take index 0
-            const envelope = payload.changedDataJson[0];
+            if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+              // changedDataJson always has one item — take index 0
+              const envelope = payload.changedDataJson[0];
 
-            // Capture the envelope id for all future save payloads
-            setChangedDataId(envelope.id ?? 0);
+              // Capture the envelope id for all future save payloads
+              setChangedDataId(envelope.id ?? 0);
 
-            // Parse the content array into flat records
-            try {
-              const parsed =
-                typeof envelope.content === "string"
-                  ? JSON.parse(envelope.content)
-                  : envelope.content;
+              // Parse the content array into flat records
+              try {
+                const parsed =
+                  typeof envelope.content === "string"
+                    ? JSON.parse(envelope.content)
+                    : envelope.content;
 
-              if (Array.isArray(parsed)) {
-                let nextId = 1;
-                const sanitized = parsed.map((r) => {
-                  const clean = { ...r };
-                  const numId = Number(clean.id);
-                  if (isNaN(numId) || numId <= 0) {
-                    clean.id = nextId++;
-                  } else {
-                    if (numId >= nextId) {
-                      nextId = numId + 1;
+                if (Array.isArray(parsed)) {
+                  let nextId = 1;
+                  const sanitized = parsed.map((r) => {
+                    const clean = { ...r };
+                    const numId = Number(clean.id);
+                    if (isNaN(numId) || numId <= 0) {
+                      clean.id = nextId++;
+                    } else {
+                      if (numId >= nextId) {
+                        nextId = numId + 1;
+                      }
                     }
-                  }
-                  return clean;
-                });
-                const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
-                setChangedRecords(sorted);
-                setApiRecords(sorted);
-              } else {
+                    return clean;
+                  });
+                  const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+                  setChangedRecords(sorted);
+                  setApiRecords(sorted);
+                } else {
+                  setChangedRecords([]);
+                  setApiRecords([]);
+                }
+              } catch (parseError) {
+                console.warn("[ChangeHistory] Failed to parse changedDataJson content:", parseError);
                 setChangedRecords([]);
                 setApiRecords([]);
               }
-            } catch (parseError) {
-              console.warn("[ChangeHistory] Failed to parse changedDataJson content:", parseError);
+            } else {
+              // No changedDataJson yet — keep id as 0 so backend creates a new record
+              setChangedDataId(0);
               setChangedRecords([]);
               setApiRecords([]);
             }
           } else {
-            // No changedDataJson yet — keep id as 0 so backend creates a new record
-            setChangedDataId(0);
+            console.warn("[ChangeHistory] Filter data API returned invalid status:", status);
+            setFilterPayload({ process: [], maintenance: [] });
             setChangedRecords([]);
             setApiRecords([]);
+            setChangedDataId(0);
+            setFilterError(t("toast.filterLoadError"));
           }
-        } else {
-          console.warn("[ChangeHistory] Filter data API returned invalid status:", status);
+        } catch (error) {
+          console.error("[ChangeHistory] Error processing filter data:", error);
           setFilterPayload({ process: [], maintenance: [] });
           setChangedRecords([]);
           setApiRecords([]);
           setChangedDataId(0);
-          setFilterError(t("toast.filterLoadError"));
+          setFilterError(t("toast.filterError"));
         }
-      } catch (error) {
-        console.error("[ChangeHistory] Error processing filter data:", error);
-        setFilterPayload({ process: [], maintenance: [] });
-        setChangedRecords([]);
-        setApiRecords([]);
-        setChangedDataId(0);
-        setFilterError(t("toast.filterError"));
-      }
-    });
-  }, [t]);
+      },
+    );
+  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText]);
 
   useEffect(() => {
     getFilterDataRef.current = getFilterData;
@@ -2293,7 +2435,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   useEffect(() => {
     if (isStaticDataMode) {
       setChangeDataColumns(staticChangeDataColumns);
-      getFilterData();
       return;
     }
 
@@ -2309,6 +2450,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       }
       console.warn("[ChangeHistory] Unexpected column API shape:", responseData);
     });
+  }, []);
+
+  useEffect(() => {
     getFilterData();
   }, [getFilterData]);
 
@@ -2363,7 +2507,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         </header>
 
         {/* Filters */}
-        <div className="card p-4 mb-4">
+        <div className="card relative z-20 p-4 mb-4">
           {filterError && (
             <div
               className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
@@ -2418,6 +2562,27 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                     </option>
                   ))}
                 </select>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600">
+                {t("field.columnFilter", "컬럼 필터")}
+              </label>
+              {filterLoading ? (
+                <SelectSkeleton width="160px" />
+              ) : (
+                <div style={{ width: "160px" }}>
+                  <MultiSelect
+                    options={columnFilterOptions}
+                    selectedValues={selectedColumnIds}
+                    onChange={setSelectedColumnIds}
+                    placeholder={t("app.all", "전체")}
+                    t={t}
+                    disabled={!selectedProcessId}
+                    minWidth="160px"
+                  />
+                </div>
               )}
             </div>
 
