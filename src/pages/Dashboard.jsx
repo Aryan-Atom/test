@@ -328,33 +328,40 @@ export default function Dashboard() {
               activePage === "home" ? "p-0" : "p-6"
             }`}
           >
-            {activePage === "home" && (
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "home" ? "" : "hidden"}`}>
               <HomePage
                 changeData={changeData}
                 specData={specData}
                 mpRows={mpRows}
                 onNavigate={handleNavigate}
               />
+            </div>
+
+            {isPageAllowed("dm-change") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activePage === "dm-change" ? "" : "hidden"}`}>
+                <ChangeHistory
+                  data={changeData}
+                  onUpload={handleUpload}
+                  onExport={() => exportCsv("change")}
+                  onOpenDetail={setDrawerItem}
+                  searchText={searchText}
+                  changeDataColumns={changeDataColumns}
+                />
+              </div>
             )}
-            {activePage === "dm-change" && isPageAllowed("dm-change") && (
-              <ChangeHistory
-                data={changeData}
-                onUpload={handleUpload}
-                onExport={() => exportCsv("change")}
-                onOpenDetail={setDrawerItem}
-                searchText={searchText}
-                changeDataColumns={changeDataColumns}
-              />
+
+            {isPageAllowed("dm-spec") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activePage === "dm-spec" ? "" : "hidden"}`}>
+                <SpecData
+                  data={specData}
+                  onUpload={handleUpload}
+                  onExport={() => exportCsv("spec")}
+                  searchText={searchText}
+                />
+              </div>
             )}
-            {activePage === "dm-spec" && isPageAllowed("dm-spec") && (
-              <SpecData
-                data={specData}
-                onUpload={handleUpload}
-                onExport={() => exportCsv("spec")}
-                searchText={searchText}
-              />
-            )}
-            {activePage === "mx-matrix" && (
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "mx-matrix" ? "" : "hidden"}`}>
               <Matrix
                 data={changeData}
                 searchText={searchText}
@@ -362,8 +369,9 @@ export default function Dashboard() {
                 changeDataColumns={changeDataColumns}
                 onUpload={handleUpload}
               />
-            )}
-            {activePage === "mx-mplist" && (
+            </div>
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "mx-mplist" ? "" : "hidden"}`}>
               <MPList
                 data={mpRows}
                 onAddRow={addMpRow}
@@ -373,26 +381,34 @@ export default function Dashboard() {
                 drawerItem={drawerItem}
                 onUpload={handleUpload}
               />
-            )}
-            {activePage === "mx-mplist-mgmt" && (
+            </div>
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "mx-mplist-mgmt" ? "" : "hidden"}`}>
               <MPListManagement data={mpRows} searchText={searchText} />
+            </div>
+
+            {isPageAllowed("spec") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activePage === "spec" ? "" : "hidden"}`}>
+                <SpecMatrix data={specData} searchText={searchText} />
+              </div>
             )}
-            {activePage === "spec" && isPageAllowed("spec") && (
-              <SpecMatrix data={specData} searchText={searchText} />
-            )}
-            {activePage === "board" && (
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "board" ? "" : "hidden"}`}>
               <Board
                 data={boardData}
                 onAddPost={addBoardPost}
                 searchText={searchText}
               />
-            )}
-            {activePage === "admin" && isPageAllowed("admin") && (
-              <Admin
-                users={users}
-                onUpdateUsers={updateUsers}
-                searchText={searchText}
-              />
+            </div>
+
+            {isPageAllowed("admin") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activePage === "admin" ? "" : "hidden"}`}>
+                <Admin
+                  users={users}
+                  onUpdateUsers={updateUsers}
+                  searchText={searchText}
+                />
+              </div>
             )}
           </main>
         </div>

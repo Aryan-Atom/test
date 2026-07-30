@@ -6,6 +6,11 @@ import { pocEndPoints } from "../axios/endPoints.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
+import ExportDropdown from "../components/ExportDropdown.jsx";
+import Pagination from "../components/Pagination.jsx";
+import SortableTh from "../components/SortableTh.jsx";
+import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
 import {
@@ -1937,6 +1942,44 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     searchText,
   ]);
 
+  // ── Sorting & Pagination ──────────────────────────────────────────────────
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const handleSort = (colKey) => {
+    setSortConfig((prev) => {
+      if (prev.key !== colKey) return { key: colKey, direction: "asc" };
+      if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+      return { key: null, direction: null };
+    });
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedProcessId, selectedMaintenanceId, selectedColumnIds, filter, searchText, sortConfig]);
+
+  const sortedFilteredData = useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return filtered;
+    return [...filtered].sort((a, b) => {
+      const valA = a[sortConfig.key] ?? "";
+      const valB = b[sortConfig.key] ?? "";
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+      }
+      const strA = String(valA);
+      const strB = String(valB);
+      return sortConfig.direction === "asc"
+        ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: "base" })
+        : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [filtered, sortConfig]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedFilteredData.slice(start, start + pageSize);
+  }, [sortedFilteredData, currentPage, pageSize]);
+
   // ── Multi-select ──────────────────────────────────────────────────────────
   const toggleSelect = (index) => {
     setSelectedIds((prev) => {
@@ -2056,6 +2099,67 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   );
 
   const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+
+    const rowsToDelete = filtered.filter((_, i) => selectedIds.has(i));
+    const idsToDelete = new Set(rowsToDelete.map((r) => r.id).filter((id) => id != null));
+
+    const updatedRecords = changedRecords.filter((r) => !idsToDelete.has(r.id));
+    const changeDataList = updatedRecords.map((r) => buildCleanRow(r));
+    const payload = {
+      changeDataList,
+      id: changedDataId,
+    };
+
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToDelete.length} ${t("app.rows", "건")} ${t("toast.deleting", "삭제 중입니다...")}`,
+      autoClose: false,
+    });
+
+    if (isStaticDataMode) {
+      setChangedRecords([...updatedRecords].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+      setSelectedIds(new Set());
+      setShowDeleteModal(false);
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: `${rowsToDelete.length}${t("app.rows", "건")} - ${t("app.deleteSuccess", "항목이 성공적으로 삭제되었습니다.")}`,
+        autoClose: true,
+      });
+      onUpload?.("change_rows", payload);
+      return;
+    }
+
+    APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+      if (status === 200) {
+        setChangedRecords([...updatedRecords].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setSelectedIds(new Set());
+        setShowDeleteModal(false);
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToDelete.length}${t("app.rows", "건")} - ${t("app.deleteSuccess", "항목이 성공적으로 삭제되었습니다.")}`,
+          autoClose: true,
+        });
+        onUpload?.("change_rows", payload);
+        getFilterDataRef.current?.();
+      } else {
+        console.error("Delete failed:", responseData);
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.deleteError", "삭제에 실패했습니다."),
+          autoClose: true,
+        });
+      }
+    });
+  }, [selectedIds, filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t]);
 
   // ── MODAL CONFIRM (bulk upload) ───────────────────────────────────────────
   // For a fresh bulk upload, merge uploaded rows with existing changedRecords
@@ -2226,11 +2330,35 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   // ── Export ────────────────────────────────────────────────────────────────
-  const handleExport = async () => {
+  const prepareExportData = () => {
     const rowsToExport =
       selectedIds.size > 0 ? filtered.filter((_, i) => selectedIds.has(i)) : filtered;
 
     if (!rowsToExport || rowsToExport.length === 0) {
+      return null;
+    }
+
+    const sortedCols = [...changeDataColumns]
+      .filter((col) => col.isActive !== false && col.jsonKey && col.jsonKey !== "id")
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+    const exportCols = sortedCols.map((col) => col.excelColumnName || col.jsonKey);
+
+    const exportData = rowsToExport.map((row) => {
+      const orderedRow = {};
+      sortedCols.forEach((col) => {
+        const header = col.excelColumnName || col.jsonKey;
+        orderedRow[header] = row[col.jsonKey] ?? "";
+      });
+      return orderedRow;
+    });
+
+    return { rowsToExport, exportCols, exportData };
+  };
+
+  const handleExportCsv = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -2239,7 +2367,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       });
       return;
     }
-
+    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
@@ -2247,24 +2375,61 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
-
     try {
       await withMinimumDelay(async () => {
-        const sortedCols = [...changeDataColumns]
-          .filter((col) => col.isActive !== false && col.jsonKey && col.jsonKey !== "id")
-          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "change-history.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        const exportCols = sortedCols.map((col) => col.excelColumnName || col.jsonKey);
-
-        const exportData = rowsToExport.map((row) => {
-          const orderedRow = {};
-          sortedCols.forEach((col) => {
-            const header = col.excelColumnName || col.jsonKey;
-            orderedRow[header] = row[col.jsonKey] ?? "";
-          });
-          return orderedRow;
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          autoClose: true,
         });
+      });
+    } catch (error) {
+      console.error("CSV export failed:", error);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed"),
+        autoClose: true,
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
 
+  const handleExportExcel = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
+    setExportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      autoClose: false,
+    });
+    try {
+      await withMinimumDelay(async () => {
         const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
@@ -2279,6 +2444,67 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       });
     } catch (error) {
       console.error("Excel export failed:", error);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed"),
+        autoClose: true,
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportZip = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
+    setExportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      autoClose: false,
+    });
+    try {
+      await withMinimumDelay(async () => {
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
+        const zip = new JSZip();
+        zip.file("change-history.csv", csvContent);
+        zip.file("change-history.xlsx", excelBuffer);
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "change-history.zip");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          autoClose: true,
+        });
+      });
+    } catch (error) {
+      console.error("ZIP export failed:", error);
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -2470,7 +2696,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
       <section className="flex-1 flex flex-col min-h-0 space-y-6">
         {/* Page header */}
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-50">
           <div>
             <h1 className="text-3xl font-extrabold text-text-default">{t("page.change.title")}</h1>
             <p className="mt-2 text-sm text-text-subtle">
@@ -2494,15 +2720,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               className="hidden"
               onChange={handleUploadExcel}
             />
-            <AnimatedActionButton
-              className="btn-primary"
-              onClick={handleExport}
+            <ExportDropdown
+              onExportCsv={handleExportCsv}
+              onExportExcel={handleExportExcel}
+              onExportZip={handleExportZip}
               busy={exportBusy}
-              busyLabel="Exporting..."
-              icon="fas fa-file-export"
-            >
-              {selectedIds.size > 0 ? `${t("app.exportCsv")} (${selectedIds.size}${t("app.rows")})` : t("app.exportCsv")}
-            </AnimatedActionButton>
+              selectedCount={selectedIds.size}
+            />
           </div>
         </header>
 
@@ -2613,6 +2837,17 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 <i className="fas fa-check-double" />
                 {t("app.selectAll", "전체선택")}
               </button>
+              {selectedIds.size > 0 && (
+                <button
+                  type="button"
+                  className="btn-base text-xs flex items-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 font-medium px-3 py-1.5 rounded-lg transition-colors"
+                  onClick={() => setShowDeleteModal(true)}
+                  style={{ minHeight: "38px", padding: "8px 16px" }}
+                >
+                  <i className="fas fa-trash-alt text-red-500" />
+                  {t("app.deleteSelected", "선택 삭제")} ({selectedIds.size})
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2667,31 +2902,50 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                       {t("app.edit")}
                     </th>
                     {dynamicColumns.map((col) => (
-                      <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
-                        {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
-                      </th>
+                      <SortableTh
+                        key={col}
+                        columnKey={col}
+                        label={t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row, index) => (
-                    <EditableRow
-                      key={rowKey(row, index)}
-                      row={row}
-                      index={index}
-                      columns={dynamicColumns}
-                      isEditing={false}
-                      onStartEdit={setEditingIndex}
-                      onSave={handleSaveRow}
-                      onCancel={handleCancelEdit}
-                      onOpenDetail={onOpenDetail}
-                      isSelected={selectedIds.has(index)}
-                      onToggleSelect={toggleSelect}
-                    />
-                  ))}
+                  {paginatedData.map((row, index) => {
+                    const originalIndex = filtered.indexOf(row);
+                    const idxToUse = originalIndex !== -1 ? originalIndex : index;
+                    return (
+                      <EditableRow
+                        key={rowKey(row, idxToUse)}
+                        row={row}
+                        index={idxToUse}
+                        columns={dynamicColumns}
+                        isEditing={false}
+                        onStartEdit={setEditingIndex}
+                        onSave={handleSaveRow}
+                        onCancel={handleCancelEdit}
+                        onOpenDetail={onOpenDetail}
+                        isSelected={selectedIds.has(idxToUse)}
+                        onToggleSelect={toggleSelect}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Pagination bar */}
+          {selectedProcessId !== null && filtered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={sortedFilteredData.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </div>
       </section>
@@ -2717,6 +2971,30 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         onSave={handleSaveRow}
         onClose={handleCancelEdit}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={showDeleteModal}
+        title={t("app.deleteConfirmTitle", "선택 항목 삭제")}
+        description={`${selectedIds.size}${t("app.rows", "건")} ${t("app.deleteConfirmDesc", "선택한 항목을 삭제하시겠습니까?")}`}
+        titleIcon={<i className="fas fa-exclamation-triangle text-red-500 text-xl" />}
+        onClose={() => setShowDeleteModal(false)}
+        footer={
+          <button
+            type="button"
+            className="btn-base"
+            style={{ background: "#dc2626", color: "#ffffff", border: "none", padding: "8px 18px" }}
+            onClick={handleConfirmDelete}
+          >
+            <i className="fas fa-trash-alt mr-1.5" />
+            {t("app.delete", "삭제")}
+          </button>
+        }
+      >
+        <div className="py-2 text-sm text-gray-600 dark:text-gray-300">
+          <p>{t("app.deleteWarning", "선택한 데이터가 삭제되며 시스템에 즉시 반영됩니다. 계속하시겠습니까?")}</p>
+        </div>
+      </Modal>
 
       {/* Operation status toast */}
       <OperationStatus

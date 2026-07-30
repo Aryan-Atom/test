@@ -6,6 +6,10 @@ import { pocEndPoints } from "../axios/endPoints.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
+import ExportDropdown from "../components/ExportDropdown.jsx";
+import Pagination from "../components/Pagination.jsx";
+import SortableTh from "../components/SortableTh.jsx";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
 import {
@@ -1690,6 +1694,44 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
     searchText,
   ]);
 
+  // ── Sorting & Pagination ──────────────────────────────────────────────────
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const handleSort = (colKey) => {
+    setSortConfig((prev) => {
+      if (prev.key !== colKey) return { key: colKey, direction: "asc" };
+      if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+      return { key: null, direction: null };
+    });
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedProcessId, selectedMaintenanceId, searchText, sortConfig]);
+
+  const sortedFilteredData = useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return filtered;
+    return [...filtered].sort((a, b) => {
+      const valA = a[sortConfig.key] ?? "";
+      const valB = b[sortConfig.key] ?? "";
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+      }
+      const strA = String(valA);
+      const strB = String(valB);
+      return sortConfig.direction === "asc"
+        ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: "base" })
+        : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [filtered, sortConfig]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedFilteredData.slice(start, start + pageSize);
+  }, [sortedFilteredData, currentPage, pageSize]);
+
   // ── Multi-select ──────────────────────────────────────────────────────────
   const toggleSelect = (index) => {
     setSelectedIds((prev) => {
@@ -1941,8 +1983,35 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   };
 
   // ── Export filtered rows ──────────────────────────────────────────────────
-  const handleExport = async () => {
-    if (!filtered || filtered.length === 0) {
+  const prepareExportData = () => {
+    const rowsToExport =
+      selectedIds.size > 0 ? filtered.filter((_, i) => selectedIds.has(i)) : filtered;
+
+    if (!rowsToExport || rowsToExport.length === 0) {
+      return null;
+    }
+
+    const sortedCols = [...changeDataColumns]
+      .filter((col) => col.isActive !== false && col.jsonKey && col.jsonKey !== "id")
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+    const exportCols = sortedCols.map((col) => col.excelColumnName || col.jsonKey);
+
+    const exportData = rowsToExport.map((row) => {
+      const orderedRow = {};
+      sortedCols.forEach((col) => {
+        const header = col.excelColumnName || col.jsonKey;
+        orderedRow[header] = row[col.jsonKey] ?? "";
+      });
+      return orderedRow;
+    });
+
+    return { rowsToExport, exportCols, exportData };
+  };
+
+  const handleExportCsv = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -1951,32 +2020,69 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       });
       return;
     }
-
+    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${filtered.length} ${t("toast.exporting")}`,
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
-
     try {
       await withMinimumDelay(async () => {
-        const sortedCols = [...changeDataColumns]
-          .filter((col) => col.isActive !== false && col.jsonKey && col.jsonKey !== "id")
-          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "spec-data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-        const exportCols = sortedCols.map((col) => col.excelColumnName || col.jsonKey);
-
-        const exportData = filtered.map((row) => {
-          const orderedRow = {};
-          sortedCols.forEach((col) => {
-            const header = col.excelColumnName || col.jsonKey;
-            orderedRow[header] = row[col.jsonKey] ?? "";
-          });
-          return orderedRow;
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          autoClose: true,
         });
+      });
+    } catch (error) {
+      console.error("CSV export failed:", error);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed"),
+        autoClose: true,
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
 
+  const handleExportExcel = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
+    setExportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      autoClose: false,
+    });
+    try {
+      await withMinimumDelay(async () => {
         const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Spec Data");
@@ -1985,12 +2091,73 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${filtered.length} ${t("toast.exportSuccess")}`,
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
       });
     } catch (error) {
       console.error("Excel export failed:", error);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed"),
+        autoClose: true,
+      });
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportZip = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
+    setExportBusy(true);
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      autoClose: false,
+    });
+    try {
+      await withMinimumDelay(async () => {
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Spec Data");
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
+        const zip = new JSZip();
+        zip.file("spec-data.csv", csvContent);
+        zip.file("spec-data.xlsx", excelBuffer);
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "spec-data.zip");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          autoClose: true,
+        });
+      });
+    } catch (error) {
+      console.error("ZIP export failed:", error);
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -2154,7 +2321,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
       <section className="flex-1 flex flex-col min-h-0 space-y-6">
         {/* Page header */}
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-50">
           <div>
             <h1 className="text-3xl font-extrabold text-text-default">
               {t("page.specData.title")}
@@ -2180,15 +2347,13 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               onChange={handleUploadExcel}
             />
 
-            <AnimatedActionButton
-              className="btn-primary"
-              onClick={handleExport}
+            <ExportDropdown
+              onExportCsv={handleExportCsv}
+              onExportExcel={handleExportExcel}
+              onExportZip={handleExportZip}
               busy={exportBusy}
-              busyLabel="Exporting..."
-              icon="fas fa-file-export"
-            >
-              {t("app.exportCsv")}
-            </AnimatedActionButton>
+              selectedCount={selectedIds.size}
+            />
           </div>
         </header>
 
@@ -2316,30 +2481,49 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
                       {t("app.edit")}
                     </th> */}
                     {dynamicColumns.map((col) => (
-                      <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
-                        {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
-                      </th>
+                      <SortableTh
+                        key={col}
+                        columnKey={col}
+                        label={t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row, index) => (
-                    <EditableRow
-                      key={rowKey(row, index)}
-                      row={row}
-                      index={index}
-                      columns={dynamicColumns}
-                      isEditing={false}
-                      onStartEdit={setEditingIndex}
-                      onSave={handleSaveRow}
-                      onCancel={handleCancelEdit}
-                      isSelected={selectedIds.has(index)}
-                      onToggleSelect={toggleSelect}
-                    />
-                  ))}
+                  {paginatedData.map((row, index) => {
+                    const originalIndex = filtered.indexOf(row);
+                    const idxToUse = originalIndex !== -1 ? originalIndex : index;
+                    return (
+                      <EditableRow
+                        key={rowKey(row, idxToUse)}
+                        row={row}
+                        index={idxToUse}
+                        columns={dynamicColumns}
+                        isEditing={false}
+                        onStartEdit={setEditingIndex}
+                        onSave={handleSaveRow}
+                        onCancel={handleCancelEdit}
+                        isSelected={selectedIds.has(idxToUse)}
+                        onToggleSelect={toggleSelect}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Pagination bar */}
+          {selectedProcessId !== null && filtered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={sortedFilteredData.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </div>
       </section>

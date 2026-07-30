@@ -4,6 +4,10 @@ import { pocEndPoints } from "../axios/endPoints.js";
 import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
+import ExportDropdown from "../components/ExportDropdown.jsx";
+import Pagination from "../components/Pagination.jsx";
+import SortableTh from "../components/SortableTh.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
@@ -840,6 +844,54 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     filterPayload,
   ]);
 
+  // ── Sorting & Pagination ──────────────────────────────────────────────────
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const handleSort = (colKey) => {
+    setSortConfig((prev) => {
+      if (prev.key !== colKey) return { key: colKey, direction: "asc" };
+      if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+      return { key: null, direction: null };
+    });
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedProcessId,
+    selectedMaintenanceId,
+    selectedRepWorks,
+    selectedPriorities,
+    selectedCategories,
+    dateFrom,
+    dateTo,
+    searchText,
+    sortConfig,
+  ]);
+
+  const sortedFilteredData = useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return filtered;
+    return [...filtered].sort((a, b) => {
+      const valA = getColValue(a, sortConfig.key) ?? "";
+      const valB = getColValue(b, sortConfig.key) ?? "";
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortConfig.direction === "asc" ? valA - valB : valB - valA;
+      }
+      const strA = String(valA);
+      const strB = String(valB);
+      return sortConfig.direction === "asc"
+        ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: "base" })
+        : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: "base" });
+    });
+  }, [filtered, sortConfig]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedFilteredData.slice(start, start + pageSize);
+  }, [sortedFilteredData, currentPage, pageSize]);
+
   // ── Format workedOn for display ───────────────────────────────────────────
   function formatWorkedOn(raw) {
     if (!raw) return "—";
@@ -1099,8 +1151,24 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   }, [allRecords, changedDataId, onUpload, fetchData, t]);
 
   // ── Export filtered view ──────────────────────────────────────────────────
-  const handleExport = () => {
+  const prepareExportData = () => {
     if (filtered.length === 0) {
+      return null;
+    }
+    const exportData = filtered.map((row) => {
+      const out = {};
+      TABLE_COLUMNS.forEach((col) => {
+        out[columnLabel(col, t)] = getColValue(row, col) ?? "";
+      });
+      return out;
+    });
+    const headerCols = TABLE_COLUMNS.map((c) => columnLabel(c, t));
+    return { exportData, headerCols };
+  };
+
+  const handleExportCsv = () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -1110,19 +1178,106 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       return;
     }
     try {
-      const exportData = filtered.map((row) => {
-        const out = {};
-        TABLE_COLUMNS.forEach((col) => {
-          out[columnLabel(col, t)] = getColValue(row, col) ?? "";
-        });
-        return out;
+      const { exportData, headerCols } = prepared;
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: headerCols });
+      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mp-list.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: `${filtered.length} ${t("toast.exportSuccess", "개 행 내보내기 완료.")}`,
+        autoClose: true,
       });
-      const ws = XLSX.utils.json_to_sheet(exportData, {
-        header: TABLE_COLUMNS.map((c) => columnLabel(c, t)),
+      onExport?.();
+    } catch (e) {
+      console.error(e);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed", "내보내기에 실패했습니다."),
+        autoClose: true,
       });
+    }
+  };
+
+  const handleExportExcel = () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport", "내보낼 데이터가 없습니다."),
+        autoClose: true,
+      });
+      return;
+    }
+    try {
+      const { exportData, headerCols } = prepared;
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: headerCols });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "MP List");
       XLSX.writeFile(wb, "mp-list.xlsx");
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: `${filtered.length} ${t("toast.exportSuccess", "개 행 내보내기 완료.")}`,
+        autoClose: true,
+      });
+      onExport?.();
+    } catch (e) {
+      console.error(e);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.exportFailed", "내보내기에 실패했습니다."),
+        autoClose: true,
+      });
+    }
+  };
+
+  const handleExportZip = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport", "내보낼 데이터가 없습니다."),
+        autoClose: true,
+      });
+      return;
+    }
+    try {
+      const { exportData, headerCols } = prepared;
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: headerCols });
+      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(ws);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "MP List");
+      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+
+      const zip = new JSZip();
+      zip.file("mp-list.csv", csvContent);
+      zip.file("mp-list.xlsx", excelBuffer);
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mp-list.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       setOperationStatus({
         isVisible: true,
         status: "success",
@@ -1182,7 +1337,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           flex: 1 1 0%;
           min-height: 0;
         }
-        .mp-page-header { margin-bottom: 20px; }
+        .mp-page-header {
+          margin-bottom: 20px;
+          position: relative;
+          z-index: 100;
+        }
         .mp-page-title {
           color: var(--ref-text-primary, #0f172a);
           font-size: 28px;
@@ -1204,7 +1363,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           margin-bottom: 16px;
           padding: 16px 20px;
           position: relative;
-          z-index: 50;
+          z-index: 10;
         }
         .mp-filter-item {
           display: flex;
@@ -1375,10 +1534,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               )}
             </button>
 
-            <button type="button" className="btn-base btn-primary" onClick={handleExport}>
-              <i className="fas fa-file-export mr-1.5" />
-              {t("app.exportCsv", "CSV 내보내기")}
-            </button>
+            <ExportDropdown
+              onExportCsv={handleExportCsv}
+              onExportExcel={handleExportExcel}
+              onExportZip={handleExportZip}
+            />
           </div>
         </header>
 
@@ -1598,12 +1758,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     <tr>
                       <th style={{ textAlign: "center" }}></th>
                       {TABLE_COLUMNS.map((col) => (
-                        <th
+                        <SortableTh
                           key={col}
-                          className="px-3 py-3 text-text-subtle whitespace-nowrap text-xs font-semibold"
-                        >
-                          {columnLabel(col, t)}
-                        </th>
+                          columnKey={col}
+                          label={columnLabel(col, t)}
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
                       ))}
                     </tr>
                   </thead>
@@ -1615,7 +1776,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                         </td>
                       </tr>
                     ) : (
-                      filtered.map((row, index) => {
+                      paginatedData.map((row, index) => {
                         const woCode = getColValue(row, "wOCode");
                         const isUser = !woCode || woCode === "—";
                         const isPending = !!row._pending;
@@ -1767,6 +1928,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination bar */}
+            {selectedProcessId !== null && filtered.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={sortedFilteredData.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
             )}
           </div>
       </section>
