@@ -448,6 +448,12 @@ function TableSkeleton({ rows = 6, t }) {
 
 export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, drawerItem, onUpload }) {
   const { t, language } = useI18n();
+  const batchFileInputRef = useRef(null);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchModalError, setBatchModalError] = useState("");
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [applicableRows, setApplicableRows] = useState([]);
+  const [notApplicableRows, setNotApplicableRows] = useState([]);
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedProcessId, setSelectedProcessId] = useState(null);
@@ -1477,23 +1483,29 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Row Count Badge */}
+            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 px-1 py-1 mr-1 flex items-center shrink-0">
+              {filtered?.length || 0}{t("app.rows", "건")}
+            </span>
+
+            {/* + VoC 추가 Button */}
             <button
               type="button"
-              className="btn-base btn-secondary"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
                 if (!selectedProcessId || !selectedMaintenanceId) {
                   setOperationStatus({
                     isVisible: true,
                     status: "warning",
-                    message: `${t("field.process")} / ${t("field.maintenance")} ${t("app.search")}`,
+                    message: `${t("field.process")} / ${t("field.equipmentType")} ${t("app.search")}`,
                     autoClose: true,
                   });
                   return;
                 }
                 setNewRow({
                   ...EMPTY_ROW,
-                  workedOn: new Date().toISOString().slice(0, 10)
+                  workedOn: new Date().toISOString().slice(0, 10),
                 });
                 setEditingRowLocalId(null);
                 setModalError("");
@@ -1501,39 +1513,112 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 setShowModal(true);
               }}
             >
-              <i className="fas fa-plus mr-1.5" />{t("page.mp.addRow", "행 추가")}
+              <i className="fas fa-plus text-xs" />
+              <span>{t("page.mp.addVoc", "VoC 추가")}</span>
             </button>
 
+            {/* Hidden File Input for Batch Import */}
+            <input
+              ref={batchFileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setBatchModalError("");
+                if (file.size > 5 * 1024 * 1024) {
+                  setBatchModalError(t("mp.fileSizeLimit", "Up to 5MB, supports only CSV format"));
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                  try {
+                    const bstr = evt.target.result;
+                    const wb = XLSX.read(bstr, { type: "binary" });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const rawData = XLSX.utils.sheet_to_json(ws);
+                    if (rawData && rawData.length > 0) {
+                      const newItems = rawData.map((row, idx) => ({
+                        ...EMPTY_ROW,
+                        localId: `imported-${Date.now()}-${idx}`,
+                        representativeWork: row["Main Work Name"] || row["대표작업명"] || row["Representative Work"] || row["representativeWork"] || "",
+                        purpose: row["Purpose"] || row["작업목적"] || row["purpose"] || "",
+                        symptom: row["Symptom"] || row["문제현상"] || row["symptom"] || "",
+                        cause: row["Cause"] || row["문제원인"] || row["cause"] || "",
+                        bom: row["BOM"] || row["bom"] || "",
+                        hwBefore: row["HW변경전"] || row["hwBefore"] || "",
+                        hwAfter: row["HW변경후"] || row["hwAfter"] || "",
+                        swBefore: row["SW변경전"] || row["swBefore"] || "",
+                        swAfter: row["SW변경후"] || row["swAfter"] || "",
+                        workedOn: row["Work Completion Date"] || row["작업완료일"] || new Date().toISOString().slice(0, 10),
+                        priority: row["Importance"] || row["중요도"] || "상",
+                        effectCategory: row["Effect Type"] || row["효과유형"] || "품질",
+                        site: row["Corporation"] || row["법인"] || "A1. Seoul",
+                        isUserAdded: true,
+                        isDirty: true,
+                      }));
+                      setListRows((prev) => [...newItems, ...prev]);
+                      setIsDirty(true);
+                      setShowBatchModal(false);
+                      setOperationStatus({
+                        isVisible: true,
+                        status: "success",
+                        message: `${newItems.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
+                        autoClose: true,
+                      });
+                    }
+                  } catch (err) {
+                    console.error("Batch import error:", err);
+                    setBatchModalError(t("mp.importError", "CSV 파일을 읽는 도중 오류가 발생했습니다."));
+                  }
+                };
+                reader.readAsBinaryString(file);
+                e.target.value = "";
+              }}
+            />
+
+            {/* VoC 일괄 추가 Button */}
             <button
               type="button"
-              className="btn-base"
-              style={{
-                background: "#16a34a",
-                color: "#fff",
-                border: "none",
-                cursor: isDirty ? "pointer" : "not-allowed",
-                opacity: isDirty ? 1 : 0.65,
-                boxShadow: isDirty ? "0 10px 24px rgba(22, 163, 74, 0.2)" : "none",
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={() => {
+                setBatchModalError("");
+                setShowBatchModal(true);
               }}
-              onClick={handleSaveAll}
-              disabled={!isDirty || savingAll}
-              title={
-                !isDirty ? t("app.noData", "저장할 변경사항이 없습니다.") : t("app.save", "저장")
-              }
+            >
+              <i className="fas fa-file-import text-xs" />
+              <span>{t("page.mp.batchAddVoc", "VoC 일괄 추가")}</span>
+            </button>
+
+            {/* MP List 저장 Button */}
+            <button
+              type="button"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => {
+                const initialApplicable = filtered.length > 0 ? [...filtered] : [...listRows];
+                setApplicableRows(initialApplicable);
+                setNotApplicableRows([]);
+                setShowSaveModal(true);
+              }}
+              disabled={savingAll}
+              title={!isDirty ? t("app.noData", "저장할 변경사항이 없습니다.") : t("app.save", "저장")}
             >
               {savingAll ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-1.5" />
-                  {t("app.saving", "저장 중...")}
+                  <i className="fas fa-spinner fa-spin text-xs" />
+                  <span>{t("app.saving", "저장 중...")}</span>
                 </>
               ) : (
                 <>
-                  <i className="fas fa-save mr-1.5" />
-                  {t("page.mp.saveButton", "저장하기")}
+                  <i className="fas fa-save text-xs" />
+                  <span>{t("page.mp.saveMpList", "MP List 저장")}</span>
                 </>
               )}
             </button>
 
+            {/* 내보내기 Dropdown */}
             <ExportDropdown
               onExportCsv={handleExportCsv}
               onExportExcel={handleExportExcel}
@@ -1576,9 +1661,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             )}
           </div>
 
-          {/* Maintenance Filter */}
+          {/* Equipment Type Filter */}
           <div className="mp-filter-item">
-            <label>{t("field.maintenance", "보전파트")}</label>
+            <label>{t("field.equipmentType", "Equipment Type")}</label>
             {filterLoading ? (
               <SelectSkeleton width="130px" />
             ) : (
@@ -1991,7 +2076,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.maintenance", "보전파트")}
+                {t("field.maintenance", "Equipment Type")}
               </label>
               <input
                 type="text"
@@ -2299,6 +2384,441 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           </div>
         </div>
       </Modal>
+
+      {/* ── Batch addition of VoC Modal ── */}
+      {showBatchModal && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          onClick={() => setShowBatchModal(false)}
+        >
+          <div
+            className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-base shrink-0">
+                  <i className="fas fa-file-import" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.batchModalTitle", "Batch addition of VoC")}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {t("page.mp.batchModalDesc", "Batch register VoC items as CSV files")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                onClick={() => setShowBatchModal(false)}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            {/* Error alert if any */}
+            {batchModalError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 font-medium flex items-center gap-2">
+                <i className="fas fa-exclamation-circle text-sm shrink-0" />
+                <span>{batchModalError}</span>
+              </div>
+            )}
+
+            {/* Notice Card: Download input form first */}
+            <div className="bg-gray-50/80 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 flex items-center justify-between gap-4 mb-5">
+              <div className="flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-0.5">
+                  <i className="fas fa-info" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.downloadFormTitle", "Download the input form first")}
+                  </h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                    {t("page.mp.downloadFormDesc", "Required columns: Process, Maintenance Part, Main Work Name, Work Completion Date, Importance, Effect Type, Corporation")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const headers = [
+                    "Process",
+                    "Maintenance Part",
+                    "Main Work Name",
+                    "Work Completion Date",
+                    "Importance",
+                    "Effect Type",
+                    "Corporation",
+                  ];
+                  const sampleRow = [
+                    "03.성형",
+                    "0307. UT Coater",
+                    "3기어 펌프 교체",
+                    "2024-07-30",
+                    "상",
+                    "품질",
+                    "A1. Seoul",
+                  ];
+                  const csvContent =
+                    "data:text/csv;charset=utf-8,\uFEFF" +
+                    [headers.join(","), sampleRow.join(",")].join("\n");
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", "voc_import_template.csv");
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+              >
+                <i className="fas fa-download text-xs text-gray-500" />
+                <span>{t("page.mp.downloadFormBtn", "Download Form")}</span>
+              </button>
+            </div>
+
+            {/* Dropzone Card: Select the CSV file */}
+            <div
+              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-white dark:bg-gray-800/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-6"
+              onClick={() => batchFileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  if (batchFileInputRef.current) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    batchFileInputRef.current.files = dataTransfer.files;
+                    batchFileInputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                  }
+                }
+              }}
+            >
+              <div className="w-12 h-12 rounded-full bg-[#1d4ed8] flex items-center justify-center text-white text-xl mb-3 shadow-md">
+                <i className="fas fa-cloud-upload-alt" />
+              </div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                {t("page.mp.selectCsvTitle", "Select the CSV file")}
+              </h4>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                {t("page.mp.selectCsvDesc", "Up to 5MB, supports only CSV format")}
+              </p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  batchFileInputRef.current?.click();
+                }}
+                className="mt-4 bg-[#1d4ed8] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <i className="fas fa-folder-open text-xs" />
+                <span>{t("page.mp.fileSelectionBtn", "File selection")}</span>
+              </button>
+            </div>
+
+            {/* Modal Footer: cancellation */}
+            <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700">
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1"
+                onClick={() => setShowBatchModal(false)}
+              >
+                {t("app.cancellation", "cancellation")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Storing MP List Modal ── */}
+      {showSaveModal && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          onClick={() => setShowSaveModal(false)}
+        >
+          <div
+            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 mb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0">
+                  <i className="fas fa-save" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.storingModalTitle", "Storing MP List")}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                    {processList.find(p => p.id === selectedProcessId)?.processName || "02. Placement"} · {(filterPayload?.maintenance ?? []).find(m => m.id === selectedMaintenanceId)?.maintenanceGroupName || "0202. Nano Mill"} · {dateFrom || "2025-07-27"} ~ {dateTo || "2026-07-27"} · v1
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                onClick={() => setShowSaveModal(false)}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar">
+              {/* Section 1: Applicable Items */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle text-emerald-500 text-sm" />
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                      {t("page.mp.applicableItems", "Applicable Items")}
+                    </h4>
+                    <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                      {applicableRows.length} {t("app.cases", "cases")}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const toMove = applicableRows.filter((r) => r.priority !== "중요" && r.priority !== "Important");
+                      const keep = applicableRows.filter((r) => r.priority === "중요" || r.priority === "Important");
+                      setApplicableRows(keep);
+                      setNotApplicableRows((prev) => [
+                        ...prev,
+                        ...toMove.map((item) => ({
+                          ...item,
+                          nonImplReason: item.nonImplReason || t("page.mp.generalItemReason", "일반 항목 - 미적용 대상"),
+                        })),
+                      ]);
+                    }}
+                    className="border border-red-200 dark:border-red-800/50 bg-red-50/60 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100/80 font-bold text-xs px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <i className="fas fa-arrow-down text-xs" />
+                    <span>{t("page.mp.notApplyingGeneral", "Not applying general items")}</span>
+                  </button>
+                </div>
+
+                {/* Applicable Items Table */}
+                <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-white dark:bg-gray-800 shadow-2xs">
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                        <tr>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">#</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.category", "EFFECT")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-12 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                        {applicableRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="px-4 py-8 text-center text-gray-400 font-medium">
+                              {t("page.mp.noApplicable", "No applicable items")}
+                            </td>
+                          </tr>
+                        ) : (
+                          applicableRows.map((row, idx) => (
+                            <tr key={`app-${idx}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
+                              <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[150px] truncate">
+                                {getColValue(row, "representativeWork") || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[140px] truncate">
+                                {getColValue(row, "purpose") || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">
+                                {getColValue(row, "hwBefore") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">
+                                {getColValue(row, "hwAfter") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">
+                                {getColValue(row, "swBefore") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">
+                                {getColValue(row, "swAfter") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                                  row.priority === "중요" || row.priority === "Important"
+                                    ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-100"
+                                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                }`}>
+                                  {row.priority || "Important"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                                  {row.effectCategory || row.category || "integrity"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <button
+                                  type="button"
+                                  title="Move to Not Applicable"
+                                  onClick={() => {
+                                    setApplicableRows(applicableRows.filter((_, i) => i !== idx));
+                                    setNotApplicableRows([...notApplicableRows, { ...row, nonImplReason: row.nonImplReason || "" }]);
+                                  }}
+                                  className="w-6 h-6 rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center cursor-pointer transition-colors"
+                                >
+                                  <i className="fas fa-arrow-down text-[10px]" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Not Applicable */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="fas fa-times-circle text-red-500 text-sm" />
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.notApplicable", "Not Applicable")}
+                  </h4>
+                  <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
+                    {notApplicableRows.length} {t("app.cases", "cases")}
+                  </span>
+                </div>
+
+                {/* Not Applicable Table */}
+                <div className="border border-red-200 dark:border-red-800/40 rounded-2xl overflow-hidden border-l-4 border-l-red-500 bg-white dark:bg-gray-800 shadow-2xs">
+                  {notApplicableRows.length === 0 ? (
+                    <div className="py-8 flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center text-base mb-2">
+                        <i className="fas fa-check" />
+                      </div>
+                      <p className="text-xs font-bold text-gray-400 dark:text-gray-500">
+                        {t("page.mp.noItemsNotApplied", "No items not applied")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto custom-scrollbar">
+                      <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                        <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                          <tr>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">#</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.category", "EFFECT")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.nonImplReason", "REASONS FOR NON-IMPLEMENTATION")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-12 text-center"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                          {notApplicableRows.map((row, idx) => (
+                            <tr key={`not-${idx}`} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
+                              <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[130px] truncate">
+                                {getColValue(row, "representativeWork") || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">
+                                {getColValue(row, "purpose") || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">
+                                {getColValue(row, "hwBefore") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">
+                                {getColValue(row, "hwAfter") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
+                                {getColValue(row, "swBefore") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
+                                {getColValue(row, "swAfter") || "No information available"}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                  {row.priority || "Normal"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                                  {row.effectCategory || row.category || "integrity"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <textarea
+                                  rows={2}
+                                  placeholder="Importance Average"
+                                  value={row.nonImplReason || "Importance Average"}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setNotApplicableRows(notApplicableRows.map((r, i) => i === idx ? { ...r, nonImplReason: val } : r));
+                                  }}
+                                  className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <button
+                                  type="button"
+                                  title="Restore to Applicable"
+                                  onClick={() => {
+                                    setNotApplicableRows(notApplicableRows.filter((_, i) => i !== idx));
+                                    setApplicableRows([...applicableRows, row]);
+                                  }}
+                                  className="w-6 h-6 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center cursor-pointer transition-colors"
+                                >
+                                  <i className="fas fa-arrow-up text-[10px]" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                onClick={() => setShowSaveModal(false)}
+              >
+                {t("app.cancellation", "cancellation")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveModal(false);
+                  handleSaveAll();
+                }}
+                className="bg-[#1d4ed8] hover:bg-blue-700 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <i className="fas fa-save text-xs" />
+                <span>{t("app.save", "Save")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Toast ── */}
       <FilterToast

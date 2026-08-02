@@ -20,15 +20,21 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
           <tr className="border-b border-border-base bg-surface-strong">
             <th
               className="sticky left-0 z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-              style={{ width: "120px", position: "sticky", left: 0 }}
+              style={{ width: "100px", position: "sticky", left: 0 }}
             >
-              {t("field.equipmentCode", "설비코드")}
+              {t("field.site", "SITE")}
             </th>
             <th
               className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-              style={{ width: "180px", position: "sticky", left: "120px" }}
+              style={{ width: "120px", position: "sticky", left: "100px" }}
             >
-              {t("field.equipmentName", "설비명")}
+              {t("field.equipmentCode", "EQUIPMENT CODE")}
+            </th>
+            <th
+              className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "180px", position: "sticky", left: "220px" }}
+            >
+              {t("field.equipmentName", "EQUIPMENT NAME")}
             </th>
             {displayCols.map((col) => (
               <th
@@ -43,7 +49,7 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
         </thead>
         <tbody>
           {Array.from({ length: rowsCount }).map((_, rIdx) => {
-            const eq = equipmentRows[rIdx] || { equipmentCode: "", equipmentName: "" };
+            const eq = equipmentRows[rIdx] || { site: "", equipmentCode: "", equipmentName: "" };
             return (
               <tr
                 key={rIdx}
@@ -57,7 +63,13 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
                 </td>
                 <td
                   className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default transition-colors"
-                  style={{ position: "sticky", left: "120px" }}
+                  style={{ position: "sticky", left: "100px" }}
+                >
+                  <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
+                </td>
+                <td
+                  className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default transition-colors"
+                  style={{ position: "sticky", left: "220px" }}
                 >
                   <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
                 </td>
@@ -71,6 +83,148 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable SearchableSelect Dropdown Component (Single-Select with Search Input)
+// ─────────────────────────────────────────────────────────────────────────────
+function SearchableSelect({
+  options = [],
+  selectedValue,
+  onChange,
+  placeholder,
+  t,
+  disabled,
+  minWidth = "180px",
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(q));
+  }, [options, searchTerm]);
+
+  const displayLabel =
+    selectedValue === "전체" || !selectedValue
+      ? t("app.all", "전체")
+      : selectedValue;
+
+  return (
+    <div ref={containerRef} className="relative flex-none" style={{ minWidth }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen((prev) => !prev);
+            setSearchTerm("");
+          }
+        }}
+        disabled={disabled}
+        className="input-base flex w-full items-center justify-between text-left font-semibold text-text-default"
+        style={{
+          height: "38px",
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          border: "1px solid var(--border-base, #e6e9ef)",
+          borderRadius: "10px",
+        }}
+      >
+        <span className="truncate text-xs font-semibold pr-2">{displayLabel}</span>
+        <i className={`fas fa-chevron-down text-[10px] text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-2xl bg-white dark:bg-gray-800 p-2 shadow-xl border border-gray-100 dark:border-gray-700 animate-fade-in"
+          style={{ minWidth: "220px" }}
+        >
+          {/* Search Input */}
+          <div className="relative mb-2">
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t("matrix.searchRepWork", "작업명 검색...")}
+              className="w-full rounded-xl bg-gray-50 dark:bg-gray-700/60 pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 border border-gray-200 dark:border-gray-600"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+              >
+                <i className="fas fa-times" />
+              </button>
+            )}
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("전체");
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                selectedValue === "전체" || !selectedValue
+                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              <span>{t("app.all", "전체")}</span>
+              {(selectedValue === "전체" || !selectedValue) && (
+                <i className="fas fa-check text-blue-600 dark:text-blue-400 text-xs" />
+              )}
+            </button>
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-3 text-center text-xs text-gray-400">
+                {t("matrix.noMatchingTask", "검색 결과 없음")}
+              </div>
+            ) : (
+              filteredOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
+                    selectedValue === opt
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  }`}
+                >
+                  <span className="truncate pr-2">{opt}</span>
+                  {selectedValue === opt && (
+                    <i className="fas fa-check text-blue-600 dark:text-blue-400 text-xs shrink-0" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -303,6 +457,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [newCategory, setNewCategory] = useState("");
   const [replacing, setReplacing] = useState(false);
   const [clickedRecord, setClickedRecord] = useState(null);
+
+  // Lateral Deployment Modal State (횡전개 관리 모달)
+  const [showApplyStatusModal, setShowApplyStatusModal] = useState(false);
+  const [asRepWork, setAsRepWork] = useState("");
+  const [asActiveTab, setAsActiveTab] = useState("unconfirmed");
+  const [asSelectedEqCodes, setAsSelectedEqCodes] = useState(new Set());
+  const [asStaging, setAsStaging] = useState({});
+
+  const openApplyStatusModal = useCallback((repWork) => {
+    setAsRepWork(repWork);
+    setAsActiveTab("unconfirmed");
+    setAsSelectedEqCodes(new Set());
+    setAsStaging({});
+    setShowApplyStatusModal(true);
+  }, []);
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({
@@ -588,11 +757,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     // Unique equipment mapping
     const eqMap = new Map();
     filtered.forEach((item) => {
+      const site = getColValue(item, "site") || getColValue(item, "법인") || "A1. Seoul";
       const scode = getColValue(item, "equipmentCode");
       const sname = getColValue(item, "equipmentName");
-      const k = scode + "|" + sname;
+      const k = site + "|" + scode + "|" + sname;
       if (!eqMap.has(k)) {
-        eqMap.set(k, { equipmentCode: scode, equipmentName: sname });
+        eqMap.set(k, { site, equipmentCode: scode, equipmentName: sname });
       }
     });
     const equipmentRows = [...eqMap.values()].sort((a, b) => a.equipmentName.localeCompare(b.equipmentName));
@@ -714,6 +884,154 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     setNewPriority(existingPriority);
     setNewCategory(existingCategory);
     setShowReplaceModal(true);
+  };
+
+  // ── Lateral Deployment Data Calculations & Action Handlers ──
+  const asEquipmentData = useMemo(() => {
+    if (!asRepWork || !equipmentRows) return { woApplied: [], unconfirmed: [], applied: [], rejected: [] };
+
+    const woApplied = [];
+    const unconfirmed = [];
+    const applied = [];
+    const rejected = [];
+
+    equipmentRows.forEach((eq) => {
+      const eqCode = eq.equipmentCode;
+      const eqName = eq.equipmentName;
+      const site = eq.site || eq.corporation || "A3. 부산";
+
+      const matched = allRecords.filter(
+        (r) =>
+          getColValue(r, "equipmentCode") === eqCode &&
+          getColValue(r, "representativeWork") === asRepWork
+      );
+
+      const hasWo = matched.some((r) => Boolean(getColValue(r, "wOCode")));
+      const stagedStatus = asStaging[eqCode];
+
+      let effectiveStatus = "unconfirmed";
+      if (stagedStatus) {
+        effectiveStatus = stagedStatus;
+      } else if (hasWo) {
+        effectiveStatus = "wo_applied";
+      } else if (matched.length > 0) {
+        effectiveStatus = matched[0]?.apply_status || "unconfirmed";
+      }
+
+      const item = {
+        equipmentCode: eqCode,
+        equipmentName: eqName,
+        site,
+        hasWo,
+        rawStatus: matched[0]?.apply_status || "unconfirmed",
+        effectiveStatus,
+      };
+
+      if (effectiveStatus === "wo_applied" || (hasWo && !stagedStatus)) {
+        woApplied.push(item);
+      } else if (effectiveStatus === "applied") {
+        applied.push(item);
+      } else if (effectiveStatus === "rejected") {
+        rejected.push(item);
+      } else {
+        unconfirmed.push(item);
+      }
+    });
+
+    return { woApplied, unconfirmed, applied, rejected };
+  }, [asRepWork, equipmentRows, allRecords, asStaging]);
+
+  const currentTabItems = useMemo(() => {
+    switch (asActiveTab) {
+      case "wo_applied":
+        return asEquipmentData.woApplied;
+      case "applied":
+        return asEquipmentData.applied;
+      case "rejected":
+        return asEquipmentData.rejected;
+      case "unconfirmed":
+      default:
+        return asEquipmentData.unconfirmed;
+    }
+  }, [asActiveTab, asEquipmentData]);
+
+  const handleToggleSelectEq = (eqCode) => {
+    setAsSelectedEqCodes((prev) => {
+      const next = new Set(prev);
+      next.has(eqCode) ? next.delete(eqCode) : next.add(eqCode);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllEq = () => {
+    if (asSelectedEqCodes.size === currentTabItems.length) {
+      setAsSelectedEqCodes(new Set());
+    } else {
+      setAsSelectedEqCodes(new Set(currentTabItems.map((item) => item.equipmentCode)));
+    }
+  };
+
+  const handleApplyStatusAction = (targetStatus) => {
+    if (asSelectedEqCodes.size === 0) return;
+    setAsStaging((prev) => {
+      const next = { ...prev };
+      asSelectedEqCodes.forEach((code) => {
+        next[code] = targetStatus;
+      });
+      return next;
+    });
+    setAsSelectedEqCodes(new Set());
+  };
+
+  const handleSaveApplyStatus = () => {
+    if (Object.keys(asStaging).length === 0) {
+      setShowApplyStatusModal(false);
+      return;
+    }
+
+    setAllRecords((prevRecords) => {
+      const updated = [...prevRecords];
+
+      Object.entries(asStaging).forEach(([eqCode, newStatus]) => {
+        const existingIdx = updated.findIndex(
+          (r) =>
+            getColValue(r, "equipmentCode") === eqCode &&
+            getColValue(r, "representativeWork") === asRepWork
+        );
+
+        if (existingIdx >= 0) {
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            apply_status: newStatus,
+          };
+        } else {
+          const eqInfo = equipmentRows.find((eq) => eq.equipmentCode === eqCode);
+          if (eqInfo) {
+            const maxId = updated.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
+            const newRecord = {
+              id: maxId + 1,
+              process: selectedProcess !== "전체" ? selectedProcess : "02. 배칭",
+              maintGroup: selectedMaintenance !== "전체" ? selectedMaintenance : "0202. Nano Mill",
+              equipmentCode: eqInfo.equipmentCode,
+              equipmentName: eqInfo.equipmentName,
+              site: eqInfo.site || "A3. 부산",
+              representativeWork: asRepWork,
+              apply_status: newStatus,
+              workedOn: new Date().toISOString().split("T")[0],
+              priority: "일반",
+              category: "보전성",
+            };
+            updated.push(newRecord);
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    setShowApplyStatusModal(false);
+    setAsStaging({});
+    setAsSelectedEqCodes(new Set());
   };
 
   // Execute Find & Replace
@@ -913,7 +1231,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 보전파트 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.maintenance", "보전파트")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.equipmentType", "Equipment Type")}</label>
             <select
               className="input-base"
               value={selectedMaintenance}
@@ -952,20 +1270,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
           {/* 대표 작업명 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.repWork", "대표 작업명")}</label>
-            <select
-              className="input-base"
-              value={selectedRepWork}
-              onChange={(e) => setSelectedRepWork(e.target.value)}
+            <SearchableSelect
+              options={repWorkOptions}
+              selectedValue={selectedRepWork}
+              onChange={setSelectedRepWork}
               disabled={selectedProcess === "전체"}
-              style={{ width: "180px" }}
-            >
-              <option value="전체">{t("app.all", "전체")}</option>
-              {repWorkOptions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+              t={t}
+              minWidth="180px"
+            />
             <span className="text-[10px] font-bold text-brand-60" style={{ color: "var(--brand-60, #0f62fe)" }}>
               {repWorkOptions.length ? `(${repWorkOptions.length}개)` : ""}
             </span>
@@ -1066,15 +1378,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <tr className="border-b border-border-base bg-surface-strong">
                   <th
                     className="sticky left-0 z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "120px", position: "sticky", left: 0 }}
+                    style={{ width: "100px", position: "sticky", left: 0 }}
                   >
-                    {t("field.equipmentCode", "설비코드")}
+                    {t("field.site", "SITE")}
                   </th>
                   <th
                     className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "180px", position: "sticky", left: "120px" }}
+                    style={{ width: "120px", position: "sticky", left: "100px" }}
                   >
-                    {t("field.equipmentName", "설비명")}
+                    {t("field.equipmentCode", "EQUIPMENT CODE")}
+                  </th>
+                  <th
+                    className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+                    style={{ width: "180px", position: "sticky", left: "220px" }}
+                  >
+                    {t("field.equipmentName", "EQUIPMENT NAME")}
                   </th>
                   {columns.map((col) => {
                     if (mode === "date") {
@@ -1086,11 +1404,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{col}</span>
-                            <i
-                              className="fas fa-pen text-[9px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                              onClick={() => openReplaceModal(null, col)}
-                              title={t("page.matrix.editColumn", "열 작업명 수정")}
-                            />
                           </div>
                         </th>
                       );
@@ -1105,11 +1418,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           <div className="flex flex-col items-center justify-center">
                             <div className="flex items-center justify-center gap-1">
                               <span className="break-all">{col}</span>
-                              <i
-                                className="fas fa-pen text-[9px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                                onClick={() => openReplaceModal(null, col)}
-                                title={t("page.matrix.editColumn", "열 작업명 수정")}
-                              />
                             </div>
                             <span className="mt-1 text-[10px] font-normal normal-case text-text-subtle">
                               {rate.toFixed(1)}%
@@ -1124,24 +1432,33 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               <tbody>
                 {equipmentRows.map((eq, rowIdx) => (
                   <tr
-                    key={`${eq.equipmentCode}-${rowIdx}`}
+                    key={`${eq.site}-${eq.equipmentCode}-${rowIdx}`}
                     className="group border-b border-border-base last:border-0 hover:bg-fill-active transition-colors"
                   >
                     <td
                       className="sticky left-0 z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"
                       style={{ position: "sticky", left: 0 }}
                     >
+                      {eq.site}
+                    </td>
+                    <td
+                      className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"
+                      style={{ position: "sticky", left: "100px" }}
+                    >
                       {eq.equipmentCode}
                     </td>
                     <td
                       className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"
-                      style={{ position: "sticky", left: "120px" }}
+                      style={{ position: "sticky", left: "220px" }}
                     >
                       {eq.equipmentName}
                     </td>
                     {columns.map((col) => {
                       const matched = filtered.filter(d => {
-                        const isEquip = getColValue(d, "equipmentCode") === eq.equipmentCode && getColValue(d, "equipmentName") === eq.equipmentName;
+                        const isEquip =
+                          getColValue(d, "equipmentCode") === eq.equipmentCode &&
+                          getColValue(d, "equipmentName") === eq.equipmentName &&
+                          (getColValue(d, "site") || getColValue(d, "법인") || "A1. Seoul") === eq.site;
                         if (!isEquip) return false;
                         if (mode === "date") {
                           return getFormattedDateString(getColValue(d, "workedOn")) === col;
@@ -1151,6 +1468,22 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       });
 
                       if (matched.length === 0) {
+                        if (mode === "task") {
+                          return (
+                            <td key={col} className="px-3 py-2 align-middle text-center">
+                              <div className="flex items-center justify-center min-h-[36px]">
+                                <button
+                                  type="button"
+                                  className="w-6 h-6 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center justify-center text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                                  onClick={() => openApplyStatusModal(col)}
+                                  title={t("page.matrix.lateralModalTitle", "횡전개 관리")}
+                                >
+                                  <i className="fas fa-plus" />
+                                </button>
+                              </div>
+                            </td>
+                          );
+                        }
                         return <td key={col} className="px-4 py-3" />;
                       }
 
@@ -1234,61 +1567,74 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         )}
       </div>
 
-      {/* Find & Replace Modal */}
+      {/* Find & Replace Modal (Representative Work Name Change) */}
       {showReplaceModal && (
-        <div className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowReplaceModal(false)}>
-          <div className="modal-content w-full max-w-[520px] rounded-[24px] bg-[#f8fafc] shadow-2xl overflow-hidden border border-[#e2e8f0]" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b border-[#e2e8f0] bg-[#eef2ff] flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-lg text-[#0f172a] flex items-center gap-2">
-                  <i className="fas fa-exchange-alt text-[#4f46e5]" />
-                  {t("page.matrix.replaceModalTitle", "대표 작업명 일괄 수정")}
-                </h3>
-                <p className="text-xs text-[#475569] mt-1">
-                  {t("page.matrix.replaceModalDesc", "일치하는 모든 대표 작업명과 속성을 한 번에 변경합니다.")}
-                </p>
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          onClick={() => setShowReplaceModal(false)}
+        >
+          <div
+            className="modal-content w-full max-w-[500px] rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700/80 bg-white dark:bg-gray-800 flex items-start justify-between">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0 mt-0.5">
+                  <i className="fas fa-edit" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">
+                    {t("page.matrix.replaceModalTitle", "Representative Work Name Change")}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t("page.matrix.replaceModalDesc", "Batch changes of representative task names, importance, and effect types")}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setShowReplaceModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200/50 text-[#475569] transition-colors">
-                <i className="fas fa-times text-lg" />
+              <button
+                type="button"
+                onClick={() => setShowReplaceModal(false)}
+                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 transition-colors shrink-0"
+              >
+                <i className="fas fa-times text-sm" />
               </button>
             </div>
-            
-            <div className="p-6 space-y-5">
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 bg-white dark:bg-gray-800">
+              {/* Job Name to Find */}
               <div>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#475569] mb-1.5 uppercase tracking-wider">
-                  <i className="fas fa-lock text-[#d97706]" />
-                  {t("page.matrix.replaceBefore", "변경 전 (대표 작업명)")}
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#fffbeb] text-[#d97706] border border-[#fde68a] ml-2">
-                    <i className="fas fa-lock text-[8px]" />
-                    {t("app.readonly", "수정 불가")}
-                  </span>
-                </div>
+                <label className="block text-xs font-bold text-gray-900 dark:text-white mb-2">
+                  {t("page.matrix.jobNameFind", "Job Name to Find")}
+                </label>
                 {replaceTargetTasksList.length > 1 ? (
                   <div>
                     <select
-                      className="input-base w-full bg-white font-medium text-text-default transition-all duration-150"
-                      style={{ borderColor: "#f59e0b", borderWidth: "1.5px" }}
+                      className="w-full bg-gray-100/80 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       value={replaceTargetTask}
                       onChange={(e) => {
                         const nextTask = e.target.value;
                         setReplaceTargetTask(nextTask);
                         if (nextTask) {
-                          const currentMaintRecords = allRecords.filter(r => 
-                            getColValue(r, "process") === selectedProcess && 
-                            getColValue(r, "maintGroup") === selectedMaintenance
+                          const currentMaintRecords = allRecords.filter(
+                            (r) =>
+                              getColValue(r, "process") === selectedProcess &&
+                              getColValue(r, "maintGroup") === selectedMaintenance
                           );
-                          
+
                           let foundRecord = null;
                           if (clickedRecord) {
                             const eqCode = getColValue(clickedRecord, "equipmentCode");
                             const eqName = getColValue(clickedRecord, "equipmentName");
-                            foundRecord = allRecords.find(r => 
-                              getColValue(r, "equipmentCode") === eqCode &&
-                              getColValue(r, "equipmentName") === eqName &&
-                              getColValue(r, "representativeWork") === nextTask
+                            foundRecord = allRecords.find(
+                              (r) =>
+                                getColValue(r, "equipmentCode") === eqCode &&
+                                getColValue(r, "equipmentName") === eqName &&
+                                getColValue(r, "representativeWork") === nextTask
                             );
                           }
-                          
+
                           if (foundRecord) {
                             setNewPriority(getColValue(foundRecord, "priority"));
                             setNewCategory(getColValue(foundRecord, "category"));
@@ -1297,7 +1643,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               (r) => getColValue(r, "representativeWork") === nextTask
                             );
                             if (matchedRecords.length > 0) {
-                              const firstWithVal = matchedRecords.find(r => getColValue(r, "priority") || getColValue(r, "category")) || matchedRecords[0];
+                              const firstWithVal =
+                                matchedRecords.find(
+                                  (r) => getColValue(r, "priority") || getColValue(r, "category")
+                                ) || matchedRecords[0];
                               setNewPriority(getColValue(firstWithVal, "priority"));
                               setNewCategory(getColValue(firstWithVal, "category"));
                             } else {
@@ -1312,129 +1661,332 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       }}
                     >
                       {replaceTargetTasksList.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-text-subtle mt-1.5">
-                      <i className="fas fa-info-circle mr-1 text-[#f59e0b]" />
+                    <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
+                      <i className="fas fa-info-circle text-xs" />
                       {t("page.matrix.multipleTasksNotice", "해당 셀에 2개 이상의 대표 작업명이 있습니다. 변경할 작업명을 선택하세요.")}
                     </p>
                   </div>
                 ) : (
-                  <input
-                    type="text"
-                    className="input-base w-full bg-[#f1f5f9] cursor-not-allowed font-medium text-[#1e293b]"
-                    style={{ borderColor: "#f59e0b", borderWidth: "1.5px" }}
-                    value={replaceTargetTask}
-                    readOnly
-                  />
+                  <div className="w-full bg-gray-100/80 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 font-medium">
+                    {replaceTargetTask || "-"}
+                  </div>
                 )}
               </div>
 
-              <div className="flex justify-center text-[#4f46e5] my-1 text-xl">
-                <i className="fas fa-arrow-down" />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#475569] mb-1.5 uppercase tracking-wider">
-                  <i className="fas fa-pen text-[#94a3b8] text-[10px]" />
-                  {t("page.matrix.replaceAfter", "변경 후 (대표 작업명)")}
+              {/* CHANGES Group Container */}
+              <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700/60 space-y-4">
+                <div className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  {t("page.matrix.changesGroup", "CHANGES")}
                 </div>
-                <input
-                  type="text"
-                  list="replaceSuggestions"
-                  className="input-base w-full bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none transition-all duration-150"
-                  placeholder={t("page.matrix.replaceAfterPlaceholder", "새로운 대표 작업명을 입력하세요")}
-                  value={newRepresentativeWork}
-                  onChange={(e) => setNewRepresentativeWork(e.target.value)}
-                />
-                <datalist id="replaceSuggestions">
-                  {repWorkOptions.map(opt => (
-                    <option key={opt} value={opt} />
-                  ))}
-                </datalist>
-                <p className="text-[11px] text-[#94a3b8] mt-1.5 flex items-center gap-1">
-                  <i className="fas fa-lightbulb text-[#94a3b8]" />
-                  {t("page.matrix.replaceSuggestionTip", "기존 작업명 중 선택하거나 새로운 이름을 입력할 수 있습니다.")}
-                </p>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* New Representative Work Name */}
                 <div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#475569] mb-1.5 uppercase tracking-wider">
-                    <i className="fas fa-flag text-[#94a3b8] text-[10px]" />
-                    {t("field.priority", "중요도")}
+                  <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                    {t("page.matrix.newRepWorkName", "New Representative Work Name")}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="replaceSuggestions"
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      placeholder={t("page.matrix.replaceAfterPlaceholder", "Search or enter directly...")}
+                      value={newRepresentativeWork}
+                      onChange={(e) => setNewRepresentativeWork(e.target.value)}
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">
+                      <i className="fas fa-chevron-down" />
+                    </div>
+                    <datalist id="replaceSuggestions">
+                      {repWorkOptions.map((opt) => (
+                        <option key={opt} value={opt} />
+                      ))}
+                    </datalist>
                   </div>
-                  <select
-                    className="input-base w-full bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none"
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value)}
-                  >
-                    <option value="">{t("page.matrix.noChange", "변경 없음")}</option>
-                    <option value="중요">{t("priority.high", "중요")}</option>
-                    <option value="일반">{t("priority.normal", "일반")}</option>
-                  </select>
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#475569] mb-1.5 uppercase tracking-wider">
-                    <i className="fas fa-tag text-[#94a3b8] text-[10px]" />
-                    {t("field.category", "효과 유형")}
-                  </div>
-                  <select
-                    className="input-base w-full bg-white border border-[#e2e8f0] focus:border-[#4f46e5] focus:ring-1 focus:ring-[#4f46e5] outline-none"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                  >
-                    <option value="">{t("page.matrix.noChange", "변경 없음")}</option>
-                    <option value="생산성">{t("category.productivity", "생산성")}</option>
-                    <option value="품질">{t("category.quality", "품질")}</option>
-                    <option value="보전성">{t("category.maintenance", "보전성")}</option>
-                    <option value="기타">{t("category.etc", "기타")}</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="p-3.5 rounded-xl border border-[#bae6fd] bg-[#f0f9ff] flex items-start gap-2.5">
-                <i className="fas fa-info-circle text-[#0284c7] mt-0.5 text-sm" />
-                <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-[#0284c7]">{t("page.matrix.applyScopeTitle", "적용 범위")}</p>
-                  <p className="text-[11px] text-[#0369a1] leading-relaxed">
-                    {t("page.matrix.applyScopeDesc", "현재 보전파트 내에서 '변경 전' 작업명과 일치하는 모든 데이터의 대표 작업명, 중요도, 효과 유형이 일괄 변경됩니다.")
-                      .split("모든 데이터")
-                      .reduce((prev, current, i, arr) => {
-                        if (i === 0) return [current];
-                        return [...prev, <strong key={i} className="font-bold text-[#0284c7]">모든 데이터</strong>, current];
-                      }, [])
-                    }
-                  </p>
+                {/* Importance & Types of Effects (2 Cols) */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                      {t("page.matrix.importance", "Importance")}
+                    </label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                      value={newPriority}
+                      onChange={(e) => setNewPriority(e.target.value)}
+                    >
+                      <option value="">{t("page.matrix.noChange", "No changes")}</option>
+                      <option value="중요">{t("priority.high", "High")}</option>
+                      <option value="일반">{t("priority.normal", "Normal")}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                      {t("page.matrix.typesOfEffects", "Types of effects")}
+                    </label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                    >
+                      <option value="">{t("page.matrix.noChange", "No changes")}</option>
+                      <option value="생산성">{t("category.productivity", "Productivity")}</option>
+                      <option value="품질">{t("category.quality", "Quality")}</option>
+                      <option value="보전성">{t("category.maintenance", "Maintenance")}</option>
+                      <option value="기타">{t("category.etc", "Etc")}</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-5 border-t border-[#e2e8f0] flex justify-end items-center gap-4 bg-[#f8fafc]">
+            {/* Modal Footer */}
+            <div className="p-5 border-t border-gray-100 dark:border-gray-700/80 bg-white dark:bg-gray-800 flex justify-between items-center">
               <button
+                type="button"
                 onClick={() => setShowReplaceModal(false)}
-                className="text-[14px] font-bold text-[#334155] hover:text-[#0f172a] px-4 py-2 transition-colors duration-150"
+                className="text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors px-2 py-1 cursor-pointer"
               >
-                {t("app.cancel", "취소")}
+                {t("page.matrix.cancellation", "cancellation")}
               </button>
+
               <button
+                type="button"
                 onClick={executeReplace}
                 disabled={replacing}
-                className="px-5 py-2.5 rounded-xl font-bold text-white text-[14px] flex items-center justify-center gap-1.5 shadow-lg shadow-[#4f46e5]/25 hover:shadow-xl hover:shadow-[#4f46e5]/35 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)" }}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                {replacing ? (
-                  <>
-                    <i className="fas fa-spinner fa-spin" />
-                    {t("app.applying", "적용 중...")}
-                  </>
+                <i className="fas fa-check text-xs" />
+                {replacing
+                  ? t("app.applying", "Applying...")
+                  : t("page.matrix.changeApplied", "Change Applied")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lateral Deployment Management Modal (횡전개 관리 모달) ── */}
+      {showApplyStatusModal && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          onClick={() => setShowApplyStatusModal(false)}
+        >
+          <div
+            className="modal-content w-full max-w-[660px] rounded-[20px] bg-white dark:bg-gray-800 shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm">
+                    <i className="fas fa-tasks" />
+                  </span>
+                  <span>"{asRepWork}" {t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-9">
+                  {asRepWork}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowApplyStatusModal(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+              >
+                <i className="fas fa-times text-lg" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              {/* Stat Summary Cards (4 Cards) */}
+              <div className="grid grid-cols-4 gap-3">
+                {/* WO Applied */}
+                <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/40 text-center">
+                  <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-300">
+                    {asEquipmentData.woApplied.length}
+                  </div>
+                  <div className="text-xs font-semibold text-blue-800/80 dark:text-blue-300/80 mt-0.5">
+                    {t("page.matrix.woApplied", "WO 적용")}
+                  </div>
+                </div>
+
+                {/* Before Confirmation */}
+                <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-center">
+                  <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">
+                    {asEquipmentData.unconfirmed.length}
+                  </div>
+                  <div className="text-xs font-semibold text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                    {t("page.matrix.beforeConfirmation", "수평전개 검토전")}
+                  </div>
+                </div>
+
+                {/* Applied */}
+                <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
+                  <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                    {asEquipmentData.applied.length}
+                  </div>
+                  <div className="text-xs font-semibold text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
+                    {t("page.matrix.application", "적용")}
+                  </div>
+                </div>
+
+                {/* Not Applied */}
+                <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/40 text-center">
+                  <div className="text-2xl font-extrabold text-rose-700 dark:text-rose-300">
+                    {asEquipmentData.rejected.length}
+                  </div>
+                  <div className="text-xs font-semibold text-rose-800/80 dark:text-rose-300/80 mt-0.5">
+                    {t("page.matrix.notApplied", "미적용")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setAsActiveTab("wo_applied")}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    asActiveTab === "wo_applied"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                  }`}
+                >
+                  📝 {t("page.matrix.woApplied", "WO 적용")} ({asEquipmentData.woApplied.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsActiveTab("unconfirmed")}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    asActiveTab === "unconfirmed"
+                      ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                  }`}
+                >
+                  🔍 {t("page.matrix.beforeConfirmation", "수평전개 검토전")} ({asEquipmentData.unconfirmed.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsActiveTab("applied")}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    asActiveTab === "applied"
+                      ? "bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                  }`}
+                >
+                  ✅ {t("page.matrix.application", "적용")} ({asEquipmentData.applied.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsActiveTab("rejected")}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    asActiveTab === "rejected"
+                      ? "bg-white dark:bg-gray-800 text-rose-600 dark:text-rose-400 shadow-xs"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                  }`}
+                >
+                  ❌ {t("page.matrix.notApplied", "미적용")} ({asEquipmentData.rejected.length})
+                </button>
+              </div>
+
+              {/* Equipment Items List */}
+              <div className="max-h-[300px] min-h-[160px] overflow-y-auto space-y-2 p-2 bg-gray-50/50 dark:bg-gray-900/40 rounded-xl border border-gray-200 dark:border-gray-700">
+                {currentTabItems.length === 0 ? (
+                  <div className="py-10 text-center text-gray-400 text-xs">
+                    <i className="fas fa-inbox text-2xl mb-2 block opacity-40" />
+                    해당 항목의 설비가 없습니다.
+                  </div>
                 ) : (
-                  <>
-                    <i className="fas fa-check" />
-                    {t("app.apply", "적용하기")}
-                  </>
+                  currentTabItems.map((item) => {
+                    const isChecked = asSelectedEqCodes.has(item.equipmentCode);
+                    return (
+                      <div
+                        key={item.equipmentCode}
+                        onClick={() => handleToggleSelectEq(item.equipmentCode)}
+                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border transition-all cursor-pointer ${
+                          isChecked
+                            ? "border-blue-500 ring-1 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-900/20"
+                            : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                            {item.equipmentName}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {item.site} · {item.equipmentCode}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
+              </div>
+
+              {/* Bottom Sub-actions Bar */}
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={currentTabItems.length > 0 && asSelectedEqCodes.size === currentTabItems.length}
+                    onChange={handleToggleSelectAllEq}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>{t("page.matrix.overall", "Overall")}</span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleApplyStatusAction("applied")}
+                    disabled={asSelectedEqCodes.size === 0}
+                    className="px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <i className="fas fa-arrow-right text-[10px]" />
+                    {t("page.matrix.application", "Application")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyStatusAction("rejected")}
+                    disabled={asSelectedEqCodes.size === 0}
+                    className="px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <i className="fas fa-arrow-right text-[10px]" />
+                    {t("page.matrix.notApplied", "Not applied")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/80">
+              <button
+                type="button"
+                onClick={() => setShowApplyStatusModal(false)}
+                className="btn-base btn-ghost text-xs px-5 py-2"
+              >
+                {t("app.close", "Close")}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveApplyStatus}
+                className="btn-base bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2 rounded-lg shadow-xs flex items-center gap-1.5"
+              >
+                <i className="fas fa-save" />
+                {t("app.save", "Save")}
               </button>
             </div>
           </div>

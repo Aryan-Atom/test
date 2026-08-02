@@ -838,19 +838,19 @@ tbody tr:hover {
   color: var(--text-subtlest);
 }
 
-/* Custom Drawer Styles */
 .eq-drawer-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: transparent;
-  z-index: 90;
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 9000;
 }
 
 [data-theme="dark"] .eq-drawer-overlay {
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .eq-drawer {
@@ -858,12 +858,12 @@ tbody tr:hover {
   top: 0;
   right: 0;
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
   height: 100vh;
   background: var(--surface-default, #ffffff);
   border-left: 1px solid var(--border-base, #e6e9ef);
-  box-shadow: var(--shadow-40, 0 8px 24px rgba(0, 0, 0, 0.14));
-  z-index: 100;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  z-index: 9500;
   display: flex;
   flex-direction: column;
   animation: eqDrawerIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);

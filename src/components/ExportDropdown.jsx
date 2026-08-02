@@ -39,7 +39,7 @@ export default function ExportDropdown({
     <div className="relative inline-block text-left z-50" ref={dropdownRef}>
       <button
         type="button"
-        className={`btn-base btn-primary flex items-center justify-between gap-2 px-4 py-2 text-sm font-medium rounded-lg shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        className={`flex items-center justify-between gap-1.5 px-4 h-[38px] text-xs font-semibold text-white bg-[#0f62fe] hover:bg-blue-700 rounded-xl shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
         onClick={() => setIsOpen((prev) => !prev)}
         disabled={busy}
       >
@@ -50,10 +50,10 @@ export default function ExportDropdown({
           </>
         ) : (
           <>
-            <i className="fas fa-file-export text-base" />
+            <i className="fas fa-file-export text-xs" />
             <span>{labelText}</span>
             <i
-              className={`fas fa-chevron-down text-xs transition-transform duration-200 ml-1 ${
+              className={`fas fa-chevron-down text-[10px] transition-transform duration-200 ml-1 ${
                 isOpen ? "rotate-180" : ""
               }`}
             />

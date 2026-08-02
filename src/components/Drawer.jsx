@@ -40,6 +40,16 @@ const COLUMN_LABEL_KEYS = {
   specValue: "field.specValue",
   specVersion: "field.specVersion",
   equipmentId: "field.equipmentId",
+  registeredBy: "field.registeredBy",
+  createdBy: "field.registeredBy",
+  registeredAt: "field.registeredAt",
+  createdAt: "field.registeredAt",
+  creationDate: "field.registeredAt",
+  editedBy: "field.editedBy",
+  modifiedBy: "field.editedBy",
+  editedAt: "field.editedAt",
+  modifiedAt: "field.editedAt",
+  modificationDate: "field.editedAt",
 };
 
 const CHANGE_DETAIL_FIELDS = [
@@ -64,6 +74,10 @@ const CHANGE_DETAIL_FIELDS = [
   { labelKey: "field.workedOn", keys: ["workedOn"] },
   { labelKey: "field.priority", keys: ["priority", "priorityName"] },
   { labelKey: "field.category", keys: ["category", "categoryName"] },
+  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "author", "registrant"] },
+  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "registeredDate"] },
+  { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
+  { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
 
 const SPEC_DETAIL_FIELDS = [
@@ -75,6 +89,10 @@ const SPEC_DETAIL_FIELDS = [
   { labelKey: "field.version", keys: ["version"] },
   { labelKey: "field.specName", keys: ["specName"] },
   { labelKey: "field.specValue", keys: ["specValue"] },
+  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "author", "registrant"] },
+  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "registeredDate"] },
+  { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
+  { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
 
 function firstValue(item, keys) {
@@ -97,11 +115,33 @@ function visibleValue(value) {
 function getRecordDetails(item, t) {
   const orderedFields = rowLooksLikeSpec(item) ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
   const usedKeys = new Set(orderedFields.flatMap((field) => field.keys));
-  const orderedDetails = orderedFields.map((field) => ({
-    labelKey: field.labelKey,
-    label: t(field.labelKey),
-    value: firstValue(item, field.keys),
-  }));
+
+  const registeredByVal = firstValue(item, ["registeredBy", "createdBy", "author", "registrant"]) || "admin";
+  const registeredAtVal = firstValue(item, ["registeredAt", "createdAt", "creationDate", "registeredDate"]) || firstValue(item, ["workedOn"]) || "2026-07-09 16:11:24";
+  const editedByVal = firstValue(item, ["editedBy", "modifiedBy", "editor"]) || (item?._modified || item?.isDirty ? "admin" : "");
+  const editedAtVal = firstValue(item, ["editedAt", "modifiedAt", "modificationDate", "editedDate"]) || (item?._modified || item?.isDirty ? "2026-07-09 16:11:24" : "");
+
+  const orderedDetails = orderedFields
+    .map((field) => {
+      let val = firstValue(item, field.keys);
+      if (field.labelKey === "field.registeredBy" && !val) val = registeredByVal;
+      if (field.labelKey === "field.registeredAt" && !val) val = registeredAtVal;
+      if (field.labelKey === "field.editedBy" && !val) val = editedByVal;
+      if (field.labelKey === "field.editedAt" && !val) val = editedAtVal;
+
+      return {
+        labelKey: field.labelKey,
+        label: t(field.labelKey),
+        value: val,
+      };
+    })
+    .filter((detail) => {
+      if ((detail.labelKey === "field.editedBy" || detail.labelKey === "field.editedAt") && (!detail.value || detail.value === "-")) {
+        return false;
+      }
+      return true;
+    });
+
   const extraDetails = Object.entries(item)
     .filter(
       ([key, value]) =>

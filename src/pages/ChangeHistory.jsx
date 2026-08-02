@@ -1393,9 +1393,17 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
   const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
   const [errors, setErrors] = useState({});
 
+  const fileInputRef = useRef(null);
+  const [pendingPhoto, setPendingPhoto] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
   useEffect(() => {
     setDraft({ ...(row ?? {}) });
     setErrors({});
+    setPendingPhoto(null);
+    setShowCategoryModal(false);
+    setUploadError("");
   }, [row]);
 
   useEffect(() => {
@@ -1408,23 +1416,58 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
   if (!row) return null;
 
-  const modalFields = [
-    { key: "process", labelKey: "field.process", readonly: true },
-    { key: "maintGroup", labelKey: "field.maintenance", readonly: true },
-    { key: "representativeWork", labelKey: "field.repWork", required: true },
-    { key: "work", labelKey: "field.work", required: true },
-    { key: "situation", labelKey: "field.situation", required: true },
-    { key: "cause", labelKey: "field.cause", required: true },
-    { key: "bom", labelKey: "field.bom", multiline: true },
-    { key: "sparePart", labelKey: "field.sparePart", multiline: true },
-    { key: "hwAsWas", labelKey: "field.hwBefore", required: true },
-    { key: "hwAsIs", labelKey: "field.hwAfter", required: true },
-    { key: "swAsWas", labelKey: "field.swBefore", required: true },
-    { key: "swAsIs", labelKey: "field.swAfter", required: true },
-    { key: "priority", labelKey: "field.priority", required: true, type: "select", compact: true },
-    { key: "category", labelKey: "field.category", required: true, type: "select", compact: true },
-    { key: "workedOn", labelKey: "field.workedOn", required: true, type: "date", compact: true },
-  ];
+  const photos = draft.photos || [];
+
+  const problemCount = photos.filter((p) => p.category === "Problem phenomenon").length;
+  const afterCount = photos.filter((p) => p.category === "After Improvements").length;
+  const equipCount = photos.filter((p) => p.category === "Equipment Reference").length;
+  const othersCount = photos.filter((p) => p.category === "Others").length;
+
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    setUploadError("");
+
+    // Max 5MB Validation
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("Image size exceeds maximum limit of 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPendingPhoto({
+        file,
+        previewUrl: e.target.result,
+        name: file.name,
+      });
+      setShowCategoryModal(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAssignCategory = (cat) => {
+    if (!pendingPhoto) return;
+    const newPhoto = {
+      id: Date.now() + Math.random(),
+      previewUrl: pendingPhoto.previewUrl,
+      name: pendingPhoto.name,
+      category: cat,
+      badge: "Additional Standby",
+    };
+    setDraft((prev) => ({
+      ...prev,
+      photos: [...(prev.photos || []), newPhoto],
+    }));
+    setPendingPhoto(null);
+    setShowCategoryModal(false);
+  };
+
+  const handleRemovePhoto = (photoId) => {
+    setDraft((prev) => ({
+      ...prev,
+      photos: (prev.photos || []).filter((p) => p.id !== photoId),
+    }));
+  };
 
   const handleFieldChange = (key, val) => {
     setDraft((prev) => ({ ...prev, [key]: val }));
@@ -1437,17 +1480,35 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
     }
   };
 
+  const requiredKeys = [
+    "representativeWork",
+    "purpose",
+    "situation",
+    "cause",
+    "hwAsWas",
+    "hwAsIs",
+    "swAsWas",
+    "swAsIs",
+    "priority",
+    "category",
+    "workedOn",
+  ];
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const nextErrors = {};
-    modalFields.forEach((field) => {
-      if (field.required) {
-        const val = draft[field.key];
-        if (val === undefined || val === null || String(val).trim() === "") {
-          nextErrors[field.key] = t("page.mp.requiredFieldError", "This field is required.");
+    requiredKeys.forEach((key) => {
+      const val = draft[key];
+      if (key === "purpose") {
+        const workVal = draft.purpose || draft.work;
+        if (!workVal || String(workVal).trim() === "") {
+          nextErrors[key] = t("page.mp.requiredFieldError", "This field is required.");
         }
+      } else if (val === undefined || val === null || String(val).trim() === "") {
+        nextErrors[key] = t("page.mp.requiredFieldError", "This field is required.");
       }
     });
+
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       return;
@@ -1456,149 +1517,531 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(17, 24, 39, 0.55)", backdropFilter: "blur(3px)" }}
-      onMouseDown={onClose}
-    >
-      <form
-        className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl shadow-2xl"
-        style={{
-          maxHeight: "88vh",
-          background: "var(--color-surface-default, #fff)",
-          border: "1px solid var(--color-border-base, #e5e7eb)",
-        }}
-        onSubmit={handleSubmit}
-        onMouseDown={(e) => e.stopPropagation()}
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-xs animate-fade-in"
+        onMouseDown={onClose}
       >
-        <div
-          className="flex items-start justify-between gap-4 px-6 py-5"
-          style={{
-            background: "#ecfeff",
-            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-          }}
+        <form
+          className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[92vh]"
+          onSubmit={handleSubmit}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          <div>
-            <h2 className="text-xl font-extrabold text-text-default">
-              <i className="fas fa-circle-plus mr-2 text-cyan-500" />
-              {t("app.edit")} {t("page.change.title")}
-            </h2>
-            <p className="mt-1 text-sm text-text-subtle">
-              {t("page.mp.modalDesc")}
-            </p>
+          {/* Modal Header */}
+          <div className="flex items-start justify-between gap-4 px-6 py-5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-start gap-3">
+              <span className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-sm">
+                <i className="fas fa-plus" />
+              </span>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Item Edit
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  This is the Work Order item. The corporation and the completion date cannot be changed.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+              onClick={onClose}
+              aria-label={t("app.close")}
+            >
+              <i className="fas fa-times text-sm" />
+            </button>
           </div>
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-subtle"
-            onClick={onClose}
-            aria-label={t("app.close")}
-          >
-            <i className="fas fa-times" />
-          </button>
-        </div>
 
-        <div
-          className="grid flex-1 grid-cols-1 gap-4 overflow-auto p-6 md:grid-cols-6"
-          style={{ background: "#f3f4f6" }}
-        >
-          {modalFields.map((field) => {
-            const label = t(field.labelKey, field.key);
-            const value = draft[field.key] ?? "";
-            const options =
-              field.type === "select"
-                ? [value, field.key === "priority" ? t("priority.normal") : t("category.etc")]
-                    .filter(Boolean)
-                    .filter((item, itemIndex, arr) => arr.indexOf(item) === itemIndex)
-                : [];
+          {/* Body Form */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-gray-800">
+            {/* Row 1: Process & Equipment Type (Read-Only) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Process
+                </label>
+                <input
+                  type="text"
+                  value={draft.process ?? ""}
+                  readOnly
+                  disabled
+                  className="w-full bg-[#f1f5f9] dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl px-3.5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Equipment Type
+                </label>
+                <input
+                  type="text"
+                  value={draft.maintGroup ?? ""}
+                  readOnly
+                  disabled
+                  className="w-full bg-[#f1f5f9] dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl px-3.5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                />
+              </div>
+            </div>
 
-            const hasError = !!errors[field.key];
-
-            return (
-              <label
-                key={field.key}
-                className={field.compact ? "md:col-span-2" : "md:col-span-3"}
-              >
-                <span className="mb-2 block text-xs font-bold uppercase text-text-subtle">
-                  {label}
-                  {field.required && <span className="text-red-500"> *</span>}
+            {/* Row 2: Representative Work Name * */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Representative Work Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={draft.representativeWork ?? ""}
+                onChange={(e) => handleFieldChange("representativeWork", e.target.value)}
+                className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                  errors.representativeWork ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                }`}
+              />
+              {errors.representativeWork && (
+                <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                  {errors.representativeWork}
                 </span>
-                {field.multiline ? (
-                  <textarea
-                    className="input-base"
-                    rows={3}
-                    value={value}
-                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                    style={{
-                      width: "100%",
-                      resize: "vertical",
-                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
-                      borderWidth: hasError ? "1.5px" : undefined,
-                    }}
-                    disabled={field.readonly}
-                  />
-                ) : field.type === "select" ? (
-                  <select
-                    className="input-base"
-                    value={value}
-                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                    style={{
-                      width: "100%",
-                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
-                      borderWidth: hasError ? "1.5px" : undefined,
-                    }}
-                    disabled={field.readonly}
-                  >
-                    {options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type === "date" ? "date" : "text"}
-                    className="input-base"
-                    value={value}
-                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                    style={{
-                      width: "100%",
-                      background: field.readonly ? "#e8eef7" : undefined,
-                      color: field.readonly ? "#334155" : undefined,
-                      borderColor: hasError ? "var(--color-text-danger, #dc2626)" : undefined,
-                      borderWidth: hasError ? "1.5px" : undefined,
-                    }}
-                    readOnly={field.readonly}
-                    disabled={field.readonly}
-                  />
-                )}
-                {hasError && (
-                  <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                    <i className="fas fa-exclamation-circle mr-1" />
-                    {errors[field.key]}
+              )}
+            </div>
+
+            {/* Row 3: Purpose of the Work */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                Purpose of the Work
+              </label>
+              <input
+                type="text"
+                value={draft.purpose ?? draft.work ?? ""}
+                onChange={(e) => {
+                  handleFieldChange("purpose", e.target.value);
+                  handleFieldChange("work", e.target.value);
+                }}
+                className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                  errors.purpose || errors.work ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                }`}
+              />
+              {(errors.purpose || errors.work) && (
+                <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                  {errors.purpose || errors.work}
+                </span>
+              )}
+            </div>
+
+            {/* Row 4: Problem phenomenon * & Cause of the problem */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Problem phenomenon <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={draft.situation ?? ""}
+                  onChange={(e) => handleFieldChange("situation", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.situation ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.situation && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.situation}
                   </span>
                 )}
-              </label>
-            );
-          })}
-        </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Cause of the problem
+                </label>
+                <input
+                  type="text"
+                  value={draft.cause ?? ""}
+                  onChange={(e) => handleFieldChange("cause", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.cause ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.cause && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.cause}
+                  </span>
+                )}
+              </div>
+            </div>
 
+            {/* Row 5: BOM & Material Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  BOM
+                </label>
+                <input
+                  type="text"
+                  placeholder="BOM Entry"
+                  value={draft.bom ?? ""}
+                  onChange={(e) => handleFieldChange("bom", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Material Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter material name"
+                  value={draft.sparePart ?? ""}
+                  onChange={(e) => handleFieldChange("sparePart", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Row 6: Before changing the hardware & After changing the hardware */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Before changing the hardware
+                </label>
+                <input
+                  type="text"
+                  value={draft.hwAsWas ?? ""}
+                  onChange={(e) => handleFieldChange("hwAsWas", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.hwAsWas ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.hwAsWas && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.hwAsWas}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  After changing the hardware
+                </label>
+                <input
+                  type="text"
+                  value={draft.hwAsIs ?? ""}
+                  onChange={(e) => handleFieldChange("hwAsIs", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.hwAsIs ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.hwAsIs && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.hwAsIs}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Row 7: Before Software Change & After the software change */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Before Software Change
+                </label>
+                <input
+                  type="text"
+                  value={draft.swAsWas ?? ""}
+                  onChange={(e) => handleFieldChange("swAsWas", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.swAsWas ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.swAsWas && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.swAsWas}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  After the software change
+                </label>
+                <input
+                  type="text"
+                  value={draft.swAsIs ?? ""}
+                  onChange={(e) => handleFieldChange("swAsIs", e.target.value)}
+                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
+                    errors.swAsIs ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
+                  }`}
+                />
+                {errors.swAsIs && (
+                  <span className="mt-1 block text-[11px] font-semibold text-rose-500">
+                    {errors.swAsIs}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Row 8: Importance & Types of effects */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Importance
+                </label>
+                <select
+                  value={draft.priority ?? "Important"}
+                  onChange={(e) => handleFieldChange("priority", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="Important">Important</option>
+                  <option value="Normal">Normal</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Types of effects
+                </label>
+                <select
+                  value={draft.category ?? "integrity"}
+                  onChange={(e) => handleFieldChange("category", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="integrity">integrity</option>
+                  <option value="Quality">Quality</option>
+                  <option value="Productivity">Productivity</option>
+                  <option value="Etc">Etc</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 9: Date of Completion & Requesting Corporation */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Date of Completion
+                </label>
+                <input
+                  type="text"
+                  value={draft.workedOn ?? ""}
+                  onChange={(e) => handleFieldChange("workedOn", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Requesting Corporation
+                </label>
+                <select
+                  value={draft.site ?? "A3. Busan"}
+                  onChange={(e) => handleFieldChange("site", e.target.value)}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="A3. Busan">A3. Busan</option>
+                  <option value="A1. Seoul">A1. Seoul</option>
+                  <option value="A2. Gumi">A2. Gumi</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 10: Metadata Stats Badges */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold py-1">
+              <span className={`px-2.5 py-1 rounded-full transition-all ${problemCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+                Problem Phenomenon Chapter {problemCount}
+              </span>
+              <span className={`px-2.5 py-1 rounded-full transition-all ${afterCount > 0 ? "bg-emerald-100 text-emerald-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+                {afterCount} Chapters After Improvement
+              </span>
+              <span className={`px-2.5 py-1 rounded-full transition-all ${equipCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+                Equipment Reference {equipCount} sheets
+              </span>
+              <span className={`px-2.5 py-1 rounded-full transition-all ${othersCount > 0 ? "bg-gray-200 text-gray-800 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+                Others {othersCount} Cards
+              </span>
+            </div>
+
+            {/* Row 11: Upload Dropzone Card */}
+            <div
+              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-center bg-gray-50/50 dark:bg-gray-800/40 cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-700/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  handleFileSelect(e.dataTransfer.files[0]);
+                }
+              }}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileSelect(e.target.files[0]);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
+                <span>Drag or click to upload photos (automatically share to the same group items)</span>
+              </div>
+              {uploadError && (
+                <p className="mt-1.5 text-xs font-semibold text-rose-500">{uploadError}</p>
+              )}
+            </div>
+
+            {/* Uploaded Photo Preview Cards */}
+            {photos.length > 0 && (
+              <div className="flex flex-wrap gap-3 pt-2">
+                {photos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="w-28 h-32 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 relative overflow-hidden flex flex-col shadow-xs group"
+                  >
+                    {/* Top Status Bar */}
+                    <div className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 flex items-center justify-between shrink-0">
+                      <span className="truncate">✓ Additional Standby</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemovePhoto(photo.id);
+                        }}
+                        className="hover:text-rose-200 transition-colors ml-1 cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <i className="fas fa-times text-[10px]" />
+                      </button>
+                    </div>
+
+                    {/* Thumbnail Image */}
+                    <div className="flex-1 bg-gray-900/5 dark:bg-gray-900/30 overflow-hidden relative flex items-center justify-center">
+                      <img
+                        src={photo.previewUrl}
+                        alt={photo.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Bottom Category Overlay */}
+                    <div className="bg-slate-800/90 text-white text-[10px] font-bold py-1 px-1 text-center shrink-0 truncate">
+                      {photo.category}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+            <button
+              type="button"
+              className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+              onClick={onClose}
+            >
+              cancellation
+            </button>
+            <button
+              type="submit"
+              className="bg-[#1d4ed8] hover:bg-blue-700 text-white font-bold text-sm px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <i className="fas fa-check text-xs" />
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Select Photo Category Modal Pop-up */}
+      {showCategoryModal && (
         <div
-          className="flex justify-end gap-3 px-6 py-4"
-          style={{
-            background: "var(--color-surface-raised, #f9fafb)",
-            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
-          }}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in"
+          onMouseDown={() => setShowCategoryModal(false)}
         >
-          <button type="button" className="btn-base btn-ghost" onClick={onClose}>
-            {t("app.cancel")}
-          </button>
-          <button type="submit" className="btn-base btn-primary">
-            <i className="fas fa-check mr-2" />
-            {t("app.save")}
-          </button>
+          <div
+            className="flex w-full max-w-md flex-col overflow-hidden rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 px-6 py-5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-start gap-3">
+                <span className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shrink-0">
+                  <i className="fas fa-image" />
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Select photo category
+                  </h2>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    Select the category of the photo you want to upload
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                onClick={() => setShowCategoryModal(false)}
+              >
+                <i className="fas fa-times text-sm" />
+              </button>
+            </div>
+
+            {/* Categories 2x2 Grid */}
+            <div className="p-6 grid grid-cols-2 gap-3.5 bg-white dark:bg-gray-800">
+              {/* Category 1: Problem phenomenon */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("Problem phenomenon")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-red-200 bg-red-50/70 hover:bg-red-100/80 text-red-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
+              >
+                <i className="fas fa-exclamation-triangle text-base" />
+                <span className="text-center">Problem phenomenon</span>
+              </button>
+
+              {/* Category 2: After Improvements */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("After Improvements")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
+              >
+                <i className="fas fa-check-circle text-base" />
+                <span className="text-center">After Improvements</span>
+              </button>
+
+              {/* Category 3: Equipment Reference */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("Equipment Reference")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
+              >
+                <i className="fas fa-cog text-base" />
+                <span className="text-center">Equipment Reference</span>
+              </button>
+
+              {/* Category 4: Others */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("Others")}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-gray-200 bg-gray-50/80 hover:bg-gray-100 text-gray-700 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
+              >
+                <i className="fas fa-ellipsis-h text-base" />
+                <span className="text-center">Others</span>
+              </button>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-center">
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                onClick={() => setShowCategoryModal(false)}
+              >
+                cancellation
+              </button>
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -2767,7 +3210,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-600">
-                {t("field.maintenance")}
+                {t("field.equipmentType", "Equipment Type")}
               </label>
               {filterLoading ? (
                 <SelectSkeleton width="130px" />

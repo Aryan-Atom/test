@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
+import { mpManagementStaticData, sampleCompareRows } from "./static-data/MPListManagementData.js";
+import { isStaticDataMode } from "../utils/staticDataMode.js";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -36,26 +38,161 @@ function getRowKey(row, index) {
   ].join("::");
 }
 
+function generateExpandedApplicableRows(count) {
+  const sampleItems = [
+    { repWork: "O ring Replacement", purpose: "Prevent oil leakage", hwBefore: "Standard Rubber O-Ring", hwAfter: "Fluororubber O-Ring", swBefore: "v1.0", swAfter: "v1.2", importance: "General", effect: "Others" },
+    { repWork: "Main Roller Bearing Cleaning", purpose: "Maintain rotation", hwBefore: "Mineral Oil", hwAfter: "Synthetic Grease", swBefore: "—", swAfter: "—", importance: "Important", effect: "Productivity" },
+    { repWork: "Laser Sensor Alignment", purpose: "Ensure measurement accuracy", hwBefore: "Aluminum Bracket", hwAfter: "Invar Bracket", swBefore: "v2.1", swAfter: "v2.3", importance: "Important", effect: "Quality" },
+    { repWork: "Drive Belt Tension Adjustment", purpose: "Prevent slipping", hwBefore: "Standard Belt", hwAfter: "Timing Belt 500-5M", swBefore: "—", swAfter: "—", importance: "General", effect: "Productivity" },
+  ];
+
+  return Array.from({ length: count }, (_, i) => {
+    const sample = sampleItems[i % sampleItems.length];
+    return {
+      no: i + 1,
+      repWork: i < 4 ? sample.repWork : "—",
+      purpose: i < 4 ? sample.purpose : "—",
+      hwBefore: i < 4 ? sample.hwBefore : "—",
+      hwAfter: i < 4 ? sample.hwAfter : "—",
+      swBefore: i < 4 ? sample.swBefore : "—",
+      swAfter: i < 4 ? sample.swAfter : "—",
+      importance: sample.importance,
+      effect: sample.effect,
+    };
+  });
+}
+
+function generateExpandedNotApplicableRows(count) {
+  const sampleItems = [
+    { repWork: "Pneumatic Valve Seal Inspection", purpose: "Prevent air leak", hwBefore: "NBR Seal", hwAfter: "Viton Seal", swBefore: "—", swAfter: "—", importance: "General", effect: "Others", reasoning: "Importance Average" },
+    { repWork: "Motor Carbon Brush Replacement", purpose: "Ensure electrical contact", hwBefore: "Grade A Brush", hwAfter: "Grade S Brush", swBefore: "—", swAfter: "—", importance: "General", effect: "Others", reasoning: "Importance Average" },
+  ];
+
+  return Array.from({ length: count }, (_, i) => {
+    const sample = sampleItems[i % sampleItems.length];
+    return {
+      no: i + 1,
+      repWork: i < 2 ? sample.repWork : "—",
+      purpose: i < 2 ? sample.purpose : "—",
+      hwBefore: i < 2 ? sample.hwBefore : "—",
+      hwAfter: i < 2 ? sample.hwAfter : "—",
+      swBefore: i < 2 ? sample.swBefore : "—",
+      swAfter: i < 2 ? sample.swAfter : "—",
+      importance: sample.importance,
+      effect: sample.effect,
+      reasoning: sample.reasoning,
+    };
+  });
+}
+
 export default function MPListManagement({ data = [], searchText = "" }) {
   const { t } = useI18n();
-  const [selectedProcess, setSelectedProcess] = useState("");
-  const [selectedMaint, setSelectedMaint] = useState("");
-  const [selectedVersion, setSelectedVersion] = useState(null);
 
-  const rows = Array.isArray(data) ? data : [];
+  // Row expansion state
+  const [expandedRowIds, setExpandedRowIds] = useState(new Set(["101"]));
+
+  const toggleExpandRow = (id) => {
+    const key = String(id);
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  // Checkbox selection state (separate from row expansion)
+  const [selectedRowIds, setSelectedRowIds] = useState(new Set());
+
+  const toggleSelectRow = (id) => {
+    const key = String(id);
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRowIds.size === versionRows.length && versionRows.length > 0) {
+      setSelectedRowIds(new Set());
+    } else {
+      setSelectedRowIds(new Set(versionRows.map((v) => String(v.id || v.version))));
+    }
+  };
+
+  // Compare modal states
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [compareV1, setCompareV1] = useState(null);
+  const [compareV2, setCompareV2] = useState(null);
+
+  // Edit modal states
+  const [editingVersion, setEditingVersion] = useState(null);
+  const [editEquipmentIds, setEditEquipmentIds] = useState([]);
+  const [newEquipIdInput, setNewEquipIdInput] = useState("");
+  const [editConsultations, setEditConsultations] = useState([]);
+  const [newConsultDate, setNewConsultDate] = useState("2026-07-27");
+  const [newConsultTitle, setNewConsultTitle] = useState("");
+  const [newConsultAttendees, setNewConsultAttendees] = useState("");
+  const [editApplicableRows, setEditApplicableRows] = useState([]);
+  const [editNotApplicableRows, setEditNotApplicableRows] = useState([]);
+
+  // Deletion modal state
+  const [deletedRowIds, setDeletedRowIds] = useState(new Set());
+  const [rowToDelete, setRowToDelete] = useState(null);
+
+  const openEditModal = (v) => {
+    setEditingVersion(v);
+    setEditEquipmentIds([
+      "E2300803",
+      "E2300805",
+      "E2201617",
+      "E2300806",
+      "E2101491",
+      "E2300804",
+      "E2101425",
+      "E2101490",
+      "E2101492",
+    ]);
+    setNewEquipIdInput("");
+    setEditConsultations([]);
+    setNewConsultTitle("");
+    setNewConsultAttendees("");
+    setEditApplicableRows(generateExpandedApplicableRows(v.appliedCount || 46));
+    setEditNotApplicableRows(generateExpandedNotApplicableRows(v.excludedCount || 40));
+  };
+
+  // Combine passed data with static sample data
+  const combinedRows = useMemo(() => {
+    const propRows = Array.isArray(data) ? data : [];
+    if (isStaticDataMode || propRows.length === 0) {
+      return [...mpManagementStaticData, ...propRows];
+    }
+    return propRows;
+  }, [data]);
 
   const processOptions = useMemo(() => {
-    return [
-      ...new Set(rows.map((row) => normalizeText(row?.process ?? row?.공정))),
+    const list = [
+      ...new Set(combinedRows.map((row) => normalizeText(row?.process ?? row?.공정))),
     ]
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
-  }, [rows]);
+    return list.length > 0 ? list : ["05. Laminator", "03. 성형", "02. Placement"];
+  }, [combinedRows]);
+
+  const [selectedProcess, setSelectedProcess] = useState("05. Laminator");
 
   const maintenanceOptions = useMemo(() => {
-    return [
+    const list = [
       ...new Set(
-        rows
+        combinedRows
           .filter(
             (row) =>
               !selectedProcess ||
@@ -68,12 +205,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     ]
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
-  }, [rows, selectedProcess]);
+    return list.length > 0 ? list : ["0503. RP (440)_2ROLL"];
+  }, [combinedRows, selectedProcess]);
+
+  const [selectedMaint, setSelectedMaint] = useState("0503. RP (440)_2ROLL");
+  const [selectedVersion, setSelectedVersion] = useState(null);
 
   const filteredRows = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
 
-    return rows.filter((row) => {
+    return combinedRows.filter((row) => {
       const processName = normalizeText(getRowValue(row, "process", "공정"));
       const maintName = normalizeText(
         getRowValue(row, "maintGroup", "보전파트", "보전그룹"),
@@ -90,90 +231,128 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
       return matchesProcess && matchesMaint && matchesSearch;
     });
-  }, [rows, searchText, selectedMaint, selectedProcess]);
+  }, [combinedRows, searchText, selectedMaint, selectedProcess]);
 
   const versionRows = useMemo(() => {
-    const grouped = new Map();
+    if (filteredRows.length === 0) return [];
 
+    // Group rows by version if present or create version entries
+    const versions = [];
+    filteredRows.forEach((row, idx) => {
+      if (row.version) {
+        versions.push({
+          id: row.id || idx,
+          version: row.version,
+          period: row.period || "2025-07-09 ~ 2026-07-09",
+          appliedCount: row.appliedCount ?? 15,
+          excludedCount: row.excludedCount ?? 0,
+          facilityId: row.facilityId ?? 9,
+          consultation: row.consultation || "—",
+          registeredBy: row.registeredBy || "admin",
+          registeredAt: row.registeredAt || "2026-07-09 16:11:24",
+          editedBy: row.editedBy || "admin",
+          editedAt: row.editedAt || "2026-07-09 16:11:24",
+          rows: [row],
+          equipmentIds: [row.facilityId ? String(row.facilityId) : "9"],
+          reviewLabel: `${row.appliedCount || 15} ${t("page.mpManagement.reviewCount", "건 협의 이력")}`,
+        });
+      }
+    });
+
+    if (versions.length > 0) return versions;
+
+    // Fallback grouping
+    const grouped = new Map();
     filteredRows.forEach((row) => {
       const date = getDateValue(getRowValue(row, "workedOn", "작업완료일"));
       const groupKey = `${selectedProcess}__${selectedMaint}__${date || "unknown"}`;
       const entry = grouped.get(groupKey) ?? {
         version: `v${grouped.size + 1}`,
-        period: date || "-",
+        period: date || "2025-07-09 ~ 2026-07-09",
         rows: [],
-        registeredBy: "Admin",
-        editedBy: "Admin",
-        registeredAt: date || new Date().toISOString().slice(0, 10),
-        editedAt: date || new Date().toISOString().slice(0, 10),
+        registeredBy: "admin",
+        editedBy: "admin",
+        registeredAt: date || "2026-07-09 16:11:24",
+        editedAt: date || "2026-07-09 16:11:24",
       };
 
       entry.rows.push(row);
-      entry.period = entry.period === "-" ? date : entry.period;
       grouped.set(groupKey, entry);
     });
 
-    return [...grouped.values()]
-      .map((entry, index) => ({
-        ...entry,
-        version: `v${index + 1}`,
-        appliedCount: entry.rows.length,
-        excludedCount: 0,
-        equipmentIds: [
-          ...new Set(
-            entry.rows
-              .map((row) =>
-                normalizeText(getRowValue(row, "equipmentCode", "설비코드")),
-              )
-              .filter(Boolean),
-          ),
-        ],
-        reviewLabel: entry.rows.length
-          ? `${entry.rows.length} ${t("page.mpManagement.reviewCount", "건 협의 이력")}`
-          : t("page.mpManagement.noReview", "협의 이력 없음"),
-      }))
-      .sort((a, b) =>
-        (b.registeredAt || "").localeCompare(a.registeredAt || ""),
-      );
+    return [...grouped.values()].map((entry, index) => ({
+      ...entry,
+      id: index + 1,
+      version: `v${index + 1}`,
+      appliedCount: entry.rows.length,
+      excludedCount: 0,
+      facilityId: 9,
+      consultation: "—",
+      equipmentIds: [
+        ...new Set(
+          entry.rows
+            .map((row) =>
+              normalizeText(getRowValue(row, "equipmentCode", "설비코드")),
+            )
+            .filter(Boolean),
+        ),
+      ],
+      reviewLabel: `${entry.rows.length} ${t("page.mpManagement.reviewCount", "건 협의 이력")}`,
+    }));
   }, [filteredRows, selectedMaint, selectedProcess, t]);
+
+  const displayVersionRows = useMemo(() => {
+    return versionRows.filter(
+      (v) => !deletedRowIds.has(String(v.id || v.version))
+    );
+  }, [versionRows, deletedRowIds]);
 
   const showLanding = !selectedProcess || !selectedMaint;
 
   return (
-    <section className="flex h-full flex-col overflow-hidden p-6">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <section className="flex flex-col h-full overflow-hidden space-y-4">
+      {/* Page Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center text-2xl font-semibold text-text-default">
-            <i className="fas fa-list-check mr-2 text-brand-60" />
-            {t("page.mpManagement.title", "MP List 관리")}
+          <h1 className="flex items-center text-2xl font-bold text-gray-900 dark:text-white">
+            <i className="fas fa-list-check mr-2.5 text-blue-600 dark:text-blue-400" />
+            {t("page.mpManagement.title", "MP List Management")}
           </h1>
-          <p className="mt-1 text-sm text-text-subtle">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {t(
               "page.mpManagement.desc",
-              "공정·보전파트별 저장된 MP List를 버전별로 관리합니다",
+              "Manage the stored MP lists for each process and maintenance part by version",
             )}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="btn-base flex items-center bg-brand-60 text-white hover:bg-brand-70"
+            className="bg-[#0f62fe] hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer h-[38px]"
+            onClick={() => {
+              const v1 = versionRows[0] || { version: "v1", appliedCount: 46, excludedCount: 40 };
+              const v2 = versionRows[1] || { version: "v2", appliedCount: 20, excludedCount: 21 };
+              setCompareV1(v1);
+              setCompareV2(v2);
+              setShowCompareModal(true);
+            }}
           >
-            <i className="fas fa-code-compare mr-1" />
-            {t("page.mpManagement.compare", "MP 비교")}
+            <i className="fas fa-sync-alt text-xs" />
+            <span>{t("page.mpManagement.compare", "MP Comparison")}</span>
           </button>
         </div>
       </div>
 
-      <div className="card mb-6 p-4">
-        <div className="flex flex-wrap items-center gap-4">
+      {/* Filter Card */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+        <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle">
-              {t("field.process", "공정")}
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+              {t("field.process", "PROCESS")}
             </label>
             <select
-              className="input-base"
-              style={{ width: 140 }}
+              className="input-base text-xs font-semibold"
+              style={{ width: 160, height: 38 }}
               value={selectedProcess}
               onChange={(event) => {
                 setSelectedProcess(event.target.value);
@@ -190,12 +369,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase text-text-subtle">
-              {t("field.maintenance", "보전파트")}
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+              {t("field.equipmentType", "EQUIPMENT TYPE")}
             </label>
             <select
-              className="input-base"
-              style={{ width: 280 }}
+              className="input-base text-xs font-semibold"
+              style={{ width: 240, height: 38 }}
               value={selectedMaint}
               onChange={(event) => setSelectedMaint(event.target.value)}
               disabled={!selectedProcess}
@@ -211,86 +390,264 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         </div>
       </div>
 
+      {/* Version Table / Landing state */}
       {showLanding ? (
-        <div className="flex flex-1 items-center justify-center rounded-2xl border border-border-base bg-surface-default">
+        <div className="flex flex-1 items-center justify-center rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-8">
           <div className="flex flex-col items-center px-6 py-10 text-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-10 text-4xl text-brand-60">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-4xl text-blue-600">
               <i className="fas fa-list-check" />
             </div>
-            <h3 className="text-lg font-bold text-text-default">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
               {t(
                 "page.mpManagement.emptyTitle",
-                "공정 및 보전파트를 선택하세요",
+                "Select process and equipment type",
               )}
             </h3>
-            <p className="mt-2 max-w-md text-sm text-text-subtle whitespace-pre-line">
+            <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400 whitespace-pre-line">
               {t(
                 "page.mpManagement.emptyDesc",
-                "필터에서 공정과 보전파트를 선택하면\n저장된 MP List 버전 목록이 표시됩니다.",
+                "When you select Process and Equipment Type in the filter,\na list of saved MP List versions will be displayed.",
               )}
             </p>
           </div>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table
-            className="data-table"
-            style={{ tableLayout: "fixed", width: "100%" }}
-          >
-            <colgroup>
-              <col style={{ width: "6%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "6%" }} />
-              <col style={{ width: "6%" }} />
-              <col style={{ width: "12%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>{t("field.version", "버전")}</th>
-                <th>{t("field.period", "기간")}</th>
-                <th>{t("page.mpManagement.applied", "적용")}</th>
-                <th>{t("page.mpManagement.excluded", "미적용")}</th>
-                <th>{t("field.equipmentId", "설비ID")}</th>
-                <th>{t("page.mpManagement.review", "협의")}</th>
-                <th>{t("page.mpManagement.registeredBy", "등록자")}</th>
-                <th>{t("page.mpManagement.registeredAt", "등록일시")}</th>
-                <th>{t("page.mpManagement.editedBy", "편집자")}</th>
-                <th>{t("page.mpManagement.editedAt", "편집일시")}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {versionRows.map((version) => (
-                <tr key={version.version}>
-                  <td>{version.version}</td>
-                  <td>{version.period}</td>
-                  <td>{version.appliedCount}</td>
-                  <td>{version.excludedCount}</td>
-                  <td>{version.equipmentIds.join(", ") || "-"}</td>
-                  <td>{version.reviewLabel}</td>
-                  <td>{version.registeredBy}</td>
-                  <td>{version.registeredAt}</td>
-                  <td>{version.editedBy}</td>
-                  <td>{version.editedAt}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-base btn-ghost"
-                      onClick={() => setSelectedVersion(version)}
-                    >
-                      {t("app.view", "보기")}
-                    </button>
-                  </td>
+        <div className="card overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+              <thead className="bg-gray-50/80 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <tr>
+                  <th className="px-4 py-3.5 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={versionRows.length > 0 && selectedRowIds.size === versionRows.length}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-4 py-3.5 w-24">VERSION</th>
+                  <th className="px-4 py-3.5">PERIOD</th>
+                  <th className="px-4 py-3.5 text-center">APPLICATION</th>
+                  <th className="px-4 py-3.5 text-center">NOT APPLIED</th>
+                  <th className="px-4 py-3.5 text-center">FACILITY ID</th>
+                  <th className="px-4 py-3.5 text-center">CONSULTATION</th>
+                  <th className="px-4 py-3.5">REGISTRANT</th>
+                  <th className="px-4 py-3.5">REGISTRATION DATE AND TIME</th>
+                  <th className="px-4 py-3.5">EDITOR</th>
+                  <th className="px-4 py-3.5">EDITING DATE AND TIME</th>
+                  <th className="px-4 py-3.5 w-24 text-center">ACTIONS</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
+                {displayVersionRows.map((v) => {
+                  const rowId = String(v.id || v.version);
+                  const isExpanded = expandedRowIds.has(rowId);
+                  const isChecked = selectedRowIds.has(rowId);
+
+                  return (
+                    <React.Fragment key={rowId}>
+                      <tr
+                        onClick={() => toggleExpandRow(rowId)}
+                        className={`hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors cursor-pointer select-none ${isExpanded ? "bg-blue-50/20 dark:bg-blue-900/10" : ""}`}
+                      >
+                        <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSelectRow(rowId)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-1.5 cursor-pointer">
+                            <span className="px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 rounded-md border border-blue-100 dark:border-blue-800">
+                              {v.version}
+                            </span>
+                            <i className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-[10px] text-gray-400`} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300 font-semibold">{v.period}</td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                            {v.appliedCount} cases
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
+                            {v.excludedCount} cases
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center text-gray-700 dark:text-gray-300">{v.facilityId ?? 9}</td>
+                        <td className="px-4 py-3.5 text-center text-gray-400">{v.consultation || "—"}</td>
+                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{v.registeredBy || "admin"}</td>
+                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-400">{v.registeredAt}</td>
+                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{v.editedBy || "admin"}</td>
+                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-400">{v.editedAt}</td>
+                        <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              className="text-blue-600 hover:text-blue-800 p-1 cursor-pointer transition-colors"
+                              title="View"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedVersion(v);
+                              }}
+                            >
+                              <i className="fas fa-eye text-xs" />
+                            </button>
+                            <button
+                              type="button"
+                              className="text-gray-400 hover:text-blue-600 p-1 cursor-pointer transition-colors"
+                              title="Edit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditModal(v);
+                              }}
+                            >
+                              <i className="fas fa-pen text-xs" />
+                            </button>
+                            <button
+                              type="button"
+                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer transition-colors"
+                              title="Delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRowToDelete(v);
+                              }}
+                            >
+                              <i className="fas fa-trash text-xs" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Accordion Expanded Detail Row */}
+                      {isExpanded && (
+                        <tr className="bg-gray-50/60 dark:bg-gray-800/60">
+                          <td colSpan={12} className="px-6 py-4">
+                            <div className="space-y-6">
+                              {/* Section 1: Applicable Items */}
+                              <div>
+                                <div className="flex items-center gap-2 mb-2.5">
+                                  <i className="fas fa-check-circle text-emerald-500 text-xs" />
+                                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                    Applicable Items ({v.appliedCount || 46} items)
+                                  </span>
+                                </div>
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+                                  <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[9px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                                        <tr>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 w-10 text-center">#</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">REPRESENTATIVE WORK NAME</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">PURPOSE OF THE WORK</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">AFTER CHANGING THE HARDWARE</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">BEFORE SOFTWARE CHANGE</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 text-center">IMPORTANCE</th>
+                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 text-center">TYPES OF EFFECT</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-normal text-gray-600 dark:text-gray-300">
+                                        {generateExpandedApplicableRows(v.appliedCount || 46).map((item) => (
+                                          <tr key={`app-${item.no}`} className="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors">
+                                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{item.no}</td>
+                                            <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200">{item.repWork}</td>
+                                            <td className="px-3 py-2">{item.purpose}</td>
+                                            <td className="px-3 py-2">{item.hwBefore}</td>
+                                            <td className="px-3 py-2">{item.hwAfter}</td>
+                                            <td className="px-3 py-2">{item.swBefore}</td>
+                                            <td className="px-3 py-2">{item.swAfter}</td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                {item.importance}
+                                              </span>
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                {item.effect}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Section 2: Not Applicable Items */}
+                              <div>
+                                <div className="flex items-center gap-2 mb-2.5">
+                                  <i className="fas fa-times-circle text-red-500 text-xs" />
+                                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                    Not Applicable Items ({v.excludedCount || 40} items)
+                                  </span>
+                                </div>
+                                <div className="border border-red-200 dark:border-red-800/40 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+                                  <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                                      <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[9px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                                        <tr>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 w-10 text-center">#</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">REPRESENTATIVE WORK NAME</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">PURPOSE OF THE WORK</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">AFTER CHANGING THE HARDWARE</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">BEFORE SOFTWARE CHANGE</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 text-center">IMPORTANCE</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 text-center">TYPES OF EFFECT</th>
+                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">REASONING</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-normal text-gray-600 dark:text-gray-300">
+                                        {generateExpandedNotApplicableRows(v.excludedCount || 40).map((item) => (
+                                          <tr key={`not-${item.no}`} className="hover:bg-red-50/20 dark:hover:bg-red-900/10 transition-colors">
+                                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{item.no}</td>
+                                            <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200">{item.repWork}</td>
+                                            <td className="px-3 py-2">{item.purpose}</td>
+                                            <td className="px-3 py-2">{item.hwBefore}</td>
+                                            <td className="px-3 py-2">{item.hwAfter}</td>
+                                            <td className="px-3 py-2">{item.swBefore}</td>
+                                            <td className="px-3 py-2">{item.swAfter}</td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                {item.importance}
+                                              </span>
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                                {item.effect}
+                                              </span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              <textarea
+                                                rows={2}
+                                                defaultValue={item.reasoning || "Importance Average"}
+                                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                                              />
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -418,6 +775,550 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
         )}
       </Modal>
+
+      {/* ── MP Comparison Modal ── */}
+      {showCompareModal && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          onClick={() => setShowCompareModal(false)}
+        >
+          <div
+            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 flex flex-col animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 mb-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0">
+                  <i className="fas fa-right-left text-sm" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {compareV1?.version || "v1"} vs {compareV2?.version || "v2"} comparison
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                    {t("page.mpManagement.compareDesc", "Compare the two versions of MP List")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                onClick={() => setShowCompareModal(false)}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            {/* Top Version Comparison Summary Card */}
+            <div className="bg-gray-50 dark:bg-gray-700/40 rounded-2xl p-5 flex items-center justify-between mb-6 border border-gray-100 dark:border-gray-700">
+              <div className="flex-1 text-center">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  {compareV1?.version || "v1"}
+                </div>
+                <div className="text-2xl font-extrabold text-gray-900 dark:text-white my-1">
+                  {compareV1?.appliedCount ?? 46} cases
+                </div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Applied / {compareV1?.excludedCount ?? 40} cases Not applied
+                </div>
+              </div>
+
+              <div className="px-6 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <i className="fas fa-right-left text-lg font-bold" />
+              </div>
+
+              <div className="flex-1 text-center">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  {compareV2?.version || "v2"}
+                </div>
+                <div className="text-2xl font-extrabold text-gray-900 dark:text-white my-1">
+                  {compareV2?.appliedCount ?? 20} cases
+                </div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Applied / {compareV2?.excludedCount ?? 21} cases Not applied
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Comparison Table */}
+            <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+              <div className="overflow-x-auto max-h-80 custom-scrollbar">
+                <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead className="sticky top-0 bg-gray-50/90 dark:bg-gray-700/80 text-gray-400 dark:text-gray-300 uppercase text-[10px] font-bold tracking-wider z-10 border-b border-gray-100 dark:border-gray-700">
+                    <tr>
+                      <th className="px-3 py-3 font-bold">REPRESENTATIVE WORK NAME</th>
+                      <th className="px-3 py-3 font-bold">PURPOSE OF THE WORK</th>
+                      <th className="px-3 py-3 font-bold">PROBLEM PHENOMENON</th>
+                      <th className="px-3 py-3 font-bold">CAUSE OF THE ISSUE</th>
+                      <th className="px-3 py-3 font-bold">BOM</th>
+                      <th className="px-3 py-3 font-bold">MATERIAL NAME</th>
+                      <th className="px-3 py-3 font-bold">BEFORE CHANGING HARDWARE</th>
+                      <th className="px-3 py-3 font-bold text-center">IMPORTANCE</th>
+                      <th className="px-3 py-3 font-bold text-center">EFFECT</th>
+                      <th className="px-3 py-3 font-bold text-center uppercase">{compareV1?.version || "v1"}</th>
+                      <th className="px-3 py-3 font-bold text-center uppercase">{compareV2?.version || "v2"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
+                    {sampleCompareRows.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors">
+                        <td className="px-3 py-2.5 text-gray-900 dark:text-white font-semibold max-w-[140px] truncate">{row.repWork}</td>
+                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.purpose}</td>
+                        <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 max-w-[130px] truncate">{row.problem}</td>
+                        <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 max-w-[130px] truncate">{row.cause}</td>
+                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300">{row.bom}</td>
+                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.materialName}</td>
+                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.hwBefore}</td>
+                        <td className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">{row.importance}</td>
+                        <td className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">{row.effect}</td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                            row.v1Status === "Applied"
+                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-100"
+                              : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                          }`}>
+                            {row.v1Status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                            row.v2Status === "Applied"
+                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-100"
+                              : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                          }`}>
+                            {row.v2Status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-center pt-5 mt-4 border-t border-gray-100 dark:border-gray-700">
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                onClick={() => setShowCompareModal(false)}
+              >
+                {t("app.close", "Close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MP List Inquiry / Edit Modal ── */}
+      {editingVersion && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          onClick={() => setEditingVersion(null)}
+        >
+          <div
+            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 mb-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0">
+                  <i className="fas fa-edit text-sm" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.inquiryModalTitle", "MP List Inquiry")}
+                  </h3>
+                  <span className="px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 rounded-md border border-blue-100 dark:border-blue-800">
+                    {editingVersion.version || "v1"}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                onClick={() => setEditingVersion(null)}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar">
+              {/* Section 1: Equipment ID Tags & Add */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                  {t("field.equipmentId", "Equipment ID")}
+                </label>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {editEquipmentIds.map((tag, idx) => (
+                    <span
+                      key={`tag-${idx}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-full border border-blue-100 dark:border-blue-800/40"
+                    >
+                      <span>{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditEquipmentIds(editEquipmentIds.filter((_, i) => i !== idx))
+                        }
+                        className="w-3.5 h-3.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 flex items-center justify-center text-[10px] cursor-pointer transition-colors"
+                      >
+                        <i className="fas fa-times" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <input
+                    type="text"
+                    placeholder={t("page.mp.addFacilityId", "Facility ID added")}
+                    value={newEquipIdInput}
+                    onChange={(e) => setNewEquipIdInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newEquipIdInput.trim()) {
+                        e.preventDefault();
+                        setEditEquipmentIds([...editEquipmentIds, newEquipIdInput.trim()]);
+                        setNewEquipIdInput("");
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newEquipIdInput.trim()) {
+                        setEditEquipmentIds([...editEquipmentIds, newEquipIdInput.trim()]);
+                        setNewEquipIdInput("");
+                      }
+                    }}
+                    className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <i className="fas fa-plus text-xs" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 2: Additional Consultation */}
+              <div className="bg-gray-50/70 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+                <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-3">
+                  {t("page.mp.additionalConsultation", "Additional Consultation")}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newConsultDate}
+                      onChange={(e) => setNewConsultDate(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Consultation Title"
+                      value={newConsultTitle}
+                      onChange={(e) => setNewConsultTitle(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                      Attendees (comma separation)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Hong Gil-dong, Yi Sun-sin"
+                      value={newConsultAttendees}
+                      onChange={(e) => setNewConsultAttendees(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newConsultTitle.trim()) {
+                          setEditConsultations([
+                            ...editConsultations,
+                            { date: newConsultDate, title: newConsultTitle.trim(), attendees: newConsultAttendees.trim() },
+                          ]);
+                          setNewConsultTitle("");
+                          setNewConsultAttendees("");
+                        }
+                      }}
+                      className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <i className="fas fa-plus text-xs" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Consultation List */}
+                {editConsultations.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {editConsultations.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between p-2.5 bg-white dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 text-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{c.date}</span>
+                          <span className="font-semibold text-gray-800 dark:text-white">{c.title}</span>
+                          <span className="text-gray-400">({c.attendees || "No attendees"})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditConsultations(editConsultations.filter((_, idx) => idx !== i))}
+                          className="text-gray-400 hover:text-red-500 cursor-pointer"
+                        >
+                          <i className="fas fa-times text-xs" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Applicable Items */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                    {t("page.mp.applicableItems", "Applicable Items")}
+                  </h4>
+                  <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                    {editApplicableRows.length} {t("app.cases", "cases")}
+                  </span>
+                </div>
+
+                <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-white dark:bg-gray-800 shadow-2xs">
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                        <tr>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">#</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-12 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                        {editApplicableRows.map((row, idx) => (
+                          <tr key={`edit-app-${idx}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
+                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                            <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[150px] truncate">{row.repWork || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[140px] truncate">{row.purpose || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.hwBefore || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.hwAfter || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">{row.swBefore || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">{row.swAfter || "—"}</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                {row.importance || "General"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                                {row.effect || "Others"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                type="button"
+                                title="Move to Not Applicable"
+                                onClick={() => {
+                                  setEditApplicableRows(editApplicableRows.filter((_, i) => i !== idx));
+                                  setEditNotApplicableRows([...editNotApplicableRows, { ...row, reasoning: "Importance Average" }]);
+                                }}
+                                className="w-6 h-6 rounded-md border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors"
+                              >
+                                <i className="fas fa-arrow-down text-[10px]" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Not Applicable */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400">
+                    {t("page.mp.notApplicable", "Not Applicable")}
+                  </h4>
+                  <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
+                    {editNotApplicableRows.length} {t("app.cases", "cases")}
+                  </span>
+                </div>
+
+                <div className="border border-red-200 dark:border-red-800/40 rounded-2xl overflow-hidden border-l-4 border-l-red-500 bg-white dark:bg-gray-800 shadow-2xs">
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                        <tr>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">#</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.nonImplReason", "REASONING")}</th>
+                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-12 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                        {editNotApplicableRows.map((row, idx) => (
+                          <tr key={`edit-not-${idx}`} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
+                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                            <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[130px] truncate">{row.repWork || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.purpose || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">{row.hwBefore || "—"}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">{row.hwAfter || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{row.swBefore || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{row.swAfter || "—"}</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                {row.importance || "General"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                                {row.effect || "Others"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <textarea
+                                rows={2}
+                                value={row.reasoning || "Importance Average"}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditNotApplicableRows(
+                                    editNotApplicableRows.map((r, i) => i === idx ? { ...r, reasoning: val } : r)
+                                  );
+                                }}
+                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                type="button"
+                                title="Restore to Applicable"
+                                onClick={() => {
+                                  setEditNotApplicableRows(editNotApplicableRows.filter((_, i) => i !== idx));
+                                  setEditApplicableRows([...editApplicableRows, row]);
+                                }}
+                                className="w-6 h-6 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center cursor-pointer transition-colors"
+                              >
+                                <i className="fas fa-arrow-up text-[10px]" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                onClick={() => setEditingVersion(null)}
+              >
+                {t("app.cancellation", "cancellation")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingVersion(null);
+                }}
+                className="bg-[#0f62fe] hover:bg-blue-700 text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <i className="fas fa-check text-xs" />
+                <span>{t("app.save", "Save")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {rowToDelete && (
+        <div
+          className="modal-overlay fixed inset-0 z-[1100] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          onClick={() => setRowToDelete(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl text-center relative animate-scale-up border border-gray-100 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 flex items-center justify-center text-2xl mx-auto mb-4 border border-red-100 dark:border-red-800/40">
+              <i className="fas fa-trash-alt" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              {t("page.mp.deleteModalTitle", "Delete Confirmation")}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+              {t(
+                "page.mp.deleteModalDesc",
+                "Are you sure you want to delete version",
+              )}{" "}
+              <strong className="text-gray-800 dark:text-gray-200">
+                ({rowToDelete.version})
+              </strong>
+              ?
+              <br />
+              {t(
+                "page.mp.deleteWarning",
+                "This action cannot be undone.",
+              )}
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="flex-1 py-2.5 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 transition-colors cursor-pointer"
+                onClick={() => setRowToDelete(null)}
+              >
+                {t("app.cancellation", "Cancel")}
+              </button>
+              <button
+                type="button"
+                className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                onClick={() => {
+                  const key = String(rowToDelete.id || rowToDelete.version);
+                  setDeletedRowIds((prev) => new Set([...prev, key]));
+                  setRowToDelete(null);
+                }}
+              >
+                <i className="fas fa-trash-alt text-xs" />
+                <span>{t("app.delete", "Delete")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

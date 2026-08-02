@@ -719,7 +719,7 @@ export default function SpecMatrix({ searchText }) {
             {/* 보전유형 */}
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-600">
-                {t("field.maintenanceType", "보전유형")}
+                {t("field.equipmentType", "Equipment Type")}
               </label>
               {filterLoading ? (
                 <SelectSkeleton width="130px" />
