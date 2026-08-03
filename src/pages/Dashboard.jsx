@@ -306,7 +306,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-text-default">
+    <div className="min-h-screen bg-white text-text-default">
       <div className="flex h-screen overflow-hidden">
         <Sidebar
           activePage={activePage}
@@ -324,7 +324,7 @@ export default function Dashboard() {
             }
           />
           <main
-            className={`flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8fafc] ${
+            className={`flex-1 flex flex-col min-h-0 overflow-hidden bg-white ${
               activePage === "home" ? "p-0" : "p-6"
             }`}
           >

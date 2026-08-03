@@ -3,9 +3,14 @@ import { useI18n } from "../i18n.jsx";
 
 const navSections = [
   {
-    titleKey: "nav.main",
+    titleKey: null,
     items: [
       { id: "home", labelKey: "nav.home", icon: "fa-home" },
+    ],
+  },
+  {
+    titleKey: "nav.dataHeader",
+    items: [
       {
         id: "data",
         labelKey: "nav.data",
@@ -107,7 +112,7 @@ export default function Sidebar({
       </div>
 
       <nav className="eq-sidebar-nav">
-        {navSections.map((section) => {
+        {navSections.map((section, sIdx) => {
           const visibleItems = section.items
             .map((item) => {
               if (item.children?.length) {
@@ -126,8 +131,8 @@ export default function Sidebar({
           }
 
           return (
-            <div key={section.titleKey} className="eq-nav-section">
-              <div className="eq-section-title">{t(section.titleKey)}</div>
+            <div key={section.titleKey || `sec-${sIdx}`} className="eq-nav-section">
+              {section.titleKey && <div className="eq-section-title">{t(section.titleKey)}</div>}
               {visibleItems.map((item) => {
                 const isGroup = item.children?.length > 0;
                 const isActive =
@@ -186,10 +191,10 @@ export default function Sidebar({
       </nav>
 
       <div className="eq-system-card">
-        <div>{t("nav.system")}</div>
+        <div>{t("nav.serverStatus", "SERVER STATUS")}</div>
         <span>
           <i />
-          {t("nav.online")}
+          {t("nav.online", "Online")}
         </span>
       </div>
     </aside>

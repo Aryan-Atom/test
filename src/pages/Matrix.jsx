@@ -1185,8 +1185,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     <section className="flex-1 flex flex-col min-h-0 space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-text-default">{t("page.matrix.title", "변경 매트릭스")}</h1>
-          <p className="mt-2 text-sm text-text-subtle">
+          <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <i className="fas fa-th-large text-[#1745c2] text-xl md:text-[22px]" />
+            <span>{t("page.matrix.title", "변경 매트릭스")}</span>
+          </h1>
+          <p className="mt-1 text-[13px] text-slate-500 font-normal">
             {t("page.matrix.desc", "공정과 작업별 변경 이력을 시각적으로 분석합니다.")}
           </p>
         </div>

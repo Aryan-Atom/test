@@ -314,11 +314,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center text-2xl font-bold text-gray-900 dark:text-white">
-            <i className="fas fa-list-check mr-2.5 text-blue-600 dark:text-blue-400" />
-            {t("page.mpManagement.title", "MP List Management")}
+          <h1 className="flex items-center gap-2.5 text-xl md:text-[22px] font-bold text-slate-900 dark:text-white">
+            <i className="fas fa-list-check text-[#1745c2] dark:text-blue-400 text-xl md:text-[22px]" />
+            <span>{t("page.mpManagement.title", "MP List Management")}</span>
           </h1>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-[13px] text-slate-500 font-normal dark:text-gray-400">
             {t(
               "page.mpManagement.desc",
               "Manage the stored MP lists for each process and maintenance part by version",
@@ -412,10 +412,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
         </div>
       ) : (
-        <div className="card overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
-          <div className="overflow-x-auto">
+        <div className="card flex-1 min-h-0 flex flex-col overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+          <div className="flex-1 overflow-auto custom-scrollbar">
             <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-              <thead className="bg-gray-50/80 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700 text-[10px] font-bold uppercase tracking-wider text-gray-400 z-30">
                 <tr>
                   <th className="px-4 py-3.5 w-10 text-center">
                     <input
@@ -448,7 +448,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     <React.Fragment key={rowId}>
                       <tr
                         onClick={() => toggleExpandRow(rowId)}
-                        className={`hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors cursor-pointer select-none ${isExpanded ? "bg-blue-50/20 dark:bg-blue-900/10" : ""}`}
+                        className={`hover:bg-blue-50/40 dark:hover:bg-blue-900/20 transition-colors cursor-pointer select-none ${isExpanded ? "bg-blue-50/20 dark:bg-blue-900/10" : ""}`}
                       >
                         <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -524,8 +524,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
                       {/* Accordion Expanded Detail Row */}
                       {isExpanded && (
-                        <tr className="bg-gray-50/60 dark:bg-gray-800/60">
-                          <td colSpan={12} className="px-6 py-4">
+                        <tr
+                          className="expanded-detail-row bg-gray-50/60 dark:bg-gray-800/60"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseEnter={(e) => e.stopPropagation()}
+                          onMouseOver={(e) => e.stopPropagation()}
+                        >
+                          <td colSpan={12} className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                             <div className="space-y-6">
                               {/* Section 1: Applicable Items */}
                               <div>

@@ -21,15 +21,14 @@
   border-color: var(--color-brand-30, #bfdbfe) !important;
 }
 
-/* Loader Container */
 .action-icon-wrapper {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1em;
   height: 1em;
-  margin-right: 0.5em;
-  vertical-align: -0.125em;
+  margin-right: 0;
+  vertical-align: middle;
 }
 
 /* Main Loader Spinner */

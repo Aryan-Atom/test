@@ -42,8 +42,11 @@ export default function Board({ data, onAddPost, searchText }) {
     <section className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-text-default">{t("page.board.title")}</h1>
-          <p className="mt-2 text-sm text-text-subtle">{t("page.board.desc")}</p>
+          <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <i className="fas fa-comments text-[#1745c2] text-xl md:text-[22px]" />
+            <span>{t("page.board.title")}</span>
+          </h1>
+          <p className="mt-1 text-[13px] text-slate-500 font-normal">{t("page.board.desc")}</p>
         </div>
         <button type="button" className="btn-base btn-primary" onClick={() => setOpenModal(true)}>
           <i className="fas fa-pen" /> {t("page.board.write")}

@@ -1942,7 +1942,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             </button>
             <button
               type="submit"
-              className="bg-[#1d4ed8] hover:bg-blue-700 text-white font-bold text-sm px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-sm px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <i className="fas fa-check text-xs" />
               Save
@@ -3040,8 +3040,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
       columnIds: Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0 ? selectedColumnIds : [0],
       searchText: debouncedSearchText || "",
-      rowCount: itemsPerPage || 10,
-      currentPage: currentPage || 0,
+      rowCount: pageSize || 20,
+      currentPage: currentPage || 1,
     };
 
     APIcallPost(
@@ -3107,7 +3107,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       }
     );
-  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText, currentPage, itemsPerPage]);
+  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText, currentPage, pageSize]);
 
   useEffect(() => {
     getFilterDataRef.current = getFilterData;
@@ -3153,8 +3153,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-50">
           <div>
-            <h1 className="text-3xl font-extrabold text-text-default">{t("page.change.title")}</h1>
-            <p className="mt-2 text-sm text-text-subtle">
+            <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+              <i className="fas fa-history text-[#1745c2] text-xl md:text-[22px]" />
+              <span>{t("page.change.title")}</span>
+            </h1>
+            <p className="mt-1 text-[13px] text-slate-500 font-normal">
               {t("page.change.desc")}
             </p>
           </div>

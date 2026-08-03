@@ -1348,15 +1348,15 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         }
         .mp-page-title {
           color: var(--ref-text-primary, #0f172a);
-          font-size: 28px;
-          font-weight: 900;
-          line-height: 1.15;
+          font-size: 22px;
+          font-weight: 700;
+          line-height: 1.2;
         }
         .mp-page-subtitle {
-          margin-top: 8px;
-          color: var(--ref-text-muted, #94a3b8);
-          font-size: 14px;
-          font-weight: 500;
+          margin-top: 4px;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 400;
         }
         .mp-filter-card {
           display: flex;
@@ -1471,7 +1471,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         {/* ── Page header ── */}
         <header className="mp-page-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="mp-page-title">{t("page.mp.title", "MP List 조회")}</h1>
+            <h1 className="mp-page-title flex items-center gap-2.5">
+              <i className="fas fa-clipboard-list text-[#1745c2] text-xl md:text-[22px]" />
+              <span>{t("page.mp.title", "MP List 조회")}</span>
+            </h1>
             <p className="mp-page-subtitle">
               {t("page.mp.desc", "보전파트별 대표 작업명을 최신순으로 조회합니다.")}
               {isDirty && (
@@ -1483,14 +1486,14 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Row Count Badge */}
-            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 px-1 py-1 mr-1 flex items-center shrink-0">
-              {filtered?.length || 0}{t("app.rows", "건")}
+            <span className="inline-flex items-center px-3 py-1 text-xs font-bold text-[#1745c2] bg-[#eff4ff] border border-[#bfdbfe] rounded-full shrink-0">
+              {filtered?.length || 0} {t("app.cases", "cases")}
             </span>
 
             {/* + VoC 추가 Button */}
             <button
               type="button"
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
                 if (!selectedProcessId || !selectedMaintenanceId) {
                   setOperationStatus({
@@ -1580,7 +1583,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* VoC 일괄 추가 Button */}
             <button
               type="button"
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
                 setBatchModalError("");
                 setShowBatchModal(true);
@@ -1593,7 +1596,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* MP List 저장 Button */}
             <button
               type="button"
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold px-3.5 h-[38px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
                 const initialApplicable = filtered.length > 0 ? [...filtered] : [...listRows];
                 setApplicableRows(initialApplicable);
@@ -2464,7 +2467,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 }
               }}
             >
-              <div className="w-12 h-12 rounded-full bg-[#1d4ed8] flex items-center justify-center text-white text-xl mb-3 shadow-md">
+              <div className="w-12 h-12 rounded-full bg-[#1745c2] flex items-center justify-center text-white text-xl mb-3 shadow-md">
                 <i className="fas fa-cloud-upload-alt" />
               </div>
               <h4 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -2479,7 +2482,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   e.stopPropagation();
                   batchFileInputRef.current?.click();
                 }}
-                className="mt-4 bg-[#1d4ed8] hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-all"
+                className="mt-4 bg-[#1745c2] hover:bg-[#1239a5] text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-all"
               >
                 <i className="fas fa-folder-open text-xs" />
                 <span>{t("page.mp.fileSelectionBtn", "File selection")}</span>
@@ -2775,7 +2778,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   setShowSaveModal(false);
                   handleSaveAll();
                 }}
-                className="bg-[#1d4ed8] hover:bg-blue-700 text-white font-bold text-xs px-8 py-3 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-3 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
               >
                 <i className="fas fa-save text-xs" />
                 <span>{t("app.save", "Save")}</span>
