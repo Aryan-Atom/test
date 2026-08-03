@@ -3015,14 +3015,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       return;
     }
 
-    APIcallPost(
-      pocEndPoints?.GET_FILTER_DATA,
-      {
-        processId: selectedProcessId ?? 0,
-        equipmentTypeId: selectedMaintenanceId ?? 0,
-        columnIds: selectedColumnIds,
-        searchText: debouncedSearchText,
-      },
+    // 1. Fetch Master Data for Filters
+    APIcallGet(
+      pocEndPoints?.GET_MASTER_DATA || "api/ChangeData/GetMasterData",
       {},
       (responseData, status) => {
         try {
@@ -3030,72 +3025,89 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             const payload = responseData?.data || responseData;
             setFilterPayload(payload);
             setFilterError(null);
+          } else {
+            console.warn("[ChangeHistory] Master data API invalid status:", status);
+          }
+        } catch (error) {
+          console.error("[ChangeHistory] Error parsing master data:", error);
+        }
+      }
+    );
 
-            if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
-              // changedDataJson always has one item — take index 0
+    // 2. Fetch Listing Data via POST GetChangedData
+    const reqBody = {
+      processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      columnIds: Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0 ? selectedColumnIds : [0],
+      searchText: debouncedSearchText || "",
+      rowCount: itemsPerPage || 10,
+      currentPage: currentPage || 0,
+    };
+
+    APIcallPost(
+      pocEndPoints?.GET_CHANGED_DATA || "api/ChangeData/GetChangedData",
+      reqBody,
+      {},
+      (responseData, status) => {
+        try {
+          if (status === 200 && responseData) {
+            const payload = responseData?.data || responseData;
+            setFilterError(null);
+
+            let records = [];
+            if (Array.isArray(payload?.changedData)) {
+              records = payload.changedData;
+            } else if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
               const envelope = payload.changedDataJson[0];
-
-              // Capture the envelope id for all future save payloads
               setChangedDataId(envelope.id ?? 0);
-
-              // Parse the content array into flat records
               try {
                 const parsed =
                   typeof envelope.content === "string"
                     ? JSON.parse(envelope.content)
                     : envelope.content;
-
                 if (Array.isArray(parsed)) {
-                  let nextId = 1;
-                  const sanitized = parsed.map((r) => {
-                    const clean = { ...r };
-                    const numId = Number(clean.id);
-                    if (isNaN(numId) || numId <= 0) {
-                      clean.id = nextId++;
-                    } else {
-                      if (numId >= nextId) {
-                        nextId = numId + 1;
-                      }
-                    }
-                    return clean;
-                  });
-                  const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
-                  setChangedRecords(sorted);
-                  setApiRecords(sorted);
-                } else {
-                  setChangedRecords([]);
-                  setApiRecords([]);
+                  records = parsed;
                 }
-              } catch (parseError) {
-                console.warn("[ChangeHistory] Failed to parse changedDataJson content:", parseError);
-                setChangedRecords([]);
-                setApiRecords([]);
+              } catch (e) {
+                console.warn("[ChangeHistory] Failed to parse content string:", e);
               }
-            } else {
-              // No changedDataJson yet — keep id as 0 so backend creates a new record
-              setChangedDataId(0);
-              setChangedRecords([]);
-              setApiRecords([]);
+            }
+
+            let nextId = 1;
+            const sanitized = records.map((r) => {
+              const clean = { ...r };
+              const numId = Number(clean.id);
+              if (isNaN(numId) || numId <= 0) {
+                clean.id = nextId++;
+              } else {
+                if (numId >= nextId) {
+                  nextId = numId + 1;
+                }
+              }
+              return clean;
+            });
+            const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+            setChangedRecords(sorted);
+            setApiRecords(sorted);
+
+            if (payload?.pagination?.totalCount !== undefined) {
+              setTotalRecordsCount?.(payload.pagination.totalCount);
             }
           } else {
-            console.warn("[ChangeHistory] Filter data API returned invalid status:", status);
-            setFilterPayload({ process: [], maintenance: [] });
+            console.warn("[ChangeHistory] GetChangedData returned invalid status:", status);
             setChangedRecords([]);
             setApiRecords([]);
-            setChangedDataId(0);
             setFilterError(t("toast.filterLoadError"));
           }
         } catch (error) {
-          console.error("[ChangeHistory] Error processing filter data:", error);
-          setFilterPayload({ process: [], maintenance: [] });
+          console.error("[ChangeHistory] Error processing changed data:", error);
           setChangedRecords([]);
           setApiRecords([]);
-          setChangedDataId(0);
           setFilterError(t("toast.filterError"));
         }
-      },
+      }
     );
-  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText]);
+  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText, currentPage, itemsPerPage]);
 
   useEffect(() => {
     getFilterDataRef.current = getFilterData;

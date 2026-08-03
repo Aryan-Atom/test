@@ -190,6 +190,7 @@ function FilterToast({ isVisible, status, message, autoClose, onClose }) {
 // Constants — columns shown in the table
 // ─────────────────────────────────────────────────────────────────────────────
 const TABLE_COLUMNS = [
+  "site",
   "representativeWork",
   "work",
   "situation",
@@ -202,11 +203,12 @@ const TABLE_COLUMNS = [
   "swAsIs",
   "priority",
   "category",
-  "wOCode",
   "workedOn",
+  "photos",
 ];
 
 const COLUMN_LABELS = {
+  site: "법인",
   representativeWork: "대표작업명",
   work: "작업 목적",
   situation: "문제 현상",
@@ -221,9 +223,11 @@ const COLUMN_LABELS = {
   category: "효과 유형",
   wOCode: "W/O코드",
   workedOn: "작업완료일",
+  photos: "사진",
 };
 
 const COLUMN_LABEL_KEYS = {
+  site: "field.site",
   representativeWork: "field.repWork",
   work: "field.work",
   situation: "field.situation",
@@ -238,6 +242,7 @@ const COLUMN_LABEL_KEYS = {
   category: "field.category",
   wOCode: "field.woCode",
   workedOn: "field.workedOn",
+  photos: "field.photos",
 };
 
 function columnLabel(col, t) {
@@ -1001,14 +1006,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const handleModalAdd = () => {
     const fieldsToValidate = [
       "representativeWork",
-      "work",
-      "situation",
-      "cause",
-      "hwAsWas",
-      "hwAsIs",
-      "swAsWas",
-      "swAsIs",
-      "workedOn"
+      "situation"
     ];
     const nextErrors = {};
     fieldsToValidate.forEach((key) => {
@@ -1817,31 +1815,32 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             ) : (dataLoading || isFiltering) ? (
               <TableSkeleton rows={6} t={t} />
             ) : (
-              <div className="mp-table-scroll overflow-auto">
+              <div className="mp-table-scroll overflow-auto border border-border-base dark:border-gray-700 rounded-xl shadow-2xs">
                 <table
                   className="min-w-full text-left text-sm"
                   style={{ tableLayout: "fixed", width: "100%", minWidth: "1280px" }}
                 >
                   <colgroup>
                     <col style={{ width: "3%" }} />
-                    <col style={{ width: "12%" }} />
                     <col style={{ width: "6%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "11%" }} />
                     <col style={{ width: "9%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "5%" }} />
                   </colgroup>
                   <thead className="table-header" style={{ position: "sticky", top: 0, zIndex: 1 }}>
                     <tr>
-                      <th style={{ textAlign: "center" }}></th>
+                      <th className="border-b border-border-base dark:border-gray-700/60 text-center px-1 py-2" style={{ textAlign: "center" }}></th>
                       {TABLE_COLUMNS.map((col) => (
                         <SortableTh
                           key={col}
@@ -1856,17 +1855,26 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={15} className="text-center py-10 text-text-subtle text-sm">
+                        <td colSpan={TABLE_COLUMNS.length + 1} className="text-center py-10 text-text-subtle text-sm">
                           {t("empty.noMatch", "조건에 맞는 데이터가 없습니다.")}
                         </td>
                       </tr>
                     ) : (
                       paginatedData.map((row, index) => {
                         const woCode = getColValue(row, "wOCode");
-                        const isUser = !woCode || woCode === "—";
+                        const isVoc = row.is_voc === true || row.isVoc === true || row.is_voc === "true" || row.is_user === true || !woCode || woCode === "—" || woCode === "";
+                        const isUser = isVoc;
                         const isPending = !!row._pending;
                         const detailKey = rowKey(row, index);
                         const isSelected = isRowSelected(row, drawerItem);
+
+                        const rowBgClass = isSelected
+                          ? "bg-[#ddeaff] dark:bg-blue-900/60"
+                          : isPending
+                          ? "bg-[#f0fdf4]"
+                          : isVoc
+                          ? "bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff] dark:hover:bg-blue-900/40"
+                          : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
 
                       return (
                         <tr
@@ -1882,13 +1890,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                               handleRowClick(row);
                             }
                           }}
-                          className={`mp-row-clickable border-t border-border-base hover:bg-fill-active${isPending ? " mp-row-pending" : ""}${isUser ? " user-row" : ""}${isSelected ? " mp-row-selected" : ""}`}
+                          className={`mp-row-clickable border-t border-border-base transition-colors ${rowBgClass}${isSelected ? " mp-row-selected" : ""}`}
                         >
                           <td className="text-center px-1 py-2">
-                            {isUser && (
+                            {isVoc && (
                               <button
                                 type="button"
-                                className="mp-del-btn"
+                                className="mp-del-btn text-gray-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
                                 onClick={(e) => handleDeleteRow(e, row)}
                                 title={t("app.delete", "삭제")}
                               >
@@ -1897,6 +1905,25 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                             )}
                           </td>
                           {TABLE_COLUMNS.map((col) => {
+                            if (col === "photos") {
+                              const photoList = row.photos || row.attachments || (row.samplePhoto ? [row.samplePhoto] : []);
+                              const photoCount = Array.isArray(photoList) && photoList.length > 0
+                                ? photoList.length
+                                : (row.photoCount || row.attachmentCount || (row.wOCode === "WC09114213" || row.woCode === "WC09114213" || row.samplePhoto ? 1 : 0));
+
+                              return (
+                                <td key={col} className="px-3 py-2 text-center whitespace-nowrap">
+                                  {photoCount > 0 ? (
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
+                                      <i className="fas fa-camera text-[11px]" />
+                                      <span>{String(photoCount).padStart(2, "0")}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                  )}
+                                </td>
+                              );
+                            }
                             if (col === "priority") {
                               const val = getColValue(row, "priority") || "일반";
                               return (
@@ -2031,133 +2058,118 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       {/* ── Add/Edit row modal ── */}
       <Modal
         open={showModal}
-        title={editingRowLocalId !== null ? t("page.mp.modalEditTitle", "MP List 행 수정") : t("page.mp.modalTitle", "MP List 행 추가")}
-        description={editingRowLocalId !== null ? t("page.mp.modalEditDesc", "항목 정보를 수정합니다.") : t("page.mp.modalDesc", "새로운 항목을 추가합니다. W/O코드는 자동으로 비워지며, 시스템 데이터와 구분됩니다.")}
+        title={editingRowLocalId !== null ? t("page.mp.modalEditTitle", "MP List 행 수정") : t("page.mp.modalTitle", "Add MP List Row")}
+        description={editingRowLocalId !== null ? t("page.mp.modalEditDesc", "항목 정보를 수정합니다.") : t("page.mp.modalDesc", "Add new items. The W/O code is automatically emptied and separated from system data.")}
         onClose={() => {
           setShowModal(false);
           setEditingRowLocalId(null);
           setErrors({});
         }}
-        headerBg="var(--accent-soft, #ecfeff)"
         titleIcon={
-          <i
-            className={`fas ${editingRowLocalId !== null ? "fa-edit" : "fa-plus-circle"} mr-2`}
-            style={{ color: "var(--accent, #06b6d4)" }}
-          ></i>
+          <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            <i className={`fas ${editingRowLocalId !== null ? "fa-edit" : "fa-plus"}`} />
+          </span>
         }
-        maxWidth="640px"
+        maxWidth="680px"
         footer={
           <button
             type="button"
-            className="btn-base btn-primary"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm w-[60%] sm:w-[220px]"
             onClick={handleModalAdd}
           >
-            <i className="fas fa-check mr-1.5" />
-            {editingRowLocalId !== null ? t("app.edit", "수정하기") : t("page.mp.addButton", "추가하기")}
+            <i className="fas fa-check text-xs" />
+            {editingRowLocalId !== null ? t("app.edit", "수정하기") : t("page.mp.addButton", "Add")}
           </button>
         }
       >
-        <div className="space-y-3">
-          {/* Grid 1: Process and Maintenance Part (read-only) */}
+        <div className="space-y-3.5">
+          {/* Row 1: Fairness (Process) and Conservation Part (Maintenance Part) in read-only mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.process", "공정")}
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.process", "Fairness")}
               </label>
               <input
                 type="text"
-                className="input-base w-full mt-1"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
                   processList.find((p) => p.id === selectedProcessId)
-                    ?.processName ?? ""
+                    ?.processName || "02.배치"
                 }
+                disabled
                 readOnly
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.maintenance", "Equipment Type")}
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.equipmentType", "Conservation Part")}
               </label>
               <input
                 type="text"
-                className="input-base w-full mt-1"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
                   (filterPayload?.maintenance ?? []).find(
                     (m) => m.id === selectedMaintenanceId
-                  )?.maintenanceGroupName ?? ""
+                  )?.maintenanceGroupName || "0202. Nano Mill"
                 }
+                disabled
                 readOnly
               />
             </div>
           </div>
 
-          {/* Grid 2: Representative Work and Work Purpose */}
+          {/* Row 2: Representative Work Name * (Full width) */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              {t("field.repWork", "Representative Work Name")}{" "}
+              <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              value={newRow.representativeWork}
+              onChange={(e) => setField("representativeWork", e.target.value)}
+              placeholder={t("placeholder.representativeWorkInput", "Enter the main job name")}
+              style={{
+                borderColor: errors.representativeWork ? "var(--color-text-danger, #dc2626)" : undefined,
+                borderWidth: errors.representativeWork ? "1.5px" : undefined
+              }}
+            />
+            {errors.representativeWork && (
+              <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                <i className="fas fa-exclamation-circle mr-1" />
+                {errors.representativeWork}
+              </span>
+            )}
+          </div>
+
+          {/* Row 3: Purpose of the Work (Full width) */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              {t("field.work", "Purpose of the Work")}
+            </label>
+            <input
+              type="text"
+              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              value={newRow.work}
+              onChange={(e) => setField("work", e.target.value)}
+              placeholder={t("placeholder.workPurposeInput", "Enter the purpose of the work")}
+            />
+          </div>
+
+          {/* Row 4: Problem phenomenon * and Cause of the problem */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.repWork", "대표작업명")}{" "}
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.situation", "Problem phenomenon")}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="input-base w-full mt-1"
-                value={newRow.representativeWork}
-                onChange={(e) => setField("representativeWork", e.target.value)}
-                placeholder={t("placeholder.representativeWorkInput", "대표작업명 입력")}
-                style={{
-                  borderColor: errors.representativeWork ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.representativeWork ? "1.5px" : undefined
-                }}
-              />
-              {errors.representativeWork && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.representativeWork}
-                </span>
-              )}
-            </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.work", "작업 목적")}{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="input-base w-full mt-1"
-                value={newRow.work}
-                onChange={(e) => setField("work", e.target.value)}
-                placeholder={t(
-                  "placeholder.workPurposeInput",
-                  "작업 목적 입력"
-                )}
-                style={{
-                  borderColor: errors.work ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.work ? "1.5px" : undefined
-                }}
-              />
-              {errors.work && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.work}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Grid 3: Problem Symptom and Problem Cause */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.situation", "문제 현상")}{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="input-base w-full mt-1"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.situation}
                 onChange={(e) => setField("situation", e.target.value)}
-                placeholder={t(
-                  "placeholder.situationInput",
-                  "문제 현상 입력"
-                )}
+                placeholder={t("placeholder.situationInput", "Problem Phenomenon Input")}
                 style={{
                   borderColor: errors.situation ? "var(--color-text-danger, #dc2626)" : undefined,
                   borderWidth: errors.situation ? "1.5px" : undefined
@@ -2171,224 +2183,177 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               )}
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.cause", "문제 원인")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.cause", "Cause of the problem")}
               </label>
               <input
-                className="input-base w-full mt-1"
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.cause}
                 onChange={(e) => setField("cause", e.target.value)}
-                placeholder={t("placeholder.causeInput", "문제 원인 입력")}
-                style={{
-                  borderColor: errors.cause ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.cause ? "1.5px" : undefined
-                }}
+                placeholder={t("placeholder.causeInput", "Enter the cause of the problem")}
               />
-              {errors.cause && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.cause}
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Grid 4: BOM and Spare Part */}
+          {/* Row 5: BOM and Material Name */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                BOM
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.bom", "BOM")}
               </label>
-              <textarea
-                className="input-base w-full mt-1"
+              <input
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.bom}
                 onChange={(e) => setField("bom", e.target.value)}
-                rows={2}
-                placeholder={t("placeholder.bomInput", "BOM 입력 (줄바꿈 가능)")}
-                style={{ resize: "vertical" }}
+                placeholder={t("placeholder.bomInput", "BOM Entry")}
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.sparePart", "자재명")}
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.sparePart", "Material Name")}
               </label>
-              <textarea
-                className="input-base w-full mt-1"
+              <input
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.sparePart}
                 onChange={(e) => setField("sparePart", e.target.value)}
-                rows={2}
-                placeholder={t(
-                  "placeholder.sparePartInput",
-                  "자재명 입력 (줄바꿈 가능)"
-                )}
-                style={{ resize: "vertical" }}
+                placeholder={t("placeholder.sparePartInput", "Enter material name")}
               />
             </div>
           </div>
 
-          {/* Grid 5: HW Before and HW After */}
+          {/* Row 6: Before changing the hardware and After changing the hardware */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.hwBefore", "HW 변경 전")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.hwBefore", "Before changing the hardware")}
               </label>
               <input
-                className="input-base w-full mt-1"
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsWas}
                 onChange={(e) => setField("hwAsWas", e.target.value)}
-                placeholder={t("field.hwBefore", "HW 변경 전")}
-                style={{
-                  borderColor: errors.hwAsWas ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.hwAsWas ? "1.5px" : undefined
-                }}
+                placeholder={t("placeholder.hwBefore", "Before changing the hardware")}
               />
-              {errors.hwAsWas && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.hwAsWas}
-                </span>
-              )}
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.hwAfter", "HW 변경 후")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.hwAfter", "After changing the hardware")}
               </label>
               <input
-                className="input-base w-full mt-1"
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsIs}
                 onChange={(e) => setField("hwAsIs", e.target.value)}
-                placeholder={t("field.hwAfter", "HW 변경 후")}
-                style={{
-                  borderColor: errors.hwAsIs ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.hwAsIs ? "1.5px" : undefined
-                }}
+                placeholder={t("placeholder.hwAfter", "After changing the hardware")}
               />
-              {errors.hwAsIs && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.hwAsIs}
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Grid 6: SW Before and SW After */}
+          {/* Row 7: Before Software Change and After the software change */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.swBefore", "SW 변경 전")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.swBefore", "Before Software Change")}
               </label>
               <input
-                className="input-base w-full mt-1"
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsWas}
                 onChange={(e) => setField("swAsWas", e.target.value)}
-                placeholder={t("field.swBefore", "SW 변경 전")}
-                style={{
-                  borderColor: errors.swAsWas ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.swAsWas ? "1.5px" : undefined
-                }}
+                placeholder={t("placeholder.swBefore", "Before Software Change")}
               />
-              {errors.swAsWas && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.swAsWas}
-                </span>
-              )}
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.swAfter", "SW 변경 후")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.swAfter", "After the software change")}
               </label>
               <input
-                className="input-base w-full mt-1"
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsIs}
                 onChange={(e) => setField("swAsIs", e.target.value)}
-                placeholder={t("field.swAfter", "SW 변경 후")}
-                style={{
-                  borderColor: errors.swAsIs ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.swAsIs ? "1.5px" : undefined
-                }}
+                placeholder={t("placeholder.swAfter", "After the software change")}
               />
-              {errors.swAsIs && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.swAsIs}
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Grid 7: Priority, Category, and Completion Date */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Row 8: Importance and Types of effects */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.priority", "중요도")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.priority", "Importance")}
               </label>
               <select
-                className="input-base w-full mt-1"
-                value={newRow.priority}
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                value={newRow.priority || "중요"}
                 onChange={(e) => setField("priority", e.target.value)}
               >
-                <option value="일반">{t("priority.normal", "일반")}</option>
-                <option value="중요">{t("priority.high", "중요")}</option>
+                <option value="중요">{t("priority.high", "Important")}</option>
+                <option value="일반">{t("priority.normal", "Normal")}</option>
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.category", "효과 유형")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.category", "Types of effects")}
               </label>
               <select
-                className="input-base w-full mt-1"
-                value={newRow.category}
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                value={newRow.category || "기타"}
                 onChange={(e) => setField("category", e.target.value)}
               >
-                <option value="기타">{t("category.etc", "기타")}</option>
-                <option value="생산성">
-                  {t("category.productivity", "생산성")}
-                </option>
-                <option value="품질">{t("category.quality", "품질")}</option>
-                <option value="보전성">
-                  {t("category.maintenance", "보전성")}
-                </option>
+                <option value="기타">{t("category.etc", "Others")}</option>
+                <option value="생산성">{t("category.productivity", "Productivity")}</option>
+                <option value="품질">{t("category.quality", "Quality")}</option>
+                <option value="보전성">{t("category.maintenance", "Maintenance")}</option>
               </select>
             </div>
+          </div>
+
+          {/* Row 9: Date of Completion and Requesting Corporation */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
-                {t("field.workedOn", "작업완료일")}{" "}
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.workedOn", "Date of Completion")}
               </label>
               <input
                 type="date"
-                className="input-base w-full mt-1"
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.workedOn}
                 onChange={(e) => setField("workedOn", e.target.value)}
-                style={{
-                  borderColor: errors.workedOn ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.workedOn ? "1.5px" : undefined
-                }}
               />
-              {errors.workedOn && (
-                <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {errors.workedOn}
-                </span>
-              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+                {t("field.site", "Requesting Corporation")}
+              </label>
+              <select
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                value={newRow.site}
+                onChange={(e) => setField("site", e.target.value)}
+              >
+                <option value="">{t("site.selection", "Selection")}</option>
+                {siteList.map((s) => (
+                  <option key={s.id} value={s.siteName}>
+                    {s.siteName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          <p className="text-xs text-gray-400 font-medium pt-3 border-t border-gray-100 dark:border-gray-800 mt-2">
+            {t("page.mp.attachNotice", "You can attach photos after saving the item")}
+          </p>
         </div>
       </Modal>
 
       {/* ── Batch addition of VoC Modal ── */}
       {showBatchModal && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 animate-fade-in p-4"
           onClick={() => setShowBatchModal(false)}
         >
           <div
@@ -2538,7 +2503,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       {/* ── Storing MP List Modal ── */}
       {showSaveModal && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 animate-fade-in p-4 overflow-y-auto"
           onClick={() => setShowSaveModal(false)}
         >
           <div

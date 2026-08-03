@@ -5,7 +5,7 @@ export default function SortableTh({
   label,
   sortConfig,
   onSort,
-  className = "px-4 py-3 text-text-subtle whitespace-nowrap text-xs font-semibold",
+  className = "px-3.5 py-2.5 text-text-subtle whitespace-nowrap text-xs font-bold border-b border-border-base dark:border-gray-700/60",
   style,
 }) {
   const isSorted = sortConfig?.key === columnKey;
