@@ -947,7 +947,7 @@ function EmptyState() {
           animation: "float 4s ease-in-out infinite",
         }}
       >
-        <i className="fas fa-microscope text-4xl text-brand-60" style={{ color: "var(--primary-light, #93c5fd)" }} />
+        <i className="fas fa-diagram-project text-4xl text-[#1745c2]" />
       </div>
       <h3 className="text-lg font-bold text-text-default mb-1">
         {t("specMatrix.emptyTitle", "공정 및 보전유형을 선택하세요")}

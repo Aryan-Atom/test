@@ -328,7 +328,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="bg-[#0f62fe] hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer h-[38px]"
+            className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer h-[38px]"
             onClick={() => {
               const v1 = versionRows[0] || { version: "v1", appliedCount: 46, excludedCount: 40 };
               const v2 = versionRows[1] || { version: "v2", appliedCount: 20, excludedCount: 21 };
@@ -1257,7 +1257,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 onClick={() => {
                   setEditingVersion(null);
                 }}
-                className="bg-[#0f62fe] hover:bg-blue-700 text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
               >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.save", "Save")}</span>

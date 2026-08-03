@@ -700,7 +700,7 @@ export default function Drawer({ item, onClose }) {
               <button
                 type="button"
                 onClick={handleSaveRecord}
-                className="bg-[#0f62fe] hover:bg-blue-700 text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
               >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.save", "저장하기")}</span>

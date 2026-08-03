@@ -1805,8 +1805,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         <div className="card mp-table-card flex-1 min-h-0 flex flex-col overflow-hidden">
             {selectedProcessId === null ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
-                  <i className="fas fa-history" />
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl">
+                  <i className="fas fa-clipboard-list" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-800">
                   {t("landing.selectProcessAndMaint")}
@@ -2077,7 +2077,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         footer={
           <button
             type="button"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm w-[60%] sm:w-[220px]"
+            className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-semibold py-3 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm w-[60%] sm:w-[220px]"
             onClick={handleModalAdd}
           >
             <i className="fas fa-check text-xs" />

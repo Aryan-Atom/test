@@ -1349,8 +1349,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       <div className="card flex-1 min-h-0 flex flex-col overflow-hidden relative">
         {showLanding ? (
           <div className="landing-empty flex flex-col items-center justify-center p-10 text-center relative flex-1">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl mb-4">
-              <i className="fas fa-history" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl mb-4">
+              <i className="fas fa-th-large" />
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">{t("landing.selectProcessAndMaint")}</h3>
             <p className="text-sm text-gray-400 max-w-md mx-auto">
@@ -1763,7 +1763,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 type="button"
                 onClick={executeReplace}
                 disabled={replacing}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <i className="fas fa-check text-xs" />
                 {replacing
@@ -1986,7 +1986,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               <button
                 type="button"
                 onClick={handleSaveApplyStatus}
-                className="btn-base bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2 rounded-lg shadow-xs flex items-center gap-1.5"
+                className="btn-base bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-6 py-2 rounded-lg shadow-xs flex items-center gap-1.5"
               >
                 <i className="fas fa-save" />
                 {t("app.save", "Save")}

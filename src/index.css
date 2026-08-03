@@ -14,6 +14,17 @@
   font-weight: 900 !important;
 }
 
+.text-blue-600,
+.text-blue-700,
+.text-blue-500 {
+  color: #1745c2 !important;
+}
+
+.text-blue-600:hover,
+.text-blue-700:hover {
+  color: #1239a5 !important;
+}
+
 :root {
   --gray-95: #111827;
   --gray-90: #1a2130;
@@ -31,9 +42,9 @@
   --brand-20: #c4d9ff;
   --brand-30: #90b5ff;
   --brand-50: #1168ee;
-  --brand-60: #0f62fe;
-  --brand-70: #0043ce;
-  --brand-80: #002d9c;
+  --brand-60: #1745c2;
+  --brand-70: #1239a5;
+  --brand-80: #0d2875;
   --green-50: #28a15a;
   --green-60: #1e8a49;
   --red-05: #fef0f0;
@@ -44,7 +55,7 @@
   --text-subtlest: #7e8a9e;
   --text-disabled: #b0b8c8;
   --text-inverse: #ffffff;
-  --text-brand: #0f62fe;
+  --text-brand: #1745c2;
   --text-success: #1e8a49;
   --text-warning: #8f5c00;
   --text-danger: #c8222e;
