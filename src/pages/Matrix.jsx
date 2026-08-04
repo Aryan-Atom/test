@@ -151,7 +151,7 @@ function SearchableSelect({
 
       {isOpen && (
         <div
-          className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-2xl bg-white dark:bg-gray-800 p-2 shadow-xl border border-gray-100 dark:border-gray-700 animate-fade-in"
+          className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-2xl theme-dropdown p-2 animate-fade-in"
           style={{ minWidth: "220px" }}
         >
           {/* Search Input */}
@@ -163,7 +163,7 @@ function SearchableSelect({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t("matrix.searchRepWork", "작업명 검색...")}
-              className="w-full rounded-xl bg-gray-50 dark:bg-gray-700/60 pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 border border-gray-200 dark:border-gray-600"
+              className="w-full rounded-xl input-base pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
             {searchTerm && (
               <button
@@ -187,7 +187,7 @@ function SearchableSelect({
               className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
                 selectedValue === "전체" || !selectedValue
                   ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  : "text-text-subtle hover:bg-gray-50 dark:hover:bg-gray-700/50"
               }`}
             >
               <span>{t("app.all", "전체")}</span>
@@ -212,7 +212,7 @@ function SearchableSelect({
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
                     selectedValue === opt
                       ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      : "text-text-subtle hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
                 >
                   <span className="truncate pr-2">{opt}</span>
@@ -1185,11 +1185,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     <section className="flex-1 flex flex-col min-h-0 space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+          <h1 className="page-title flex items-center gap-2.5">
             <i className="fas fa-th-large text-[#1745c2] text-xl md:text-[22px]" />
             <span>{t("page.matrix.title", "변경 매트릭스")}</span>
           </h1>
-          <p className="mt-1 text-[13px] text-slate-500 font-normal">
+          <p className="page-subtitle">
             {t("page.matrix.desc", "공정과 작업별 변경 이력을 시각적으로 분석합니다.")}
           </p>
         </div>
@@ -1572,49 +1572,46 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       {/* Find & Replace Modal (Representative Work Name Change) */}
       {showReplaceModal && (
-        <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
-          onClick={() => setShowReplaceModal(false)}
-        >
+        <div className="modal-overlay" onClick={() => setShowReplaceModal(false)}>
           <div
-            className="modal-content w-full max-w-[500px] rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700"
+            className="modal-panel modal-panel-md w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700/80 bg-white dark:bg-gray-800 flex items-start justify-between">
-              <div className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0 mt-0.5">
+            <div className="modal-header">
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div className="modal-icon-wrap mt-0.5">
                   <i className="fas fa-edit" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">
+                <div className="min-w-0">
+                  <h3 className="modal-title">
                     {t("page.matrix.replaceModalTitle", "Representative Work Name Change")}
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {t("page.matrix.replaceModalDesc", "Batch changes of representative task names, importance, and effect types")}
+                  <p className="modal-description">
+                    {t(
+                      "page.matrix.replaceModalDesc",
+                      "Batch changes of representative task names, importance, and effect types",
+                    )}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowReplaceModal(false)}
-                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 transition-colors shrink-0"
+                className="modal-close-btn shrink-0"
               >
                 <i className="fas fa-times text-sm" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-5 bg-white dark:bg-gray-800">
-              {/* Job Name to Find */}
+            <div className="modal-body space-y-5">
               <div>
-                <label className="block text-xs font-bold text-gray-900 dark:text-white mb-2">
+                <label className="modal-field-label">
                   {t("page.matrix.jobNameFind", "Job Name to Find")}
                 </label>
                 {replaceTargetTasksList.length > 1 ? (
                   <div>
                     <select
-                      className="w-full bg-gray-100/80 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      className="modal-select"
                       value={replaceTargetTask}
                       onChange={(e) => {
                         const nextTask = e.target.value;
@@ -1663,45 +1660,47 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         }
                       }}
                     >
-                      {replaceTargetTasksList.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
+                      {replaceTargetTasksList.map((taskName) => (
+                        <option key={taskName} value={taskName}>
+                          {taskName}
                         </option>
                       ))}
                     </select>
                     <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
                       <i className="fas fa-info-circle text-xs" />
-                      {t("page.matrix.multipleTasksNotice", "해당 셀에 2개 이상의 대표 작업명이 있습니다. 변경할 작업명을 선택하세요.")}
+                      {t(
+                        "page.matrix.multipleTasksNotice",
+                        "해당 셀에 2개 이상의 대표 작업명이 있습니다. 변경할 작업명을 선택하세요.",
+                      )}
                     </p>
                   </div>
                 ) : (
-                  <div className="w-full bg-gray-100/80 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 font-medium">
-                    {replaceTargetTask || "-"}
-                  </div>
+                  <div className="modal-readonly-field">{replaceTargetTask || "-"}</div>
                 )}
               </div>
 
-              {/* CHANGES Group Container */}
-              <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700/60 space-y-4">
-                <div className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <div className="modal-section space-y-4">
+                <div className="modal-section-label">
                   {t("page.matrix.changesGroup", "CHANGES")}
                 </div>
 
-                {/* New Representative Work Name */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                  <label className="modal-field-label mb-1.5">
                     {t("page.matrix.newRepWorkName", "New Representative Work Name")}
                   </label>
-                  <div className="relative">
+                  <div className="modal-input-wrap">
                     <input
                       type="text"
                       list="replaceSuggestions"
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                      placeholder={t("page.matrix.replaceAfterPlaceholder", "Search or enter directly...")}
+                      className="modal-input pr-10"
+                      placeholder={t(
+                        "page.matrix.replaceAfterPlaceholder",
+                        "Search or enter directly...",
+                      )}
                       value={newRepresentativeWork}
                       onChange={(e) => setNewRepresentativeWork(e.target.value)}
                     />
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">
+                    <div className="modal-input-icon">
                       <i className="fas fa-chevron-down" />
                     </div>
                     <datalist id="replaceSuggestions">
@@ -1712,14 +1711,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   </div>
                 </div>
 
-                {/* Importance & Types of Effects (2 Cols) */}
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                    <label className="modal-field-label mb-1.5">
                       {t("page.matrix.importance", "Importance")}
                     </label>
                     <select
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                      className="modal-select"
                       value={newPriority}
                       onChange={(e) => setNewPriority(e.target.value)}
                     >
@@ -1730,11 +1728,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-900 dark:text-white mb-1.5">
+                    <label className="modal-field-label mb-1.5">
                       {t("page.matrix.typesOfEffects", "Types of effects")}
                     </label>
                     <select
-                      className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                      className="modal-select"
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                     >
@@ -1749,12 +1747,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-5 border-t border-gray-100 dark:border-gray-700/80 bg-white dark:bg-gray-800 flex justify-between items-center">
+            <div className="modal-footer">
               <button
                 type="button"
                 onClick={() => setShowReplaceModal(false)}
-                className="text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors px-2 py-1 cursor-pointer"
+                className="modal-cancel-btn"
               >
                 {t("page.matrix.cancellation", "cancellation")}
               </button>
@@ -1777,37 +1774,33 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       {/* ── Lateral Deployment Management Modal (횡전개 관리 모달) ── */}
       {showApplyStatusModal && (
-        <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
-          onClick={() => setShowApplyStatusModal(false)}
-        >
+        <div className="modal-overlay" onClick={() => setShowApplyStatusModal(false)}>
           <div
-            className="modal-content w-full max-w-[660px] rounded-[20px] bg-white dark:bg-gray-800 shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]"
+            className="modal-panel modal-panel-lg w-full flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-start justify-between">
-              <div>
-                <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm">
+            <div className="modal-header">
+              <div className="min-w-0">
+                <h3 className="modal-title flex items-center gap-2">
+                  <span className="modal-icon-wrap w-7 h-7 text-sm">
                     <i className="fas fa-tasks" />
                   </span>
-                  <span>"{asRepWork}" {t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
+                  <span>
+                    "{asRepWork}" {t("page.matrix.lateralModalTitle", "횡전개 관리")}
+                  </span>
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-9">
-                  {asRepWork}
-                </p>
+                <p className="modal-description pl-9">{asRepWork}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                className="modal-close-btn"
               >
                 <i className="fas fa-times text-lg" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            <div className="modal-body space-y-4 overflow-y-auto flex-1">
               {/* Stat Summary Cards (4 Cards) */}
               <div className="grid grid-cols-4 gap-3">
                 {/* WO Applied */}
@@ -1852,13 +1845,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+              <div className="flex items-center gap-1.5 p-1 toggle-group rounded-xl">
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("wo_applied")}
                   className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                     asActiveTab === "wo_applied"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs"
+                      ? "bg-surface-default text-blue-600 dark:text-blue-400 shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
@@ -1869,7 +1862,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   onClick={() => setAsActiveTab("unconfirmed")}
                   className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                     asActiveTab === "unconfirmed"
-                      ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                      ? "bg-surface-default text-indigo-600 dark:text-indigo-400 shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
@@ -1880,7 +1873,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   onClick={() => setAsActiveTab("applied")}
                   className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                     asActiveTab === "applied"
-                      ? "bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                      ? "bg-surface-default text-emerald-600 dark:text-emerald-400 shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
@@ -1891,7 +1884,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   onClick={() => setAsActiveTab("rejected")}
                   className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                     asActiveTab === "rejected"
-                      ? "bg-white dark:bg-gray-800 text-rose-600 dark:text-rose-400 shadow-xs"
+                      ? "bg-surface-default text-rose-600 dark:text-rose-400 shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
@@ -1900,7 +1893,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
 
               {/* Equipment Items List */}
-              <div className="max-h-[300px] min-h-[160px] overflow-y-auto space-y-2 p-2 bg-gray-50/50 dark:bg-gray-900/40 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="max-h-[300px] min-h-[160px] overflow-y-auto space-y-2 p-2 bg-gray-50/50 dark:bg-gray-900/40 rounded-xl border border-border-base">
                 {currentTabItems.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-xs">
                     <i className="fas fa-inbox text-2xl mb-2 block opacity-40" />
@@ -1913,10 +1906,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       <div
                         key={item.equipmentCode}
                         onClick={() => handleToggleSelectEq(item.equipmentCode)}
-                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 p-3 bg-surface-default rounded-xl border transition-all cursor-pointer ${
                           isChecked
                             ? "border-blue-500 ring-1 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-900/20"
-                            : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                            : "border-border-base hover:border-blue-300"
                         }`}
                       >
                         <input
@@ -1926,7 +1919,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                          <div className="font-bold text-text-default text-sm truncate">
                             {item.equipmentName}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
@@ -1941,7 +1934,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
               {/* Bottom Sub-actions Bar */}
               <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-xs font-bold text-text-subtle cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={currentTabItems.length > 0 && asSelectedEqCodes.size === currentTabItems.length}
@@ -1974,12 +1967,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/80">
+            <div className="modal-footer">
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="btn-base btn-ghost text-xs px-5 py-2"
+                className="modal-cancel-btn"
               >
                 {t("app.close", "Close")}
               </button>

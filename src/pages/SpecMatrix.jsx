@@ -35,6 +35,7 @@ const vsort = (a, b) => {
 function SelectSkeleton({ width = "100%" }) {
   return (
     <div
+      className="select-skeleton"
       style={{
         width: width,
         height: "38px",
@@ -656,11 +657,11 @@ export default function SpecMatrix({ searchText }) {
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <h1 className="page-title flex items-center gap-2.5">
               <i className="fas fa-diagram-project text-[#1745c2] text-xl md:text-[22px]" />
               <span>{t("page.specMatrix.title", "사양 매트릭스")}</span>
             </h1>
-            <p className="mt-1 text-[13px] text-slate-500 font-normal">
+            <p className="page-subtitle">
               {t("page.specMatrix.desc", "설비별 사양 항목과 버전 간 비교를 확인합니다.")}
             </p>
           </div>

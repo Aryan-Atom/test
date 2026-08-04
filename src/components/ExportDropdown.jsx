@@ -62,10 +62,10 @@ export default function ExportDropdown({
       </button>
 
       {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ring-1 ring-black ring-opacity-5 z-[9999] py-1 focus:outline-none transition-all duration-200">
+        <div className="theme-dropdown origin-top-right absolute right-0 mt-2 w-48 z-[9999] py-1 focus:outline-none transition-all duration-200">
           <button
             type="button"
-            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex items-center gap-3 transition-colors duration-150"
+            className="theme-dropdown-item"
             onClick={() => handleSelect(onExportCsv)}
           >
             <i className="fas fa-file-csv text-blue-600 text-lg w-5 text-center" />
@@ -73,7 +73,7 @@ export default function ExportDropdown({
           </button>
           <button
             type="button"
-            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex items-center gap-3 transition-colors duration-150"
+            className="theme-dropdown-item"
             onClick={() => handleSelect(onExportExcel)}
           >
             <i className="fas fa-file-excel text-emerald-600 text-lg w-5 text-center" />
@@ -81,7 +81,7 @@ export default function ExportDropdown({
           </button>
           <button
             type="button"
-            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 flex items-center gap-3 transition-colors duration-150"
+            className="theme-dropdown-item"
             onClick={() => handleSelect(onExportZip)}
           >
             <i className="fas fa-file-archive text-amber-600 text-lg w-5 text-center" />

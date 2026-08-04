@@ -1,28 +1,14 @@
 import { useState } from "react";
 import { useI18n } from "../i18n.jsx";
-import { getUserInfo } from "../utils/cookieUtils.js";
 import Modal from "./Modal.jsx";
+import UserMenu from "./UserMenu.jsx";
 import { APIcallGet } from "../axios/apiCall.js";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useToast } from "./ToastContext.jsx";
 
-function getUserDisplayName(userInfo) {
-  return (
-    userInfo?.name ??
-    userInfo?.userName ??
-    userInfo?.username ??
-    userInfo?.displayName ??
-    userInfo?.employeeName ??
-    userInfo?.email ??
-    ""
-  );
-}
-
 export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }) {
   const { language, toggleLanguage, t } = useI18n();
   const isDark = theme === "dark";
-  const userName = getUserDisplayName(getUserInfo());
-  const userInitial = String(userName || "User").trim().charAt(0).toUpperCase() || "U";
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -101,14 +87,7 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
             {language === "ko" ? "EN" : "KO"}
           </button>
           <div className="eq-topbar-divider" />
-          <button
-            type="button"
-            className="eq-user-button"
-            aria-label={userName || t("app.user")}
-            title={userName || t("app.user")}
-          >
-            {userInitial}
-          </button>
+          <UserMenu />
         </div>
       </header>
 
@@ -135,7 +114,7 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
       )}
 
       {isResetting && (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div
             className="flex flex-col items-center p-8 rounded-2xl shadow-2xl border text-center"
             style={{

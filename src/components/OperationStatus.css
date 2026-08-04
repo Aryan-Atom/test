@@ -197,3 +197,25 @@
     box-shadow: 0 0 0 2px currentColor;
   }
 }
+
+[data-theme="dark"] .operation-status.loading {
+  background: rgba(30, 58, 138, 0.85);
+  border-color: #3b82f6;
+  color: #bfdbfe;
+}
+
+[data-theme="dark"] .operation-status.success {
+  background: rgba(20, 83, 45, 0.85);
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
+[data-theme="dark"] .operation-status.error {
+  background: rgba(127, 29, 29, 0.85);
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+[data-theme="dark"] .operation-status-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

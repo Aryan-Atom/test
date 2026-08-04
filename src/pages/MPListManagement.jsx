@@ -314,11 +314,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2.5 text-xl md:text-[22px] font-bold text-slate-900 dark:text-white">
-            <i className="fas fa-list-check text-[#1745c2] dark:text-blue-400 text-xl md:text-[22px]" />
+          <h1 className="page-title flex items-center gap-2.5">
+            <i className="fas fa-list-check text-[#1745c2] text-xl md:text-[22px]" />
             <span>{t("page.mpManagement.title", "MP List Management")}</span>
           </h1>
-          <p className="mt-1 text-[13px] text-slate-500 font-normal dark:text-gray-400">
+          <p className="page-subtitle">
             {t(
               "page.mpManagement.desc",
               "Manage the stored MP lists for each process and maintenance part by version",
@@ -344,10 +344,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       </div>
 
       {/* Filter Card */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+      <div className="mgmt-surface flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl shadow-xs">
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+            <label className="text-xs font-bold uppercase tracking-wider text-text-subtlest">
               {t("field.process", "PROCESS")}
             </label>
             <select
@@ -369,7 +369,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+            <label className="text-xs font-bold uppercase tracking-wider text-text-subtlest">
               {t("field.equipmentType", "EQUIPMENT TYPE")}
             </label>
             <select
@@ -392,18 +392,18 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
       {/* Version Table / Landing state */}
       {showLanding ? (
-        <div className="flex flex-1 items-center justify-center rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-8">
+        <div className="mgmt-surface flex flex-1 items-center justify-center rounded-2xl p-8">
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-4xl text-blue-600">
               <i className="fas fa-list-check" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-bold text-text-default">
               {t(
                 "page.mpManagement.emptyTitle",
                 "Select process and equipment type",
               )}
             </h3>
-            <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400 whitespace-pre-line">
+            <p className="mt-2 max-w-md text-sm text-text-subtle whitespace-pre-line">
               {t(
                 "page.mpManagement.emptyDesc",
                 "When you select Process and Equipment Type in the filter,\na list of saved MP List versions will be displayed.",
@@ -412,10 +412,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
         </div>
       ) : (
-        <div className="card flex-1 min-h-0 flex flex-col overflow-hidden bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xs">
+        <div className="card mgmt-surface flex-1 min-h-0 flex flex-col overflow-hidden rounded-2xl shadow-xs">
           <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700 text-[10px] font-bold uppercase tracking-wider text-gray-400 z-30">
+            <table className="mgmt-table w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+              <thead className="sticky top-0 z-30 text-[10px] font-bold uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3.5 w-10 text-center">
                     <input
@@ -438,7 +438,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   <th className="px-4 py-3.5 w-24 text-center">ACTIONS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
+              <tbody className="font-medium">
                 {displayVersionRows.map((v) => {
                   const rowId = String(v.id || v.version);
                   const isExpanded = expandedRowIds.has(rowId);
@@ -448,7 +448,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     <React.Fragment key={rowId}>
                       <tr
                         onClick={() => toggleExpandRow(rowId)}
-                        className={`hover:bg-blue-50/40 dark:hover:bg-blue-900/20 transition-colors cursor-pointer select-none ${isExpanded ? "bg-blue-50/20 dark:bg-blue-900/10" : ""}`}
+                        className={`transition-colors cursor-pointer select-none ${isExpanded ? "bg-surface-brand" : ""}`}
                       >
                         <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -460,29 +460,29 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1.5 cursor-pointer">
-                            <span className="px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 rounded-md border border-blue-100 dark:border-blue-800">
+                            <span className="badge badge-primary">
                               {v.version}
                             </span>
                             <i className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-[10px] text-gray-400`} />
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300 font-semibold">{v.period}</td>
+                        <td className="px-4 py-3.5 text-text-default font-semibold">{v.period}</td>
                         <td className="px-4 py-3.5 text-center">
-                          <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                          <span className="badge badge-success">
                             {v.appliedCount} cases
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-center">
-                          <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
+                          <span className="badge badge-danger">
                             {v.excludedCount} cases
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-center text-gray-700 dark:text-gray-300">{v.facilityId ?? 9}</td>
+                        <td className="px-4 py-3.5 text-center text-text-default">{v.facilityId ?? 9}</td>
                         <td className="px-4 py-3.5 text-center text-gray-400">{v.consultation || "—"}</td>
-                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{v.registeredBy || "admin"}</td>
-                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-400">{v.registeredAt}</td>
-                        <td className="px-4 py-3.5 text-gray-700 dark:text-gray-300">{v.editedBy || "admin"}</td>
-                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-400">{v.editedAt}</td>
+                        <td className="px-4 py-3.5 text-text-default">{v.registeredBy || "admin"}</td>
+                        <td className="px-4 py-3.5 text-text-subtle">{v.registeredAt}</td>
+                        <td className="px-4 py-3.5 text-text-default">{v.editedBy || "admin"}</td>
+                        <td className="px-4 py-3.5 text-text-subtle">{v.editedAt}</td>
                         <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -525,7 +525,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       {/* Accordion Expanded Detail Row */}
                       {isExpanded && (
                         <tr
-                          className="expanded-detail-row bg-gray-50/60 dark:bg-gray-800/60"
+                          className="expanded-detail-row bg-surface-strong"
                           onClick={(e) => e.stopPropagation()}
                           onMouseEnter={(e) => e.stopPropagation()}
                           onMouseOver={(e) => e.stopPropagation()}
@@ -536,43 +536,43 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               <div>
                                 <div className="flex items-center gap-2 mb-2.5">
                                   <i className="fas fa-check-circle text-emerald-500 text-xs" />
-                                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                  <span className="text-xs font-bold text-text-default">
                                     Applicable Items ({v.appliedCount || 46} items)
                                   </span>
                                 </div>
-                                <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+                                <div className="mgmt-surface rounded-xl overflow-hidden shadow-2xs">
                                   <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[9px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                                    <table className="mgmt-table mgmt-nested-table w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
                                         <tr>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 w-10 text-center">#</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">REPRESENTATIVE WORK NAME</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">PURPOSE OF THE WORK</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">AFTER CHANGING THE HARDWARE</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">BEFORE SOFTWARE CHANGE</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 text-center">IMPORTANCE</th>
-                                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2 text-center">TYPES OF EFFECT</th>
+                                          <th className="px-3 py-2 w-10 text-center">#</th>
+                                          <th className="px-3 py-2">REPRESENTATIVE WORK NAME</th>
+                                          <th className="px-3 py-2">PURPOSE OF THE WORK</th>
+                                          <th className="px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
+                                          <th className="px-3 py-2">AFTER CHANGING THE HARDWARE</th>
+                                          <th className="px-3 py-2">BEFORE SOFTWARE CHANGE</th>
+                                          <th className="px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
+                                          <th className="px-3 py-2 text-center">IMPORTANCE</th>
+                                          <th className="px-3 py-2 text-center">TYPES OF EFFECT</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-normal text-gray-600 dark:text-gray-300">
+                                      <tbody className="font-normal text-text-subtle">
                                         {generateExpandedApplicableRows(v.appliedCount || 46).map((item) => (
-                                          <tr key={`app-${item.no}`} className="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors">
-                                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{item.no}</td>
-                                            <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200">{item.repWork}</td>
+                                          <tr key={`app-${item.no}`} className="transition-colors">
+                                            <td className="px-3 py-2 text-center text-text-subtlest font-medium">{item.no}</td>
+                                            <td className="px-3 py-2 font-semibold text-text-default">{item.repWork}</td>
                                             <td className="px-3 py-2">{item.purpose}</td>
                                             <td className="px-3 py-2">{item.hwBefore}</td>
                                             <td className="px-3 py-2">{item.hwAfter}</td>
                                             <td className="px-3 py-2">{item.swBefore}</td>
                                             <td className="px-3 py-2">{item.swAfter}</td>
                                             <td className="px-3 py-2 text-center">
-                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                                 {item.importance}
                                               </span>
                                             </td>
                                             <td className="px-3 py-2 text-center">
-                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                                 {item.effect}
                                               </span>
                                             </td>
@@ -588,44 +588,44 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               <div>
                                 <div className="flex items-center gap-2 mb-2.5">
                                   <i className="fas fa-times-circle text-red-500 text-xs" />
-                                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                  <span className="text-xs font-bold text-text-default">
                                     Not Applicable Items ({v.excludedCount || 40} items)
                                   </span>
                                 </div>
-                                <div className="border border-red-200 dark:border-red-800/40 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+                                <div className="mgmt-surface border border-red-200 rounded-xl overflow-hidden shadow-2xs">
                                   <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                                      <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[9px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                                    <table className="mgmt-table mgmt-not-applied-table w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
                                         <tr>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 w-10 text-center">#</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">REPRESENTATIVE WORK NAME</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">PURPOSE OF THE WORK</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">AFTER CHANGING THE HARDWARE</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">BEFORE SOFTWARE CHANGE</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 text-center">IMPORTANCE</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2 text-center">TYPES OF EFFECT</th>
-                                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2">REASONING</th>
+                                          <th className="px-3 py-2 w-10 text-center">#</th>
+                                          <th className="px-3 py-2">REPRESENTATIVE WORK NAME</th>
+                                          <th className="px-3 py-2">PURPOSE OF THE WORK</th>
+                                          <th className="px-3 py-2">BEFORE CHANGING THE HARDWARE</th>
+                                          <th className="px-3 py-2">AFTER CHANGING THE HARDWARE</th>
+                                          <th className="px-3 py-2">BEFORE SOFTWARE CHANGE</th>
+                                          <th className="px-3 py-2">AFTER THE SOFTWARE CHANGE</th>
+                                          <th className="px-3 py-2 text-center">IMPORTANCE</th>
+                                          <th className="px-3 py-2 text-center">TYPES OF EFFECT</th>
+                                          <th className="px-3 py-2">REASONING</th>
                                         </tr>
                                       </thead>
-                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-normal text-gray-600 dark:text-gray-300">
+                                      <tbody className="font-normal text-text-subtle">
                                         {generateExpandedNotApplicableRows(v.excludedCount || 40).map((item) => (
-                                          <tr key={`not-${item.no}`} className="hover:bg-red-50/20 dark:hover:bg-red-900/10 transition-colors">
-                                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{item.no}</td>
-                                            <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200">{item.repWork}</td>
+                                          <tr key={`not-${item.no}`} className="transition-colors">
+                                            <td className="px-3 py-2 text-center text-text-subtlest font-medium">{item.no}</td>
+                                            <td className="px-3 py-2 font-semibold text-text-default">{item.repWork}</td>
                                             <td className="px-3 py-2">{item.purpose}</td>
                                             <td className="px-3 py-2">{item.hwBefore}</td>
                                             <td className="px-3 py-2">{item.hwAfter}</td>
                                             <td className="px-3 py-2">{item.swBefore}</td>
                                             <td className="px-3 py-2">{item.swAfter}</td>
                                             <td className="px-3 py-2 text-center">
-                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                                 {item.importance}
                                               </span>
                                             </td>
                                             <td className="px-3 py-2 text-center">
-                                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md">
+                                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                                 {item.effect}
                                               </span>
                                             </td>
@@ -633,7 +633,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                               <textarea
                                                 rows={2}
                                                 defaultValue={item.reasoning || "Importance Average"}
-                                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 rounded-xl bg-surface-default text-red-600 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
                                               />
                                             </td>
                                           </tr>
@@ -675,7 +675,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         {selectedVersion && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-brand-10 px-3 py-1 text-xs font-bold text-brand-60">
+              <span className="badge badge-primary">
                 {selectedVersion.version}
               </span>
               <span className="text-sm text-text-subtle">
@@ -784,47 +784,47 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* ── MP Comparison Modal ── */}
       {showCompareModal && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          className="modal-overlay animate-fade-in overflow-y-auto"
           onClick={() => setShowCompareModal(false)}
         >
           <div
-            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 flex flex-col animate-scale-up"
+            className="modal-panel modal-panel-2xl relative my-8 flex flex-col animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 mb-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0">
+            <div className="modal-header shrink-0">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="modal-icon-wrap">
                   <i className="fas fa-right-left text-sm" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <h3 className="modal-title">
                     {compareV1?.version || "v1"} vs {compareV2?.version || "v2"} comparison
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                  <p className="modal-description">
                     {t("page.mpManagement.compareDesc", "Compare the two versions of MP List")}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                className="modal-close-btn shrink-0"
                 onClick={() => setShowCompareModal(false)}
               >
                 <i className="fas fa-times text-xs" />
               </button>
             </div>
 
+            <div className="modal-body space-y-6">
             {/* Top Version Comparison Summary Card */}
-            <div className="bg-gray-50 dark:bg-gray-700/40 rounded-2xl p-5 flex items-center justify-between mb-6 border border-gray-100 dark:border-gray-700">
+            <div className="bg-surface-strong rounded-2xl p-5 flex items-center justify-between mb-6 border border-border-base">
               <div className="flex-1 text-center">
-                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <div className="text-xs font-semibold text-text-subtlest">
                   {compareV1?.version || "v1"}
                 </div>
-                <div className="text-2xl font-extrabold text-gray-900 dark:text-white my-1">
+                <div className="text-2xl font-extrabold text-text-default my-1">
                   {compareV1?.appliedCount ?? 46} cases
                 </div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <div className="text-xs font-medium text-text-subtlest">
                   Applied / {compareV1?.excludedCount ?? 40} cases Not applied
                 </div>
               </div>
@@ -834,23 +834,23 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               </div>
 
               <div className="flex-1 text-center">
-                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <div className="text-xs font-semibold text-text-subtlest">
                   {compareV2?.version || "v2"}
                 </div>
-                <div className="text-2xl font-extrabold text-gray-900 dark:text-white my-1">
+                <div className="text-2xl font-extrabold text-text-default my-1">
                   {compareV2?.appliedCount ?? 20} cases
                 </div>
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <div className="text-xs font-medium text-text-subtlest">
                   Applied / {compareV2?.excludedCount ?? 21} cases Not applied
                 </div>
               </div>
             </div>
 
             {/* Detailed Comparison Table */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-2xs">
+            <div className="border border-border-base rounded-2xl overflow-hidden bg-surface-default shadow-2xs">
               <div className="overflow-x-auto max-h-80 custom-scrollbar">
                 <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                  <thead className="sticky top-0 bg-gray-50/90 dark:bg-gray-700/80 text-gray-400 dark:text-gray-300 uppercase text-[10px] font-bold tracking-wider z-10 border-b border-gray-100 dark:border-gray-700">
+                  <thead className="sticky top-0 bg-gray-50/90 dark:bg-gray-700/80 text-gray-400 dark:text-gray-300 uppercase text-[10px] font-bold tracking-wider z-10 border-b border-border-base">
                     <tr>
                       <th className="px-3 py-3 font-bold">REPRESENTATIVE WORK NAME</th>
                       <th className="px-3 py-3 font-bold">PURPOSE OF THE WORK</th>
@@ -865,18 +865,18 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       <th className="px-3 py-3 font-bold text-center uppercase">{compareV2?.version || "v2"}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
+                  <tbody className="font-medium">
                     {sampleCompareRows.map((row, idx) => (
                       <tr key={idx} className="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors">
                         <td className="px-3 py-2.5 text-gray-900 dark:text-white font-semibold max-w-[140px] truncate">{row.repWork}</td>
-                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.purpose}</td>
-                        <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 max-w-[130px] truncate">{row.problem}</td>
-                        <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 max-w-[130px] truncate">{row.cause}</td>
-                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300">{row.bom}</td>
-                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.materialName}</td>
-                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.hwBefore}</td>
-                        <td className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">{row.importance}</td>
-                        <td className="px-3 py-2.5 text-center text-gray-600 dark:text-gray-300">{row.effect}</td>
+                        <td className="px-3 py-2.5 text-text-subtle max-w-[130px] truncate">{row.purpose}</td>
+                        <td className="px-3 py-2.5 text-text-subtlest max-w-[130px] truncate">{row.problem}</td>
+                        <td className="px-3 py-2.5 text-text-subtlest max-w-[130px] truncate">{row.cause}</td>
+                        <td className="px-3 py-2.5 text-text-subtle">{row.bom}</td>
+                        <td className="px-3 py-2.5 text-text-subtle max-w-[120px] truncate">{row.materialName}</td>
+                        <td className="px-3 py-2.5 text-text-subtle max-w-[120px] truncate">{row.hwBefore}</td>
+                        <td className="px-3 py-2.5 text-center text-text-subtle">{row.importance}</td>
+                        <td className="px-3 py-2.5 text-center text-text-subtle">{row.effect}</td>
                         <td className="px-3 py-2.5 text-center">
                           <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
                             row.v1Status === "Applied"
@@ -901,12 +901,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 </table>
               </div>
             </div>
+            </div>
 
             {/* Modal Footer */}
-            <div className="flex justify-center pt-5 mt-4 border-t border-gray-100 dark:border-gray-700">
+            <div className="modal-footer justify-center shrink-0">
               <button
                 type="button"
-                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="modal-cancel-btn"
                 onClick={() => setShowCompareModal(false)}
               >
                 {t("app.close", "Close")}
@@ -919,49 +920,47 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* ── MP List Inquiry / Edit Modal ── */}
       {editingVersion && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto"
+          className="modal-overlay animate-fade-in overflow-y-auto"
           onClick={() => setEditingVersion(null)}
         >
           <div
-            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up"
+            className="modal-panel modal-panel-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 mb-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg shrink-0">
+            <div className="modal-header shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="modal-icon-wrap">
                   <i className="fas fa-edit text-sm" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="modal-title">
                     {t("page.mp.inquiryModalTitle", "MP List Inquiry")}
                   </h3>
-                  <span className="px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 rounded-md border border-blue-100 dark:border-blue-800">
+                  <span className="badge badge-primary">
                     {editingVersion.version || "v1"}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                className="modal-close-btn shrink-0"
                 onClick={() => setEditingVersion(null)}
               >
                 <i className="fas fa-times text-xs" />
               </button>
             </div>
 
-            {/* Modal Scrollable Content Body */}
-            <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar">
+            <div className="modal-body flex-1 overflow-y-auto space-y-6 custom-scrollbar">
               {/* Section 1: Equipment ID Tags & Add */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="modal-field-label">
                   {t("field.equipmentId", "Equipment ID")}
                 </label>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   {editEquipmentIds.map((tag, idx) => (
                     <span
                       key={`tag-${idx}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-full border border-blue-100 dark:border-blue-800/40"
+                      className="badge badge-primary inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"
                     >
                       <span>{tag}</span>
                       <button
@@ -969,7 +968,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                         onClick={() =>
                           setEditEquipmentIds(editEquipmentIds.filter((_, i) => i !== idx))
                         }
-                        className="w-3.5 h-3.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 flex items-center justify-center text-[10px] cursor-pointer transition-colors"
+                        className="w-3.5 h-3.5 rounded-full hover:bg-brand-10 flex items-center justify-center text-[10px] cursor-pointer transition-colors"
                       >
                         <i className="fas fa-times" />
                       </button>
@@ -989,7 +988,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                         setNewEquipIdInput("");
                       }
                     }}
-                    className="flex-1 px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                    className="modal-input text-xs flex-1"
                   />
                   <button
                     type="button"
@@ -999,7 +998,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                         setNewEquipIdInput("");
                       }
                     }}
-                    className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center cursor-pointer transition-colors"
+                    className="btn-base btn-secondary !w-8 !h-8 !p-0 flex items-center justify-center shrink-0"
                   >
                     <i className="fas fa-plus text-xs" />
                   </button>
@@ -1007,24 +1006,24 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               </div>
 
               {/* Section 2: Additional Consultation */}
-              <div className="bg-gray-50/70 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-3">
+              <div className="modal-section">
+                <h4 className="modal-field-label mb-3">
                   {t("page.mp.additionalConsultation", "Additional Consultation")}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                    <label className="modal-field-label !text-[10px] !mb-1">
                       Date
                     </label>
                     <input
                       type="date"
                       value={newConsultDate}
                       onChange={(e) => setNewConsultDate(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                      className="modal-input text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                    <label className="modal-field-label !text-[10px] !mb-1">
                       Title
                     </label>
                     <input
@@ -1032,11 +1031,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       placeholder="Consultation Title"
                       value={newConsultTitle}
                       onChange={(e) => setNewConsultTitle(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                      className="modal-input text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1">
+                    <label className="modal-field-label !text-[10px] !mb-1">
                       Attendees (comma separation)
                     </label>
                     <input
@@ -1044,7 +1043,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       placeholder="Hong Gil-dong, Yi Sun-sin"
                       value={newConsultAttendees}
                       onChange={(e) => setNewConsultAttendees(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                      className="modal-input text-xs"
                     />
                   </div>
                   <div>
@@ -1060,7 +1059,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                           setNewConsultAttendees("");
                         }
                       }}
-                      className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center cursor-pointer transition-colors"
+                      className="btn-base btn-secondary !w-8 !h-8 !p-0 flex items-center justify-center"
                     >
                       <i className="fas fa-plus text-xs" />
                     </button>
@@ -1071,16 +1070,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 {editConsultations.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {editConsultations.map((c, i) => (
-                      <div key={i} className="flex items-center justify-between p-2.5 bg-white dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600 text-xs">
+                      <div key={i} className="flex items-center justify-between p-2.5 rounded-xl border border-border-base bg-surface-default text-xs">
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-blue-600 dark:text-blue-400">{c.date}</span>
-                          <span className="font-semibold text-gray-800 dark:text-white">{c.title}</span>
-                          <span className="text-gray-400">({c.attendees || "No attendees"})</span>
+                          <span className="font-bold text-brand-60">{c.date}</span>
+                          <span className="font-semibold text-text-default">{c.title}</span>
+                          <span className="text-text-subtlest">({c.attendees || "No attendees"})</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setEditConsultations(editConsultations.filter((_, idx) => idx !== i))}
-                          className="text-gray-400 hover:text-red-500 cursor-pointer"
+                          className="text-text-subtlest hover:text-red-500 cursor-pointer"
                         >
                           <i className="fas fa-times text-xs" />
                         </button>
@@ -1093,48 +1092,48 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               {/* Section 3: Applicable Items */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                  <h4 className="text-sm font-bold text-text-default">
                     {t("page.mp.applicableItems", "Applicable Items")}
                   </h4>
-                  <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                  <span className="badge badge-success">
                     {editApplicableRows.length} {t("app.cases", "cases")}
                   </span>
                 </div>
 
-                <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-white dark:bg-gray-800 shadow-2xs">
+                <div className="mgmt-surface rounded-xl overflow-hidden shadow-2xs border-l-4 border-l-emerald-500">
                   <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                    <table className="mgmt-table mgmt-nested-table w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
                         <tr>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">#</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.priority", "IMPORTANCE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-12 text-center"></th>
+                          <th className="px-3 py-2.5 w-8 text-center">#</th>
+                          <th className="px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                          <th className="px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                          <th className="px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                          <th className="px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                          <th className="px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                          <th className="px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                          <th className="px-3 py-2.5 w-24 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                          <th className="px-3 py-2.5 w-24 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
+                          <th className="px-3 py-2.5 w-12 text-center"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      <tbody className="font-normal text-text-subtle">
                         {editApplicableRows.map((row, idx) => (
-                          <tr key={`edit-app-${idx}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
-                            <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[150px] truncate">{row.repWork || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[140px] truncate">{row.purpose || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.hwBefore || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">{row.hwAfter || "—"}</td>
-                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">{row.swBefore || "—"}</td>
-                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">{row.swAfter || "—"}</td>
+                          <tr key={`edit-app-${idx}`} className="transition-colors">
+                            <td className="px-3 py-2 text-center text-text-subtlest font-medium">{idx + 1}</td>
+                            <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">{row.repWork || "—"}</td>
+                            <td className="px-3 py-2 max-w-[140px] truncate">{row.purpose || "—"}</td>
+                            <td className="px-3 py-2 max-w-[130px] truncate">{row.hwBefore || "—"}</td>
+                            <td className="px-3 py-2 max-w-[130px] truncate">{row.hwAfter || "—"}</td>
+                            <td className="px-3 py-2 max-w-[120px] truncate">{row.swBefore || "—"}</td>
+                            <td className="px-3 py-2 max-w-[120px] truncate">{row.swAfter || "—"}</td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                 {row.importance || "General"}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                 {row.effect || "Others"}
                               </span>
                             </td>
@@ -1146,7 +1145,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   setEditApplicableRows(editApplicableRows.filter((_, i) => i !== idx));
                                   setEditNotApplicableRows([...editNotApplicableRows, { ...row, reasoning: "Importance Average" }]);
                                 }}
-                                className="w-6 h-6 rounded-md border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors"
+                                className="w-6 h-6 rounded-md border border-border-base bg-surface-strong text-text-subtle hover:bg-fill-active flex items-center justify-center cursor-pointer transition-colors"
                               >
                                 <i className="fas fa-arrow-down text-[10px]" />
                               </button>
@@ -1162,49 +1161,49 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               {/* Section 4: Not Applicable */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400">
+                  <h4 className="text-sm font-bold text-red-600">
                     {t("page.mp.notApplicable", "Not Applicable")}
                   </h4>
-                  <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
+                  <span className="badge badge-danger">
                     {editNotApplicableRows.length} {t("app.cases", "cases")}
                   </span>
                 </div>
 
-                <div className="border border-red-200 dark:border-red-800/40 rounded-2xl overflow-hidden border-l-4 border-l-red-500 bg-white dark:bg-gray-800 shadow-2xs">
+                <div className="mgmt-surface border border-red-200 rounded-xl overflow-hidden shadow-2xs border-l-4 border-l-red-500">
                   <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                      <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                    <table className="mgmt-table mgmt-not-applied-table w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
                         <tr>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">#</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.priority", "IMPORTANCE")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.nonImplReason", "REASONING")}</th>
-                          <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-12 text-center"></th>
+                          <th className="px-3 py-2.5 w-8 text-center">#</th>
+                          <th className="px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
+                          <th className="px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                          <th className="px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
+                          <th className="px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
+                          <th className="px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
+                          <th className="px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
+                          <th className="px-3 py-2.5 w-20 text-center">{t("field.priority", "IMPORTANCE")}</th>
+                          <th className="px-3 py-2.5 w-20 text-center">{t("field.category", "TYPES OF EFFECT")}</th>
+                          <th className="px-3 py-2.5">{t("field.nonImplReason", "REASONING")}</th>
+                          <th className="px-3 py-2.5 w-12 text-center"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      <tbody className="font-normal text-text-subtle">
                         {editNotApplicableRows.map((row, idx) => (
-                          <tr key={`edit-not-${idx}`} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
-                            <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
-                            <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[130px] truncate">{row.repWork || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">{row.purpose || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">{row.hwBefore || "—"}</td>
-                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">{row.hwAfter || "—"}</td>
-                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{row.swBefore || "—"}</td>
-                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{row.swAfter || "—"}</td>
+                          <tr key={`edit-not-${idx}`} className="transition-colors">
+                            <td className="px-3 py-2 text-center text-text-subtlest font-medium">{idx + 1}</td>
+                            <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">{row.repWork || "—"}</td>
+                            <td className="px-3 py-2 max-w-[120px] truncate">{row.purpose || "—"}</td>
+                            <td className="px-3 py-2 max-w-[110px] truncate">{row.hwBefore || "—"}</td>
+                            <td className="px-3 py-2 max-w-[110px] truncate">{row.hwAfter || "—"}</td>
+                            <td className="px-3 py-2 max-w-[100px] truncate">{row.swBefore || "—"}</td>
+                            <td className="px-3 py-2 max-w-[100px] truncate">{row.swAfter || "—"}</td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                 {row.importance || "General"}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 rounded-md border border-gray-100">
+                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
                                 {row.effect || "Others"}
                               </span>
                             </td>
@@ -1218,7 +1217,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                     editNotApplicableRows.map((r, i) => i === idx ? { ...r, reasoning: val } : r)
                                   );
                                 }}
-                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                                className="modal-input text-xs min-w-[180px] !py-2 resize-y text-red-600 font-semibold"
                               />
                             </td>
                             <td className="px-3 py-2 text-center">
@@ -1243,11 +1242,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
+            <div className="modal-footer shrink-0">
               <button
                 type="button"
-                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                className="modal-cancel-btn"
                 onClick={() => setEditingVersion(null)}
               >
                 {t("app.cancellation", "cancellation")}
@@ -1257,7 +1255,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 onClick={() => {
                   setEditingVersion(null);
                 }}
-                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                className="btn-base btn-primary text-xs px-8 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
               >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.save", "Save")}</span>
@@ -1270,47 +1268,62 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* ── Delete Confirmation Modal ── */}
       {rowToDelete && (
         <div
-          className="modal-overlay fixed inset-0 z-[1100] flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-sm animate-fade-in p-4"
+          className="modal-overlay animate-fade-in"
           onClick={() => setRowToDelete(null)}
         >
           <div
-            className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl text-center relative animate-scale-up border border-gray-100 dark:border-gray-700"
+            className="modal-panel modal-panel-sm relative animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 flex items-center justify-center text-2xl mx-auto mb-4 border border-red-100 dark:border-red-800/40">
-              <i className="fas fa-trash-alt" />
-            </div>
-
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              {t("page.mp.deleteModalTitle", "Delete Confirmation")}
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
-              {t(
-                "page.mp.deleteModalDesc",
-                "Are you sure you want to delete version",
-              )}{" "}
-              <strong className="text-gray-800 dark:text-gray-200">
-                ({rowToDelete.version})
-              </strong>
-              ?
-              <br />
-              {t(
-                "page.mp.deleteWarning",
-                "This action cannot be undone.",
-              )}
-            </p>
-
-            <div className="flex items-center gap-3">
+            <div className="modal-header shrink-0">
+              <div className="flex items-start gap-3 min-w-0 mx-auto">
+                <div className="modal-icon-wrap !bg-red-50 !text-red-500">
+                  <i className="fas fa-trash-alt text-sm" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <h3 className="modal-title">
+                    {t("page.mp.deleteModalTitle", "Delete Confirmation")}
+                  </h3>
+                </div>
+              </div>
               <button
                 type="button"
-                className="flex-1 py-2.5 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 transition-colors cursor-pointer"
+                className="modal-close-btn shrink-0"
+                onClick={() => setRowToDelete(null)}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            <div className="modal-body text-center">
+              <p className="text-xs text-text-subtlest leading-relaxed">
+                {t(
+                  "page.mp.deleteModalDesc",
+                  "Are you sure you want to delete version",
+                )}{" "}
+                <strong className="text-text-default">
+                  ({rowToDelete.version})
+                </strong>
+                ?
+                <br />
+                {t(
+                  "page.mp.deleteWarning",
+                  "This action cannot be undone.",
+                )}
+              </p>
+            </div>
+
+            <div className="modal-footer shrink-0">
+              <button
+                type="button"
+                className="modal-cancel-btn flex-1 py-2.5"
                 onClick={() => setRowToDelete(null)}
               >
                 {t("app.cancellation", "Cancel")}
               </button>
               <button
                 type="button"
-                className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                className="btn-base flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 onClick={() => {
                   const key = String(rowToDelete.id || rowToDelete.version);
                   setDeletedRowIds((prev) => new Set([...prev, key]));

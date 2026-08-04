@@ -26,6 +26,16 @@ import {
   clearPreviewRows,
 } from "../utils/previewDb.js";
 
+function getEquipmentTypeLabel(item) {
+  return (
+    item?.eqTypeName ??
+    item?.equipmentTypeName ??
+    item?.typeName ??
+    item?.maintenanceGroupName ??
+    String(item?.id ?? "")
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +130,63 @@ function buildOrderedColumns(columnDefs) {
     .filter((col) => col.jsonKey && col.jsonKey !== "id")
     .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
     .map((col) => col.jsonKey);
+}
+
+function extractChangedRecords(payload) {
+  if (Array.isArray(payload?.changedData)) {
+    return payload.changedData;
+  }
+  if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+    const envelope = payload.changedDataJson[0];
+    try {
+      const parsed =
+        typeof envelope.content === "string"
+          ? JSON.parse(envelope.content)
+          : envelope.content;
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // ignore parse errors
+    }
+  }
+  return [];
+}
+
+function parseTotalCountFromResponse(responseData, payload, rowsLength, currentPage, pageSize) {
+  const candidates = [
+    responseData?.totalCount,
+    responseData?.totalRecords,
+    responseData?.totalRows,
+    responseData?.recordCount,
+    payload?.totalCount,
+    payload?.totalRecords,
+    payload?.totalRows,
+    payload?.recordCount,
+    responseData?.data?.totalCount,
+    payload?.data?.totalCount,
+  ];
+  for (const val of candidates) {
+    const num = Number(val);
+    if (!Number.isNaN(num) && num >= 0) return num;
+  }
+  const page = currentPage || 1;
+  const size = pageSize || 20;
+  if (rowsLength === size) {
+    return page * size + rowsLength;
+  }
+  return (page - 1) * size + rowsLength;
+}
+
+function parseMatrixDetailResponse(responseData) {
+  const payload = responseData?.data ?? responseData;
+  if (!payload || typeof payload !== "object") return null;
+  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (payload.matrixData && typeof payload.matrixData === "object") {
+    return payload.matrixData;
+  }
+  if (payload.changeData && typeof payload.changeData === "object") {
+    return payload.changeData;
+  }
+  return payload;
 }
 
 function rowKey(row, index) {
@@ -273,6 +340,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
 function SelectSkeleton({ width = "120px" }) {
   return (
     <div
+      className="select-skeleton"
       style={{
         width: width,
         height: "38px",
@@ -927,37 +995,27 @@ export function UploadPreviewModal({
 
           <div className="flex items-center gap-4">
             {/* Filters Segmented Control */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs" style={{ border: "1px solid #e2e8f0" }}>
+            <div className="toggle-group text-xs">
               <button
                 type="button"
                 onClick={() => setFilterType("all")}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                  filterType === "all"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
+                className={`toggle-btn ${filterType === "all" ? "active" : ""}`}
               >
                 {t("preview.filterAll", "전체")} ({rows.length})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType("duplicate")}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                  filterType === "duplicate"
-                    ? "bg-white text-red-600 shadow-sm font-semibold"
-                    : "text-slate-500 hover:text-red-600"
-                }`}
+                className={`toggle-btn ${filterType === "duplicate" ? "active" : ""}`}
+                style={filterType === "duplicate" ? { color: "#dc2626" } : undefined}
               >
                 {t("preview.filterDuplicate", "중복")} ({duplicateCount})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType("missing")}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                  filterType === "missing"
-                    ? "bg-white text-orange-600 shadow-sm font-semibold"
-                    : "text-slate-500 hover:text-orange-600"
-                }`}
+                className={`toggle-btn ${filterType === "missing" ? "active" : ""}`}
+                style={filterType === "missing" ? { color: "#ea580c" } : undefined}
               >
                 {t("preview.filterMissing", "필수 누락")} ({missingMandatoryCount})
               </button>
@@ -1518,33 +1576,27 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-xs animate-fade-in"
-        onMouseDown={onClose}
-      >
+      <div className="modal-overlay animate-fade-in" onMouseDown={onClose}>
         <form
-          className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[92vh]"
+          className="modal-panel modal-panel-xl w-full max-h-[92vh] flex flex-col"
           onSubmit={handleSubmit}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Modal Header */}
-          <div className="flex items-start justify-between gap-4 px-6 py-5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-            <div className="flex items-start gap-3">
-              <span className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-sm">
+          <div className="modal-header shrink-0">
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="modal-icon-wrap">
                 <i className="fas fa-plus" />
               </span>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Item Edit
-                </h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              <div className="min-w-0">
+                <h2 className="modal-title">Item Edit</h2>
+                <p className="modal-description">
                   This is the Work Order item. The corporation and the completion date cannot be changed.
                 </p>
               </div>
             </div>
             <button
               type="button"
-              className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+              className="modal-close-btn shrink-0"
               onClick={onClose}
               aria-label={t("app.close")}
             >
@@ -1552,12 +1604,11 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             </button>
           </div>
 
-          {/* Body Form */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-gray-800">
+          <div className="modal-body flex-1 overflow-y-auto space-y-4">
             {/* Row 1: Process & Equipment Type (Read-Only) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Process
                 </label>
                 <input
@@ -1565,11 +1616,11 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   value={draft.process ?? ""}
                   readOnly
                   disabled
-                  className="w-full bg-[#f1f5f9] dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl px-3.5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  className="modal-readonly-field"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Equipment Type
                 </label>
                 <input
@@ -1577,23 +1628,21 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   value={draft.maintGroup ?? ""}
                   readOnly
                   disabled
-                  className="w-full bg-[#f1f5f9] dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl px-3.5 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  className="modal-readonly-field"
                 />
               </div>
             </div>
 
             {/* Row 2: Representative Work Name * */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              <label className="modal-field-label mb-1.5">
                 Representative Work Name <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={draft.representativeWork ?? ""}
                 onChange={(e) => handleFieldChange("representativeWork", e.target.value)}
-                className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.representativeWork ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                }`}
+                className={`modal-input ${errors.representativeWork ? "is-error" : ""}`}
               />
               {errors.representativeWork && (
                 <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1604,7 +1653,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
             {/* Row 3: Purpose of the Work */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              <label className="modal-field-label mb-1.5">
                 Purpose of the Work
               </label>
               <input
@@ -1614,9 +1663,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   handleFieldChange("purpose", e.target.value);
                   handleFieldChange("work", e.target.value);
                 }}
-                className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                  errors.purpose || errors.work ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                }`}
+                className={`modal-input ${errors.purpose || errors.work ? "is-error" : ""}`}
               />
               {(errors.purpose || errors.work) && (
                 <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1628,16 +1675,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 4: Problem phenomenon * & Cause of the problem */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Problem phenomenon <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={draft.situation ?? ""}
                   onChange={(e) => handleFieldChange("situation", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.situation ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.situation ? "is-error" : ""}`}
                 />
                 {errors.situation && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1646,16 +1691,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Cause of the problem
                 </label>
                 <input
                   type="text"
                   value={draft.cause ?? ""}
                   onChange={(e) => handleFieldChange("cause", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.cause ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.cause ? "is-error" : ""}`}
                 />
                 {errors.cause && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1668,7 +1711,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 5: BOM & Material Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   BOM
                 </label>
                 <input
@@ -1676,11 +1719,11 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   placeholder="BOM Entry"
                   value={draft.bom ?? ""}
                   onChange={(e) => handleFieldChange("bom", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="modal-input"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Material Name
                 </label>
                 <input
@@ -1688,7 +1731,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   placeholder="Enter material name"
                   value={draft.sparePart ?? ""}
                   onChange={(e) => handleFieldChange("sparePart", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="modal-input"
                 />
               </div>
             </div>
@@ -1696,16 +1739,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 6: Before changing the hardware & After changing the hardware */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Before changing the hardware
                 </label>
                 <input
                   type="text"
                   value={draft.hwAsWas ?? ""}
                   onChange={(e) => handleFieldChange("hwAsWas", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.hwAsWas ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.hwAsWas ? "is-error" : ""}`}
                 />
                 {errors.hwAsWas && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1714,16 +1755,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   After changing the hardware
                 </label>
                 <input
                   type="text"
                   value={draft.hwAsIs ?? ""}
                   onChange={(e) => handleFieldChange("hwAsIs", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.hwAsIs ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.hwAsIs ? "is-error" : ""}`}
                 />
                 {errors.hwAsIs && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1736,16 +1775,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 7: Before Software Change & After the software change */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Before Software Change
                 </label>
                 <input
                   type="text"
                   value={draft.swAsWas ?? ""}
                   onChange={(e) => handleFieldChange("swAsWas", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.swAsWas ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.swAsWas ? "is-error" : ""}`}
                 />
                 {errors.swAsWas && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1754,16 +1791,14 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   After the software change
                 </label>
                 <input
                   type="text"
                   value={draft.swAsIs ?? ""}
                   onChange={(e) => handleFieldChange("swAsIs", e.target.value)}
-                  className={`w-full bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                    errors.swAsIs ? "border-rose-500" : "border-gray-200 dark:border-gray-700"
-                  }`}
+                  className={`modal-input ${errors.swAsIs ? "is-error" : ""}`}
                 />
                 {errors.swAsIs && (
                   <span className="mt-1 block text-[11px] font-semibold text-rose-500">
@@ -1776,13 +1811,13 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 8: Importance & Types of effects */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Importance
                 </label>
                 <select
                   value={draft.priority ?? "Important"}
                   onChange={(e) => handleFieldChange("priority", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  className="modal-select"
                 >
                   <option value="Important">Important</option>
                   <option value="Normal">Normal</option>
@@ -1790,13 +1825,13 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Types of effects
                 </label>
                 <select
                   value={draft.category ?? "integrity"}
                   onChange={(e) => handleFieldChange("category", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  className="modal-select"
                 >
                   <option value="integrity">integrity</option>
                   <option value="Quality">Quality</option>
@@ -1809,24 +1844,24 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 9: Date of Completion & Requesting Corporation */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Date of Completion
                 </label>
                 <input
                   type="text"
                   value={draft.workedOn ?? ""}
                   onChange={(e) => handleFieldChange("workedOn", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="modal-input"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="modal-field-label mb-1.5">
                   Requesting Corporation
                 </label>
                 <select
                   value={draft.site ?? "A3. Busan"}
                   onChange={(e) => handleFieldChange("site", e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  className="modal-select"
                 >
                   <option value="A3. Busan">A3. Busan</option>
                   <option value="A1. Seoul">A1. Seoul</option>
@@ -1853,7 +1888,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
             {/* Row 11: Upload Dropzone Card */}
             <div
-              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-center bg-gray-50/50 dark:bg-gray-800/40 cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-700/50 transition-colors"
+              className="border-2 border-dashed border-border-base rounded-2xl p-4 text-center bg-surface-strong cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-700/50 transition-colors"
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -1879,7 +1914,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                   e.target.value = "";
                 }}
               />
-              <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-center gap-2 text-xs font-medium text-text-subtlest">
                 <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
                 <span>Drag or click to upload photos (automatically share to the same group items)</span>
               </div>
@@ -1894,7 +1929,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 {photos.map((photo) => (
                   <div
                     key={photo.id}
-                    className="w-28 h-32 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 relative overflow-hidden flex flex-col shadow-xs group"
+                    className="w-28 h-32 rounded-xl border border-border-base bg-surface-default relative overflow-hidden flex flex-col shadow-xs group"
                   >
                     {/* Top Status Bar */}
                     <div className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 flex items-center justify-between shrink-0">
@@ -1931,13 +1966,8 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
-            <button
-              type="button"
-              className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
-              onClick={onClose}
-            >
+          <div className="modal-footer">
+            <button type="button" className="modal-cancel-btn" onClick={onClose}>
               cancellation
             </button>
             <button
@@ -1951,42 +1981,34 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
         </form>
       </div>
 
-      {/* Select Photo Category Modal Pop-up */}
       {showCategoryModal && (
-        <div
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in"
-          onMouseDown={() => setShowCategoryModal(false)}
-        >
+        <div className="modal-overlay animate-fade-in" onMouseDown={() => setShowCategoryModal(false)}>
           <div
-            className="flex w-full max-w-md flex-col overflow-hidden rounded-[24px] bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700"
+            className="modal-panel modal-panel-sm w-full"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4 px-6 py-5 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-              <div className="flex items-start gap-3">
-                <span className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shrink-0">
+            <div className="modal-header">
+              <div className="flex items-start gap-3 min-w-0">
+                <span className="modal-icon-wrap">
                   <i className="fas fa-image" />
                 </span>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    Select photo category
-                  </h2>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                <div className="min-w-0">
+                  <h2 className="modal-title">Select photo category</h2>
+                  <p className="modal-description">
                     Select the category of the photo you want to upload
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                className="modal-close-btn shrink-0"
                 onClick={() => setShowCategoryModal(false)}
               >
                 <i className="fas fa-times text-sm" />
               </button>
             </div>
 
-            {/* Categories 2x2 Grid */}
-            <div className="p-6 grid grid-cols-2 gap-3.5 bg-white dark:bg-gray-800">
+            <div className="modal-body grid grid-cols-2 gap-3.5">
               {/* Category 1: Problem phenomenon */}
               <button
                 type="button"
@@ -2028,11 +2050,10 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               </button>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-center">
+            <div className="modal-footer justify-center">
               <button
                 type="button"
-                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                className="modal-cancel-btn"
                 onClick={() => setShowCategoryModal(false)}
               >
                 cancellation
@@ -2084,13 +2105,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
-  const [prevFilters, setPrevFilters] = useState({
-    processId: null,
-    maintenanceId: null,
-    columnIds: [],
-    filter: "",
-    searchText: "",
-  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [usingApiTableData, setUsingApiTableData] = useState(!isStaticDataMode);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -2099,49 +2115,21 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     return () => clearTimeout(timer);
   }, [filter, searchText]);
 
-  const columnIdsKey = useMemo(
-    () => [...selectedColumnIds].sort((a, b) => a - b).join(","),
-    [selectedColumnIds],
-  );
-  const prevColumnIdsKey = useMemo(
-    () => [...prevFilters.columnIds].sort((a, b) => a - b).join(","),
-    [prevFilters.columnIds],
-  );
-
-  if (
-    selectedProcessId !== prevFilters.processId ||
-    selectedMaintenanceId !== prevFilters.maintenanceId ||
-    columnIdsKey !== prevColumnIdsKey ||
-    filter !== prevFilters.filter ||
-    searchText !== prevFilters.searchText
-  ) {
-    setPrevFilters({
-      processId: selectedProcessId,
-      maintenanceId: selectedMaintenanceId,
-      columnIds: selectedColumnIds,
-      filter,
-      searchText,
-    });
-    if (selectedProcessId !== null) {
-      setIsFiltering(true);
-    }
-  }
-
-  useEffect(() => {
-    if (isFiltering) {
-      const timer = setTimeout(() => {
-        setIsFiltering(false);
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [isFiltering]);
-
   // ── Filter option lists ───────────────────────────────────────────────────
   const processList = useMemo(() => {
     return (filterPayload?.process ?? []).filter((p) => p.isChangedData === true);
   }, [filterPayload]);
 
-  const maintenanceList = useMemo(() => {
+  const equipmentTypeList = useMemo(() => {
+    const eqTypes = filterPayload?.eqTypes;
+    if (Array.isArray(eqTypes) && eqTypes.length > 0) {
+      let list = eqTypes.filter((item) => item.isChangedData === true);
+      if (selectedProcessId) {
+        list = list.filter((item) => item.processId === selectedProcessId);
+      }
+      return list;
+    }
+
     const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData === true);
     if (!selectedProcessId) return all;
     return all.filter((m) => m.processId === selectedProcessId);
@@ -2332,19 +2320,26 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       return [];
     }
 
+    if (usingApiTableData) {
+      return combinedData;
+    }
+
     const selectedProcess = selectedProcessId
       ? processList.find((p) => p.id === selectedProcessId)
       : null;
-    const selectedMaint = (filterPayload?.maintenance ?? []).find(
-      (m) => m.id === selectedMaintenanceId,
+    const selectedEquipmentType = equipmentTypeList.find(
+      (item) => item.id === selectedMaintenanceId,
     );
+    const selectedEquipmentTypeName = selectedEquipmentType
+      ? getEquipmentTypeLabel(selectedEquipmentType)
+      : "";
 
     return combinedData.filter((item) => {
       const itemProcess = item.process ?? item["ê³µì •"] ?? "";
       const itemMaint =
         item.maintGroup ?? item["ë³´ì „íŒŒíŠ¸"] ?? item["ë³´ì „ê·¸ë£¹"] ?? "";
 
-      if (!selectedProcess || !selectedMaint) {
+      if (!selectedProcess || !selectedEquipmentType) {
         const text = Object.values(item)
           .map((v) => String(v ?? ""))
           .join(" ")
@@ -2352,7 +2347,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         const matchesProcSelection =
           !selectedProcess || itemProcess === selectedProcess.processName;
         const matchesMaintSelection =
-          !selectedMaint || itemMaint === selectedMaint.maintenanceGroupName;
+          !selectedEquipmentType || itemMaint === selectedEquipmentTypeName;
         const matchesSearch = searchText ? text.includes(searchText.toLowerCase()) : true;
         const matchesFilter = filter ? text.includes(filter.toLowerCase()) : true;
 
@@ -2363,8 +2358,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
       const matchesMaint =
-        (item.maintGroup ?? item.보전파트 ?? item.보전그룹) ===
-          (selectedMaint?.maintenanceGroupName ?? "");
+        (item.maintGroup ?? item.보전파트 ?? item.보전그룹) === selectedEquipmentTypeName;
 
       const text = Object.values(item)
         .map((v) => String(v ?? ""))
@@ -2378,7 +2372,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [
     combinedData,
     processList,
-    filterPayload,
+    equipmentTypeList,
+    usingApiTableData,
     selectedProcessId,
     selectedMaintenanceId,
     filter,
@@ -2400,7 +2395,15 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedProcessId, selectedMaintenanceId, selectedColumnIds, filter, searchText, sortConfig]);
+  }, [
+    selectedProcessId,
+    selectedMaintenanceId,
+    selectedColumnIds,
+    filter,
+    searchText,
+    debouncedSearchText,
+    sortConfig,
+  ]);
 
   const sortedFilteredData = useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return filtered;
@@ -2419,9 +2422,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [filtered, sortConfig]);
 
   const paginatedData = useMemo(() => {
+    if (usingApiTableData) {
+      return sortedFilteredData;
+    }
     const start = (currentPage - 1) * pageSize;
     return sortedFilteredData.slice(start, start + pageSize);
-  }, [sortedFilteredData, currentPage, pageSize]);
+  }, [sortedFilteredData, currentPage, pageSize, usingApiTableData]);
+
+  const paginationTotalItems = usingApiTableData ? totalCount : sortedFilteredData.length;
 
   // ── Multi-select ──────────────────────────────────────────────────────────
   const toggleSelect = (index) => {
@@ -2543,20 +2551,77 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
 
+  const handleOpenDetail = useCallback(
+    (row) => {
+      if (!onOpenDetail) return;
+
+      const rowId = Number(row?.id);
+      if (isStaticDataMode || !rowId || rowId <= 0) {
+        onOpenDetail(row);
+        return;
+      }
+
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: t("toast.loadingDetail", "Loading details..."),
+        autoClose: false,
+      });
+
+      APIcallGet(
+        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
+        {},
+        (responseData, status) => {
+          if (status === 200 && responseData) {
+            const detail = parseMatrixDetailResponse(responseData);
+            const merged = detail ? { ...row, ...detail } : row;
+            const remapped = Object.entries(merged).reduce((acc, [key, value]) => {
+              const mappedKey = excelToJsonKey[key.trim()] ?? key;
+              acc[mappedKey] = value;
+              return acc;
+            }, {});
+            onOpenDetail(remapped);
+            setOperationStatus({
+              isVisible: false,
+              status: "loading",
+              message: "",
+              autoClose: true,
+            });
+          } else {
+            console.warn("[ChangeHistory] GetMatrixData failed:", status, responseData);
+            setOperationStatus({
+              isVisible: true,
+              status: "error",
+              message: t("toast.detailLoadError", "Failed to load row details."),
+              autoClose: true,
+            });
+            onOpenDetail(row);
+          }
+        },
+      );
+    },
+    [onOpenDetail, excelToJsonKey, t],
+  );
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleConfirmDelete = useCallback(() => {
     if (selectedIds.size === 0) return;
 
     const rowsToDelete = filtered.filter((_, i) => selectedIds.has(i));
-    const idsToDelete = new Set(rowsToDelete.map((r) => r.id).filter((id) => id != null));
+    const ids = rowsToDelete
+      .map((r) => Number(r.id))
+      .filter((id) => !Number.isNaN(id) && id > 0);
 
-    const updatedRecords = changedRecords.filter((r) => !idsToDelete.has(r.id));
-    const changeDataList = updatedRecords.map((r) => buildCleanRow(r));
-    const payload = {
-      changeDataList,
-      id: changedDataId,
-    };
+    if (ids.length === 0) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.deleteError", "삭제에 실패했습니다."),
+        autoClose: true,
+      });
+      return;
+    }
 
     setOperationStatus({
       isVisible: true,
@@ -2566,6 +2631,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     });
 
     if (isStaticDataMode) {
+      const idsToDelete = new Set(ids);
+      const updatedRecords = changedRecords.filter((r) => !idsToDelete.has(Number(r.id)));
       setChangedRecords([...updatedRecords].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
       setSelectedIds(new Set());
       setShowDeleteModal(false);
@@ -2575,13 +2642,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         message: `${rowsToDelete.length}${t("app.rows", "건")} - ${t("app.deleteSuccess", "항목이 성공적으로 삭제되었습니다.")}`,
         autoClose: true,
       });
-      onUpload?.("change_rows", payload);
       return;
     }
 
-    APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+    APIcallPost(pocEndPoints.DELETE_CHANGE_DATA, { ids }, {}, (responseData, status) => {
       if (status === 200) {
-        setChangedRecords([...updatedRecords].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
         setSelectedIds(new Set());
         setShowDeleteModal(false);
         setOperationStatus({
@@ -2590,7 +2655,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           message: `${rowsToDelete.length}${t("app.rows", "건")} - ${t("app.deleteSuccess", "항목이 성공적으로 삭제되었습니다.")}`,
           autoClose: true,
         });
-        onUpload?.("change_rows", payload);
         getFilterDataRef.current?.();
       } else {
         console.error("Delete failed:", responseData);
@@ -2602,7 +2666,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         });
       }
     });
-  }, [selectedIds, filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t]);
+  }, [selectedIds, filtered, changedRecords, t]);
 
   // ── MODAL CONFIRM (bulk upload) ───────────────────────────────────────────
   // For a fresh bulk upload, merge uploaded rows with existing changedRecords
@@ -2959,159 +3023,176 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     }
   };
 
-  // ── Fetch filter data ─────────────────────────────────────────────────────
-  // changedDataJson always has ONE object: { id, content }
-  // We capture that id as changedDataId and parse content into flat rows.
-  const getFilterData = useCallback(() => {
-    if (isStaticDataMode) {
-      try {
-        const payload = changeFilterDataAndTableData;
-        setFilterPayload(payload);
-        setFilterError(null);
+  const applyChangedDataResponse = useCallback((payload) => {
+    let records = extractChangedRecords(payload);
 
-        if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
-          const envelope = payload.changedDataJson[0];
-          setChangedDataId(envelope.id ?? 0);
+    if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+      setChangedDataId(payload.changedDataJson[0].id ?? 0);
+    }
 
-          try {
-            const parsed =
-              typeof envelope.content === "string" ? JSON.parse(envelope.content) : envelope.content;
+    let nextId = 1;
+    const sanitized = records.map((r) => {
+      const clean = { ...r };
+      const numId = Number(clean.id);
+      if (isNaN(numId) || numId <= 0) {
+        clean.id = nextId++;
+      } else if (numId >= nextId) {
+        nextId = numId + 1;
+      }
+      return clean;
+    });
+    const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+    setChangedRecords(sorted);
+    setApiRecords(sorted);
+    return sorted;
+  }, []);
 
-            const records = Array.isArray(parsed) ? parsed : [];
-            let nextId = 1;
-            const sanitized = records.map((r) => {
-              const clean = { ...r };
-              const numId = Number(clean.id);
-              if (isNaN(numId) || numId <= 0) {
-                clean.id = nextId++;
-              } else {
-                if (numId >= nextId) {
-                  nextId = numId + 1;
-                }
-              }
-              return clean;
-            });
-            const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
-            setChangedRecords(sorted);
-            setApiRecords(sorted);
-          } catch (parseError) {
-            console.warn("[ChangeHistory] Failed to parse static changedDataJson:", parseError);
-            setChangedRecords([]);
-            setApiRecords([]);
-          }
-        } else {
-          setChangedDataId(0);
-          setChangedRecords([]);
-          setApiRecords([]);
-        }
-      } catch (error) {
-        console.error("[ChangeHistory] Error processing static data:", error);
-        setFilterPayload({ process: [], maintenance: [] });
+  const applyStaticChangedDataFallback = useCallback(() => {
+    try {
+      const payload = changeFilterDataAndTableData;
+      if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
+        const sorted = applyChangedDataResponse(payload);
+        setUsingApiTableData(false);
+        setTotalCount(sorted.length);
+      } else {
+        setChangedDataId(0);
         setChangedRecords([]);
         setApiRecords([]);
-        setChangedDataId(0);
-        setFilterError(t("toast.filterError"));
+        setUsingApiTableData(false);
+        setTotalCount(0);
       }
+    } catch (error) {
+      console.error("[ChangeHistory] Error processing static changed data:", error);
+      setChangedRecords([]);
+      setApiRecords([]);
+      setChangedDataId(0);
+      setUsingApiTableData(false);
+      setTotalCount(0);
+      setFilterError(t("toast.filterError"));
+    }
+  }, [applyChangedDataResponse, t]);
+
+  const fetchChangedData = useCallback(() => {
+    if (selectedProcessId === null) {
+      setChangedRecords([]);
+      setApiRecords([]);
+      setTotalCount(0);
+      setIsFiltering(false);
       return;
     }
 
-    // 1. Fetch Master Data for Filters
-    APIcallGet(
-      pocEndPoints?.GET_MASTER_DATA || "api/ChangeData/GetMasterData",
-      {},
-      (responseData, status) => {
-        try {
-          if (status === 200 && responseData) {
-            const payload = responseData?.data || responseData;
-            setFilterPayload(payload);
-            setFilterError(null);
-          } else {
-            console.warn("[ChangeHistory] Master data API invalid status:", status);
-          }
-        } catch (error) {
-          console.error("[ChangeHistory] Error parsing master data:", error);
-        }
-      }
-    );
+    setIsFiltering(true);
 
-    // 2. Fetch Listing Data via POST GetChangedData
     const reqBody = {
-      processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      processId: Number(selectedProcessId) || 0,
       equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-      columnIds: Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0 ? selectedColumnIds : [0],
+      columnIds:
+        Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0
+          ? selectedColumnIds.map(Number)
+          : [0],
       searchText: debouncedSearchText || "",
       rowCount: pageSize || 20,
-      currentPage: currentPage || 1,
+      currentPage: Math.max(0, (currentPage || 1) - 1),
     };
 
-    APIcallPost(
-      pocEndPoints?.GET_CHANGED_DATA || "api/ChangeData/GetChangedData",
-      reqBody,
-      {},
-      (responseData, status) => {
-        try {
-          if (status === 200 && responseData) {
-            const payload = responseData?.data || responseData;
-            setFilterError(null);
-
-            let records = [];
-            if (Array.isArray(payload?.changedData)) {
-              records = payload.changedData;
-            } else if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
-              const envelope = payload.changedDataJson[0];
-              setChangedDataId(envelope.id ?? 0);
-              try {
-                const parsed =
-                  typeof envelope.content === "string"
-                    ? JSON.parse(envelope.content)
-                    : envelope.content;
-                if (Array.isArray(parsed)) {
-                  records = parsed;
-                }
-              } catch (e) {
-                console.warn("[ChangeHistory] Failed to parse content string:", e);
-              }
-            }
-
-            let nextId = 1;
-            const sanitized = records.map((r) => {
-              const clean = { ...r };
-              const numId = Number(clean.id);
-              if (isNaN(numId) || numId <= 0) {
-                clean.id = nextId++;
-              } else {
-                if (numId >= nextId) {
-                  nextId = numId + 1;
-                }
-              }
-              return clean;
-            });
-            const sorted = sanitized.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
-            setChangedRecords(sorted);
-            setApiRecords(sorted);
-
-            if (payload?.pagination?.totalCount !== undefined) {
-              setTotalRecordsCount?.(payload.pagination.totalCount);
-            }
+    APIcallPost(pocEndPoints.GET_CHANGED_DATA, reqBody, {}, (responseData, status) => {
+      try {
+        if (status === 200 && responseData) {
+          const payload = responseData?.data ?? responseData;
+          setFilterError(null);
+          const sorted = applyChangedDataResponse(payload);
+          const rowsLength = sorted.length;
+          setUsingApiTableData(true);
+          setTotalCount(
+            parseTotalCountFromResponse(
+              responseData,
+              payload,
+              rowsLength,
+              currentPage,
+              pageSize,
+            ),
+          );
+        } else {
+          console.warn("[ChangeHistory] GetChangedData returned invalid status:", status);
+          if (isStaticDataMode) {
+            applyStaticChangedDataFallback();
           } else {
-            console.warn("[ChangeHistory] GetChangedData returned invalid status:", status);
             setChangedRecords([]);
             setApiRecords([]);
+            setUsingApiTableData(true);
+            setTotalCount(0);
             setFilterError(t("toast.filterLoadError"));
           }
-        } catch (error) {
-          console.error("[ChangeHistory] Error processing changed data:", error);
+        }
+      } catch (error) {
+        console.error("[ChangeHistory] Error processing changed data:", error);
+        if (isStaticDataMode) {
+          applyStaticChangedDataFallback();
+        } else {
           setChangedRecords([]);
           setApiRecords([]);
+          setUsingApiTableData(true);
+          setTotalCount(0);
           setFilterError(t("toast.filterError"));
         }
+      } finally {
+        setIsFiltering(false);
       }
-    );
-  }, [t, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText, currentPage, pageSize]);
+    });
+  }, [
+    t,
+    selectedProcessId,
+    selectedMaintenanceId,
+    selectedColumnIds,
+    debouncedSearchText,
+    currentPage,
+    pageSize,
+    applyChangedDataResponse,
+    applyStaticChangedDataFallback,
+  ]);
+
+  const fetchMasterData = useCallback(() => {
+    if (isStaticDataMode) {
+      setFilterPayload(changeFilterDataAndTableData);
+      setFilterError(null);
+      return;
+    }
+
+    APIcallGet(pocEndPoints.GET_MASTER_DATA, {}, (responseData, status) => {
+      try {
+        if (status === 200 && responseData) {
+          const payload = responseData?.data ?? responseData;
+          setFilterPayload(payload);
+          setFilterError(null);
+        } else {
+          console.warn("[ChangeHistory] Master data API invalid status:", status);
+          setFilterPayload({ process: [], maintenance: [], eqTypes: [] });
+          setFilterError(t("toast.filterLoadError"));
+        }
+      } catch (error) {
+        console.error("[ChangeHistory] Error parsing master data:", error);
+        setFilterPayload({ process: [], maintenance: [], eqTypes: [] });
+        setFilterError(t("toast.filterError"));
+      }
+    });
+  }, [t]);
+
+  const refreshChangeHistoryData = useCallback(() => {
+    fetchMasterData();
+    fetchChangedData();
+  }, [fetchMasterData, fetchChangedData]);
 
   useEffect(() => {
-    getFilterDataRef.current = getFilterData;
-  }, [getFilterData]);
+    getFilterDataRef.current = refreshChangeHistoryData;
+  }, [refreshChangeHistoryData]);
+
+  useEffect(() => {
+    fetchMasterData();
+  }, [fetchMasterData]);
+
+  useEffect(() => {
+    fetchChangedData();
+  }, [fetchChangedData]);
 
   useEffect(() => {
     if (isStaticDataMode) {
@@ -3133,10 +3214,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     });
   }, []);
 
-  useEffect(() => {
-    getFilterData();
-  }, [getFilterData]);
-
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -3153,11 +3230,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-50">
           <div>
-            <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <h1 className="page-title flex items-center gap-2.5">
               <i className="fas fa-history text-[#1745c2] text-xl md:text-[22px]" />
               <span>{t("page.change.title")}</span>
             </h1>
-            <p className="mt-1 text-[13px] text-slate-500 font-normal">
+            <p className="page-subtitle">
               {t("page.change.desc")}
             </p>
           </div>
@@ -3192,7 +3269,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         <div className="card relative z-20 p-4 mb-4">
           {filterError && (
             <div
-              className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
+              className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 text-sm text-red-700 dark:text-red-300 flex items-start gap-2"
               role="alert"
             >
               <i className="fas fa-exclamation-circle mt-0.5 flex-shrink-0" />
@@ -3201,7 +3278,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-medium text-text-subtle">
                 {t("field.process")}
               </label>
               {filterLoading ? (
@@ -3224,7 +3301,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-medium text-text-subtle">
                 {t("field.equipmentType", "Equipment Type")}
               </label>
               {filterLoading ? (
@@ -3238,9 +3315,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   style={{ width: "130px", marginTop: 0 }}
                 >
                   <option value="">{t("app.all")}</option>
-                  {maintenanceList.map((item) => (
+                  {equipmentTypeList.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.maintenanceGroupName}
+                      {getEquipmentTypeLabel(item)}
                     </option>
                   ))}
                 </select>
@@ -3248,7 +3325,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-medium text-text-subtle">
                 {t("field.columnFilter", "컬럼 필터")}
               </label>
               {filterLoading ? (
@@ -3269,7 +3346,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-medium text-text-subtle">
                 {t("app.search")}
               </label>
               <input
@@ -3283,7 +3360,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
             <div className="ml-auto flex items-center gap-2">
               <span className="badge badge-primary">
-                {filtered.length}
+                {usingApiTableData ? totalCount : filtered.length}
                 {t("app.rows")}
               </span>
               <button
@@ -3314,13 +3391,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
           {selectedProcessId === null ? (
             <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ecf2ff] text-[#4f46e5] text-4xl">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-4xl">
                 <i className="fas fa-history" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800">
+              <h2 className="text-xl font-bold text-text-default">
                 {t("landing.selectProcessAndMaint")}
               </h2>
-              <p className="text-sm text-gray-400 max-w-md">
+              <p className="text-sm text-text-subtlest max-w-md">
                 {t("landing.selectProcessAndMaintDesc")}
               </p>
             </div>
@@ -3384,7 +3461,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                         onStartEdit={setEditingIndex}
                         onSave={handleSaveRow}
                         onCancel={handleCancelEdit}
-                        onOpenDetail={onOpenDetail}
+                        onOpenDetail={handleOpenDetail}
                         isSelected={selectedIds.has(idxToUse)}
                         onToggleSelect={toggleSelect}
                       />
@@ -3396,13 +3473,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
 
           {/* Pagination bar */}
-          {selectedProcessId !== null && filtered.length > 0 && (
+          {selectedProcessId !== null && paginationTotalItems > 0 && (
             <Pagination
               currentPage={currentPage}
               pageSize={pageSize}
-              totalItems={sortedFilteredData.length}
+              totalItems={paginationTotalItems}
               onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
             />
           )}
         </div>

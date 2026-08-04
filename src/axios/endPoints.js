@@ -9,11 +9,13 @@ const pocEndPoints = {
   GET_CHANGED_DATA: "api/ChangeData/GetChangedData",
   CHANGE_DATA_COLUMNS: "api/CommonData/GetAllChangeDataColumns",
   SAVE_DATA_CHANGES: "api/ChangeData",
+  DELETE_CHANGE_DATA: "api/ChangeData/DeleteChangeData",
+  GET_MATRIX_DATA: "api/MatrixInquiry/GetMatrixData",
   GET_SPEC_DATA: "api/SpecData/GetSpecData",
   SAVE_SPEC_DATA: "api/SpecData",
   UPDATE_REPRESENTATIVE_WORK: "api/CommonData/UpdateRepresentativeWork",
   RESET_DATA: "api/CommonData/ResetData",
-  GET_HOME_STATS: "api/CommonData/GetDashboardStats",
+  GET_COMMON_DATA_COUNTS: "api/CommonData/GetCommonDataCounts",
 };
 
 const auth = {

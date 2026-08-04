@@ -16,10 +16,37 @@ const getUserInfo = () => {
 };
 
 const removeUserInfo = () => {
-  Cookies?.remove(userInfo);
+  Cookies?.remove(userInfo, { path: "/" });
 };
 const removeUserToken = () => {
-  Cookies?.remove(userToken);
+  Cookies?.remove(userToken, { path: "/" });
 };
 
-export { getToken, getUserInfo, removeUserInfo, removeUserToken };
+const getUserDisplayName = (profile = getUserInfo()) => {
+  if (!profile) return "";
+  return (
+    profile.name ??
+    profile.userName ??
+    profile.username ??
+    profile.displayName ??
+    profile.employeeName ??
+    profile.knoxUserId ??
+    profile.mailId ??
+    profile.email ??
+    ""
+  );
+};
+
+const getUserEmail = (profile = getUserInfo()) => {
+  if (!profile) return "";
+  return profile.mailId ?? profile.email ?? "";
+};
+
+export {
+  getToken,
+  getUserInfo,
+  getUserDisplayName,
+  getUserEmail,
+  removeUserInfo,
+  removeUserToken,
+};

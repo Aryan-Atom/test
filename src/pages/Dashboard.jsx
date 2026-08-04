@@ -192,7 +192,11 @@ export default function Dashboard() {
   ]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    if (theme === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
     localStorage.setItem("eq_theme", theme);
   }, [theme]);
 
@@ -306,7 +310,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-text-default">
+    <div className="min-h-screen bg-[var(--bg-main)] text-text-default">
       <div className="flex h-screen overflow-hidden">
         <Sidebar
           activePage={activePage}
@@ -324,7 +328,7 @@ export default function Dashboard() {
             }
           />
           <main
-            className={`flex-1 flex flex-col min-h-0 overflow-hidden bg-white ${
+            className={`flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg-main)] ${
               activePage === "home" ? "p-0" : "p-6"
             }`}
           >

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { APIcallGet } from "../utils/api.js";
+import { APIcallGet } from "../axios/apiCall.js";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useI18n } from "../i18n.jsx";
 
@@ -36,41 +36,19 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
     totalProc: 0,
     totalPart: 0,
   });
+  const [hasApiStats, setHasApiStats] = useState(false);
 
   useEffect(() => {
-    APIcallGet(pocEndPoints.GET_HOME_STATS, {}, (responseData, status) => {
+    APIcallGet(pocEndPoints.GET_COMMON_DATA_COUNTS, {}, (responseData, status) => {
       if (status === 200 && responseData) {
         const payload = responseData?.data ?? responseData;
-        const next = {
-          totalChanges: Number(
-            payload?.totalChanges ??
-              payload?.total_change ??
-              payload?.changeCount ??
-              0,
-          ),
-          totalEquip: Number(
-            payload?.totalEquip ??
-              payload?.equipmentCount ??
-              payload?.totalEquipment ??
-              0,
-          ),
-          totalProc: Number(
-            payload?.totalProc ??
-              payload?.processCount ??
-              payload?.totalProcess ??
-              0,
-          ),
-          totalPart: Number(
-            payload?.totalPart ??
-              payload?.partCount ??
-              payload?.totalMaintenancePart ??
-              0,
-          ),
-        };
-
-        if (Object.values(next).some((value) => value > 0)) {
-          setStats(next);
-        }
+        setStats({
+          totalChanges: Number(payload?.changeDataHistoryCount ?? 0),
+          totalEquip: Number(payload?.siteCount ?? 0),
+          totalProc: Number(payload?.processCount ?? 0),
+          totalPart: Number(payload?.preservedPartsCount ?? 0),
+        });
+        setHasApiStats(true);
       }
     });
   }, []);
@@ -129,12 +107,14 @@ function HomePage({ changeData = [], specData = [], mpRows = [], onNavigate }) {
     };
   }, [changeData, specData, mpRows]);
 
-  const displayedStats = {
-    totalChanges: stats.totalChanges || derivedStats.totalChanges,
-    totalEquip: stats.totalEquip || derivedStats.totalEquip,
-    totalProc: stats.totalProc || derivedStats.totalProc,
-    totalPart: stats.totalPart || derivedStats.totalPart,
-  };
+  const displayedStats = hasApiStats
+    ? stats
+    : {
+        totalChanges: derivedStats.totalChanges,
+        totalEquip: derivedStats.totalEquip,
+        totalProc: derivedStats.totalProc,
+        totalPart: derivedStats.totalPart,
+      };
 
   const steps = [
     {

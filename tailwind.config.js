@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
@@ -11,6 +12,10 @@ export default {
       },
       fontFamily: {
         sans: ["Pretendard", "Outfit", "Noto Sans KR", "sans-serif"],
+      },
+      borderColor: {
+        base: "var(--border-base)",
+        interactive: "var(--border-interactive)",
       },
       colors: {
         surface: {

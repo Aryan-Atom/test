@@ -374,6 +374,7 @@ function isRowSelected(row, drawerItem) {
 function SelectSkeleton({ width = "100%" }) {
   return (
     <div
+      className="select-skeleton"
       style={{
         width: width,
         height: "38px",
@@ -1471,11 +1472,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         {/* ── Page header ── */}
         <header className="mp-page-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="mp-page-title flex items-center gap-2.5">
+            <h1 className="page-title flex items-center gap-2.5">
               <i className="fas fa-clipboard-list text-[#1745c2] text-xl md:text-[22px]" />
               <span>{t("page.mp.title", "MP List 조회")}</span>
             </h1>
-            <p className="mp-page-subtitle">
+            <p className="page-subtitle">
               {t("page.mp.desc", "보전파트별 대표 작업명을 최신순으로 조회합니다.")}
               {isDirty && (
                 <span style={{ color: "#16a34a", fontWeight: 600, marginLeft: "8px" }}>
@@ -1493,7 +1494,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* + VoC 추가 Button */}
             <button
               type="button"
-              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
                 if (!selectedProcessId || !selectedMaintenanceId) {
                   setOperationStatus({
@@ -1583,7 +1584,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* VoC 일괄 추가 Button */}
             <button
               type="button"
-              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
                 setBatchModalError("");
                 setShowBatchModal(true);
@@ -1596,7 +1597,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* MP List 저장 Button */}
             <button
               type="button"
-              className="bg-[#f4f5f7] dark:bg-gray-800 border border-[#e2e8f0] dark:border-gray-700 text-[#0f172a] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-gray-700/60 text-[13px] font-semibold px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
                 const initialApplicable = filtered.length > 0 ? [...filtered] : [...listRows];
                 setApplicableRows(initialApplicable);
@@ -1877,7 +1878,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           ? "bg-[#f0fdf4]"
                           : isVoc
                           ? "bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff] dark:hover:bg-blue-900/40"
-                          : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
+                          : "bg-surface-default hover:bg-gray-50 dark:hover:bg-gray-800/60";
 
                       return (
                         <tr
@@ -2089,12 +2090,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 1: Fairness (Process) and Conservation Part (Maintenance Part) in read-only mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.process", "Fairness")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
                   processList.find((p) => p.id === selectedProcessId)
                     ?.processName || "02.배치"
@@ -2104,12 +2105,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.equipmentType", "Conservation Part")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
                   (filterPayload?.maintenance ?? []).find(
                     (m) => m.id === selectedMaintenanceId
@@ -2123,13 +2124,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
           {/* Row 2: Representative Work Name * (Full width) */}
           <div>
-            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+            <label className="text-xs font-semibold text-text-subtle mb-1 block">
               {t("field.repWork", "Representative Work Name")}{" "}
               <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
               value={newRow.representativeWork}
               onChange={(e) => setField("representativeWork", e.target.value)}
               placeholder={t("placeholder.representativeWorkInput", "Enter the main job name")}
@@ -2148,12 +2149,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
           {/* Row 3: Purpose of the Work (Full width) */}
           <div>
-            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+            <label className="text-xs font-semibold text-text-subtle mb-1 block">
               {t("field.work", "Purpose of the Work")}
             </label>
             <input
               type="text"
-              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
               value={newRow.work}
               onChange={(e) => setField("work", e.target.value)}
               placeholder={t("placeholder.workPurposeInput", "Enter the purpose of the work")}
@@ -2163,13 +2164,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 4: Problem phenomenon * and Cause of the problem */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.situation", "Problem phenomenon")}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.situation}
                 onChange={(e) => setField("situation", e.target.value)}
                 placeholder={t("placeholder.situationInput", "Problem Phenomenon Input")}
@@ -2186,12 +2187,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               )}
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.cause", "Cause of the problem")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.cause}
                 onChange={(e) => setField("cause", e.target.value)}
                 placeholder={t("placeholder.causeInput", "Enter the cause of the problem")}
@@ -2202,24 +2203,24 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 5: BOM and Material Name */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.bom", "BOM")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.bom}
                 onChange={(e) => setField("bom", e.target.value)}
                 placeholder={t("placeholder.bomInput", "BOM Entry")}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.sparePart", "Material Name")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.sparePart}
                 onChange={(e) => setField("sparePart", e.target.value)}
                 placeholder={t("placeholder.sparePartInput", "Enter material name")}
@@ -2230,24 +2231,24 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 6: Before changing the hardware and After changing the hardware */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.hwBefore", "Before changing the hardware")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsWas}
                 onChange={(e) => setField("hwAsWas", e.target.value)}
                 placeholder={t("placeholder.hwBefore", "Before changing the hardware")}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.hwAfter", "After changing the hardware")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsIs}
                 onChange={(e) => setField("hwAsIs", e.target.value)}
                 placeholder={t("placeholder.hwAfter", "After changing the hardware")}
@@ -2258,24 +2259,24 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 7: Before Software Change and After the software change */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.swBefore", "Before Software Change")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsWas}
                 onChange={(e) => setField("swAsWas", e.target.value)}
                 placeholder={t("placeholder.swBefore", "Before Software Change")}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.swAfter", "After the software change")}
               </label>
               <input
                 type="text"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsIs}
                 onChange={(e) => setField("swAsIs", e.target.value)}
                 placeholder={t("placeholder.swAfter", "After the software change")}
@@ -2286,11 +2287,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 8: Importance and Types of effects */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.priority", "Importance")}
               </label>
               <select
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
                 value={newRow.priority || "중요"}
                 onChange={(e) => setField("priority", e.target.value)}
               >
@@ -2299,11 +2300,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.category", "Types of effects")}
               </label>
               <select
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
                 value={newRow.category || "기타"}
                 onChange={(e) => setField("category", e.target.value)}
               >
@@ -2318,22 +2319,22 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           {/* Row 9: Date of Completion and Requesting Corporation */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.workedOn", "Date of Completion")}
               </label>
               <input
                 type="date"
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.workedOn}
                 onChange={(e) => setField("workedOn", e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">
+              <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.site", "Requesting Corporation")}
               </label>
               <select
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
                 value={newRow.site}
                 onChange={(e) => setField("site", e.target.value)}
               >
@@ -2356,11 +2357,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       {/* ── Batch addition of VoC Modal ── */}
       {showBatchModal && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 animate-fade-in p-4"
+          className="modal-overlay animate-fade-in"
           onClick={() => setShowBatchModal(false)}
         >
           <div
-            className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative animate-scale-up"
+            className="modal-panel modal-panel-xl p-6 relative animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -2370,17 +2371,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   <i className="fas fa-file-import" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-base font-bold text-text-default">
                     {t("page.mp.batchModalTitle", "Batch addition of VoC")}
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-text-subtlest mt-0.5">
                     {t("page.mp.batchModalDesc", "Batch register VoC items as CSV files")}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-lg border border-border-base flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
                 onClick={() => setShowBatchModal(false)}
               >
                 <i className="fas fa-times text-xs" />
@@ -2402,10 +2403,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   <i className="fas fa-info" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                  <h4 className="text-xs font-bold text-text-default">
                     {t("page.mp.downloadFormTitle", "Download the input form first")}
                   </h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-text-subtlest mt-0.5 leading-relaxed">
                     {t("page.mp.downloadFormDesc", "Required columns: Process, Maintenance Part, Main Work Name, Work Completion Date, Importance, Effect Type, Corporation")}
                   </p>
                 </div>
@@ -2442,7 +2443,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   link.click();
                   document.body.removeChild(link);
                 }}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+                className="bg-surface-default border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
               >
                 <i className="fas fa-download text-xs text-gray-500" />
                 <span>{t("page.mp.downloadFormBtn", "Download Form")}</span>
@@ -2451,7 +2452,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
             {/* Dropzone Card: Select the CSV file */}
             <div
-              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-white dark:bg-gray-800/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-6"
+              className="border-2 border-dashed border-border-base rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-surface-default/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-6"
               onClick={() => batchFileInputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -2470,7 +2471,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               <div className="w-12 h-12 rounded-full bg-[#1745c2] flex items-center justify-center text-white text-xl mb-3 shadow-md">
                 <i className="fas fa-cloud-upload-alt" />
               </div>
-              <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+              <h4 className="text-sm font-bold text-text-default">
                 {t("page.mp.selectCsvTitle", "Select the CSV file")}
               </h4>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -2506,11 +2507,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       {/* ── Storing MP List Modal ── */}
       {showSaveModal && (
         <div
-          className="modal-overlay fixed inset-0 z-[1000] flex items-center justify-center bg-[#0f172a]/40 animate-fade-in p-4 overflow-y-auto"
+          className="modal-overlay animate-fade-in overflow-y-auto"
           onClick={() => setShowSaveModal(false)}
         >
           <div
-            className="w-full max-w-5xl bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up"
+            className="modal-panel modal-panel-2xl p-6 relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -2520,17 +2521,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   <i className="fas fa-save" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-bold text-text-default">
                     {t("page.mp.storingModalTitle", "Storing MP List")}
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                  <p className="text-xs text-text-subtlest mt-0.5 font-medium">
                     {processList.find(p => p.id === selectedProcessId)?.processName || "02. Placement"} · {(filterPayload?.maintenance ?? []).find(m => m.id === selectedMaintenanceId)?.maintenanceGroupName || "0202. Nano Mill"} · {dateFrom || "2025-07-27"} ~ {dateTo || "2026-07-27"} · v1
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                className="w-8 h-8 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-xl border border-border-base flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer shrink-0"
                 onClick={() => setShowSaveModal(false)}
               >
                 <i className="fas fa-times text-xs" />
@@ -2544,7 +2545,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <i className="fas fa-check-circle text-emerald-500 text-sm" />
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                    <h4 className="text-sm font-bold text-text-default">
                       {t("page.mp.applicableItems", "Applicable Items")}
                     </h4>
                     <span className="px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/40">
@@ -2573,10 +2574,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 </div>
 
                 {/* Applicable Items Table */}
-                <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-white dark:bg-gray-800 shadow-2xs">
+                <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-surface-default shadow-2xs">
                   <div className="max-h-60 overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-gray-200 dark:border-gray-700 shadow-2xs">
+                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-border-base shadow-2xs">
                         <tr>
                           <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">#</th>
                           <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
@@ -2601,7 +2602,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           applicableRows.map((row, idx) => (
                             <tr key={`app-${idx}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
                               <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
-                              <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[150px] truncate">
+                              <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">
                                 {getColValue(row, "representativeWork") || "—"}
                               </td>
                               <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[140px] truncate">
@@ -2613,10 +2614,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                               <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[130px] truncate">
                                 {getColValue(row, "hwAfter") || "No information available"}
                               </td>
-                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">
+                              <td className="px-3 py-2 text-text-subtlest max-w-[120px] truncate">
                                 {getColValue(row, "swBefore") || "No information available"}
                               </td>
-                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[120px] truncate">
+                              <td className="px-3 py-2 text-text-subtlest max-w-[120px] truncate">
                                 {getColValue(row, "swAfter") || "No information available"}
                               </td>
                               <td className="px-3 py-2 text-center">
@@ -2659,7 +2660,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <i className="fas fa-times-circle text-red-500 text-sm" />
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                  <h4 className="text-sm font-bold text-text-default">
                     {t("page.mp.notApplicable", "Not Applicable")}
                   </h4>
                   <span className="px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800/40">
@@ -2668,7 +2669,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 </div>
 
                 {/* Not Applicable Table */}
-                <div className="border border-red-200 dark:border-red-800/40 rounded-2xl overflow-hidden border-l-4 border-l-red-500 bg-white dark:bg-gray-800 shadow-2xs">
+                <div className="border border-red-200 dark:border-red-800/40 rounded-2xl overflow-hidden border-l-4 border-l-red-500 bg-surface-default shadow-2xs">
                   {notApplicableRows.length === 0 ? (
                     <div className="py-8 flex flex-col items-center justify-center text-center">
                       <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center text-base mb-2">
@@ -2700,7 +2701,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           {notApplicableRows.map((row, idx) => (
                             <tr key={`not-${idx}`} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
                               <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
-                              <td className="px-3 py-2 font-semibold text-gray-900 dark:text-white max-w-[130px] truncate">
+                              <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">
                                 {getColValue(row, "representativeWork") || "—"}
                               </td>
                               <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">
@@ -2712,10 +2713,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                               <td className="px-3 py-2 text-gray-600 dark:text-gray-300 max-w-[110px] truncate">
                                 {getColValue(row, "hwAfter") || "No information available"}
                               </td>
-                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
+                              <td className="px-3 py-2 text-text-subtlest max-w-[100px] truncate">
                                 {getColValue(row, "swBefore") || "No information available"}
                               </td>
-                              <td className="px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
+                              <td className="px-3 py-2 text-text-subtlest max-w-[100px] truncate">
                                 {getColValue(row, "swAfter") || "No information available"}
                               </td>
                               <td className="px-3 py-2 text-center">

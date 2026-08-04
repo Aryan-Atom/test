@@ -152,6 +152,7 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
 function SelectSkeleton({ width = "100%" }) {
   return (
     <div
+      className="select-skeleton"
       style={{
         width: width,
         height: "38px",
@@ -737,45 +738,21 @@ export function UploadPreviewModal({
   const totalWidth = 60 + 80 + detectedColumns.length * 180;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
-    >
+    <div className="modal-overlay animate-fade-in" onMouseDown={onClose}>
       <div
-        className="flex flex-col rounded-2xl shadow-2xl overflow-hidden"
-        style={{
-          background: "var(--color-surface-default, #fff)",
-          border: "1px solid var(--color-border-base, #e5e7eb)",
-          width: "min(95vw, 1200px)",
-          maxHeight: "88vh",
-        }}
+        className="modal-panel modal-panel-2xl w-full flex flex-col overflow-hidden"
+        style={{ maxHeight: "88vh" }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-4 shrink-0 gap-4"
-          style={{
-            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-            background: "var(--color-surface-raised, #f9fafb)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-sm"
-              style={{
-                background: "var(--color-brand-10, #eff6ff)",
-                color: "var(--color-brand-60, #2563eb)",
-              }}
-            >
+        <div className="modal-header shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="modal-icon-wrap">
               <i className="fas fa-table" />
             </div>
-            <div>
-              <h2
-                className="text-base font-bold"
-                style={{ color: "var(--color-text-default, #111827)" }}
-              >
-                {t("preview.title")}
-              </h2>
-              <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
+            <div className="min-w-0">
+              <h2 className="modal-title">{t("preview.title")}</h2>
+              <p className="modal-description">
                 {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
                 {detectedColumns.length}{t("preview.subtitle")}
@@ -1309,40 +1286,26 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(17, 24, 39, 0.55)", backdropFilter: "blur(3px)" }}
-      onMouseDown={onClose}
-    >
+    <div className="modal-overlay animate-fade-in" onMouseDown={onClose}>
       <form
-        className="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl shadow-2xl"
-        style={{
-          maxHeight: "88vh",
-          background: "var(--color-surface-default, #fff)",
-          border: "1px solid var(--color-border-base, #e5e7eb)",
-        }}
+        className="modal-panel modal-panel-xl w-full flex flex-col overflow-hidden"
+        style={{ maxHeight: "88vh" }}
         onSubmit={handleSubmit}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div
-          className="flex items-start justify-between gap-4 px-6 py-5"
-          style={{
-            background: "linear-gradient(90deg, #eef2ff 0%, #ecfeff 100%)",
-            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
-          }}
-        >
-          <div>
-            <h2 className="text-xl font-extrabold text-text-default">
+        <div className="modal-header shrink-0">
+          <div className="min-w-0">
+            <h2 className="modal-title">
               <i className="fas fa-pen-to-square mr-2 text-brand-60" />
               {t("app.edit")} {t("page.specData.title")}
             </h2>
-            <p className="mt-1 text-sm text-text-subtle">
+            <p className="modal-description">
               {t("preview.total")} <span className="font-semibold">#{index + 1}</span>
             </p>
           </div>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-subtle"
+            className="modal-close-btn shrink-0"
             onClick={onClose}
             aria-label={t("app.close")}
           >
@@ -1350,7 +1313,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
           </button>
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-4 overflow-auto p-6 md:grid-cols-2">
+        <div className="modal-body grid flex-1 grid-cols-1 gap-4 overflow-auto md:grid-cols-2">
           {columns.map((col) => {
             const label = t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col);
             const value = draft[col] ?? "";
@@ -1400,14 +1363,8 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
           })}
         </div>
 
-        <div
-          className="flex justify-end gap-3 px-6 py-4"
-          style={{
-            background: "var(--color-surface-raised, #f9fafb)",
-            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
-          }}
-        >
-          <button type="button" className="btn-base btn-ghost" onClick={onClose}>
+        <div className="modal-footer">
+          <button type="button" className="modal-cancel-btn" onClick={onClose}>
             {t("app.cancel")}
           </button>
           <button type="submit" className="btn-base btn-primary">
@@ -2323,11 +2280,11 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         {/* Page header */}
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-50">
           <div>
-            <h1 className="text-xl md:text-[22px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <h1 className="page-title flex items-center gap-2.5">
               <i className="fas fa-microchip text-[#1745c2] text-xl md:text-[22px]" />
               <span>{t("page.specData.title")}</span>
             </h1>
-            <p className="mt-1 text-[13px] text-slate-500 font-normal">{t("page.specData.desc")}</p>
+            <p className="page-subtitle">{t("page.specData.desc")}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <AnimatedActionButton
