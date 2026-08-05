@@ -595,10 +595,31 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   const maintenanceOptions = useMemo(() => {
     if (selectedProcess === "전체") return [];
-    const raw = [...new Set(allRecords.filter(r => getColValue(r, "process") === selectedProcess).map(r => getColValue(r, "maintGroup")).filter(Boolean))];
-    const allowed = filterData?.maintenance?.filter(m => m.isChangedData === true).map(m => m.maintenanceGroupName) ?? [];
-    if (filterData?.maintenance) {
-      return raw.filter(m => allowed.includes(m)).sort();
+    const raw = [
+      ...new Set(
+        allRecords
+          .filter((r) => getColValue(r, "process") === selectedProcess)
+          .map((r) => getColValue(r, "maintGroup") || getColValue(r, "eqType") || getColValue(r, "equipment"))
+          .filter(Boolean),
+      ),
+    ];
+
+    let allowed = [];
+    if (Array.isArray(filterData?.eqTypes) && filterData.eqTypes.length > 0) {
+      allowed = filterData.eqTypes
+        .filter((e) => e.isChangedData !== false)
+        .map((e) => e.equipmentTypeName || e.eqTypeName || e.name)
+        .filter(Boolean);
+    } else if (Array.isArray(filterData?.maintenance) && filterData.maintenance.length > 0) {
+      allowed = filterData.maintenance
+        .filter((m) => m.isChangedData !== false)
+        .map((m) => m.maintenanceGroupName)
+        .filter(Boolean);
+    }
+
+    if (allowed.length > 0) {
+      const combined = [...new Set([...raw, ...allowed])];
+      return combined.sort();
     }
     return raw.sort();
   }, [allRecords, selectedProcess, filterData]);

@@ -577,24 +577,35 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   }, [filterPayload, selectedProcessId]);
 
   const maintenanceList = useMemo(() => {
-    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData === true);
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const eqTypes = filterPayload?.eqTypes;
+    if (Array.isArray(eqTypes) && eqTypes.length > 0) {
+      let list = eqTypes.filter((item) => item.isChangedData !== false);
+      if (selectedProcessId !== null && selectedProcessId !== undefined) {
+        list = list.filter((item) => Number(item.processId) === Number(selectedProcessId));
+      }
+      return list;
+    }
+
+    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData !== false);
+    if (selectedProcessId === null || selectedProcessId === undefined) return all;
+    return all.filter((m) => Number(m.processId) === Number(selectedProcessId));
   }, [filterPayload, selectedProcessId]);
 
   const repWorkOptions = useMemo(() => {
     const selProcessName = processList.find(p => p.id === selectedProcessId)?.processName;
-    const selMaintName = (filterPayload?.maintenance ?? []).find(m => m.id === selectedMaintenanceId)?.maintenanceGroupName;
+    const selMaintItem = maintenanceList.find(m => m.id === selectedMaintenanceId);
+    const selMaintName = selMaintItem?.equipmentTypeName || selMaintItem?.eqTypeName || selMaintItem?.maintenanceGroupName;
 
     const matched = allRecords.filter(r => {
       const matchProc = !selectedProcessId || getColValue(r, "process") === selProcessName;
-      const matchMaint = !selectedMaintenanceId || getColValue(r, "maintGroup") === selMaintName;
+      const itemMaint = getColValue(r, "maintGroup") || getColValue(r, "eqType") || getColValue(r, "equipment");
+      const matchMaint = !selectedMaintenanceId || itemMaint === selMaintName;
       return matchProc && matchMaint;
     });
 
     const unique = [...new Set(matched.map(r => getColValue(r, "representativeWork")).filter(Boolean))].sort();
     return unique.map(u => ({ label: u, value: u }));
-  }, [allRecords, selectedProcessId, selectedMaintenanceId, processList, filterPayload]);
+  }, [allRecords, selectedProcessId, selectedMaintenanceId, processList, maintenanceList]);
 
   const priorityOptions = useMemo(() => {
     const rawList = [...new Set((filterPayload?.priority ?? []).map((p) => p.priorityName).filter(Boolean))];
@@ -770,13 +781,14 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       return [];
     }
     const selProcessName = processList.find((p) => p.id === selectedProcessId)?.processName;
-    const selMaintName = (filterPayload?.maintenance ?? []).find((m) => m.id === selectedMaintenanceId)?.maintenanceGroupName;
+    const selMaintItem = maintenanceList.find((m) => m.id === selectedMaintenanceId);
+    const selMaintName = selMaintItem?.equipmentTypeName || selMaintItem?.eqTypeName || selMaintItem?.maintenanceGroupName;
 
     let preFiltered = allRecords.filter((item) => {
       const itemProc = getColValue(item, "process");
       const matchProc = !selectedProcessId || itemProc === selProcessName;
 
-      const itemMaint = getColValue(item, "maintGroup");
+      const itemMaint = getColValue(item, "maintGroup") || getColValue(item, "eqType") || getColValue(item, "equipment");
       const matchMaint = !selectedMaintenanceId || itemMaint === selMaintName;
 
       const itemRepWork = getColValue(item, "representativeWork");
@@ -1679,7 +1691,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 <option value="">{t("app.all", "전체")}</option>
                 {maintenanceList.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.maintenanceGroupName}
+                    {item.equipmentTypeName || item.eqTypeName || item.maintenanceGroupName || String(item.id)}
                   </option>
                 ))}
               </select>

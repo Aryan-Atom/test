@@ -199,7 +199,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               normalizeText(row?.process ?? row?.공정) === selectedProcess,
           )
           .map((row) =>
-            normalizeText(row?.maintGroup ?? row?.보전파트 ?? row?.보전그룹),
+            normalizeText(
+              row?.maintGroup ?? row?.보전파트 ?? row?.보전그룹 ?? row?.equipment ?? row?.eqType ?? row?.equipmentType,
+            ),
           ),
       ),
     ]

@@ -12,7 +12,7 @@ import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
-import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import {
   changeDataColumns as staticChangeDataColumns,
   changeFilterDataAndTableData,
@@ -3319,7 +3319,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [applyChangedDataResponse, t]);
 
   const fetchChangedData = useCallback(() => {
-    if (selectedProcessId === null) {
+    if (!isLoadTableDataOnload && selectedProcessId === null) {
       setChangedRecords([]);
       setApiRecords([]);
       setTotalCount(0);
@@ -3635,7 +3635,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
         {/* Data table */}
         <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
-          {selectedProcessId === null ? (
+          {!isLoadTableDataOnload && selectedProcessId === null && !usingApiTableData ? (
             <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-4xl">
                 <i className="fas fa-history" />
