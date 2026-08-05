@@ -126,7 +126,26 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
       : [];
 
   const missing = [];
-  const ALWAYS_MANDATORY_KEYS = ["eqtype", "wotype", "site", "process", "equipmentcode"];
+  const ALWAYS_MANDATORY_KEYS = [
+    "eqtype",
+    "equipmenttype",
+    "equipment_type",
+    "equipment type",
+    "wotype",
+    "wo_type",
+    "wo type",
+    "site",
+    "process",
+    "equipmentcode",
+    "equipment_code",
+    "equipment code",
+    "equipmentname",
+    "equipment_name",
+    "equipment name",
+    "equipment",
+    "maintgroup",
+    "maint_group",
+  ];
 
   list.forEach((col) => {
     const excelName = col.excelColumnName?.trim().toLowerCase();
@@ -141,11 +160,14 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
     if (isMandatoryCol) {
       const matchedKey = Object.keys(row).find((k) => {
         const lk = k.trim().toLowerCase();
-        return lk === excelName || lk === jsonKey || lk === krName;
+        return lk === excelName || lk === jsonKey || lk === krName ||
+               (excelName && (lk.includes(excelName) || excelName.includes(lk))) ||
+               (jsonKey && (lk.includes(jsonKey) || jsonKey.includes(lk)));
       });
 
       const val = matchedKey !== undefined ? row[matchedKey] : undefined;
-      if (val === undefined || val === null || String(val).trim() === "") {
+      const strVal = val != null ? String(val).trim().toLowerCase() : "";
+      if (val === undefined || val === null || strVal === "" || strVal === "required" || strVal === "[required]" || strVal === "필수") {
         missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey);
       }
     }
