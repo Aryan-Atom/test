@@ -733,6 +733,56 @@ function EditableModalRow({
 // ─────────────────────────────────────────────────────────────────────────────
 // UploadPreviewModal
 // ─────────────────────────────────────────────────────────────────────────────
+export function extractDuplicateKeysFromBackend(responseData, rows, getDuplicateKey) {
+  const dupes =
+    responseData?.duplicateKey ||
+    responseData?.duplicateKeys ||
+    responseData?.duplicates ||
+    responseData?.duplicateData ||
+    responseData?.duplicateRecords ||
+    responseData?.duplicateList ||
+    responseData?.key ||
+    (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message || true : null);
+
+  if (!dupes) return new Set();
+
+  const keySet = new Set();
+  const dupList = Array.isArray(dupes) ? dupes : [dupes];
+
+  dupList.forEach((dupItem) => {
+    if (typeof dupItem === "string" || typeof dupItem === "number") {
+      const strItem = String(dupItem).trim().toLowerCase();
+      rows.forEach((row, idx) => {
+        const key = getDuplicateKey ? getDuplicateKey(row) : "";
+        const rowString = JSON.stringify(row).toLowerCase();
+        if ((key && key.toLowerCase().includes(strItem)) || rowString.includes(strItem)) {
+          keySet.add(key || row._originalIndex || idx);
+        }
+      });
+    } else if (typeof dupItem === "object" && dupItem !== null) {
+      rows.forEach((row, idx) => {
+        const rowKey = getDuplicateKey ? getDuplicateKey(row) : (row._originalIndex ?? idx);
+        let isMatch = false;
+        if (dupItem.id && row.id === dupItem.id) isMatch = true;
+        if (dupItem.equipmentCode && (row.equipmentCode === dupItem.equipmentCode || row.equipment_code === dupItem.equipmentCode)) isMatch = true;
+        if (dupItem.woCode && (row.woCode === dupItem.woCode || row.wo_code === dupItem.woCode)) isMatch = true;
+        if (isMatch) {
+          keySet.add(rowKey);
+        }
+      });
+    }
+  });
+
+  if (keySet.size === 0 && rows.length > 0) {
+    rows.forEach((row, idx) => {
+      const key = getDuplicateKey ? getDuplicateKey(row) : (row._originalIndex ?? idx);
+      keySet.add(key);
+    });
+  }
+
+  return keySet;
+}
+
 export function UploadPreviewModal({
   rows: initialRows,
   columns,
@@ -746,6 +796,9 @@ export function UploadPreviewModal({
   const [rows, setRows] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [filterType, setFilterType] = useState("all"); // "all" | "duplicate" | "missing"
+  const [serverDuplicateKeys, setServerDuplicateKeys] = useState(new Set());
+  const [hasServerDuplicates, setHasServerDuplicates] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const headerRef = useRef(null);
 
   // Synchronize initialRows with IndexedDB
@@ -769,6 +822,9 @@ export function UploadPreviewModal({
     }
     setEditingCell(null);
     setFilterType("all");
+    setServerDuplicateKeys(new Set());
+    setHasServerDuplicates(false);
+    setIsSaving(false);
   }, [initialRows]);
 
   // Cleanup preview rows on unmount
@@ -803,11 +859,11 @@ export function UploadPreviewModal({
         // Safe fallback
       }
 
-      if (duplicateRowKeys.has(key)) return true;
-      if ((previewKeysCount[key] || 0) > 1) return true;
+      if (serverDuplicateKeys.has(key) || serverDuplicateKeys.has(row._originalIndex)) return true;
+      if (hasServerDuplicates && duplicateRowKeys.has(key)) return true;
       return false;
     },
-    [duplicateRowKeys, getDuplicateKey, previewKeysCount],
+    [duplicateRowKeys, getDuplicateKey, serverDuplicateKeys, hasServerDuplicates],
   );
 
   const duplicateCount = useMemo(
@@ -912,11 +968,32 @@ export function UploadPreviewModal({
         return;
       }
 
-      await clearPreviewRows();
-      onClose();
-      window.setTimeout(() => onConfirm?.(currentRows), 0);
+      setIsSaving(true);
+      if (onConfirm) {
+        onConfirm(currentRows, (res) => {
+          setIsSaving(false);
+          if (res?.success) {
+            clearPreviewRows().catch(console.error);
+            onClose();
+          } else if (res?.hasDuplicates) {
+            setHasServerDuplicates(true);
+            setServerDuplicateKeys(res.duplicateKeys || new Set());
+            setFilterType("duplicate");
+            alert(
+              t(
+                "preview.backendDuplicatesNotice",
+                "Backend API detected duplicate records. Duplicates filter is now showing."
+              )
+            );
+          }
+        });
+      } else {
+        await clearPreviewRows();
+        onClose();
+      }
     } catch (error) {
       console.error("Failed to read confirmed rows from IndexedDB:", error);
+      setIsSaving(false);
       alert("Error saving data. Please try again.");
     }
   };
@@ -939,7 +1016,7 @@ export function UploadPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
     >
       <div
@@ -980,7 +1057,7 @@ export function UploadPreviewModal({
                 {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
                 {detectedColumns.length}{t("preview.subtitle")}
-                {duplicateCount > 0 && (
+                {hasServerDuplicates && duplicateCount > 0 && (
                   <span className="ml-2 font-bold text-red-600">
                     {duplicateCount} duplicates
                   </span>
@@ -1004,14 +1081,16 @@ export function UploadPreviewModal({
               >
                 {t("preview.filterAll", "전체")} ({rows.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("duplicate")}
-                className={`toggle-btn ${filterType === "duplicate" ? "active" : ""}`}
-                style={filterType === "duplicate" ? { color: "#dc2626" } : undefined}
-              >
-                {t("preview.filterDuplicate", "중복")} ({duplicateCount})
-              </button>
+              {(hasServerDuplicates || serverDuplicateKeys.size > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setFilterType("duplicate")}
+                  className={`toggle-btn ${filterType === "duplicate" ? "active" : ""}`}
+                  style={filterType === "duplicate" ? { color: "#dc2626" } : undefined}
+                >
+                  {t("preview.filterDuplicate", "중복")} ({duplicateCount})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setFilterType("missing")}
@@ -1162,12 +1241,12 @@ export function UploadPreviewModal({
         >
           <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
             <i className="fas fa-info-circle mr-1" />
-            {duplicateCount > 0
+            {hasServerDuplicates && duplicateCount > 0
               ? "Duplicate rows are marked red. Delete them before saving if needed."
               : t("preview.tip")}
           </p>
           <div className="flex gap-3">
-            {duplicateCount > 0 && (
+            {hasServerDuplicates && duplicateCount > 0 && (
               <button
                 type="button"
                 onClick={handleRemoveDuplicates}
@@ -1177,14 +1256,28 @@ export function UploadPreviewModal({
                 Remove duplicates ({duplicateCount})
               </button>
             )}
-            <button type="button" onClick={handleClose} className="btn-base btn-secondary">
+            <button type="button" onClick={handleClose} disabled={isSaving} className="btn-base btn-secondary">
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
             </button>
             {onConfirm && rows.length > 0 && (
-              <button type="button" onClick={handleConfirm} className="btn-base btn-primary">
-                <i className="fas fa-check mr-1.5" />
-                {t("preview.saveCount").replace("{count}", rows.length)}
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={isSaving}
+                className="btn-base btn-primary min-w-[120px] justify-center"
+              >
+                {isSaving ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-1.5" />
+                    {t("app.saving", "Saving...")}
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-check mr-1.5" />
+                    {t("preview.saveCount").replace("{count}", rows.length)}
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -2672,7 +2765,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   // ── MODAL CONFIRM (bulk upload) ───────────────────────────────────────────
   // Send uploaded excel rows directly without comparing or merging with existing records
   const handleModalConfirm = useCallback(
-    (updatedRows) => {
+    (updatedRows, onResult) => {
       const maxId = changedRecords.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
       let nextId = maxId + 1;
 
@@ -2705,29 +2798,26 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           autoClose: true,
         });
         onUpload?.("change_rows", payload);
+        onResult?.({ success: true });
         return;
       }
 
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
-          // Check if response contains a new key or duplicate validation object from backend API
-          const duplicateResponseKey =
-            responseData?.duplicateKey ||
-            responseData?.duplicateKeys ||
-            responseData?.duplicates ||
-            responseData?.duplicateData ||
-            responseData?.newKey ||
-            responseData?.key ||
-            (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message : null);
+          const extractedKeys = extractDuplicateKeysFromBackend(responseData, updatedRows, getPreviewDuplicateKey);
 
-          if (duplicateResponseKey) {
-            console.warn("Backend API returned duplicate validation key/data:", duplicateResponseKey);
+          if (extractedKeys && extractedKeys.size > 0) {
+            console.warn("Backend API returned duplicate validation keys:", extractedKeys);
+            onResult?.({
+              success: false,
+              hasDuplicates: true,
+              duplicateKeys: extractedKeys,
+              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation.")
+            });
             setOperationStatus({
               isVisible: true,
               status: "error",
-              message: typeof duplicateResponseKey === "string"
-                ? `Server validation duplicate key: ${duplicateResponseKey}`
-                : t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
               autoClose: false,
             });
           } else {
@@ -2741,10 +2831,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             });
             onUpload?.("change_rows", payload);
             getFilterDataRef.current?.();
+            onResult?.({ success: true });
           }
         } else {
           console.error("일괄 저장 실패:", responseData);
           const errorMsg = responseData?.message || responseData?.error || t("toast.saveError");
+          onResult?.({ success: false, message: errorMsg });
           setOperationStatus({
             isVisible: true,
             status: "error",
@@ -2754,7 +2846,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       });
     },
-    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys],
+    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys, getPreviewDuplicateKey],
   );
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
@@ -3550,7 +3642,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       {/* Modern Premium Glassmorphic Loading Overlay */}
       {importBusy && (
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[10000] flex flex-col items-center justify-center p-4 backdrop-blur-md"
           style={{ backgroundColor: "rgba(15, 23, 42, 0.45)" }}
         >
           <div

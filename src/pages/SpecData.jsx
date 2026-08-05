@@ -547,6 +547,9 @@ export function UploadPreviewModal({
   const [rows, setRows] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [filterType, setFilterType] = useState("all"); // "all" | "duplicate" | "missing"
+  const [serverDuplicateKeys, setServerDuplicateKeys] = useState(new Set());
+  const [hasServerDuplicates, setHasServerDuplicates] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const headerRef = useRef(null);
 
   // Synchronize initialRows with IndexedDB
@@ -570,6 +573,9 @@ export function UploadPreviewModal({
     }
     setEditingCell(null);
     setFilterType("all");
+    setServerDuplicateKeys(new Set());
+    setHasServerDuplicates(false);
+    setIsSaving(false);
   }, [initialRows]);
 
   // Cleanup preview rows on unmount
@@ -604,11 +610,11 @@ export function UploadPreviewModal({
         // Safe fallback
       }
 
-      if (duplicateRowKeys.has(key)) return true;
-      if ((previewKeysCount[key] || 0) > 1) return true;
+      if (serverDuplicateKeys.has(key) || serverDuplicateKeys.has(row._originalIndex)) return true;
+      if (hasServerDuplicates && duplicateRowKeys.has(key)) return true;
       return false;
     },
-    [duplicateRowKeys, getDuplicateKey, previewKeysCount],
+    [duplicateRowKeys, getDuplicateKey, serverDuplicateKeys, hasServerDuplicates],
   );
 
   const duplicateCount = useMemo(
@@ -713,11 +719,32 @@ export function UploadPreviewModal({
         return;
       }
 
-      await clearPreviewRows("spec_preview_rows");
-      onClose();
-      window.setTimeout(() => onConfirm?.(currentRows), 0);
+      setIsSaving(true);
+      if (onConfirm) {
+        onConfirm(currentRows, (res) => {
+          setIsSaving(false);
+          if (res?.success) {
+            clearPreviewRows("spec_preview_rows").catch(console.error);
+            onClose();
+          } else if (res?.hasDuplicates) {
+            setHasServerDuplicates(true);
+            setServerDuplicateKeys(res.duplicateKeys || new Set());
+            setFilterType("duplicate");
+            alert(
+              t(
+                "preview.backendDuplicatesNotice",
+                "Backend API detected duplicate records. Duplicates filter is now showing."
+              )
+            );
+          }
+        });
+      } else {
+        await clearPreviewRows("spec_preview_rows");
+        onClose();
+      }
     } catch (error) {
       console.error("Failed to read confirmed rows from IndexedDB:", error);
+      setIsSaving(false);
       alert("Error saving data. Please try again.");
     }
   };
@@ -757,7 +784,7 @@ export function UploadPreviewModal({
                 {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
                 {" · "}
                 {detectedColumns.length}{t("preview.subtitle")}
-                {duplicateCount > 0 && (
+                {hasServerDuplicates && duplicateCount > 0 && (
                   <span className="ml-2 font-bold text-red-600">
                     {duplicateCount} duplicates
                   </span>
@@ -785,17 +812,19 @@ export function UploadPreviewModal({
               >
                 {t("preview.filterAll", "전체")} ({rows.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("duplicate")}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                  filterType === "duplicate"
-                    ? "bg-white text-red-600 shadow-sm font-semibold"
-                    : "text-slate-500 hover:text-red-600"
-                }`}
-              >
-                {t("preview.filterDuplicate", "중복")} ({duplicateCount})
-              </button>
+              {(hasServerDuplicates || serverDuplicateKeys.size > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setFilterType("duplicate")}
+                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                    filterType === "duplicate"
+                      ? "bg-white text-red-600 shadow-sm font-semibold"
+                      : "text-slate-500 hover:text-red-600"
+                  }`}
+                >
+                  {t("preview.filterDuplicate", "중복")} ({duplicateCount})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setFilterType("missing")}
@@ -1796,7 +1825,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
   // ── Modal confirm → POST ──────────────────────────────────────────────────
   const handleModalConfirm = useCallback(
-    (updatedRows) => {
+    (updatedRows, onResult) => {
       const uploadedRows = buildChangeDataList(updatedRows);
       const SpecDataList = uploadedRows;
       const payload = { SpecDataList, id: specDataId };
@@ -1812,28 +1841,26 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           autoClose: true,
         });
         onUpload?.("spec_rows", payload);
+        onResult?.({ success: true });
         return;
       }
 
       APIcallPost(pocEndPoints?.SAVE_SPEC_DATA, payload, {}, (responseData, status) => {
         if (status === 200) {
-          const duplicateResponseKey =
-            responseData?.duplicateKey ||
-            responseData?.duplicateKeys ||
-            responseData?.duplicates ||
-            responseData?.duplicateData ||
-            responseData?.newKey ||
-            responseData?.key ||
-            (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message : null);
+          const extractedKeys = extractDuplicateKeysFromBackend(responseData, updatedRows, getPreviewDuplicateKey);
 
-          if (duplicateResponseKey) {
-            console.warn("Backend API returned duplicate validation key/data:", duplicateResponseKey);
+          if (extractedKeys && extractedKeys.size > 0) {
+            console.warn("Backend API returned duplicate validation keys:", extractedKeys);
+            onResult?.({
+              success: false,
+              hasDuplicates: true,
+              duplicateKeys: extractedKeys,
+              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation.")
+            });
             setOperationStatus({
               isVisible: true,
               status: "error",
-              message: typeof duplicateResponseKey === "string"
-                ? `Server validation duplicate key: ${duplicateResponseKey}`
-                : t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
               autoClose: false,
             });
           } else {
@@ -1847,10 +1874,12 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
             });
             onUpload?.("spec_rows", payload);
             getFilterDataRef.current?.();
+            onResult?.({ success: true });
           }
         } else {
           console.error("일괄 저장 실패:", responseData);
           const errorMsg = responseData?.message || responseData?.error || t("toast.saveError");
+          onResult?.({ success: false, message: errorMsg });
           setOperationStatus({
             isVisible: true,
             status: "error",
@@ -1860,7 +1889,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
         }
       });
     },
-    [buildChangeDataList, onUpload, specDataId, t],
+    [buildChangeDataList, onUpload, specDataId, t, getPreviewDuplicateKey],
   );
 
   // ── Upload Excel → parse via API → show preview modal ────────────────────
@@ -2539,7 +2568,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       {/* Modern Premium Glassmorphic Loading Overlay */}
       {importBusy && (
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[10000] flex flex-col items-center justify-center p-4 backdrop-blur-md"
           style={{ backgroundColor: "rgba(15, 23, 42, 0.45)" }}
         >
           <div

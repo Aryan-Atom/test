@@ -991,7 +991,7 @@ tbody tr:not(.expanded-detail-row):hover {
 
 .eq-topbar {
   position: relative;
-  z-index: 200;
+  z-index: 30;
   display: flex;
   height: 60px;
   flex: 0 0 60px;

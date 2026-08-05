@@ -6,13 +6,27 @@ import { APIcallGet } from "../axios/apiCall.js";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useToast } from "./ToastContext.jsx";
 
-export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }) {
+const PAGE_BREADCRUMBS = {
+  home: { section: "nav.main", title: "nav.home" },
+  "dm-change": { section: "nav.data", title: "nav.changeHistory" },
+  "dm-spec": { section: "nav.data", title: "nav.specData" },
+  "mx-matrix": { section: "nav.matrix", title: "nav.matrixView" },
+  "mx-mplist": { section: "nav.matrix", title: "nav.mpList" },
+  "mx-mplist-mgmt": { section: "nav.matrix", title: "nav.mpListManagement" },
+  spec: { section: "nav.dataHeader", title: "nav.specMatrix" },
+  board: { section: "nav.community", title: "nav.board" },
+  admin: { section: "nav.system", title: "nav.admin" },
+};
+
+export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onToggleTheme }) {
   const { language, toggleLanguage, t } = useI18n();
   const isDark = theme === "dark";
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { pushToast } = useToast();
+
+  const breadcrumb = PAGE_BREADCRUMBS[activePage] || { section: null, title: "nav.home" };
 
   const showResetButton = String(import.meta.env.VITE_SHOW_RESET_DATA ?? "")
     .trim()
@@ -43,18 +57,34 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
 
   return (
     <>
-      <header className="eq-topbar">
-        <button
-          type="button"
-          className="eq-topbar-icon"
-          aria-label={t("app.menu")}
-          title={collapsed ? t("app.menu") : t("app.menu")}
-          onClick={onToggleMenu}
-        >
-          <i className="fas fa-bars" />
-        </button>
+      <header className="eq-topbar flex items-center justify-between px-5 h-[60px] border-b border-border-base bg-surface-default/90 backdrop-blur-md z-30 transition-all">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="eq-topbar-icon hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg p-2 transition-colors"
+            aria-label={t("app.menu")}
+            title={collapsed ? t("app.menu") : t("app.menu")}
+            onClick={onToggleMenu}
+          >
+            <i className={`fas ${collapsed ? "fa-indent text-sm" : "fa-bars text-sm"}`} />
+          </button>
 
-        <div className="eq-topbar-actions">
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700/80 h-5">
+            {breadcrumb.section && (
+              <>
+                <span className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+                  {t(breadcrumb.section)}
+                </span>
+                <i className="fas fa-chevron-right text-[9px] text-slate-300 dark:text-slate-600 mx-0.5" />
+              </>
+            )}
+            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100">
+              {t(breadcrumb.title)}
+            </span>
+          </div>
+        </div>
+
+        <div className="eq-topbar-actions flex items-center gap-2.5">
           {showResetButton && (
             <button
               type="button"
@@ -70,12 +100,12 @@ export default function Navbar({ collapsed, onToggleMenu, theme, onToggleTheme }
           )}
           <button
             type="button"
-            className="eq-topbar-icon"
+            className="eq-topbar-icon text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-label={isDark ? t("app.lightMode") : t("app.darkMode")}
             title={isDark ? t("app.lightMode") : t("app.darkMode")}
             onClick={onToggleTheme}
           >
-            <i className={`fas ${isDark ? "fa-sun" : "fa-moon"}`} />
+            <i className={`fas ${isDark ? "fa-sun text-yellow-400" : "fa-moon text-indigo-500"}`} />
           </button>
           <button
             type="button"

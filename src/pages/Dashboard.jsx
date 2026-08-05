@@ -320,6 +320,7 @@ export default function Dashboard() {
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Navbar
+            activePage={activePage}
             collapsed={sidebarCollapsed}
             onToggleMenu={() => setSidebarCollapsed((current) => !current)}
             theme={theme}
