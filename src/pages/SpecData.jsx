@@ -688,28 +688,29 @@ export function UploadPreviewModal({
   }, [isDuplicateRow]);
 
   const handleConfirm = async () => {
-    if (duplicateCount > 0) {
-      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
-      return;
-    }
-
     try {
       const currentRows = await getAllPreviewRows("spec_preview_rows");
 
+      const missingRowsInfo = [];
       for (let i = 0; i < currentRows.length; i++) {
         const missingFields = getMissingMandatoryFields(currentRows[i], detectedColumns, columnDefs);
         if (missingFields.length > 0) {
-          const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
-          alert(
-            t(
-              "preview.mandatoryFieldsRequired",
-              "Row {rowNumber} has empty mandatory fields: {fields}"
-            )
-            .replace("{rowNumber}", i + 1)
-            .replace("{fields}", fieldNames)
-          );
-          return;
+          const fieldNames = missingFields.map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+          missingRowsInfo.push({ rowNum: i + 1, fields: fieldNames });
         }
+      }
+
+      if (missingRowsInfo.length > 0) {
+        setFilterType("missing");
+        const details = missingRowsInfo
+          .slice(0, 5)
+          .map((r) => `Row ${r.rowNum}: [${r.fields}]`)
+          .join("\n");
+        const overflow = missingRowsInfo.length > 5 ? `\n...and ${missingRowsInfo.length - 5} more record(s)` : "";
+        alert(
+          `${t("preview.missingRecordsNotice", "Mandatory fields missing in uploaded records:")}\n\n${details}${overflow}\n\n${t("preview.pleaseFillMissing", "Please fill in all mandatory fields before saving.")}`
+        );
+        return;
       }
 
       await clearPreviewRows("spec_preview_rows");
@@ -1797,19 +1798,13 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
   const handleModalConfirm = useCallback(
     (updatedRows) => {
       const uploadedRows = buildChangeDataList(updatedRows);
-      const uploadedKeys = new Set(
-        uploadedRows.map((row) => buildDuplicateKey(row, {}, duplicateKeyColumns)),
-      );
-      const existingRows = buildChangeDataList(combinedData).filter(
-        (row) => !uploadedKeys.has(buildDuplicateKey(row, {}, duplicateKeyColumns)),
-      );
-      const SpecDataList = [...uploadedRows, ...existingRows];
+      const SpecDataList = uploadedRows;
       const payload = { SpecDataList, id: specDataId };
 
       if (isStaticDataMode) {
         setPreviewRows(null);
         setPreviewColumns(null);
-        setChangedRecords([...SpecDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setChangedRecords((prev) => [...SpecDataList, ...prev].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
         setOperationStatus({
           isVisible: true,
           status: "success",
@@ -1822,28 +1817,50 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
 
       APIcallPost(pocEndPoints?.SAVE_SPEC_DATA, payload, {}, (responseData, status) => {
         if (status === 200) {
-          setPreviewRows(null);
-          setPreviewColumns(null);
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: `${SpecDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
-            autoClose: true,
-          });
-          onUpload?.("spec_rows", payload);
-          getFilterDataRef.current?.();
+          const duplicateResponseKey =
+            responseData?.duplicateKey ||
+            responseData?.duplicateKeys ||
+            responseData?.duplicates ||
+            responseData?.duplicateData ||
+            responseData?.newKey ||
+            responseData?.key ||
+            (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message : null);
+
+          if (duplicateResponseKey) {
+            console.warn("Backend API returned duplicate validation key/data:", duplicateResponseKey);
+            setOperationStatus({
+              isVisible: true,
+              status: "error",
+              message: typeof duplicateResponseKey === "string"
+                ? `Server validation duplicate key: ${duplicateResponseKey}`
+                : t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              autoClose: false,
+            });
+          } else {
+            setPreviewRows(null);
+            setPreviewColumns(null);
+            setOperationStatus({
+              isVisible: true,
+              status: "success",
+              message: `${SpecDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+              autoClose: true,
+            });
+            onUpload?.("spec_rows", payload);
+            getFilterDataRef.current?.();
+          }
         } else {
           console.error("일괄 저장 실패:", responseData);
+          const errorMsg = responseData?.message || responseData?.error || t("toast.saveError");
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message: t("toast.saveError"),
+            message: errorMsg,
             autoClose: true,
           });
         }
       });
     },
-    [buildChangeDataList, combinedData, duplicateKeyColumns, onUpload, specDataId, t],
+    [buildChangeDataList, onUpload, specDataId, t],
   );
 
   // ── Upload Excel → parse via API → show preview modal ────────────────────
@@ -2490,7 +2507,7 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
       <UploadPreviewModal
         rows={previewRows}
         columns={previewColumns}
-        duplicateRowKeys={existingDuplicateKeys}
+        duplicateRowKeys={new Set()}
         getDuplicateKey={getPreviewDuplicateKey}
         onClose={() => {
           setPreviewRows(null);

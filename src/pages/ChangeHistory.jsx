@@ -887,28 +887,29 @@ export function UploadPreviewModal({
   }, [isDuplicateRow]);
 
   const handleConfirm = async () => {
-    if (duplicateCount > 0) {
-      alert(t("preview.duplicateWarning", "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요."));
-      return;
-    }
-
     try {
       const currentRows = await getAllPreviewRows();
 
+      const missingRowsInfo = [];
       for (let i = 0; i < currentRows.length; i++) {
         const missingFields = getMissingMandatoryFields(currentRows[i], detectedColumns, columnDefs);
         if (missingFields.length > 0) {
-          const fieldNames = missingFields.map(col => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
-          alert(
-            t(
-              "preview.mandatoryFieldsRequired",
-              "Row {rowNumber} has empty mandatory fields: {fields}"
-            )
-            .replace("{rowNumber}", i + 1)
-            .replace("{fields}", fieldNames)
-          );
-          return;
+          const fieldNames = missingFields.map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+          missingRowsInfo.push({ rowNum: i + 1, fields: fieldNames });
         }
+      }
+
+      if (missingRowsInfo.length > 0) {
+        setFilterType("missing");
+        const details = missingRowsInfo
+          .slice(0, 5)
+          .map((r) => `Row ${r.rowNum}: [${r.fields}]`)
+          .join("\n");
+        const overflow = missingRowsInfo.length > 5 ? `\n...and ${missingRowsInfo.length - 5} more record(s)` : "";
+        alert(
+          `${t("preview.missingRecordsNotice", "Mandatory fields missing in uploaded records:")}\n\n${details}${overflow}\n\n${t("preview.pleaseFillMissing", "Please fill in all mandatory fields before saving.")}`
+        );
+        return;
       }
 
       await clearPreviewRows();
@@ -2669,8 +2670,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [selectedIds, filtered, changedRecords, t]);
 
   // ── MODAL CONFIRM (bulk upload) ───────────────────────────────────────────
-  // For a fresh bulk upload, merge uploaded rows with existing changedRecords
-  // and send everything with changedDataId.
+  // Send uploaded excel rows directly without comparing or merging with existing records
   const handleModalConfirm = useCallback(
     (updatedRows) => {
       const maxId = changedRecords.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
@@ -2686,25 +2686,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         return clean;
       });
 
-      // Merge: uploaded rows override existing records with same duplicate key,
-      // then append any existing records NOT present in the upload.
-      const uploadedDuplicateKeys = new Set(
-        remappedRows.map((r) => buildDuplicateKey(r, excelToJsonKey, duplicateKeyColumns))
-      );
-      const existingNotOverridden = changedRecords
-        .filter((r) => {
-          const dupKey = buildDuplicateKey(r, excelToJsonKey, duplicateKeyColumns);
-          return !uploadedDuplicateKeys.has(dupKey);
-        })
-        .map((r) => {
-          const clean = buildCleanRow(r);
-          if (!clean.id || clean.id === 0) {
-            clean.id = nextId++;
-          }
-          return clean;
-        });
-
-      const changeDataList = [...remappedRows, ...existingNotOverridden];
+      // Insert all uploaded Excel rows — do NOT merge with existing DB records
+      const changeDataList = remappedRows;
 
       const payload = {
         changeDataList,
@@ -2714,7 +2697,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       if (isStaticDataMode) {
         setPreviewRows(null);
         setPreviewColumns(null);
-        setChangedRecords([...changeDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setChangedRecords((prev) => [...changeDataList, ...prev].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
         setOperationStatus({
           isVisible: true,
           status: "success",
@@ -2727,28 +2710,51 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
-          setPreviewRows(null);
-          setPreviewColumns(null);
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
-            autoClose: true,
-          });
-          onUpload?.("change_rows", payload);
-          getFilterDataRef.current?.();
+          // Check if response contains a new key or duplicate validation object from backend API
+          const duplicateResponseKey =
+            responseData?.duplicateKey ||
+            responseData?.duplicateKeys ||
+            responseData?.duplicates ||
+            responseData?.duplicateData ||
+            responseData?.newKey ||
+            responseData?.key ||
+            (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message : null);
+
+          if (duplicateResponseKey) {
+            console.warn("Backend API returned duplicate validation key/data:", duplicateResponseKey);
+            setOperationStatus({
+              isVisible: true,
+              status: "error",
+              message: typeof duplicateResponseKey === "string"
+                ? `Server validation duplicate key: ${duplicateResponseKey}`
+                : t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              autoClose: false,
+            });
+          } else {
+            setPreviewRows(null);
+            setPreviewColumns(null);
+            setOperationStatus({
+              isVisible: true,
+              status: "success",
+              message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+              autoClose: true,
+            });
+            onUpload?.("change_rows", payload);
+            getFilterDataRef.current?.();
+          }
         } else {
           console.error("일괄 저장 실패:", responseData);
+          const errorMsg = responseData?.message || responseData?.error || t("toast.saveError");
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message: t("toast.saveError"),
+            message: errorMsg,
             autoClose: true,
           });
         }
       });
     },
-    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys, duplicateKeyColumns],
+    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys],
   );
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
@@ -3488,7 +3494,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       <UploadPreviewModal
         rows={previewRows}
         columns={previewColumns}
-        duplicateRowKeys={existingDuplicateKeys}
+        duplicateRowKeys={new Set()}
         getDuplicateKey={getPreviewDuplicateKey}
         onClose={() => {
           setPreviewRows(null);
