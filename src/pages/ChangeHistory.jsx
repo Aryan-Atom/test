@@ -2444,12 +2444,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   // ── Filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId) {
-      return [];
-    }
-
     if (usingApiTableData) {
       return combinedData;
+    }
+
+    if (!selectedProcessId) {
+      return [];
     }
 
     const selectedProcess = selectedProcessId
