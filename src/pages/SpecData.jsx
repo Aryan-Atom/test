@@ -126,12 +126,19 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
       : [];
 
   const missing = [];
-  list.forEach((col) => {
-    if (col.isMandatory) {
-      const excelName = col.excelColumnName?.trim().toLowerCase();
-      const jsonKey = col.jsonKey?.trim().toLowerCase();
-      const krName = col.columnNameKr?.trim().toLowerCase();
+  const ALWAYS_MANDATORY_KEYS = ["eqtype", "wotype", "site", "process", "equipmentcode"];
 
+  list.forEach((col) => {
+    const excelName = col.excelColumnName?.trim().toLowerCase();
+    const jsonKey = col.jsonKey?.trim().toLowerCase();
+    const krName = col.columnNameKr?.trim().toLowerCase();
+
+    const isMandatoryCol =
+      col.isMandatory ||
+      (jsonKey && ALWAYS_MANDATORY_KEYS.includes(jsonKey)) ||
+      (excelName && ALWAYS_MANDATORY_KEYS.includes(excelName));
+
+    if (isMandatoryCol) {
       const matchedKey = Object.keys(row).find((k) => {
         const lk = k.trim().toLowerCase();
         return lk === excelName || lk === jsonKey || lk === krName;
@@ -736,6 +743,11 @@ export function UploadPreviewModal({
                 "Backend API detected duplicate records. Duplicates filter is now showing."
               )
             );
+          } else if (res?.hasValidationError) {
+            setFilterType("missing");
+            alert(res.message || "Validation error occurred on save.");
+          } else if (res?.message) {
+            alert(res.message);
           }
         });
       } else {
@@ -1878,13 +1890,30 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
           }
         } else {
           console.error("일괄 저장 실패:", responseData);
-          const errorMsg = responseData?.message || responseData?.error || t("toast.saveError");
-          onResult?.({ success: false, message: errorMsg });
+          let errorMsg = responseData?.message || responseData?.error || responseData?.title;
+
+          if (responseData?.errors && typeof responseData.errors === "object") {
+            const validationList = [];
+            Object.entries(responseData.errors).forEach(([field, msgs]) => {
+              const fieldName = field.replace(/^(ChangeDataList|SpecDataList)\./i, "");
+              const msgText = Array.isArray(msgs) ? msgs.join(", ") : String(msgs);
+              validationList.push(`${fieldName}: ${msgText}`);
+            });
+            if (validationList.length > 0) {
+              errorMsg = `Backend Validation Error:\n\n${validationList.join("\n")}`;
+            }
+          }
+
+          if (!errorMsg) {
+            errorMsg = t("toast.saveError");
+          }
+
+          onResult?.({ success: false, hasValidationError: true, message: errorMsg });
           setOperationStatus({
             isVisible: true,
             status: "error",
             message: errorMsg,
-            autoClose: true,
+            autoClose: false,
           });
         }
       });
