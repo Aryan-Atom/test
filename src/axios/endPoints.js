@@ -8,7 +8,7 @@ const pocEndPoints = {
   GET_MASTER_DATA: "api/ChangeData/GetMasterData",
   GET_CHANGED_DATA: "api/ChangeData/GetChangedData",
   CHANGE_DATA_COLUMNS: "api/CommonData/GetAllChangeDataColumns",
-  SAVE_DATA_CHANGES: "api/ChangeData",
+  SAVE_DATA_CHANGES: "api/ChangeData/SaveChangedData",
   DELETE_CHANGE_DATA: "api/ChangeData/DeleteChangeData",
   GET_MATRIX_DATA: "api/MatrixInquiry/GetMatrixData",
   GET_SPEC_DATA: "api/SpecData/GetSpecData",

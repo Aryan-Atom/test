@@ -1946,15 +1946,46 @@ export default function SpecData({ data, onUpload, onExport, searchText }) {
               .map((c) => c.excelColumnName)
               .filter(Boolean);
 
-            // Normalize row keys to match excelColumnName exactly (case-insensitive fallback)
+            const KEY_ALIASES = {
+              equipmentcode: ["eqcode", "equipmentcode", "equipment code", "eq_code"],
+              equipmentname: ["eqname", "equipmentname", "equipment name", "eq_name"],
+              wocode: ["w/ocode", "wocode", "wo code", "wo_code"],
+              wotype: ["wotype", "wo type", "wo_type"],
+              representativework: ["rep_work", "repwork", "representative work", "representative_work"],
+              workedon: ["worked date", "workeddate", "worked_date", "workedon", "worked on"],
+              eqtype: ["equipment type", "equipmenttype", "equipment_type", "eqtype", "eq type"],
+              report: ["report content", "reportcontent", "report_content", "report"],
+              work: ["work description", "workdescription", "work_description", "work"],
+              hwasis: ["hw as is", "hwasis", "hw_as_is"],
+              swasis: ["sw as is", "swasis", "sw_as_is"],
+              hwaswas: ["hw as was", "hwaswas", "hw_as_was"],
+              swaswas: ["sw as was", "swaswas", "sw_as_was"],
+              sparepart: ["sparepart", "spare part", "spare_part"],
+            };
+
+            // Normalize row keys to match excelColumnName exactly (case-insensitive & alias fallback)
             const rawRows = Array.isArray(res?.rows) ? res.rows : [];
             const normalizedRows = rawRows.map((row) => {
               const cleanRow = {};
               changeDataColumns.forEach((col) => {
                 if (col.excelColumnName) {
-                  const matchedKey = Object.keys(row).find(
-                    (k) => k.trim().toLowerCase() === col.excelColumnName.trim().toLowerCase(),
-                  );
+                  const excelName = col.excelColumnName?.trim().toLowerCase();
+                  const jsonKey = col.jsonKey?.trim().toLowerCase();
+                  const krName = col.columnNameKr?.trim().toLowerCase();
+
+                  let matchedKey = Object.keys(row).find((k) => {
+                    const lk = k.trim().toLowerCase();
+                    return lk === excelName || lk === jsonKey || lk === krName;
+                  });
+
+                  if (matchedKey === undefined) {
+                    const aliases = KEY_ALIASES[jsonKey] || KEY_ALIASES[excelName] || [];
+                    matchedKey = Object.keys(row).find((k) => {
+                      const lk = k.trim().toLowerCase();
+                      return aliases.includes(lk);
+                    });
+                  }
+
                   cleanRow[col.excelColumnName] =
                     matchedKey !== undefined ? row[matchedKey] : undefined;
                 }
