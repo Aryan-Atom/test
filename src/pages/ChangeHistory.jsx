@@ -2251,16 +2251,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const equipmentTypeList = useMemo(() => {
     const eqTypes = filterPayload?.eqTypes;
     if (Array.isArray(eqTypes) && eqTypes.length > 0) {
-      let list = eqTypes.filter((item) => item.isChangedData === true);
-      if (selectedProcessId) {
-        list = list.filter((item) => item.processId === selectedProcessId);
+      let list = eqTypes.filter((item) => item.isChangedData !== false);
+      if (selectedProcessId !== null && selectedProcessId !== undefined) {
+        list = list.filter((item) => Number(item.processId) === Number(selectedProcessId));
       }
       return list;
     }
 
-    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData === true);
-    if (!selectedProcessId) return all;
-    return all.filter((m) => m.processId === selectedProcessId);
+    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData !== false);
+    if (selectedProcessId === null || selectedProcessId === undefined) return all;
+    return all.filter((m) => Number(m.processId) === Number(selectedProcessId));
   }, [filterPayload, selectedProcessId]);
 
   const columnFilterOptions = useMemo(() => {
@@ -2456,7 +2456,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       ? processList.find((p) => p.id === selectedProcessId)
       : null;
     const selectedEquipmentType = equipmentTypeList.find(
-      (item) => item.id === selectedMaintenanceId,
+      (item) =>
+        selectedMaintenanceId !== null &&
+        selectedMaintenanceId !== undefined &&
+        (String(item.id) === String(selectedMaintenanceId) ||
+          getEquipmentTypeLabel(item) === String(selectedMaintenanceId)),
     );
     const selectedEquipmentTypeName = selectedEquipmentType
       ? getEquipmentTypeLabel(selectedEquipmentType)
