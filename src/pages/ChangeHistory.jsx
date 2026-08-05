@@ -2583,22 +2583,54 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   // ── Build a clean row for the payload (strip internal keys, fill columns) ──
   const buildCleanRow = useCallback(
     (row) => {
-      // Safely strip internal tracking field (_sourceId may not exist)
-      const clean = Object.entries(row).reduce((acc, [key, value]) => {
-        if (key !== "_sourceId") acc[key] = value;
-        return acc;
-      }, {});
-      const fullRow = { id: clean.id ?? 0 };
-      orderedJsonKeys.forEach((key) => {
-        fullRow[key] = clean[key] ?? "";
-      });
-      // Carry over any extra keys not in orderedJsonKeys
-      Object.entries(clean).forEach(([key, value]) => {
-        if (!(key in fullRow)) fullRow[key] = value;
-      });
-      return fullRow;
+      const remapped = remapRowKeys(row, excelToJsonKey);
+
+      const clean = {
+        id: Number(remapped.id ?? row.id ?? 0) || 0,
+        site: String(remapped.site ?? row.site ?? "").trim(),
+        process: String(remapped.process ?? row.process ?? "").trim(),
+        maintGroup: String(remapped.maintGroup ?? remapped.equipment ?? row.maintGroup ?? row.equipment ?? "").trim(),
+        equipmentCode: String(remapped.equipmentCode ?? remapped.equipment_code ?? remapped.eqcode ?? row.equipmentCode ?? row.Eqcode ?? "").trim(),
+        equipmentName: String(remapped.equipmentName ?? remapped.equipment_name ?? remapped.eqname ?? row.equipmentName ?? row.Eqname ?? "").trim(),
+        woCode: String(remapped.woCode ?? remapped.wo_code ?? remapped["w/ocode"] ?? row.woCode ?? row["W/Ocode"] ?? "").trim(),
+        report: String(remapped.report ?? remapped.report_content ?? remapped["report content"] ?? row.report ?? row["report content"] ?? "").trim(),
+        bom: String(remapped.bom ?? row.bom ?? row.BOM ?? "").trim(),
+        sparePart: String(remapped.sparePart ?? remapped["spare part"] ?? remapped.sparepart ?? row.sparePart ?? row.Sparepart ?? "").trim(),
+        workedOn: String(remapped.workedOn ?? remapped.work_date ?? remapped["worked date"] ?? row.workedOn ?? row["worked date"] ?? "").trim(),
+        work: String(remapped.work ?? remapped["work description"] ?? row.work ?? row["work description"] ?? "").trim(),
+        purpose: String(remapped.purpose ?? row.purpose ?? "").trim(),
+        situation: String(remapped.situation ?? row.situation ?? "").trim(),
+        cause: String(remapped.cause ?? row.cause ?? "").trim(),
+        hwAsWas: String(remapped.hwAsWas ?? remapped.hw_was ?? remapped["hw as was"] ?? row.hwAsWas ?? row["HW as was"] ?? "").trim(),
+        hwAsIs: String(remapped.hwAsIs ?? remapped.hw_is ?? remapped["hw as is"] ?? row.hwAsIs ?? row["HW as is"] ?? "").trim(),
+        swAsWas: String(remapped.swAsWas ?? remapped.sw_was ?? remapped["sw as was"] ?? row.swAsWas ?? row["SW as was"] ?? "").trim(),
+        swAsIs: String(remapped.swAsIs ?? remapped.sw_is ?? remapped["sw as is"] ?? row.swAsIs ?? row["SW as is"] ?? "").trim(),
+        representativeWork: String(remapped.representativeWork ?? remapped.rep_work ?? row.representativeWork ?? row.rep_work ?? "").trim(),
+        priority: String(remapped.priority ?? row.priority ?? "").trim(),
+        category: String(remapped.category ?? row.category ?? "").trim(),
+        woType: String(remapped.woType ?? remapped.wotype ?? row.woType ?? row.Wotype ?? "").trim(),
+        woTypeId: Number(remapped.woTypeId ?? row.woTypeId ?? 0) || 0,
+        eqType: String(remapped.eqType ?? remapped["equipment type"] ?? remapped.equipmentType ?? row.eqType ?? row["equipment type"] ?? "").trim(),
+        eqTypeId: Number(remapped.eqTypeId ?? row.eqTypeId ?? 0) || 0,
+        representativeColor: String(remapped.representativeColor ?? row.representativeColor ?? "").trim(),
+        processId: Number(remapped.processId ?? row.processId ?? 0) || 0,
+        categoryId: Number(remapped.categoryId ?? row.categoryId ?? 0) || 0,
+        priorityId: Number(remapped.priorityId ?? row.priorityId ?? 0) || 0,
+        siteId: Number(remapped.siteId ?? row.siteId ?? 0) || 0,
+        maintenanceId: Number(remapped.maintenanceId ?? row.maintenanceId ?? 0) || 0,
+        equipmentId: Number(remapped.equipmentId ?? row.equipmentId ?? 0) || 0,
+      };
+
+      if (!clean.eqType && clean.maintGroup) {
+        clean.eqType = clean.maintGroup;
+      }
+      if (!clean.maintGroup && clean.eqType) {
+        clean.maintGroup = clean.eqType;
+      }
+
+      return clean;
     },
-    [orderedJsonKeys],
+    [excelToJsonKey],
   );
 
   // ── SAVE ROW ──────────────────────────────────────────────────────────────
@@ -2987,9 +3019,39 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                     });
                   }
 
-                  cleanRow[col.excelColumnName] = matchedKey !== undefined ? row[matchedKey] : undefined;
+                  const val = matchedKey !== undefined ? row[matchedKey] : undefined;
+                  cleanRow[col.excelColumnName] = val;
+                  if (jsonKey) cleanRow[jsonKey] = val;
                 }
               });
+
+              // Explicit fallbacks for equipment type and Wotype returned by Excel Upload API
+              const eqTypeVal =
+                row["equipment type"] ||
+                row["equipmentType"] ||
+                row["eqType"] ||
+                row["eqtype"] ||
+                cleanRow.equipment ||
+                cleanRow.eqType;
+
+              if (eqTypeVal) {
+                cleanRow.equipment = cleanRow.equipment || eqTypeVal;
+                cleanRow.eqType = cleanRow.eqType || eqTypeVal;
+                cleanRow["equipment type"] = cleanRow["equipment type"] || eqTypeVal;
+              }
+
+              const woTypeVal =
+                row["Wotype"] ||
+                row["woType"] ||
+                row["wotype"] ||
+                row["wo type"] ||
+                cleanRow.woType;
+
+              if (woTypeVal) {
+                cleanRow.woType = cleanRow.woType || woTypeVal;
+                cleanRow.Wotype = cleanRow.Wotype || woTypeVal;
+              }
+
               return cleanRow;
             });
 
