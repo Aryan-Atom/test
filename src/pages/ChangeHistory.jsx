@@ -54,10 +54,32 @@ function buildExcelToJsonKeyMap(columnDefs) {
 }
 
 function remapRowKeys(row, excelToJsonKey, validKeys = null) {
+  const ALWAYS_ALLOWED = new Set([
+    "id",
+    "eqtype",
+    "equipmenttype",
+    "equipment_type",
+    "equipment type",
+    "eq type",
+    "wotype",
+    "wo_type",
+    "wo type",
+    "maintgroup"
+  ]);
+
   return Object.entries(row).reduce((acc, [key, value]) => {
     const trimmedKey = key.trim();
     const mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
-    if (!validKeys || validKeys.has(trimmedKey.toLowerCase()) || validKeys.has(mappedKey.toLowerCase()) || mappedKey === "id") {
+    const lk = trimmedKey.toLowerCase();
+    const lmk = mappedKey.toLowerCase();
+
+    if (
+      !validKeys ||
+      validKeys.has(lk) ||
+      validKeys.has(lmk) ||
+      ALWAYS_ALLOWED.has(lk) ||
+      ALWAYS_ALLOWED.has(lmk)
+    ) {
       acc[mappedKey] = value;
     }
     return acc;
@@ -2320,6 +2342,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "representativework",
       "priority",
       "category",
+      "eqtype",
+      "equipmenttype",
+      "equipment_type",
+      "equipment type",
+      "eq type",
+      "wotype",
+      "wo_type",
+      "wo type",
       // Excel names
       "site",
       "process",
@@ -2341,7 +2371,15 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "sw_is",
       "rep_work",
       "priority",
-      "category"
+      "category",
+      "eqtype",
+      "equipmenttype",
+      "equipment_type",
+      "equipment type",
+      "eq type",
+      "wotype",
+      "wo_type",
+      "wo type"
     ]);
 
     if (!changeDataColumns || changeDataColumns.length === 0) return null;
