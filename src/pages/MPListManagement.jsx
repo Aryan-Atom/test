@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
 import { mpManagementStaticData, sampleCompareRows } from "./static-data/MPListManagementData.js";
-import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
+import { APIcallGet, APIcallPost, APIcallDelete } from "../axios/apiCall.js";
+import { pocEndPoints } from "../axios/endPoints.js";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -169,28 +171,65 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     setEditNotApplicableRows(generateExpandedNotApplicableRows(v.excludedCount || 40));
   };
 
-  // Combine passed data with static sample data
+  const [apiRows, setApiRows] = useState([]);
+
+  // Combine passed data with API and static sample data
   const combinedRows = useMemo(() => {
     const propRows = Array.isArray(data) ? data : [];
+    if (apiRows.length > 0) {
+      return [...apiRows, ...propRows];
+    }
     if (isStaticDataMode || propRows.length === 0) {
       return [...mpManagementStaticData, ...propRows];
     }
     return propRows;
-  }, [data]);
+  }, [data, apiRows]);
+
+  const [filterPayload, setFilterPayload] = useState(null);
+
+  useEffect(() => {
+    if (!isStaticDataMode) {
+      APIcallGet(`${pocEndPoints?.GET_FILTER_DATA}`, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          setFilterPayload(responseData?.data || responseData);
+        }
+      });
+    }
+  }, []);
 
   const processOptions = useMemo(() => {
-    const list = [
+    let allowed = [];
+    if (Array.isArray(filterPayload?.process) && filterPayload.process.length > 0) {
+      allowed = filterPayload.process
+        .filter((p) => p.isChangedData !== false)
+        .map((p) => p.processName)
+        .filter(Boolean);
+    }
+    const raw = [
       ...new Set(combinedRows.map((row) => normalizeText(row?.process ?? row?.공정))),
-    ]
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+    ].filter(Boolean);
+    const combined = [...new Set([...raw, ...allowed])];
+    const list = combined.sort((a, b) => a.localeCompare(b));
     return list.length > 0 ? list : ["05. Laminator", "03. 성형", "02. Placement"];
-  }, [combinedRows]);
+  }, [combinedRows, filterPayload]);
 
   const [selectedProcess, setSelectedProcess] = useState("05. Laminator");
 
   const maintenanceOptions = useMemo(() => {
-    const list = [
+    let allowed = [];
+    if (Array.isArray(filterPayload?.eqTypes) && filterPayload.eqTypes.length > 0) {
+      allowed = filterPayload.eqTypes
+        .filter((e) => e.isChangedData !== false)
+        .map((e) => e.equipmentTypeName || e.eqTypeName || e.name)
+        .filter(Boolean);
+    } else if (Array.isArray(filterPayload?.maintenance) && filterPayload.maintenance.length > 0) {
+      allowed = filterPayload.maintenance
+        .filter((m) => m.isChangedData !== false)
+        .map((m) => m.maintenanceGroupName)
+        .filter(Boolean);
+    }
+
+    const raw = [
       ...new Set(
         combinedRows
           .filter(
@@ -204,14 +243,79 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             ),
           ),
       ),
-    ]
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+    ].filter(Boolean);
+
+    const combined = [...new Set([...raw, ...allowed])];
+    const list = combined.sort((a, b) => a.localeCompare(b));
     return list.length > 0 ? list : ["0503. RP (440)_2ROLL"];
-  }, [combinedRows, selectedProcess]);
+  }, [combinedRows, selectedProcess, filterPayload]);
 
   const [selectedMaint, setSelectedMaint] = useState("0503. RP (440)_2ROLL");
   const [selectedVersion, setSelectedVersion] = useState(null);
+
+  const fetchMPList = useCallback((processName = "", maintName = "") => {
+    if (isStaticDataMode) return;
+
+    let procId = 0;
+    if (processName && Array.isArray(filterPayload?.process)) {
+      const pObj = filterPayload.process.find(
+        (p) => p.processName === processName || p.name === processName
+      );
+      if (pObj?.id) procId = Number(pObj.id);
+    }
+
+    let eqTypeId = 0;
+    if (maintName) {
+      if (Array.isArray(filterPayload?.eqTypes)) {
+        const eObj = filterPayload.eqTypes.find(
+          (e) => (e.equipmentTypeName || e.eqTypeName || e.name) === maintName
+        );
+        if (eObj?.id) eqTypeId = Number(eObj.id);
+      }
+      if (!eqTypeId && Array.isArray(filterPayload?.maintenance)) {
+        const mObj = filterPayload.maintenance.find(
+          (m) => (m.maintenanceGroupName || m.name) === maintName
+        );
+        if (mObj?.id) eqTypeId = Number(mObj.id);
+      }
+    }
+
+    const reqBody = {
+      processId: procId,
+      equipmentTypeId: eqTypeId,
+      siteId: 0,
+      division: 0,
+      priority: [0],
+      effectType: [0],
+      fromDate: "",
+      toDate: ""
+    };
+
+    APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
+      if (status === 200 && responseData) {
+        const records = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+          ? responseData.data
+          : Array.isArray(responseData?.data?.mpList)
+          ? responseData.data.mpList
+          : Array.isArray(responseData?.mpList)
+          ? responseData.mpList
+          : [];
+        if (records.length > 0) {
+          setApiRows(records);
+        }
+      }
+    });
+  }, [filterPayload]);
+
+  useEffect(() => {
+    if (!isStaticDataMode) {
+      if (isLoadTableDataOnload || selectedProcess || selectedMaint) {
+        fetchMPList(selectedProcess, selectedMaint);
+      }
+    }
+  }, [selectedProcess, selectedMaint, fetchMPList]);
 
   const filteredRows = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -349,8 +453,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       <div className="mgmt-surface flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl shadow-xs">
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-text-subtlest">
-              {t("field.process", "PROCESS")}
+            <label className="text-xs font-semibold text-text-subtlest">
+              {t("field.process", "Process")}
             </label>
             <select
               className="input-base text-xs font-semibold"
@@ -371,8 +475,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-text-subtlest">
-              {t("field.equipmentType", "EQUIPMENT TYPE")}
+            <label className="text-xs font-semibold text-text-subtlest">
+              {t("field.equipmentType", "Equipment Type")}
             </label>
             <select
               className="input-base text-xs font-semibold"
@@ -1255,6 +1359,47 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               <button
                 type="button"
                 onClick={() => {
+                  if (!editingVersion) return;
+                  const versionId = Number(editingVersion.id || editingVersion.versionId || 0);
+
+                  const changeDataList = [
+                    ...editApplicableRows.map((r) => ({
+                      changeHistoryId: Number(r.id || r.changeHistoryId || 0),
+                      isApplicable: true,
+                      reason: r.reasoning || ""
+                    })),
+                    ...editNotApplicableRows.map((r) => ({
+                      changeHistoryId: Number(r.id || r.changeHistoryId || 0),
+                      isApplicable: false,
+                      reason: r.reasoning || ""
+                    }))
+                  ];
+
+                  const equipmentIds = editEquipmentIds
+                    .map((id) => Number(id) || 0)
+                    .filter((id) => id > 0);
+
+                  const actionItems = editConsultations.map((c) => ({
+                    date: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+                    title: c.title || "",
+                    attendees: c.attendees || ""
+                  }));
+
+                  const reqPayload = {
+                    versionId,
+                    changeDataList,
+                    equipmentIds,
+                    actionItems
+                  };
+
+                  if (!isStaticDataMode && pocEndPoints?.EDIT_MP_VERSION) {
+                    APIcallPost(pocEndPoints.EDIT_MP_VERSION, reqPayload, {}, (responseData, status) => {
+                      if (status === 200) {
+                        fetchMPList(selectedProcess, selectedMaint);
+                      }
+                    });
+                  }
+
                   setEditingVersion(null);
                 }}
                 className="btn-base btn-primary text-xs px-8 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
@@ -1327,8 +1472,21 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 type="button"
                 className="btn-base flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 onClick={() => {
-                  const key = String(rowToDelete.id || rowToDelete.version);
+                  if (!rowToDelete) return;
+                  const targetId = rowToDelete.id || rowToDelete.versionId || rowToDelete.version;
+                  const key = String(targetId);
+
                   setDeletedRowIds((prev) => new Set([...prev, key]));
+
+                  if (!isStaticDataMode && pocEndPoints?.DELETE_MP_LIST_ITEM && targetId) {
+                    const url = `${pocEndPoints.DELETE_MP_LIST_ITEM}/${targetId}`;
+                    APIcallDelete(url, {}, (responseData, status) => {
+                      if (status === 200) {
+                        fetchMPList(selectedProcess, selectedMaint);
+                      }
+                    });
+                  }
+
                   setRowToDelete(null);
                 }}
               >

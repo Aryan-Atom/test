@@ -11,11 +11,15 @@ const pocEndPoints = {
   SAVE_DATA_CHANGES: "api/ChangeData/SaveChangedData",
   DELETE_CHANGE_DATA: "api/ChangeData/DeleteChangeData",
   GET_MATRIX_DATA: "api/MatrixInquiry/GetMatrixData",
+  GET_CHANGE_MATRIX: "api/MatrixInquiry/GetChangeMatrix",
   GET_SPEC_DATA: "api/SpecData/GetSpecData",
   SAVE_SPEC_DATA: "api/SpecData",
   UPDATE_REPRESENTATIVE_WORK: "api/CommonData/UpdateRepresentativeWork",
   RESET_DATA: "api/CommonData/ResetData",
   GET_COMMON_DATA_COUNTS: "api/CommonData/GetCommonDataCounts",
+  GET_MP_LIST: "api/MPData/GetMPList",
+  EDIT_MP_VERSION: "api/MPData/EditMPVersion",
+  DELETE_MP_LIST_ITEM: "api/MPData/DeleteMpListItem",
 };
 
 const auth = {

@@ -165,7 +165,7 @@ function getRecordDetails(item, t) {
   return [...orderedDetails, ...extraDetails];
 }
 
-export default function Drawer({ item, onClose }) {
+export default function Drawer({ item, onClose, allowEdit = false, showEdit = false }) {
   const { t } = useI18n();
 
   const [previewImage, setPreviewImage] = useState(null);
@@ -337,16 +337,18 @@ export default function Drawer({ item, onClose }) {
                       </div>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingRecord({ ...rec });
-                      }}
-                      className="drawer-edit-btn"
-                    >
-                      <i className="fas fa-edit text-xs" />
-                      <span>{t("app.edit", "편집")}</span>
-                    </button>
+                    {(allowEdit || showEdit) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRecord({ ...rec });
+                        }}
+                        className="drawer-edit-btn"
+                      >
+                        <i className="fas fa-edit text-xs" />
+                        <span>{t("app.edit", "편집")}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );

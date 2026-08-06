@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { APIcallGet, APIcallPost } from "../axios/apiCall";
 import { pocEndPoints } from "../axios/endPoints";
 import { useI18n } from "../i18n.jsx";
-import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 
@@ -427,6 +427,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedWoTypes, setSelectedWoTypes] = useState([]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 3);
@@ -586,11 +587,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
     const raw = [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))];
-    const allowed = filterData?.process?.filter(p => p.isChangedData === true).map(p => p.processName) ?? [];
-    if (filterData?.process) {
-      return raw.filter(p => allowed.includes(p)).sort();
-    }
-    return raw.sort();
+    const allowed = (filterData?.process ?? [])
+      .filter(p => p.isChangedData !== false)
+      .map(p => p.processName)
+      .filter(Boolean);
+    const combined = [...new Set([...raw, ...allowed])];
+    return combined.sort();
   }, [allRecords, filterData]);
 
   const maintenanceOptions = useMemo(() => {
@@ -629,11 +631,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
       (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance)
     ).map(r => getColValue(r, "site")).filter(Boolean))];
-    const allowed = filterData?.site?.filter(s => s.isChangedData === true).map(s => s.siteName) ?? [];
-    if (filterData?.site) {
-      return raw.filter(s => allowed.includes(s)).sort();
-    }
-    return raw.sort();
+    const allowed = (filterData?.site ?? [])
+      .filter(s => s.isChangedData !== false)
+      .map(s => s.siteName)
+      .filter(Boolean);
+    const combined = [...new Set([...raw, ...allowed])];
+    return combined.sort();
   }, [allRecords, selectedProcess, selectedMaintenance, filterData]);
 
   const repWorkOptions = useMemo(() => {
@@ -656,6 +659,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
     return rawList;
   }, [filterData]);
+
+  const woTypeOptions = useMemo(() => {
+    const rawFromApi = (filterData?.woTypes ?? [])
+      .map((w) => w.woTypeName || w.name || w.woType)
+      .filter(Boolean);
+    const rawFromRecords = [
+      ...new Set(allRecords.map((r) => getColValue(r, "woType")).filter(Boolean)),
+    ];
+    const combined = [...new Set([...rawFromApi, ...rawFromRecords])];
+    if (combined.length === 0) {
+      return ["CM(개량)", "BM(고장)", "PM(예방)", "ETC(기타)"];
+    }
+    return combined;
+  }, [filterData, allRecords]);
 
   // Cascade Option Handlers
   const handleProcessChange = (e) => {
@@ -718,7 +735,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // Filtered rows for the matrix table
   const filtered = useMemo(() => {
-    if (selectedProcess === "전체") {
+    if (!isLoadTableDataOnload && selectedProcess === "전체") {
       return [];
     }
     return allRecords.filter((item) => {
@@ -739,6 +756,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       const itemCategory = getColValue(item, "category");
       if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) return false;
+
+      const itemWoType = getColValue(item, "woType");
+      if (selectedWoTypes.length > 0 && !selectedWoTypes.includes(itemWoType)) return false;
 
       const dateStr = getFormattedDateString(getColValue(item, "workedOn"));
       if (dateStr) {
@@ -766,6 +786,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     selectedRepWork,
     selectedPriorities,
     selectedCategories,
+    selectedWoTypes,
     startDate,
     endDate,
     searchText,
@@ -1190,7 +1211,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
   };
 
-  const showLanding = selectedProcess === "전체";
+  const showLanding = !isLoadTableDataOnload && selectedProcess === "전체";
 
   if (loading) {
     return (
@@ -1328,6 +1349,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               options={categoryOptions.map((c) => ({ label: c, value: c }))}
               selectedValues={selectedCategories}
               onChange={setSelectedCategories}
+              t={t}
+              minWidth="104px"
+            />
+          </div>
+
+          {/* WO 유형 */}
+          <div className="flex items-center gap-2 flex-none" style={{ minWidth: "190px" }}>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.woType", "WO유형")}</label>
+            <MultiSelect
+              options={woTypeOptions.map((w) => ({ label: w, value: w }))}
+              selectedValues={selectedWoTypes}
+              onChange={setSelectedWoTypes}
               t={t}
               minWidth="104px"
             />

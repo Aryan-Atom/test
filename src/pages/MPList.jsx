@@ -567,11 +567,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   // ── Derived cascade option lists ──────────────────────────────────────────
   const processList = useMemo(() => {
-    return (filterPayload?.process ?? []).filter((p) => p.isChangedData === true);
+    return (filterPayload?.process ?? []).filter((p) => p.isChangedData !== false);
   }, [filterPayload]);
 
   const siteList = useMemo(() => {
-    const all = (filterPayload?.site ?? []).filter((s) => s.isChangedData === true);
+    const all = (filterPayload?.site ?? []).filter((s) => s.isChangedData !== false);
     if (!selectedProcessId) return all;
     return all.filter((s) => s.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
