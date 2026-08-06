@@ -153,6 +153,8 @@ function extractChangedRecords(payload) {
 
 function parseTotalCountFromResponse(responseData, payload, rowsLength, currentPage, pageSize) {
   const candidates = [
+    payload?.pagination?.totalCount,
+    responseData?.data?.pagination?.totalCount,
     responseData?.totalCount,
     responseData?.totalRecords,
     responseData?.totalRows,
@@ -3719,7 +3721,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
 
           {/* Pagination bar */}
-          {selectedProcessId !== null && paginationTotalItems > 0 && (
+          {paginationTotalItems > 0 && (
             <Pagination
               currentPage={currentPage}
               pageSize={pageSize}

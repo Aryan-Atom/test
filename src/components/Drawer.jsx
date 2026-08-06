@@ -54,29 +54,30 @@ const COLUMN_LABEL_KEYS = {
 };
 
 const CHANGE_DETAIL_FIELDS = [
-  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName"] },
-  { labelKey: "field.equipmentCode", keys: ["equipmentCode"] },
-  { labelKey: "field.woCode", keys: ["wOCode", "woCode"] },
+  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName", "rep_work"] },
+  { labelKey: "field.equipmentCode", keys: ["equipmentCode", "equipment_code", "eqCode", "eqcode"] },
+  { labelKey: "field.woCode", keys: ["wOCode", "woCode", "wo_code", "w/ocode"] },
   { labelKey: "field.process", keys: ["process", "processName"] },
-  { labelKey: "field.equipmentName", keys: ["equipmentName"] },
-  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName"] },
-  { labelKey: "field.improvement", keys: ["improvement"] },
-  { labelKey: "field.work", keys: ["work", "purpose"] },
+  { labelKey: "field.equipmentName", keys: ["equipmentName", "equipment_name", "eqName", "eqname"] },
+  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName", "equipment", "eqType", "equipmentType"] },
+  { labelKey: "field.improvement", keys: ["work", "work_description", "improvement"] },
+  { labelKey: "field.workPurpose", keys: ["purpose", "work_purpose"] },
   { labelKey: "field.situation", keys: ["situation"] },
   { labelKey: "field.cause", keys: ["cause"] },
-  { labelKey: "field.bom", keys: ["bom"] },
-  { labelKey: "field.sparePart", keys: ["sparePart"] },
-  { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore"] },
-  { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter"] },
-  { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore"] },
-  { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter"] },
-  { labelKey: "field.report", keys: ["report"] },
+  { labelKey: "field.bom", keys: ["bom", "BOM"] },
+  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part"] },
+  { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore", "hw_was"] },
+  { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter", "hw_is"] },
+  { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was"] },
+  { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter", "sw_is"] },
+  { labelKey: "field.report", keys: ["report", "report_content"] },
   { labelKey: "field.site", keys: ["site", "siteName"] },
-  { labelKey: "field.workedOn", keys: ["workedOn"] },
+  { labelKey: "field.workedOn", keys: ["workedOn", "work_date", "worked_date"] },
   { labelKey: "field.priority", keys: ["priority", "priorityName"] },
   { labelKey: "field.category", keys: ["category", "categoryName"] },
-  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "author", "registrant"] },
-  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "registeredDate"] },
+  { labelKey: "field.woType", keys: ["woType", "wo_type", "wotype"] },
+  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
+  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
   { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
   { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
@@ -90,8 +91,8 @@ const SPEC_DETAIL_FIELDS = [
   { labelKey: "field.version", keys: ["version"] },
   { labelKey: "field.specName", keys: ["specName"] },
   { labelKey: "field.specValue", keys: ["specValue"] },
-  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "author", "registrant"] },
-  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "registeredDate"] },
+  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
+  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
   { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
   { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
@@ -119,10 +120,10 @@ function getRecordDetails(item, t) {
   const orderedFields = rowLooksLikeSpec(item) ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
   const usedKeys = new Set(orderedFields.flatMap((field) => field.keys));
 
-  const registeredByVal = firstValue(item, ["registeredBy", "createdBy", "author", "registrant"]) || "admin";
-  const registeredAtVal = firstValue(item, ["registeredAt", "createdAt", "creationDate", "registeredDate"]) || firstValue(item, ["workedOn"]) || "2026-07-09 16:11:24";
+  const registeredByVal = firstValue(item, ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"]) || "admin";
+  const registeredAtVal = firstValue(item, ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"]) || firstValue(item, ["workedOn", "work_date"]) || "2026-06-26";
   const editedByVal = firstValue(item, ["editedBy", "modifiedBy", "editor"]) || (item?._modified || item?.isDirty ? "admin" : "");
-  const editedAtVal = firstValue(item, ["editedAt", "modifiedAt", "modificationDate", "editedDate"]) || (item?._modified || item?.isDirty ? "2026-07-09 16:11:24" : "");
+  const editedAtVal = firstValue(item, ["editedAt", "modifiedAt", "modificationDate", "editedDate"]) || (item?._modified || item?.isDirty ? "2026-06-26 16:11:24" : "");
 
   const orderedDetails = orderedFields
     .map((field) => {
