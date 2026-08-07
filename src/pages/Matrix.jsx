@@ -704,11 +704,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [getFilterData]);
 
   useEffect(() => {
-    if (!filterData) return;
-    if (isLoadTableDataOnload || selectedProcess !== "전체") {
+    if (isLoadTableDataOnload || (selectedProcess && selectedProcess !== "전체")) {
       fetchMatrixData();
     }
-  }, [filterData, fetchMatrixData]);
+  }, [fetchMatrixData]);
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
