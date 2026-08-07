@@ -66,6 +66,11 @@ const clearCookies = async () => {
 };
 
 const APIcallGet = async (url, headers = {}, callback, logoutOnTokenExpiry = false) => {
+  if (!url || typeof url !== "string" || url.includes("undefined")) {
+    console.warn(`[APIcallGet] Aborted call due to invalid URL: ${url}`);
+    if (typeof callback === "function") callback(null, 400);
+    return;
+  }
   try {
     const response = await axios.get(`${endpoint}${url}`, {
       headers: {
@@ -93,6 +98,11 @@ const APIcallGet = async (url, headers = {}, callback, logoutOnTokenExpiry = fal
 };
 
 const APIcallPost = async (url, reqBody, headers = {}, callback, logoutOnTokenExpiry = false) => {
+  if (!url || typeof url !== "string" || url.includes("undefined")) {
+    console.warn(`[APIcallPost] Aborted call due to invalid URL: ${url}`);
+    if (typeof callback === "function") callback(null, 400);
+    return;
+  }
   try {
     const response = await axios.post(`${endpoint}${url}`, reqBody, {
       headers: {
@@ -179,6 +189,11 @@ const APIcallDelete = async (
   logoutOnTokenExpiry = false,
   data = {},
 ) => {
+  if (!url || typeof url !== "string" || url.includes("undefined")) {
+    console.warn(`[APIcallDelete] Aborted call due to invalid URL: ${url}`);
+    if (typeof callback === "function") callback(null, 400);
+    return;
+  }
   try {
     const response = await axios.delete(`${endpoint}${url}`, {
       headers: {

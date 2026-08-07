@@ -8,7 +8,7 @@ import JSZip from "jszip";
 import ExportDropdown from "../components/ExportDropdown.jsx";
 import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
-import { isStaticDataMode } from "../utils/staticDataMode.js";
+import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 
@@ -776,17 +776,24 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const fetchMPList = useCallback(() => {
     if (isStaticDataMode) return;
 
+    const sanitizeArrayOfNums = (arr) => {
+      if (!Array.isArray(arr) || arr.length === 0) return [0];
+      const res = arr
+        .map((item) => {
+          const num = Number(item);
+          return isNaN(num) ? 0 : num;
+        })
+        .filter((val) => !isNaN(val));
+      return res.length > 0 ? res : [0];
+    };
+
     const reqBody = {
-      processId: selectedProcessId ? Number(selectedProcessId) : 0,
-      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-      siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+      processId: selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
+      equipmentTypeId: selectedMaintenanceId && !isNaN(Number(selectedMaintenanceId)) ? Number(selectedMaintenanceId) : 0,
+      siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
       division: 0,
-      priority: Array.isArray(selectedPriorities) && selectedPriorities.length > 0
-        ? selectedPriorities.map(Number)
-        : [0],
-      effectType: Array.isArray(selectedCategories) && selectedCategories.length > 0
-        ? selectedCategories.map(Number)
-        : [0],
+      priority: sanitizeArrayOfNums(selectedPriorities),
+      effectType: sanitizeArrayOfNums(selectedCategories),
       fromDate: dateFrom || "",
       toDate: dateTo || "",
     };
