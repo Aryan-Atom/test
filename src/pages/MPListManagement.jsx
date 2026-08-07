@@ -1548,7 +1548,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     reqPayload,
                     {},
                     (responseData, status) => {
-                      if (status === 200) {
+                      if (status >= 200 && status < 300) {
                         setEditingVersion(null);
                         fetchMPVersion(selectedProcess, selectedMaint);
                         fetchMPList(selectedProcess, selectedMaint);
@@ -1653,7 +1653,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   const url = `${pocEndPoints.DELETE_MP_LIST_ITEM}/${targetId}`;
                   APIcallDelete(url, {}, (responseData, status) => {
                     setRowToDelete(null);
-                    if (status === 200) {
+                    if (status >= 200 && status < 300) {
                       fetchMPVersion(selectedProcess, selectedMaint);
                       fetchMPList(selectedProcess, selectedMaint);
                     } else {

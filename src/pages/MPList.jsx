@@ -1172,6 +1172,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       setShowModal(false);
       setIsDirty(true);
     } else {
+      // Validation check before Add VoC
+      if (!newRow.representativeWork?.trim() && !newRow.situation?.trim() && !newRow.problemSymptom?.trim()) {
+        setModalError(t("mp.validationRequired", "대표 작업명 또는 문제 현상을 입력해 주세요."));
+        return;
+      }
+      setModalError("");
+
       // Add VoC Mode via API
       const vocItem = {
         id: 0,
@@ -1241,7 +1248,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       }
 
       APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-        if (status === 200) {
+        if (status >= 200 && status < 300) {
           setOperationStatus({
             isVisible: true,
             status: "success",
@@ -1324,7 +1331,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     }
 
     APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-      if (status === 200) {
+      if (status >= 200 && status < 300) {
         setOperationStatus({
           isVisible: true,
           status: "success",
@@ -1399,7 +1406,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
     APIcallPost(pocEndPoints.SAVE_MP_VERSION, payload, {}, (responseData, status) => {
       setSavingAll(false);
-      if (status === 200) {
+      if (status >= 200 && status < 300) {
         setIsDirty(false);
         setShowSaveModal(false);
         fetchMPList();

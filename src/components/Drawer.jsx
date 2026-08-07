@@ -297,7 +297,7 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
 
     if (!isStaticDataMode && pocEndPoints?.SAVE_IMAGE) {
       APIcallPost(pocEndPoints.SAVE_IMAGE, saveImagePayload, {}, (responseData, status) => {
-        if (status === 200) {
+        if (status >= 200 && status < 300) {
           console.log("SaveImage API success:", responseData);
         } else {
           console.error("SaveImage API failed:", status, responseData);

@@ -1208,7 +1208,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       { data: dataPayload },
       {},
       (responseData, status) => {
-        if (status === 200) {
+        if (status >= 200 && status < 300) {
           setOperationStatus({
             isVisible: true,
             status: "success",
@@ -1280,7 +1280,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
     APIcallPost(pocEndPoints.UPDATE_REPRESENTATIVE_WORK, updatePayload, {}, (responseData, status) => {
       setReplacing(false);
-      if (status === 200) {
+      if (status >= 200 && status < 300) {
         setShowReplaceModal(false);
         setOperationStatus({
           isVisible: true,
