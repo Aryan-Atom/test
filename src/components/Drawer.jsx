@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import { useI18n } from "../i18n.jsx";
+import { APIcallPost } from "../axios/apiCall.js";
+import { pocEndPoints } from "../axios/endPoints.js";
+import { isStaticDataMode } from "../utils/staticDataMode.js";
 
 const COLUMN_LABEL_KEYS = {
   process: "field.process",
@@ -54,32 +57,30 @@ const COLUMN_LABEL_KEYS = {
 };
 
 const CHANGE_DETAIL_FIELDS = [
-  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName", "rep_work"] },
+  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName", "rep_work", "workName", "repWorkId"] },
   { labelKey: "field.equipmentCode", keys: ["equipmentCode", "equipment_code", "eqCode", "eqcode"] },
-  { labelKey: "field.woCode", keys: ["wOCode", "woCode", "wo_code", "w/ocode"] },
+  { labelKey: "field.woCode", keys: ["wOCode", "woCode", "wo_code", "w/ocode", "workOrderTypeName"] },
   { labelKey: "field.process", keys: ["process", "processName"] },
   { labelKey: "field.equipmentName", keys: ["equipmentName", "equipment_name", "eqName", "eqname"] },
-  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName", "equipment", "eqType", "equipmentType"] },
-  { labelKey: "field.improvement", keys: ["work", "work_description", "improvement"] },
-  { labelKey: "field.workPurpose", keys: ["purpose", "work_purpose"] },
+  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName", "equipment", "eqType", "equipmentType", "equipmentTypeName", "maintenanceGroupName"] },
+  { labelKey: "field.improvement", keys: ["work", "work_description", "improvement", "workName"] },
+  { labelKey: "field.workPurpose", keys: ["purpose", "work_purpose", "workPurpose"] },
   { labelKey: "field.situation", keys: ["situation"] },
   { labelKey: "field.cause", keys: ["cause"] },
   { labelKey: "field.bom", keys: ["bom", "BOM"] },
-  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part"] },
-  { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore", "hw_was"] },
-  { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter", "hw_is"] },
-  { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was"] },
-  { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter", "sw_is"] },
-  { labelKey: "field.report", keys: ["report", "report_content"] },
+  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part", "materialName"] },
+  { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore", "hw_was", "hwWas"] },
+  { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter", "hw_is", "hwIs"] },
+  { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was", "swWas"] },
+  { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter", "sw_is", "swIs"] },
+  { labelKey: "field.report", keys: ["report", "report_content", "reportContent"] },
   { labelKey: "field.site", keys: ["site", "siteName"] },
-  { labelKey: "field.workedOn", keys: ["workedOn", "work_date", "worked_date"] },
+  { labelKey: "field.workedOn", keys: ["workedOn", "work_date", "worked_date", "workDate"] },
   { labelKey: "field.priority", keys: ["priority", "priorityName"] },
   { labelKey: "field.category", keys: ["category", "categoryName"] },
-  { labelKey: "field.woType", keys: ["woType", "wo_type", "wotype"] },
+  { labelKey: "field.woType", keys: ["woType", "wo_type", "wotype", "workOrderTypeName"] },
   { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
   { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
-  { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
-  { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
 
 const SPEC_DETAIL_FIELDS = [
@@ -93,8 +94,6 @@ const SPEC_DETAIL_FIELDS = [
   { labelKey: "field.specValue", keys: ["specValue"] },
   { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
   { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
-  { labelKey: "field.editedBy", keys: ["editedBy", "modifiedBy", "editor"] },
-  { labelKey: "field.editedAt", keys: ["editedAt", "modifiedAt", "modificationDate", "editedDate"] },
 ];
 
 const DEMO_SAMPLE_ATTACHMENT = {
@@ -117,21 +116,42 @@ function rowLooksLikeSpec(item) {
 }
 
 function getRecordDetails(item, t) {
-  const orderedFields = rowLooksLikeSpec(item) ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
+  const isSpec = rowLooksLikeSpec(item);
+  const rawFields = isSpec ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
+
+  const modifiedByVal = firstValue(item, ["modifiedBy", "editedBy", "updatedBy", "editor"]);
+  const modifiedAtVal = firstValue(item, ["modifiedAt", "editedAt", "updatedAt", "modificationDate"]);
+  const hasModified = Boolean(modifiedByVal || modifiedAtVal);
+
+  const lastByField = hasModified
+    ? { labelKey: "field.editedBy", keys: ["modifiedBy", "editedBy", "updatedBy", "editor"] }
+    : { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] };
+
+  const lastAtField = hasModified
+    ? { labelKey: "field.editedAt", keys: ["modifiedAt", "editedAt", "updatedAt", "modificationDate"] }
+    : { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] };
+
+  const baseFields = rawFields.filter(
+    (f) =>
+      f.labelKey !== "field.registeredBy" &&
+      f.labelKey !== "field.registeredAt" &&
+      f.labelKey !== "field.editedBy" &&
+      f.labelKey !== "field.editedAt",
+  );
+
+  const orderedFields = [...baseFields, lastByField, lastAtField];
   const usedKeys = new Set(orderedFields.flatMap((field) => field.keys));
 
   const registeredByVal = firstValue(item, ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"]) || "admin";
   const registeredAtVal = firstValue(item, ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"]) || firstValue(item, ["workedOn", "work_date"]) || "2026-06-26";
-  const editedByVal = firstValue(item, ["editedBy", "modifiedBy", "editor"]) || (item?._modified || item?.isDirty ? "admin" : "");
-  const editedAtVal = firstValue(item, ["editedAt", "modifiedAt", "modificationDate", "editedDate"]) || (item?._modified || item?.isDirty ? "2026-06-26 16:11:24" : "");
 
   const orderedDetails = orderedFields
     .map((field) => {
       let val = firstValue(item, field.keys);
       if (field.labelKey === "field.registeredBy" && !val) val = registeredByVal;
       if (field.labelKey === "field.registeredAt" && !val) val = registeredAtVal;
-      if (field.labelKey === "field.editedBy" && !val) val = editedByVal;
-      if (field.labelKey === "field.editedAt" && !val) val = editedAtVal;
+      if (field.labelKey === "field.editedBy" && !val) val = modifiedByVal;
+      if (field.labelKey === "field.editedAt" && !val) val = modifiedAtVal;
 
       return {
         labelKey: field.labelKey,
@@ -155,6 +175,10 @@ function getRecordDetails(item, t) {
         key !== "type" &&
         key !== "attachments" &&
         key !== "samplePhoto" &&
+        key !== "imageId" &&
+        key !== "imageName" &&
+        key !== "imageData" &&
+        key !== "imageCategoryName" &&
         value !== undefined,
     )
     .map(([key, value]) => ({
@@ -178,17 +202,32 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
   const isArray = Array.isArray(item);
   const firstItem = isArray ? item[0] : item;
 
-  const woCode = firstValue(firstItem, ["wOCode", "woCode"]);
+  const woCode = firstValue(firstItem, ["wOCode", "woCode", "workOrderTypeName"]);
   const equipmentName = firstValue(firstItem, ["equipmentName"]);
   const equipmentCode = firstValue(firstItem, ["equipmentCode"]);
 
   const getAttachments = (rec, idx = 0) => {
-    const recKey = rec.id || rec.wOCode || rec.woCode || `rec-${idx}`;
+    const recKey = rec.id || rec.changeHistoryId || rec.wOCode || rec.woCode || `rec-${idx}`;
     if (attachmentsMap[recKey] !== undefined) {
       return attachmentsMap[recKey];
     }
-    if (rec.attachments && Array.isArray(rec.attachments)) {
+    if (rec.attachments && Array.isArray(rec.attachments) && rec.attachments.length > 0) {
       return rec.attachments;
+    }
+    if (rec.imageData || rec.imageUrl || rec.imageName) {
+      const src = rec.imageData
+        ? (rec.imageData.startsWith("data:") ? rec.imageData : `data:image/jpeg;base64,${rec.imageData}`)
+        : rec.imageUrl;
+      if (src) {
+        return [
+          {
+            id: rec.imageId || `att-${idx}`,
+            name: rec.imageName || "attachment.jpg",
+            url: src,
+            category: rec.imageCategoryName || "기타",
+          },
+        ];
+      }
     }
     if (rec.wOCode === "W009056401" || rec.woCode === "W009056401" || rec.samplePhoto) {
       return [DEMO_SAMPLE_ATTACHMENT];
@@ -200,19 +239,35 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newAtts = files.map((file, i) => ({
-      id: `att-${Date.now()}-${i}`,
-      name: file.name,
-      url: URL.createObjectURL(file),
-      category: activeTab === "problem" ? "문제 현상" : activeTab === "after" ? "개선 후" : activeTab === "equipment" ? "설비 참고" : "기타",
-    }));
+    files.forEach((file, i) => {
+      const categoryLabel =
+        activeTab === "problem"
+          ? "문제 현상"
+          : activeTab === "after"
+          ? "개선 후"
+          : activeTab === "equipment"
+          ? "설비 참고"
+          : "기타";
 
-    setAttachmentsMap((prev) => {
-      const existing = prev[recKey] || (editingRecord?.attachments ? [...editingRecord.attachments] : []);
-      return {
-        ...prev,
-        [recKey]: [...existing, ...newAtts],
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64Str = evt.target.result;
+        const newAtt = {
+          id: `att-${Date.now()}-${i}`,
+          name: file.name,
+          url: base64Str,
+          fileContent: base64Str,
+          category: categoryLabel,
+        };
+        setAttachmentsMap((prev) => {
+          const existing = prev[recKey] || (editingRecord?.attachments ? [...editingRecord.attachments] : []);
+          return {
+            ...prev,
+            [recKey]: [...existing, newAtt],
+          };
+        });
       };
+      reader.readAsDataURL(file);
     });
   };
 
@@ -225,6 +280,30 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
     editingRecord._modified = true;
     editingRecord.editedBy = "admin";
     editingRecord.editedAt = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+    const historyId = Number(editingRecord.id || editingRecord.historyId || editingRecord.changeHistoryId || 0);
+    const imagesPayload = updatedAtts.map((att, idx) => ({
+      filename: att.name || att.filename || `image_${idx + 1}.png`,
+      fileContent: att.fileContent || att.url || "",
+      category: att.category || "기타",
+      caption: att.caption || att.name || "",
+      sortOrder: idx,
+    }));
+
+    const saveImagePayload = {
+      historyId,
+      images: imagesPayload,
+    };
+
+    if (!isStaticDataMode && pocEndPoints?.SAVE_IMAGE) {
+      APIcallPost(pocEndPoints.SAVE_IMAGE, saveImagePayload, {}, (responseData, status) => {
+        if (status === 200) {
+          console.log("SaveImage API success:", responseData);
+        } else {
+          console.error("SaveImage API failed:", status, responseData);
+        }
+      });
+    }
 
     setEditingRecord(null);
   };
@@ -309,14 +388,14 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     ))}
                   </dl>
 
-                  <div className="detail-group-footer">
-                    {atts && atts.length > 0 ? (
+                  {atts && atts.length > 0 && (
+                    <div className="detail-group-footer">
                       <div className="flex flex-col gap-1.5">
                         <span className="detail-attachment-label">
                           {atts[0].category || "기타"} ({atts.length})
                         </span>
                         <div
-                          className="detail-attachment-thumb group"
+                          className="detail-attachment-thumb group cursor-pointer"
                           onClick={() => setPreviewImage(atts[0])}
                           title={atts[0].name}
                         >
@@ -330,26 +409,21 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                           </div>
                         </div>
                       </div>
-                    ) : (
-                      <div className="detail-attachment-empty">
-                        <i className="far fa-image text-sm" />
-                        <span>{t("drawer.noPhoto", "첨부된 사진이 없습니다")}</span>
-                      </div>
-                    )}
 
-                    {(allowEdit || showEdit) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingRecord({ ...rec });
-                        }}
-                        className="drawer-edit-btn"
-                      >
-                        <i className="fas fa-edit text-xs" />
-                        <span>{t("app.edit", "편집")}</span>
-                      </button>
-                    )}
-                  </div>
+                      {(allowEdit || showEdit) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRecord({ ...rec });
+                          }}
+                          className="drawer-edit-btn"
+                        >
+                          <i className="fas fa-edit text-xs" />
+                          <span>{t("app.edit", "편집")}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

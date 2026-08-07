@@ -252,6 +252,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   const [selectedMaint, setSelectedMaint] = useState("0503. RP (440)_2ROLL");
   const [selectedVersion, setSelectedVersion] = useState(null);
+  const [apiVersionList, setApiVersionList] = useState([]);
 
   const fetchMPList = useCallback((processName = "", maintName = "") => {
     if (isStaticDataMode) return;
@@ -309,13 +310,126 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     });
   }, [filterPayload]);
 
+  const fetchMPVersion = useCallback((processName = "", maintName = "") => {
+    if (isStaticDataMode) return;
+
+    let procId = 0;
+    if (processName && Array.isArray(filterPayload?.process)) {
+      const pObj = filterPayload.process.find(
+        (p) => p.processName === processName || p.name === processName
+      );
+      if (pObj?.id) procId = Number(pObj.id);
+    }
+
+    let eqTypeId = 0;
+    if (maintName) {
+      if (Array.isArray(filterPayload?.eqTypes)) {
+        const eObj = filterPayload.eqTypes.find(
+          (e) => (e.equipmentTypeName || e.eqTypeName || e.name) === maintName
+        );
+        if (eObj?.id) eqTypeId = Number(eObj.id);
+      }
+      if (!eqTypeId && Array.isArray(filterPayload?.maintenance)) {
+        const mObj = filterPayload.maintenance.find(
+          (m) => (m.maintenanceGroupName || m.name) === maintName
+        );
+        if (mObj?.id) eqTypeId = Number(mObj.id);
+      }
+    }
+
+    const reqBody = {
+      processId: procId,
+      equipmentTypeId: eqTypeId
+    };
+
+    APIcallPost(pocEndPoints.GET_MP_VERSION, reqBody, {}, (responseData, status) => {
+      if (status === 200 && responseData) {
+        const versions = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+          ? responseData.data
+          : Array.isArray(responseData?.data?.mpVersionList)
+          ? responseData.data.mpVersionList
+          : Array.isArray(responseData?.mpVersionList)
+          ? responseData.mpVersionList
+          : [];
+        if (versions.length > 0) {
+          setApiVersionList(versions);
+        }
+      }
+    });
+  }, [filterPayload]);
+
+  const handleCopyVersion = useCallback((versionItem) => {
+    const confirmMessage = t("page.mpManagement.confirmCopy", "이 버전을 복사하여 새 버전으로 생성하시겠습니까?");
+    if (!window.confirm(confirmMessage)) return;
+
+    let procId = 0;
+    if (selectedProcess && Array.isArray(filterPayload?.process)) {
+      const pObj = filterPayload.process.find(
+        (p) => p.processName === selectedProcess || p.name === selectedProcess
+      );
+      if (pObj?.id) procId = Number(pObj.id);
+    }
+
+    let eqTypeId = 0;
+    if (selectedMaint) {
+      if (Array.isArray(filterPayload?.eqTypes)) {
+        const eObj = filterPayload.eqTypes.find(
+          (e) => (e.equipmentTypeName || e.eqTypeName || e.name) === selectedMaint
+        );
+        if (eObj?.id) eqTypeId = Number(eObj.id);
+      }
+      if (!eqTypeId && Array.isArray(filterPayload?.maintenance)) {
+        const mObj = filterPayload.maintenance.find(
+          (m) => (m.maintenanceGroupName || m.name) === selectedMaint
+        );
+        if (mObj?.id) eqTypeId = Number(mObj.id);
+      }
+    }
+
+    const rows = Array.isArray(versionItem.rows)
+      ? versionItem.rows
+      : Array.isArray(versionItem.changeDataList)
+      ? versionItem.changeDataList
+      : apiRows;
+
+    const changeDataList = rows.map((r) => ({
+      changeHistoryId: Number(r.id || r.changeHistoryId || r.mpListId || 0),
+      isApplicable: r.isApplicable !== false,
+      reason: r.reason || r.nonImplReason || r.reasoning || ""
+    }));
+
+    const payload = {
+      id: 0,
+      processId: procId,
+      equipmentTypeId: eqTypeId,
+      changeDataList
+    };
+
+    if (isStaticDataMode) {
+      alert(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."));
+      return;
+    }
+
+    APIcallPost(pocEndPoints.SAVE_MP_VERSION, payload, {}, (responseData, status) => {
+      if (status === 200) {
+        fetchMPVersion(selectedProcess, selectedMaint);
+        fetchMPList(selectedProcess, selectedMaint);
+      } else {
+        console.error("SaveMPVersion copy failed:", status, responseData);
+      }
+    });
+  }, [selectedProcess, selectedMaint, filterPayload, apiRows, fetchMPVersion, fetchMPList, t]);
+
   useEffect(() => {
     if (!isStaticDataMode) {
       if (isLoadTableDataOnload || selectedProcess || selectedMaint) {
         fetchMPList(selectedProcess, selectedMaint);
+        fetchMPVersion(selectedProcess, selectedMaint);
       }
     }
-  }, [selectedProcess, selectedMaint, fetchMPList]);
+  }, [selectedProcess, selectedMaint, fetchMPList, fetchMPVersion]);
 
   const filteredRows = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -408,10 +522,31 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   }, [filteredRows, selectedMaint, selectedProcess, t]);
 
   const displayVersionRows = useMemo(() => {
+    if (apiVersionList.length > 0) {
+      return apiVersionList
+        .map((item, idx) => ({
+          id: item.id || item.mpVersionId || item.versionId || idx + 1,
+          version: item.versionName || item.version || `v${item.versionId || idx + 1}`,
+          period: item.period || (item.fromDate && item.toDate ? `${String(item.fromDate).slice(0, 10)} ~ ${String(item.toDate).slice(0, 10)}` : "2025-08-07 ~ 2026-08-07"),
+          appliedCount: item.appliedCount ?? item.applicableCount ?? item.applied_count ?? 15,
+          excludedCount: item.excludedCount ?? item.nonApplicableCount ?? item.excluded_count ?? 0,
+          facilityId: item.facilityId ?? item.equipmentId ?? "—",
+          consultation: item.consultation ?? item.agreements ?? "—",
+          registeredBy: item.registeredBy ?? item.createdBy ?? "admin",
+          registeredAt: item.registeredAt ?? item.createdAt ?? item.createdDate ?? "2026-08-07 07:41:25",
+          editedBy: item.editedBy ?? item.updatedBy ?? item.modifiedBy ?? item.registeredBy ?? "admin",
+          editedAt: item.editedAt ?? item.updatedAt ?? item.modifiedAt ?? item.registeredAt ?? "2026-08-07 07:41:25",
+          rows: Array.isArray(item.changeDataList) ? item.changeDataList : Array.isArray(item.rows) ? item.rows : filteredRows,
+          equipmentIds: [item.facilityId ? String(item.facilityId) : "—"],
+          reviewLabel: `${item.appliedCount ?? 15} ${t("page.mpManagement.reviewCount", "건 협의 이력")}`,
+        }))
+        .filter((v) => !deletedRowIds.has(String(v.id || v.version)));
+    }
+
     return versionRows.filter(
       (v) => !deletedRowIds.has(String(v.id || v.version))
     );
-  }, [versionRows, deletedRowIds]);
+  }, [apiVersionList, versionRows, filteredRows, deletedRowIds, t]);
 
   const showLanding = !selectedProcess || !selectedMaint;
 
@@ -594,13 +729,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                             <button
                               type="button"
                               className="text-blue-600 hover:text-blue-800 p-1 cursor-pointer transition-colors"
-                              title="View"
+                              title={t("app.copy", "복사")}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedVersion(v);
+                                handleCopyVersion(v);
                               }}
                             >
-                              <i className="fas fa-eye text-xs" />
+                              <i className="fas fa-copy text-xs" />
                             </button>
                             <button
                               type="button"
@@ -1360,19 +1495,28 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 type="button"
                 onClick={() => {
                   if (!editingVersion) return;
-                  const versionId = Number(editingVersion.id || editingVersion.versionId || 0);
+                  const versionId = Number(
+                    editingVersion.id ||
+                      editingVersion.mpVersionId ||
+                      editingVersion.versionId ||
+                      0,
+                  );
 
                   const changeDataList = [
                     ...editApplicableRows.map((r) => ({
-                      changeHistoryId: Number(r.id || r.changeHistoryId || 0),
+                      changeHistoryId: Number(
+                        r.id || r.changeHistoryId || r.mpListId || 0,
+                      ),
                       isApplicable: true,
-                      reason: r.reasoning || ""
+                      reason: "",
                     })),
                     ...editNotApplicableRows.map((r) => ({
-                      changeHistoryId: Number(r.id || r.changeHistoryId || 0),
+                      changeHistoryId: Number(
+                        r.id || r.changeHistoryId || r.mpListId || 0,
+                      ),
                       isApplicable: false,
-                      reason: r.reasoning || ""
-                    }))
+                      reason: r.reasoning || r.nonImplReason || r.reason || "",
+                    })),
                   ];
 
                   const equipmentIds = editEquipmentIds
@@ -1380,27 +1524,43 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     .filter((id) => id > 0);
 
                   const actionItems = editConsultations.map((c) => ({
-                    date: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+                    date: c.date
+                      ? new Date(c.date).toISOString()
+                      : new Date().toISOString(),
                     title: c.title || "",
-                    attendees: c.attendees || ""
+                    attendees: c.attendees || "",
                   }));
 
                   const reqPayload = {
                     versionId,
                     changeDataList,
                     equipmentIds,
-                    actionItems
+                    actionItems,
                   };
 
-                  if (!isStaticDataMode && pocEndPoints?.EDIT_MP_VERSION) {
-                    APIcallPost(pocEndPoints.EDIT_MP_VERSION, reqPayload, {}, (responseData, status) => {
-                      if (status === 200) {
-                        fetchMPList(selectedProcess, selectedMaint);
-                      }
-                    });
+                  if (isStaticDataMode) {
+                    setEditingVersion(null);
+                    return;
                   }
 
-                  setEditingVersion(null);
+                  APIcallPost(
+                    pocEndPoints.EDIT_MP_VERSION,
+                    reqPayload,
+                    {},
+                    (responseData, status) => {
+                      if (status === 200) {
+                        setEditingVersion(null);
+                        fetchMPVersion(selectedProcess, selectedMaint);
+                        fetchMPList(selectedProcess, selectedMaint);
+                      } else {
+                        console.error(
+                          "EditMPVersion failed:",
+                          status,
+                          responseData,
+                        );
+                      }
+                    },
+                  );
                 }}
                 className="btn-base btn-primary text-xs px-8 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
               >
@@ -1473,21 +1633,33 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 className="btn-base flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 onClick={() => {
                   if (!rowToDelete) return;
-                  const targetId = rowToDelete.id || rowToDelete.versionId || rowToDelete.version;
-                  const key = String(targetId);
+                  const targetId = Number(
+                    rowToDelete.id ||
+                      rowToDelete.mpVersionId ||
+                      rowToDelete.versionId ||
+                      0,
+                  );
+                  const key = String(targetId || rowToDelete.version || "");
 
-                  setDeletedRowIds((prev) => new Set([...prev, key]));
-
-                  if (!isStaticDataMode && pocEndPoints?.DELETE_MP_LIST_ITEM && targetId) {
-                    const url = `${pocEndPoints.DELETE_MP_LIST_ITEM}/${targetId}`;
-                    APIcallDelete(url, {}, (responseData, status) => {
-                      if (status === 200) {
-                        fetchMPList(selectedProcess, selectedMaint);
-                      }
-                    });
+                  if (key) {
+                    setDeletedRowIds((prev) => new Set([...prev, key]));
                   }
 
-                  setRowToDelete(null);
+                  if (isStaticDataMode || !targetId || targetId <= 0) {
+                    setRowToDelete(null);
+                    return;
+                  }
+
+                  const url = `${pocEndPoints.DELETE_MP_LIST_ITEM}/${targetId}`;
+                  APIcallDelete(url, {}, (responseData, status) => {
+                    setRowToDelete(null);
+                    if (status === 200) {
+                      fetchMPVersion(selectedProcess, selectedMaint);
+                      fetchMPList(selectedProcess, selectedMaint);
+                    } else {
+                      console.error("DeleteMpListItem failed:", status, responseData);
+                    }
+                  });
                 }}
               >
                 <i className="fas fa-trash-alt text-xs" />

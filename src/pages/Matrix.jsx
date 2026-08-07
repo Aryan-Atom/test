@@ -355,7 +355,7 @@ function normalizeName(value) {
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? row["ëŒ€í‘œì ‘ì—…ëª…"] ?? row["ëŒ€í‘œ ì ‘ì—…ëª…"] ?? "";
+    return row.representative_work_name ?? row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
   }
   if (col === "work") {
     return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
@@ -385,31 +385,31 @@ function getColValue(row, col) {
     return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
-    return row.priority ?? row["중요도"] ?? row["ì¤‘ìš”ë „"] ?? "";
+    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
   }
   if (col === "category") {
-    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? row["íš¨ê³¼ ìœ í˜•"] ?? row["íš¨ê³¼ìœ í˜•"] ?? "";
+    return row.category_name ?? row.categoryName ?? row.category ?? row["효과 유형"] ?? row["효과유형"] ?? "";
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
-    return row.workedOn ?? row["작업완료일"] ?? "";
+    return row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
   }
   if (col === "process") {
-    return row.process ?? row["공정"] ?? row["ê³µì •"] ?? "";
+    return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? row["유지보수 그룹"] ?? row["유지보수그룹"] ?? row.equipment ?? row["ë³´ì „íŒŒíŠ¸"] ?? row["ë³´ì „ê·¸ë£¹"] ?? row["ìœ ì§€ë³´ìˆ˜ ê·¸ë£¹"] ?? "";
+    return row.equipment_type_name ?? row.equipmentTypeName ?? row.maintGroup ?? row["보전파트"] ?? row.equipment ?? "";
   }
   if (col === "site") {
-    return row.site ?? row["법인"] ?? row["사이트"] ?? "";
+    return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
   if (col === "equipmentCode") {
-    return row.equipmentCode ?? row["설비코드"] ?? "";
+    return row.equipment_code ?? row.equipmentCode ?? row["설비코드"] ?? "";
   }
   if (col === "equipmentName") {
-    return row.equipmentName ?? row["설비명"] ?? "";
+    return row.equipment_name ?? row.equipmentName ?? row["설비명"] ?? "";
   }
   return row[col] ?? "";
 }
@@ -465,12 +465,56 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [asActiveTab, setAsActiveTab] = useState("unconfirmed");
   const [asSelectedEqCodes, setAsSelectedEqCodes] = useState(new Set());
   const [asStaging, setAsStaging] = useState({});
+  const [apiStatusCounts, setApiStatusCounts] = useState({
+    wo_applied: 0,
+    before_verification: 0,
+    applied: 0,
+    not_applied: 0,
+    hasFetched: false,
+  });
 
   const openApplyStatusModal = useCallback((repWork) => {
-    setAsRepWork(repWork);
+    const repWorkName = typeof repWork === "object" ? repWork.representativeWork || repWork.workName || "" : repWork;
+    const repWorkId = typeof repWork === "object" ? repWork.id || repWork.repWorkId || repWork.representativeWorkId || 0 : 0;
+
+    setAsRepWork(repWorkName || repWork);
     setAsActiveTab("unconfirmed");
     setAsSelectedEqCodes(new Set());
     setAsStaging({});
+    setApiStatusCounts({
+      wo_applied: 0,
+      before_verification: 0,
+      applied: 0,
+      not_applied: 0,
+      hasFetched: false,
+    });
+
+    if (!isStaticDataMode) {
+      const url = repWorkId > 0
+        ? `${pocEndPoints.GET_EQUIPMENT_STATUS_COUNT}?repWorkId=${repWorkId}`
+        : pocEndPoints.GET_EQUIPMENT_STATUS_COUNT;
+
+      APIcallGet(url, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          const countsObj = Array.isArray(responseData)
+            ? responseData[0]
+            : Array.isArray(responseData?.data)
+            ? responseData.data[0]
+            : responseData?.data || responseData;
+
+          if (countsObj) {
+            setApiStatusCounts({
+              wo_applied: Number(countsObj.wo_applied ?? countsObj.woApplied ?? 0),
+              before_verification: Number(countsObj.before_verification ?? countsObj.beforeVerification ?? countsObj.unconfirmed ?? 0),
+              applied: Number(countsObj.applied ?? 0),
+              not_applied: Number(countsObj.not_applied ?? countsObj.notApplied ?? countsObj.rejected ?? 0),
+              hasFetched: true,
+            });
+          }
+        }
+      });
+    }
+
     setShowApplyStatusModal(true);
   }, []);
 
@@ -580,9 +624,91 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     });
   }, [pocEndPoints, APIcallGet]);
 
+  const fetchMatrixData = useCallback(() => {
+    if (isStaticDataMode) return;
+
+    let processId = 0;
+    if (selectedProcess !== "전체" && Array.isArray(filterData?.process)) {
+      const match = filterData.process.find((p) => p.processName === selectedProcess);
+      if (match) processId = match.id ?? match.processId ?? 0;
+    }
+
+    let equipmentId = 0;
+    if (selectedMaintenance !== "전체") {
+      const eqTypes = filterData?.eqTypes ?? filterData?.maintenance ?? [];
+      const match = eqTypes.find(
+        (e) => (e.equipmentTypeName || e.eqTypeName || e.maintenanceGroupName || e.name) === selectedMaintenance,
+      );
+      if (match) equipmentId = match.id ?? match.equipmentTypeId ?? match.maintenanceGroupId ?? 0;
+    }
+
+    let siteId = 0;
+    if (selectedSite !== "전체" && Array.isArray(filterData?.site)) {
+      const match = filterData.site.find((s) => s.siteName === selectedSite);
+      if (match) siteId = match.id ?? match.siteId ?? 0;
+    }
+
+    let categoryId = 0;
+    if (selectedCategories.length > 0 && Array.isArray(filterData?.category)) {
+      const match = filterData.category.find((c) => selectedCategories.includes(c.categoryName || c.name));
+      if (match) categoryId = match.id ?? match.categoryId ?? 0;
+    }
+
+    let priorityId = 0;
+    if (selectedPriorities.length > 0 && Array.isArray(filterData?.priority)) {
+      const match = filterData.priority.find((p) => selectedPriorities.includes(p.priorityName || p.name));
+      if (match) priorityId = match.id ?? match.priorityId ?? 0;
+    }
+
+    let workOrderId = 0;
+    if (selectedRepWork !== "전체" && Array.isArray(filterData?.representations)) {
+      const match = filterData.representations.find((r) => r.representativeWorkName === selectedRepWork);
+      if (match) workOrderId = match.id ?? match.representativeWorkId ?? 0;
+    }
+
+    const payload = {
+      processId: Number(processId) || 0,
+      equipmentId: Number(equipmentId) || 0,
+      siteId: Number(siteId) || 0,
+      categoryId: Number(categoryId) || 0,
+      priorityId: Number(priorityId) || 0,
+      workOrderId: Number(workOrderId) || 0,
+      fromDate: startDate || "",
+      toDate: endDate || "",
+    };
+
+    APIcallPost(pocEndPoints.GET_CHANGE_MATRIX, payload, {}, (responseData, status) => {
+      if (status === 200 && responseData) {
+        const raw = responseData?.data ?? responseData;
+        const records = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
+        setAllRecords(records);
+      } else {
+        console.warn("[Matrix] GetChangeMatrix API failed:", status, responseData);
+      }
+    });
+  }, [
+    isStaticDataMode,
+    selectedProcess,
+    selectedMaintenance,
+    selectedSite,
+    selectedCategories,
+    selectedPriorities,
+    selectedRepWork,
+    startDate,
+    endDate,
+    filterData,
+  ]);
+
   useEffect(() => {
     getFilterData();
   }, [getFilterData]);
+
+  useEffect(() => {
+    if (!filterData) return;
+    if (isLoadTableDataOnload || selectedProcess !== "전체") {
+      fetchMatrixData();
+    }
+  }, [filterData, fetchMatrixData]);
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
@@ -1015,6 +1141,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   const handleApplyStatusAction = (targetStatus) => {
     if (asSelectedEqCodes.size === 0) return;
+    const count = asSelectedEqCodes.size;
     setAsStaging((prev) => {
       const next = { ...prev };
       asSelectedEqCodes.forEach((code) => {
@@ -1023,6 +1150,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       return next;
     });
     setAsSelectedEqCodes(new Set());
+
+    const targetLabel = targetStatus === "applied" ? "적용" : "미적용";
+    setOperationStatus({
+      isVisible: true,
+      status: "success",
+      message: `${count}건을 ${targetLabel}으로 이동했습니다`,
+      autoClose: true,
+    });
   };
 
   const handleSaveApplyStatus = () => {
@@ -1031,49 +1166,70 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       return;
     }
 
-    setAllRecords((prevRecords) => {
-      const updated = [...prevRecords];
+    const statusMap = {
+      wo_applied: 0,
+      unconfirmed: 1,
+      applied: 2,
+      rejected: 3,
+    };
 
-      Object.entries(asStaging).forEach(([eqCode, newStatus]) => {
-        const existingIdx = updated.findIndex(
-          (r) =>
-            getColValue(r, "equipmentCode") === eqCode &&
-            getColValue(r, "representativeWork") === asRepWork
-        );
-
-        if (existingIdx >= 0) {
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            apply_status: newStatus,
-          };
-        } else {
-          const eqInfo = equipmentRows.find((eq) => eq.equipmentCode === eqCode);
-          if (eqInfo) {
-            const maxId = updated.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
-            const newRecord = {
-              id: maxId + 1,
-              process: selectedProcess !== "전체" ? selectedProcess : "02. 배칭",
-              maintGroup: selectedMaintenance !== "전체" ? selectedMaintenance : "0202. Nano Mill",
-              equipmentCode: eqInfo.equipmentCode,
-              equipmentName: eqInfo.equipmentName,
-              site: eqInfo.site || "A3. 부산",
-              representativeWork: asRepWork,
-              apply_status: newStatus,
-              workedOn: new Date().toISOString().split("T")[0],
-              priority: "일반",
-              category: "보전성",
-            };
-            updated.push(newRecord);
-          }
-        }
-      });
-
-      return updated;
+    const dataPayload = Object.entries(asStaging).map(([eqCode, statusStr]) => {
+      const eqItem = equipmentRows.find((e) => e.equipmentCode === eqCode);
+      return {
+        repo_Work_Id: 0,
+        equipment_Id: Number(eqItem?.id || eqItem?.equipmentId || 0),
+        status: statusMap[statusStr] ?? 2,
+        reason: "",
+      };
     });
 
-    setShowApplyStatusModal(false);
-    setAsStaging({});
-    setAsSelectedEqCodes(new Set());
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.saving", "저장 중입니다..."),
+      autoClose: false,
+    });
+
+    if (isStaticDataMode) {
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: t("toast.saveSuccess", "저장 성공했습니다."),
+        autoClose: true,
+      });
+      setShowApplyStatusModal(false);
+      setAsStaging({});
+      setAsSelectedEqCodes(new Set());
+      return;
+    }
+
+    APIcallPost(
+      pocEndPoints.SAVE_MATRIX_INQUIRY,
+      { data: dataPayload },
+      {},
+      (responseData, status) => {
+        if (status === 200) {
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: t("toast.saveSuccess", "저장 성공했습니다."),
+            autoClose: true,
+          });
+          setShowApplyStatusModal(false);
+          setAsStaging({});
+          setAsSelectedEqCodes(new Set());
+          fetchMatrixData();
+        } else {
+          console.error("SaveMatrixInquiry failed:", status, responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: t("toast.saveError", "저장에 실패했습니다."),
+            autoClose: true,
+          });
+        }
+      },
+    );
   };
 
   // Execute Find & Replace
@@ -1090,125 +1246,54 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
     setReplacing(true);
 
-    const performUpdate = () => {
-      const updated = allRecords.map((d) => {
-        const isMatch = 
-          getColValue(d, "process") === selectedProcess &&
-          getColValue(d, "maintGroup") === selectedMaintenance &&
-          getColValue(d, "representativeWork") === targetTask;
+    let pId = 0;
+    if (newPriority === "상" || newPriority === "High") pId = 1;
+    else if (newPriority === "중" || newPriority === "Medium") pId = 2;
+    else if (newPriority === "하" || newPriority === "Low") pId = 3;
+    else if (!isNaN(Number(newPriority))) pId = Number(newPriority);
 
-        if (isMatch) {
-          const item = { ...d };
-          if (newRepresentativeWork.trim()) {
-            let updatedKey = false;
-            if ("representativeWork" in item) { item.representativeWork = newRepresentativeWork.trim(); updatedKey = true; }
-            if ("대표작업명" in item) { item["대표작업명"] = newRepresentativeWork.trim(); updatedKey = true; }
-            if ("대표 작업명" in item) { item["대표 작업명"] = newRepresentativeWork.trim(); updatedKey = true; }
-            if ("ëŒ€í‘œì ‘ì—…ëª…" in item) { item["ëŒ€í‘œì ‘ì—…ëª…"] = newRepresentativeWork.trim(); updatedKey = true; }
-            if ("ëŒ€í‘œ ì ‘ì—…ëª…" in item) { item["ëŒ€í‘œ ì ‘ì—…ëª…"] = newRepresentativeWork.trim(); updatedKey = true; }
-            if (!updatedKey) {
-              item.representativeWork = newRepresentativeWork.trim();
-            }
-          }
-          if (newPriority) {
-            let updatedKey = false;
-            if ("priority" in item) { item.priority = newPriority; updatedKey = true; }
-            if ("중요도" in item) { item["중요도"] = newPriority; updatedKey = true; }
-            if ("ì¤‘ìš”ë „" in item) { item["ì¤‘ìš”ë „"] = newPriority; updatedKey = true; }
-            if (!updatedKey) {
-              item.priority = newPriority;
-            }
-          }
-          if (newCategory) {
-            let updatedKey = false;
-            if ("category" in item) { item.category = newCategory; updatedKey = true; }
-            if ("효과 유형" in item) { item["효과 유형"] = newCategory; updatedKey = true; }
-            if ("효과유형" in item) { item["효과유형"] = newCategory; updatedKey = true; }
-            if ("íš¨ê³¼ ìœ í˜•" in item) { item["íš¨ê³¼ ìœ í˜•"] = newCategory; updatedKey = true; }
-            if ("íš¨ê³¼ìœ í˜•" in item) { item["íš¨ê³¼ìœ í˜•"] = newCategory; updatedKey = true; }
-            if (!updatedKey) {
-              item.category = newCategory;
-            }
-          }
-          return item;
-        }
-        return d;
-      });
+    let cId = 0;
+    if (newCategory === "품질") cId = 1;
+    else if (newCategory === "생산성") cId = 2;
+    else if (newCategory === "보전성") cId = 3;
+    else if (newCategory === "기타") cId = 4;
+    else if (!isNaN(Number(newCategory))) cId = Number(newCategory);
 
-      setAllRecords(updated);
-
-      const cleanRecords = updated.map((row) => {
-        const clean = {};
-        Object.keys(row).forEach((key) => {
-          if (!key.startsWith("_")) {
-            clean[key] = row[key];
-          }
-        });
-        return {
-          ...clean,
-          id: clean.id ?? 0,
-        };
-      });
-
-      const payload = {
-        changeDataList: cleanRecords,
-        id: changedDataId,
-      };
-
-      if (isStaticDataMode) {
-        if (filterData?.representations && newRepresentativeWork.trim()) {
-          const updatedReps = filterData.representations.map(rep => {
-            if (normalizeName(rep.representativeWorkName) === normalizeName(targetTask)) {
-              return { ...rep, representativeWorkName: newRepresentativeWork.trim() };
-            }
-            return rep;
-          });
-          setFilterData({ ...filterData, representations: updatedReps });
-        }
-        onUpload?.("change_rows", payload);
-        setReplacing(false);
-        setShowReplaceModal(false);
-        return;
-      }
-
-      APIcallPost(pocEndPoints.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-        setReplacing(false);
-        if (status === 200) {
-          setShowReplaceModal(false);
-          onUpload?.("change_rows", payload);
-          getFilterData();
-        } else {
-          alert(t("toast.saveError", "저장에 실패했습니다."));
-        }
-      });
+    const updatePayload = {
+      id: Number(clickedRecord?.id || clickedRecord?.repWorkId || clickedRecord?.representativeWorkId || 0),
+      name: newRepresentativeWork.trim() || targetTask,
+      priorityId: pId,
+      categoryId: cId,
     };
 
-    if (newRepresentativeWork.trim() && !isStaticDataMode) {
-      const representationItem = (filterData?.representations ?? []).find(
-        (rep) => normalizeName(rep.representativeWorkName) === normalizeName(targetTask)
-      );
-      const repId = representationItem ? representationItem.id : null;
-
-      if (repId !== null && repId !== undefined) {
-        APIcallPost(
-          pocEndPoints.UPDATE_REPRESENTATIVE_WORK,
-          { id: repId, name: newRepresentativeWork.trim() },
-          {},
-          (repData, repStatus) => {
-            if (repStatus === 200) {
-              performUpdate();
-            } else {
-              setReplacing(false);
-              alert(t("toast.saveError", "대표 작업명 수정에 실패했습니다."));
-            }
-          }
-        );
-      } else {
-        performUpdate();
-      }
-    } else {
-      performUpdate();
+    if (isStaticDataMode) {
+      setReplacing(false);
+      setShowReplaceModal(false);
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
+        autoClose: true,
+      });
+      return;
     }
+
+    APIcallPost(pocEndPoints.UPDATE_REPRESENTATIVE_WORK, updatePayload, {}, (responseData, status) => {
+      setReplacing(false);
+      if (status === 200) {
+        setShowReplaceModal(false);
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
+          autoClose: true,
+        });
+        getFilterData();
+        fetchMatrixData();
+      } else {
+        alert(t("toast.saveError", "저장에 실패했습니다."));
+      }
+    });
   };
 
   const showLanding = !isLoadTableDataOnload && selectedProcess === "전체";
@@ -1860,7 +1945,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* WO Applied */}
                 <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/40 text-center">
                   <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-300">
-                    {asEquipmentData.woApplied.length}
+                    {apiStatusCounts.hasFetched ? apiStatusCounts.wo_applied : asEquipmentData.woApplied.length}
                   </div>
                   <div className="text-xs font-semibold text-blue-800/80 dark:text-blue-300/80 mt-0.5">
                     {t("page.matrix.woApplied", "WO 적용")}
@@ -1870,27 +1955,27 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Before Confirmation */}
                 <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-center">
                   <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">
-                    {asEquipmentData.unconfirmed.length}
+                    {apiStatusCounts.hasFetched ? apiStatusCounts.before_verification : asEquipmentData.unconfirmed.length}
                   </div>
                   <div className="text-xs font-semibold text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
-                    {t("page.matrix.beforeConfirmation", "수평전개 검토전")}
+                    {t("page.matrix.beforeConfirmation", "확인 전")}
                   </div>
                 </div>
 
                 {/* Applied */}
                 <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
                   <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
-                    {asEquipmentData.applied.length}
+                    {apiStatusCounts.hasFetched ? apiStatusCounts.applied : asEquipmentData.applied.length}
                   </div>
                   <div className="text-xs font-semibold text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-                    {t("page.matrix.application", "적용")}
+                    {t("page.matrix.application", "적용됨")}
                   </div>
                 </div>
 
                 {/* Not Applied */}
                 <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/40 text-center">
                   <div className="text-2xl font-extrabold text-rose-700 dark:text-rose-300">
-                    {asEquipmentData.rejected.length}
+                    {apiStatusCounts.hasFetched ? apiStatusCounts.not_applied : asEquipmentData.rejected.length}
                   </div>
                   <div className="text-xs font-semibold text-rose-800/80 dark:text-rose-300/80 mt-0.5">
                     {t("page.matrix.notApplied", "미적용")}
@@ -1909,7 +1994,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  📝 {t("page.matrix.woApplied", "WO 적용")} ({asEquipmentData.woApplied.length})
+                  📋 {t("page.matrix.woApplied", "WO적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.wo_applied : asEquipmentData.woApplied.length})
                 </button>
                 <button
                   type="button"
@@ -1920,7 +2005,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  🔍 {t("page.matrix.beforeConfirmation", "수평전개 검토전")} ({asEquipmentData.unconfirmed.length})
+                  🔍 {t("page.matrix.beforeConfirmation", "확인전")} ({apiStatusCounts.hasFetched ? apiStatusCounts.before_verification : asEquipmentData.unconfirmed.length})
                 </button>
                 <button
                   type="button"
@@ -1931,7 +2016,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  ✅ {t("page.matrix.application", "적용")} ({asEquipmentData.applied.length})
+                  ✅ {t("page.matrix.application", "적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.applied : asEquipmentData.applied.length})
                 </button>
                 <button
                   type="button"
@@ -1942,7 +2027,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  ❌ {t("page.matrix.notApplied", "미적용")} ({asEquipmentData.rejected.length})
+                  ❌ {t("page.matrix.notApplied", "미적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.not_applied : asEquipmentData.rejected.length})
                 </button>
               </div>
 

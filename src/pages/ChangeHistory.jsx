@@ -1609,7 +1609,26 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
   const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
-    setDraft({ ...(row ?? {}) });
+    if (!row) return;
+    setDraft({
+      ...row,
+      process: row.processName || row.process || "",
+      maintGroup: row.equipmentTypeName || row.maintGroup || row.eqType || row.maintenanceGroupName || "",
+      representativeWork: row.workName || row.representativeWork || row.work || "",
+      purpose: row.purpose || row.workPurpose || "",
+      situation: row.situation || row.problemPhenomenon || "",
+      cause: row.cause || row.problemCause || "",
+      bom: row.bom || "",
+      sparePart: row.sparePart || row.materialName || "",
+      hwAsWas: row.hwWas || row.hwAsWas || row.hwBefore || "",
+      hwAsIs: row.hwIs || row.hwAsIs || row.hwAfter || "",
+      swAsWas: row.swWas || row.swAsWas || row.swBefore || "",
+      swAsIs: row.swIs || row.swAsIs || row.swAfter || "",
+      priority: row.priorityName || row.priority || "Important",
+      category: row.categoryName || row.category || "integrity",
+      workedOn: row.workDate ? row.workDate.split("T")[0] : (row.workedOn || ""),
+      site: row.siteName || row.site || "",
+    });
     setErrors({});
     setPendingPhoto(null);
     setShowCategoryModal(false);
@@ -2228,6 +2247,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [previewRows, setPreviewRows] = useState(null);
   const [previewColumns, setPreviewColumns] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [editingRow, setEditingRow] = useState(null);
   const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [filterPayload, setFilterPayload] = useState(null);
   const [filterError, setFilterError] = useState(null);
@@ -2684,35 +2704,95 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     [excelToJsonKey],
   );
 
-  // ── SAVE ROW ──────────────────────────────────────────────────────────────
-  // When saving ONE edited row, we must send the ENTIRE changedRecords list
-  // (all 20 rows) with the single edited row merged in, plus id = changedDataId.
-  // The backend replaces the whole content blob for that envelope id.
-  const handleSaveRow = useCallback(
-    (filteredIndex, draft) => {
-      const originalRow = filtered[filteredIndex];
+  // ── START EDIT (FETCH MATRIX DATA DETAILS) ─────────────────────────────
+  const handleStartEdit = useCallback(
+    (index) => {
+      const row = filtered[index];
+      if (!row) return;
 
-      // Merge draft into the original row
-      const mergedRow = { ...originalRow, ...draft };
+      const rowId = Number(row?.id || row?.changeHistoryId || 0);
 
-      // Build the full changeDataList:
-      // Take ALL changedRecords, replace the matching row (by row id) with
-      // the edited+merged version, then clean every row for the payload.
-      const changeDataList = changedRecords.map((r) => {
-        const isEditedRow = r.id != null && r.id === mergedRow.id;
-        return buildCleanRow(isEditedRow ? mergedRow : r);
-      });
-
-      // If the edited row isn't in changedRecords yet (e.g. it came from
-      // the `data` prop), append it so the backend doesn't lose it.
-      const editedExists = changedRecords.some((r) => r.id === mergedRow.id);
-      if (!editedExists) {
-        changeDataList.push(buildCleanRow(mergedRow));
+      if (isStaticDataMode || !rowId || rowId <= 0) {
+        setEditingRow(row);
+        setEditingIndex(index);
+        return;
       }
 
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: t("toast.loadingDetail", "Loading details..."),
+        autoClose: false,
+      });
+
+      APIcallGet(
+        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
+        {},
+        (responseData, status) => {
+          if (status === 200 && responseData) {
+            const detail = parseMatrixDetailResponse(responseData);
+            const merged = detail ? { ...row, ...detail } : row;
+            setEditingRow(merged);
+            setEditingIndex(index);
+            setOperationStatus({
+              isVisible: false,
+              status: "loading",
+              message: "",
+              autoClose: true,
+            });
+          } else {
+            console.warn("[ChangeHistory] GetMatrixData failed for edit:", status, responseData);
+            setEditingRow(row);
+            setEditingIndex(index);
+            setOperationStatus({
+              isVisible: false,
+              status: "loading",
+              message: "",
+              autoClose: true,
+            });
+          }
+        },
+      );
+    },
+    [filtered, t],
+  );
+
+  // ── SAVE VOC ROW ────────────────────────────────────────────────────────
+  const handleSaveRow = useCallback(
+    (filteredIndex, draft) => {
+      const originalRow = filtered[filteredIndex] || {};
+      const mergedRow = { ...originalRow, ...draft };
+
+      const vocItem = {
+        id: Number(mergedRow.id || mergedRow.changeHistoryId || 0),
+        repWorkId: Number(mergedRow.repWorkId || 0),
+        reportContent: mergedRow.reportContent || mergedRow.report || "",
+        workName: mergedRow.representativeWork || mergedRow.workName || mergedRow.work || "",
+        purpose: mergedRow.purpose || mergedRow.workPurpose || "",
+        situation: mergedRow.situation || mergedRow.problemPhenomenon || "",
+        cause: mergedRow.cause || mergedRow.problemCause || "",
+        hwWas: mergedRow.hwWas || mergedRow.hwAsWas || mergedRow.hwBefore || "",
+        hwIs: mergedRow.hwIs || mergedRow.hwAsIs || mergedRow.hwAfter || "",
+        swWas: mergedRow.swWas || mergedRow.swAsWas || mergedRow.swBefore || "",
+        swIs: mergedRow.swIs || mergedRow.swAsIs || mergedRow.swAfter || "",
+        bom: mergedRow.bom || "",
+        sparePart: mergedRow.sparePart || mergedRow.materialName || "",
+        equipmentCode: mergedRow.equipmentCode || "",
+        equipmentName: mergedRow.equipmentName || "",
+        woCode: mergedRow.woCode || mergedRow.wOCode || "",
+        workDate: mergedRow.workDate ? new Date(mergedRow.workDate).toISOString() : (mergedRow.workedOn ? new Date(mergedRow.workedOn).toISOString() : new Date().toISOString()),
+        categoryName: mergedRow.categoryName || mergedRow.category || "",
+        priorityName: mergedRow.priorityName || mergedRow.priority || "",
+        processName: mergedRow.processName || mergedRow.process || "",
+        siteName: mergedRow.siteName || mergedRow.site || "",
+        equipmentTypeName: mergedRow.equipmentTypeName || mergedRow.eqType || mergedRow.maintGroup || "",
+        maintenanceGroupName: mergedRow.maintenanceGroupName || mergedRow.maintGroup || mergedRow.eqType || "",
+        createdBy: getUserInfo()?.name || mergedRow.createdBy || "",
+        is_voc: true,
+      };
+
       const payload = {
-        changeDataList,
-        id: changedDataId, // ← the envelope id from changedDataJson[0].id
+        vocData: [vocItem],
       };
 
       setOperationStatus({
@@ -2723,31 +2803,30 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       });
 
       if (isStaticDataMode) {
-        setChangedRecords([...changeDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
         setEditingIndex(null);
+        setEditingRow(null);
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+          message: t("toast.saveSuccess"),
           autoClose: true,
         });
-        onUpload?.("change_rows", payload);
         return;
       }
 
-      APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+      APIcallPost(pocEndPoints?.SAVE_VOC || "api/ChangeData/SaveVoc", payload, {}, (responseData, status) => {
         if (status === 200) {
           setEditingIndex(null);
+          setEditingRow(null);
           setOperationStatus({
             isVisible: true,
             status: "success",
-            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+            message: t("toast.saveSuccess"),
             autoClose: true,
           });
-          onUpload?.("change_rows", payload);
           getFilterDataRef.current?.();
         } else {
-          console.error("행 저장 실패:", responseData);
+          console.error("SaveVoc API failed:", responseData);
           setOperationStatus({
             isVisible: true,
             status: "error",
@@ -2757,10 +2836,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       });
     },
-    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t],
+    [filtered, t],
   );
 
-  const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
+  const handleCancelEdit = useCallback(() => {
+    setEditingIndex(null);
+    setEditingRow(null);
+  }, []);
 
   const handleOpenDetail = useCallback(
     (row) => {
@@ -3130,10 +3212,45 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   // ── Export ────────────────────────────────────────────────────────────────
-  const prepareExportData = () => {
-    const rowsToExport =
-      selectedIds.size > 0 ? filtered.filter((_, i) => selectedIds.has(i)) : filtered;
+  const fetchRecordsForExport = useCallback(() => {
+    return new Promise((resolve) => {
+      if (selectedIds.size > 0) {
+        const rowsToExport = filtered.filter((_, i) => selectedIds.has(i));
+        return resolve(rowsToExport);
+      }
 
+      if (isStaticDataMode) {
+        return resolve(filtered);
+      }
+
+      const reqBody = {
+        processId: Number(selectedProcessId) || 0,
+        equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+        columnIds:
+          Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0
+            ? selectedColumnIds.map(Number)
+            : [0],
+        searchText: debouncedSearchText || "",
+        rowCount: 0,
+        currentPage: 0,
+        isPagination: false,
+        isChangeHistoryData: false,
+      };
+
+      APIcallPost(pocEndPoints.GET_CHANGED_DATA, reqBody, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          const payload = responseData?.data ?? responseData;
+          const records = applyChangedDataResponse(payload);
+          if (records && records.length > 0) {
+            return resolve(records);
+          }
+        }
+        resolve(filtered);
+      });
+    });
+  }, [selectedIds, filtered, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText]);
+
+  const prepareExportDataFromRows = (rowsToExport) => {
     if (!rowsToExport || rowsToExport.length === 0) {
       return null;
     }
@@ -3157,44 +3274,43 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportCsv = async () => {
-    const prepared = prepareExportData();
-    if (!prepared) {
-      setOperationStatus({
-        isVisible: true,
-        status: "error",
-        message: t("toast.noRecordsExport"),
-        autoClose: true,
-      });
-      return;
-    }
-    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      message: t("toast.exporting", "Exporting data..."),
       autoClose: false,
     });
     try {
-      await withMinimumDelay(async () => {
-        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", "change-history.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
+      const rows = await fetchRecordsForExport();
+      const prepared = prepareExportDataFromRows(rows);
+      if (!prepared) {
         setOperationStatus({
           isVisible: true,
-          status: "success",
-          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          status: "error",
+          message: t("toast.noRecordsExport"),
           autoClose: true,
         });
+        return;
+      }
+      const { rowsToExport, exportCols, exportData } = prepared;
+      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "change-history.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+        autoClose: true,
       });
     } catch (error) {
       console.error("CSV export failed:", error);
@@ -3210,37 +3326,36 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportExcel = async () => {
-    const prepared = prepareExportData();
-    if (!prepared) {
-      setOperationStatus({
-        isVisible: true,
-        status: "error",
-        message: t("toast.noRecordsExport"),
-        autoClose: true,
-      });
-      return;
-    }
-    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      message: t("toast.exporting", "Exporting data..."),
       autoClose: false,
     });
     try {
-      await withMinimumDelay(async () => {
-        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
-        XLSX.writeFile(workbook, "change-history.xlsx");
-
+      const rows = await fetchRecordsForExport();
+      const prepared = prepareExportDataFromRows(rows);
+      if (!prepared) {
         setOperationStatus({
           isVisible: true,
-          status: "success",
-          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+          status: "error",
+          message: t("toast.noRecordsExport"),
           autoClose: true,
         });
+        return;
+      }
+      const { rowsToExport, exportCols, exportData } = prepared;
+      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+      XLSX.writeFile(workbook, "change-history.xlsx");
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
+        autoClose: true,
       });
     } catch (error) {
       console.error("Excel export failed:", error);
@@ -3256,41 +3371,41 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportZip = async () => {
-    const prepared = prepareExportData();
-    if (!prepared) {
-      setOperationStatus({
-        isVisible: true,
-        status: "error",
-        message: t("toast.noRecordsExport"),
-        autoClose: true,
-      });
-      return;
-    }
-    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      message: t("toast.exporting", "Exporting data..."),
       autoClose: false,
     });
     try {
-      await withMinimumDelay(async () => {
-        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
-        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const rows = await fetchRecordsForExport();
+      const prepared = prepareExportDataFromRows(rows);
+      if (!prepared) {
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.noRecordsExport"),
+          autoClose: true,
+        });
+        return;
+      }
+      const { rowsToExport, exportCols, exportData } = prepared;
+      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
 
-        const zip = new JSZip();
-        zip.file("change-history.csv", csvContent);
-        zip.file("change-history.xlsx", excelBuffer);
-        const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zip = new JSZip();
+      zip.file("change-history.csv", csvContent);
+      zip.file("change-history.xlsx", excelBuffer);
+      const zipBlob = await zip.generateAsync({ type: "blob" });
 
-        const url = URL.createObjectURL(zipBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", "change-history.zip");
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "change-history.zip");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -3302,7 +3417,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
-      });
     } catch (error) {
       console.error("ZIP export failed:", error);
       setOperationStatus({
@@ -3386,6 +3500,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       searchText: debouncedSearchText || "",
       rowCount: pageSize || 20,
       currentPage: Math.max(0, (currentPage || 1) - 1),
+      isPagination: true,
+      isChangeHistoryData: true,
     };
 
     APIcallPost(pocEndPoints.GET_CHANGED_DATA, reqBody, {}, (responseData, status) => {
@@ -3751,7 +3867,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                         index={idxToUse}
                         columns={dynamicColumns}
                         isEditing={false}
-                        onStartEdit={setEditingIndex}
+                        onStartEdit={handleStartEdit}
                         onSave={handleSaveRow}
                         onCancel={handleCancelEdit}
                         onOpenDetail={handleOpenDetail}
@@ -3792,7 +3908,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       />
 
       <RowEditModal
-        row={editingIndex !== null ? filtered[editingIndex] : null}
+        row={editingRow || (editingIndex !== null ? filtered[editingIndex] : null)}
         index={editingIndex}
         columns={dynamicColumns}
         onSave={handleSaveRow}

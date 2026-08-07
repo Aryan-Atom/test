@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Modal from "../components/Modal.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
-import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
+import { APIcallGet, APIcallPost, APIcallDelete } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -10,6 +10,7 @@ import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
 import { isStaticDataMode } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
+import { getUserInfo } from "../utils/cookieUtils.js";
 
 // Reusable MultiSelect Dropdown Component with Checkboxes
 function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
@@ -276,10 +277,10 @@ const EMPTY_ROW = {
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? row["ëŒ€í‘œì ‘ì—…ëª…"] ?? row["ëŒ€í‘œ ì ‘ì—…ëª…"] ?? "";
+    return row.representative_work_name ?? row.representativeWorkName ?? row.representativeWork ?? row.workName ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
   }
   if (col === "work") {
-    return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+    return row.work_name ?? row.workName ?? row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
   }
   if (col === "situation") {
     return row.situation ?? row["문제 현상"] ?? "";
@@ -306,25 +307,25 @@ function getColValue(row, col) {
     return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
-    return row.priority ?? row["중요도"] ?? row["ì¤‘ìš”ë „"] ?? "";
+    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
   }
   if (col === "category") {
-    return row.category ?? row["효과 유형"] ?? row["효과유형"] ?? row["íš¨ê³¼ ìœ í˜•"] ?? row["íš¨ê³¼ìœ í˜•"] ?? "";
+    return row.category_name ?? row.categoryName ?? row.category ?? row.effect_type ?? row.effectType ?? row["효과 유형"] ?? row["효과유형"] ?? "";
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
-    return row.workedOn ?? row["작업완료일"] ?? "";
+    return row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
   }
   if (col === "process") {
-    return row.process ?? row["공정"] ?? row["ê³µì •"] ?? "";
+    return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.maintGroup ?? row["보전파트"] ?? row["보전그룹"] ?? row["유지보수 그룹"] ?? row["유지보수그룹"] ?? row.equipment ?? row["ë³´ì „íŒŒíŠ¸"] ?? row["ë³´ì „ê·¸ë£¹"] ?? row["ìœ ì§€ë³´ìˆ˜ ê·¸ë£¹"] ?? "";
+    return row.equipment_type_name ?? row.equipmentTypeName ?? row.maintGroup ?? row["보전파트"] ?? row.equipment ?? "";
   }
   if (col === "site") {
-    return row.site ?? row["법인"] ?? row["사이트"] ?? "";
+    return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
   return row[col] ?? "";
 }
@@ -457,6 +458,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const batchFileInputRef = useRef(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchModalError, setBatchModalError] = useState("");
+  const [batchParsedRows, setBatchParsedRows] = useState([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [applicableRows, setApplicableRows] = useState([]);
   const [notApplicableRows, setNotApplicableRows] = useState([]);
@@ -771,9 +773,64 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     });
   }, [t]);
 
+  const fetchMPList = useCallback(() => {
+    if (isStaticDataMode) return;
+
+    const reqBody = {
+      processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+      division: 0,
+      priority: Array.isArray(selectedPriorities) && selectedPriorities.length > 0
+        ? selectedPriorities.map(Number)
+        : [0],
+      effectType: Array.isArray(selectedCategories) && selectedCategories.length > 0
+        ? selectedCategories.map(Number)
+        : [0],
+      fromDate: dateFrom || "",
+      toDate: dateTo || "",
+    };
+
+    setDataLoading(true);
+
+    APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
+      setDataLoading(false);
+      if (status === 200 && responseData) {
+        const records = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+          ? responseData.data
+          : Array.isArray(responseData?.data?.mpList)
+          ? responseData.data.mpList
+          : Array.isArray(responseData?.mpList)
+          ? responseData.mpList
+          : [];
+        setAllRecords(records);
+      } else {
+        console.warn("[MPList] GetMPList API failed:", status, responseData);
+      }
+    });
+  }, [
+    isStaticDataMode,
+    selectedProcessId,
+    selectedMaintenanceId,
+    selectedSiteId,
+    selectedPriorities,
+    selectedCategories,
+    dateFrom,
+    dateTo,
+  ]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!filterPayload) return;
+    if (isLoadTableDataOnload || selectedProcessId !== null || selectedMaintenanceId !== null) {
+      fetchMPList();
+    }
+  }, [filterPayload, fetchMPList]);
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -964,14 +1021,22 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     });
   };
 
-  // ── Delete a local row ─────────────────────────────────────────────────────
+  // ── Delete a row ───────────────────────────────────────────────────────────
   const handleDeleteRow = (e, row) => {
     e.stopPropagation();
-    if (window.confirm(t("app.confirmDelete", "선택한 행을 삭제하시겠습니까?"))) {
-      setAllRecords((prev) => prev.filter((r) => {
-        if (row._localId && r._localId) return r._localId !== row._localId;
-        return r.id !== row.id;
-      }));
+    if (!window.confirm(t("app.confirmDelete", "선택한 행을 삭제하시겠습니까?"))) {
+      return;
+    }
+
+    const rowId = Number(row.id || row.mpListId || row.versionId || row.changeHistoryId || 0);
+
+    if (isStaticDataMode || !rowId || rowId <= 0) {
+      setAllRecords((prev) =>
+        prev.filter((r) => {
+          if (row._localId && r._localId) return r._localId !== row._localId;
+          return r.id !== row.id;
+        }),
+      );
       setIsDirty(true);
       setOperationStatus({
         isVisible: true,
@@ -979,7 +1044,35 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
         autoClose: true,
       });
+      return;
     }
+
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.deleting", "삭제 중입니다..."),
+      autoClose: false,
+    });
+
+    APIcallDelete(`${pocEndPoints.DELETE_MP_LIST_ITEM}/${rowId}`, {}, (responseData, status) => {
+      if (status === 200) {
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
+          autoClose: true,
+        });
+        fetchMPList();
+      } else {
+        console.error("DeleteMpListItem failed:", status, responseData);
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.deleteError", "삭제에 실패했습니다."),
+          autoClose: true,
+        });
+      }
+    });
   };
 
   // ── Edit row on double click ───────────────────────────────────────────────
@@ -1074,35 +1167,193 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         message: t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다."),
         autoClose: true,
       });
+      setNewRow(EMPTY_ROW);
+      setEditingRowLocalId(null);
+      setShowModal(false);
+      setIsDirty(true);
     } else {
-      // Add Mode
-      const enrichedRow = {
-        ...newRow,
+      // Add VoC Mode via API
+      const vocItem = {
         id: 0,
-        _pending: true,
-        _localId: Date.now(),
-        process: procName,
-        maintGroup: maintName,
-        site: siteName,
+        repWorkId: 0,
+        reportContent: newRow.reportContent || newRow.report || "",
+        workName: newRow.representativeWork || "",
+        purpose: newRow.purpose || newRow.workPurpose || newRow.work || "",
+        situation: newRow.situation || newRow.problemSymptom || "",
+        cause: newRow.cause || newRow.problemCause || "",
+        hwWas: newRow.hwAsWas || newRow.hwBefore || "",
+        hwIs: newRow.hwAsIs || newRow.hwAfter || "",
+        swWas: newRow.swAsWas || newRow.swBefore || "",
+        swIs: newRow.swAsIs || newRow.swAfter || "",
+        bom: newRow.bom || "",
+        sparePart: newRow.sparePart || newRow.materialList || "",
+        equipmentCode: newRow.equipmentCode || "",
+        equipmentName: newRow.equipmentName || "",
+        woCode: newRow.woCode || newRow.wOCode || "",
+        workDate: newRow.workedOn
+          ? new Date(newRow.workedOn).toISOString()
+          : new Date().toISOString(),
+        categoryName: newRow.category || "기타",
+        priorityName: newRow.priority || "일반",
+        processName: procName,
+        siteName: siteName,
+        maintenanceGroupName: maintName,
+        equipmentTypeName: maintName,
+        processId: selectedProcessId ? Number(selectedProcessId) : 0,
+        siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+        equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+        createdBy: getUserInfo()?.name || "admin",
       };
 
-      setAllRecords((prev) => [enrichedRow, ...prev]);
+      const payload = {
+        vocData: [vocItem],
+        isVoc: true,
+      };
+
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: t("toast.saving", "저장 중입니다..."),
+        autoClose: false,
+      });
+
+      if (isStaticDataMode) {
+        const enrichedRow = {
+          ...newRow,
+          id: 0,
+          _pending: true,
+          _localId: Date.now(),
+          process: procName,
+          maintGroup: maintName,
+          site: siteName,
+        };
+        setAllRecords((prev) => [enrichedRow, ...prev]);
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: t("toast.saveSuccess", "저장 성공했습니다."),
+          autoClose: true,
+        });
+        setNewRow(EMPTY_ROW);
+        setEditingRowLocalId(null);
+        setShowModal(false);
+        return;
+      }
+
+      APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+        if (status === 200) {
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: t("toast.saveSuccess", "저장 성공했습니다."),
+            autoClose: true,
+          });
+          setNewRow(EMPTY_ROW);
+          setEditingRowLocalId(null);
+          setShowModal(false);
+          fetchMPList();
+        } else {
+          console.error("SaveVoc API failed:", status, responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: t("toast.saveError", "저장에 실패했습니다."),
+            autoClose: true,
+          });
+        }
+      });
+    }
+  };
+
+  const handleConfirmBatchAdd = useCallback(() => {
+    if (batchParsedRows.length === 0) return;
+
+    const vocDataList = batchParsedRows.map((r) => ({
+      id: 0,
+      repWorkId: 0,
+      reportContent: r.reportContent || "",
+      workName: r.representativeWork || "",
+      purpose: r.work || r.purpose || "",
+      situation: r.situation || "",
+      cause: r.cause || "",
+      hwWas: r.hwAsWas || "",
+      hwIs: r.hwAsIs || "",
+      swWas: r.swAsWas || "",
+      swIs: r.swAsIs || "",
+      bom: r.bom || "",
+      sparePart: r.sparePart || "",
+      equipmentCode: "",
+      equipmentName: "",
+      woCode: "",
+      workDate: r.workedOn ? new Date(r.workedOn).toISOString() : new Date().toISOString(),
+      categoryName: r.category || "기타",
+      priorityName: r.priority || "일반",
+      processName: r.process || "",
+      siteName: r.site || "",
+      maintenanceGroupName: r.maintGroup || "",
+      equipmentTypeName: r.maintGroup || "",
+      processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      createdBy: getUserInfo()?.name || "admin",
+    }));
+
+    const payload = {
+      vocData: vocDataList,
+      isVoc: true,
+    };
+
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.saving", "저장 중입니다..."),
+      autoClose: false,
+    });
+
+    if (isStaticDataMode) {
+      setAllRecords((prev) => [...batchParsedRows, ...prev]);
       setOperationStatus({
         isVisible: true,
         status: "success",
-        message: `${t("page.mp.addRow")} ${t("app.add")}. ${t("page.mp.saveHint")}`,
+        message: `${batchParsedRows.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
         autoClose: true,
       });
-      onAddRow?.(enrichedRow);
+      setBatchParsedRows([]);
+      setShowBatchModal(false);
+      return;
     }
 
-    setNewRow(EMPTY_ROW);
-    setEditingRowLocalId(null);
-    setShowModal(false);
-    setIsDirty(true);
-  };
+    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+      if (status === 200) {
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: `${batchParsedRows.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
+          autoClose: true,
+        });
+        setBatchParsedRows([]);
+        setShowBatchModal(false);
+        fetchMPList();
+      } else {
+        console.error("Batch SaveVoc failed:", status, responseData);
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.saveError", "저장에 실패했습니다."),
+          autoClose: true,
+        });
+      }
+    });
+  }, [
+    batchParsedRows,
+    selectedProcessId,
+    selectedSiteId,
+    selectedMaintenanceId,
+    t,
+    fetchMPList,
+  ]);
 
-  // ── Save all changes ──────────────────────────────────────────────────────
+  // ── Save MP Version ───────────────────────────────────────────────────────
   const handleSaveAll = useCallback(() => {
     setSavingAll(true);
     setOperationStatus({
@@ -1112,51 +1363,55 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       autoClose: false,
     });
 
-    const cleanRecords = allRecords.map((row) => {
-      const clean = {};
-      Object.keys(row).forEach((key) => {
-        if (!key.startsWith("_")) {
-          clean[key] = row[key];
-        }
-      });
-      return {
-        ...clean,
-        id: clean.id ?? 0,
-      };
-    });
+    const changeDataList = [
+      ...applicableRows.map((r) => ({
+        changeHistoryId: Number(r.id || r.changeHistoryId || r.mpListId || 0),
+        isApplicable: true,
+        reason: "",
+      })),
+      ...notApplicableRows.map((r) => ({
+        changeHistoryId: Number(r.id || r.changeHistoryId || r.mpListId || 0),
+        isApplicable: false,
+        reason: r.nonImplReason || "",
+      })),
+    ];
 
     const payload = {
-      changeDataList: cleanRecords,
-      id: changedDataId,
+      id: 0,
+      processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      changeDataList,
     };
 
     if (isStaticDataMode) {
       setSavingAll(false);
       setIsDirty(false);
+      setShowSaveModal(false);
       setOperationStatus({
         isVisible: true,
         status: "success",
-        message: `${cleanRecords.length} ${t("toast.rowsSavedSuccess", "개 행이 성공적으로 저장되었습니다.")}`,
+        message: `${changeDataList.length} ${t("toast.rowsSavedSuccess", "개 행이 성공적으로 저장되었습니다.")}`,
         autoClose: true,
       });
       onUpload?.("change_rows", payload);
       return;
     }
 
-    APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+    APIcallPost(pocEndPoints.SAVE_MP_VERSION, payload, {}, (responseData, status) => {
       setSavingAll(false);
       if (status === 200) {
         setIsDirty(false);
-        fetchData();
+        setShowSaveModal(false);
+        fetchMPList();
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${cleanRecords.length} ${t("toast.rowsSavedSuccess", "개 행이 성공적으로 저장되었습니다.")}`,
+          message: `${changeDataList.length} ${t("toast.rowsSavedSuccess", "개 행이 성공적으로 저장되었습니다.")}`,
           autoClose: true,
         });
         onUpload?.("change_rows", payload);
       } else {
-        console.error("저장 실패:", responseData);
+        console.error("SaveMPVersion failed:", status, responseData);
         setOperationStatus({
           isVisible: true,
           status: "error",
@@ -1165,7 +1420,15 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         });
       }
     });
-  }, [allRecords, changedDataId, onUpload, fetchData, t]);
+  }, [
+    applicableRows,
+    notApplicableRows,
+    selectedProcessId,
+    selectedMaintenanceId,
+    onUpload,
+    fetchMPList,
+    t,
+  ]);
 
   // ── Export filtered view ──────────────────────────────────────────────────
   const prepareExportData = () => {
@@ -1324,9 +1587,54 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     }
   };
 
-  const handleRowClick = (row) => {
-    onOpenDetail?.(row);
-  };
+  const handleRowClick = useCallback(
+    (row) => {
+      if (!onOpenDetail) return;
+
+      const rowId = Number(row?.id || row?.changeHistoryId || row?.mpListId || 0);
+
+      if (isStaticDataMode || !rowId || rowId <= 0) {
+        onOpenDetail(row);
+        return;
+      }
+
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: t("toast.loadingDetail", "Loading details..."),
+        autoClose: false,
+      });
+
+      APIcallGet(
+        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
+        {},
+        (responseData, status) => {
+          if (status === 200 && responseData) {
+            const raw = responseData?.data ?? responseData;
+            const detail = Array.isArray(raw) ? raw[0] : raw;
+            const merged = detail ? { ...row, ...detail } : row;
+            onOpenDetail(merged);
+            setOperationStatus({
+              isVisible: false,
+              status: "loading",
+              message: "",
+              autoClose: true,
+            });
+          } else {
+            console.warn("[MPList] GetMatrixData failed:", status, responseData);
+            onOpenDetail(row);
+            setOperationStatus({
+              isVisible: false,
+              status: "loading",
+              message: "",
+              autoClose: true,
+            });
+          }
+        },
+      );
+    },
+    [onOpenDetail, t],
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1554,34 +1862,52 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     const ws = wb.Sheets[wsname];
                     const rawData = XLSX.utils.sheet_to_json(ws);
                     if (rawData && rawData.length > 0) {
+                      const selProcess = processList.find((p) => p.id === selectedProcessId);
+                      const selMaint = (filterPayload?.maintenance ?? filterPayload?.eqTypes ?? []).find(
+                        (m) => m.id === selectedMaintenanceId,
+                      );
+                      const procName = selProcess?.processName || "03.성형";
+                      const maintName =
+                        selMaint?.equipmentTypeName ||
+                        selMaint?.eqTypeName ||
+                        selMaint?.maintenanceGroupName ||
+                        "0202. Nano Mill";
+
                       const newItems = rawData.map((row, idx) => ({
                         ...EMPTY_ROW,
-                        localId: `imported-${Date.now()}-${idx}`,
-                        representativeWork: row["Main Work Name"] || row["대표작업명"] || row["Representative Work"] || row["representativeWork"] || "",
-                        purpose: row["Purpose"] || row["작업목적"] || row["purpose"] || "",
-                        symptom: row["Symptom"] || row["문제현상"] || row["symptom"] || "",
+                        id: 0,
+                        _localId: `imported-${Date.now()}-${idx}`,
+                        _pending: true,
+                        is_voc: true,
+                        isVoc: true,
+                        is_user: true,
+                        process: procName,
+                        maintGroup: maintName,
+                        site: row["Corporation"] || row["법인"] || row["site"] || "A3.부산",
+                        representativeWork:
+                          row["Main Work Name"] ||
+                          row["대표작업명"] ||
+                          row["대표 작업명"] ||
+                          row["representativeWork"] ||
+                          "",
+                        work: row["Purpose"] || row["작업목적"] || row["작업 목적"] || row["purpose"] || "",
+                        situation: row["Symptom"] || row["문제현상"] || row["symptom"] || "",
                         cause: row["Cause"] || row["문제원인"] || row["cause"] || "",
                         bom: row["BOM"] || row["bom"] || "",
-                        hwBefore: row["HW변경전"] || row["hwBefore"] || "",
-                        hwAfter: row["HW변경후"] || row["hwAfter"] || "",
-                        swBefore: row["SW변경전"] || row["swBefore"] || "",
-                        swAfter: row["SW변경후"] || row["swAfter"] || "",
-                        workedOn: row["Work Completion Date"] || row["작업완료일"] || new Date().toISOString().slice(0, 10),
-                        priority: row["Importance"] || row["중요도"] || "상",
-                        effectCategory: row["Effect Type"] || row["효과유형"] || "품질",
-                        site: row["Corporation"] || row["법인"] || "A1. Seoul",
-                        isUserAdded: true,
-                        isDirty: true,
+                        sparePart: row["Material"] || row["자재명"] || row["sparePart"] || "",
+                        hwAsWas: row["HW변경전"] || row["HW 변경 전"] || row["hwBefore"] || "",
+                        hwAsIs: row["HW변경후"] || row["HW 변경 후"] || row["hwAfter"] || "",
+                        swAsWas: row["SW변경전"] || row["SW 변경 전"] || row["swBefore"] || "",
+                        swAsIs: row["SW변경후"] || row["SW 변경 후"] || row["swAfter"] || "",
+                        workedOn:
+                          row["Work Completion Date"] ||
+                          row["작업완료일"] ||
+                          row["workedOn"] ||
+                          new Date().toISOString().slice(0, 10),
+                        priority: row["Importance"] || row["중요도"] || row["priority"] || "일반",
+                        category: row["Effect Type"] || row["효과유형"] || row["효과 유형"] || row["category"] || "기타",
                       }));
-                      setListRows((prev) => [...newItems, ...prev]);
-                      setIsDirty(true);
-                      setShowBatchModal(false);
-                      setOperationStatus({
-                        isVisible: true,
-                        status: "success",
-                        message: `${newItems.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
-                        autoClose: true,
-                      });
+                      setBatchParsedRows(newItems);
                     }
                   } catch (err) {
                     console.error("Batch import error:", err);
@@ -1877,9 +2203,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                       </tr>
                     ) : (
                       paginatedData.map((row, index) => {
-                        const woCode = getColValue(row, "wOCode");
-                        const isVoc = row.is_voc === true || row.isVoc === true || row.is_voc === "true" || row.is_user === true || !woCode || woCode === "—" || woCode === "";
-                        const isUser = isVoc;
+                        const isVoc = row.is_voc === true || row.isVoc === true || row.is_voc === "true" || row.isVoc === "true" || !!row._pending;
                         const isPending = !!row._pending;
                         const detailKey = rowKey(row, index);
                         const isSelected = isRowSelected(row, drawerItem);
@@ -1889,8 +2213,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           : isPending
                           ? "bg-[#f0fdf4]"
                           : isVoc
-                          ? "bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff] dark:hover:bg-blue-900/40"
-                          : "bg-surface-default hover:bg-gray-50 dark:hover:bg-gray-800/60";
+                          ? "bg-[#e8f2ff] dark:bg-blue-950/40 hover:bg-[#dbe9fe] dark:hover:bg-blue-900/50"
+                          : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
 
                       return (
                         <tr
@@ -2464,7 +2788,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
             {/* Dropzone Card: Select the CSV file */}
             <div
-              className="border-2 border-dashed border-border-base rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-surface-default/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-6"
+              className="border-2 border-dashed border-border-base rounded-2xl p-6 flex flex-col items-center justify-center text-center bg-surface-default/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-5"
               onClick={() => batchFileInputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -2480,13 +2804,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 }
               }}
             >
-              <div className="w-12 h-12 rounded-full bg-[#1745c2] flex items-center justify-center text-white text-xl mb-3 shadow-md">
+              <div className="w-10 h-10 rounded-full bg-[#1745c2] flex items-center justify-center text-white text-lg mb-2 shadow-md">
                 <i className="fas fa-cloud-upload-alt" />
               </div>
-              <h4 className="text-sm font-bold text-text-default">
+              <h4 className="text-xs font-bold text-text-default">
                 {t("page.mp.selectCsvTitle", "Select the CSV file")}
               </h4>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
                 {t("page.mp.selectCsvDesc", "Up to 5MB, supports only CSV format")}
               </p>
               <button
@@ -2495,22 +2819,88 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   e.stopPropagation();
                   batchFileInputRef.current?.click();
                 }}
-                className="mt-4 bg-[#1745c2] hover:bg-[#1239a5] text-white font-semibold text-xs px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-all"
+                className="mt-3 bg-[#1745c2] hover:bg-[#1239a5] text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-all"
               >
                 <i className="fas fa-folder-open text-xs" />
                 <span>{t("page.mp.fileSelectionBtn", "File selection")}</span>
               </button>
             </div>
 
-            {/* Modal Footer: cancellation */}
-            <div className="flex justify-center pt-1 border-t border-gray-100 dark:border-gray-700">
+            {/* Row Preview Table if files imported */}
+            {batchParsedRows.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                    <i className="fas fa-table text-xs" />
+                    미리보기 ({batchParsedRows.length}건)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBatchParsedRows([])}
+                    className="text-[11px] text-red-500 hover:text-red-700 font-medium cursor-pointer"
+                  >
+                    초기화
+                  </button>
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-border-base dark:border-gray-700 rounded-xl overflow-x-auto">
+                  <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                    <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[10px] font-bold uppercase">
+                      <tr>
+                        <th className="px-2.5 py-2 w-8 text-center">#</th>
+                        <th className="px-2.5 py-2">대표 작업명</th>
+                        <th className="px-2.5 py-2">작업 목적</th>
+                        <th className="px-2.5 py-2">HW 변경 전</th>
+                        <th className="px-2.5 py-2">HW 변경 후</th>
+                        <th className="px-2.5 py-2">SW 변경 전</th>
+                        <th className="px-2.5 py-2">SW 변경 후</th>
+                        <th className="px-2.5 py-2 text-center">중요도</th>
+                        <th className="px-2.5 py-2 text-center">효과 유형</th>
+                        <th className="px-2.5 py-2 text-center">작업완료일</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {batchParsedRows.map((r, idx) => (
+                        <tr key={`batch-row-${idx}`} className="bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff]">
+                          <td className="px-2.5 py-1.5 text-center text-gray-400">{idx + 1}</td>
+                          <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate">{r.representativeWork || "—"}</td>
+                          <td className="px-2.5 py-1.5 max-w-[120px] truncate">{r.work || "—"}</td>
+                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.hwAsWas || "—"}</td>
+                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.hwAsIs || "—"}</td>
+                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.swAsWas || "—"}</td>
+                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.swAsIs || "—"}</td>
+                          <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
+                          <td className="px-2.5 py-1.5 text-center">{r.category || "기타"}</td>
+                          <td className="px-2.5 py-1.5 text-center whitespace-nowrap">{r.workedOn || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
               <button
                 type="button"
                 className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1"
-                onClick={() => setShowBatchModal(false)}
+                onClick={() => {
+                  setBatchParsedRows([]);
+                  setShowBatchModal(false);
+                }}
               >
                 {t("app.cancellation", "cancellation")}
               </button>
+              {batchParsedRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleConfirmBatchAdd}
+                  className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                >
+                  <i className="fas fa-plus text-xs" />
+                  <span>VoC 일괄 등록 ({batchParsedRows.length}건)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

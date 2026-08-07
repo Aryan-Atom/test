@@ -20,6 +20,12 @@ const pocEndPoints = {
   GET_MP_LIST: "api/MPData/GetMPList",
   EDIT_MP_VERSION: "api/MPData/EditMPVersion",
   DELETE_MP_LIST_ITEM: "api/MPData/DeleteMpListItem",
+  SAVE_VOC: "api/ChangeData/SaveVoc",
+  SAVE_MP_VERSION: "api/MPData/SaveMPVersion",
+  GET_MP_VERSION: "api/MPData/GetMPVersion",
+  GET_EQUIPMENT_STATUS_COUNT: "api/MatrixInquiry/GetequipmentStatusCount",
+  SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
+  SAVE_IMAGE: "api/MatrixInquiry/SaveImage",
 };
 
 const auth = {
