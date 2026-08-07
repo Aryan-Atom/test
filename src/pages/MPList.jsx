@@ -794,8 +794,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       division: 0,
       priority: sanitizeArrayOfNums(selectedPriorities),
       effectType: sanitizeArrayOfNums(selectedCategories),
-      fromDate: dateFrom || "",
-      toDate: dateTo || "",
+      fromDate: dateFrom ? dateFrom : null,
+      toDate: dateTo ? dateTo : null,
     };
 
     setDataLoading(true);

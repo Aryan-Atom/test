@@ -429,6 +429,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedWoTypes, setSelectedWoTypes] = useState([]);
   const [startDate, setStartDate] = useState(() => {
+    if (isLoadTableDataOnload) return null;
     const d = new Date();
     d.setMonth(d.getMonth() - 3);
     const yyyy = d.getFullYear();
@@ -437,6 +438,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     return `${yyyy}-${mm}-${dd}`;
   });
   const [endDate, setEndDate] = useState(() => {
+    if (isLoadTableDataOnload) return null;
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -666,29 +668,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       if (match) workOrderId = match.id ?? match.representativeWorkId ?? 0;
     }
 
-    const isDefaultFilter =
-      processId === 0 &&
-      equipmentId === 0 &&
-      siteId === 0 &&
-      categoryId === 0 &&
-      priorityId === 0 &&
-      workOrderId === 0;
-
-    if (isLoadTableDataOnload && isDefaultFilter) {
-      setLoading(true);
-      APIcallGet(pocEndPoints.GET_MATRIX_DATA, {}, (responseData, status) => {
-        setLoading(false);
-        if (status >= 200 && status < 300 && responseData) {
-          const raw = responseData?.data ?? responseData;
-          const records = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
-          setAllRecords(records);
-        } else {
-          console.warn("[Matrix] GetMatrixData API failed:", status, responseData);
-        }
-      });
-      return;
-    }
-
     const payload = {
       processId: Number(processId) || 0,
       equipmentId: Number(equipmentId) || 0,
@@ -696,8 +675,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       categoryId: Number(categoryId) || 0,
       priorityId: Number(priorityId) || 0,
       workOrderId: Number(workOrderId) || 0,
-      fromDate: startDate || "",
-      toDate: endDate || "",
+      fromDate: startDate ? startDate : null,
+      toDate: endDate ? endDate : null,
     };
 
     setLoading(true);

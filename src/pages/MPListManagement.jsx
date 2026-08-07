@@ -288,8 +288,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       division: 0,
       priority: [0],
       effectType: [0],
-      fromDate: "",
-      toDate: ""
+      fromDate: null,
+      toDate: null
     };
 
     APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
