@@ -1187,6 +1187,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       setModalError("");
 
       // Add VoC Mode via API
+      const nowIso = new Date().toISOString();
       const vocItem = {
         id: 0,
         repWorkId: 0,
@@ -1206,16 +1207,22 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         woCode: newRow.woCode || newRow.wOCode || "",
         workDate: newRow.workedOn
           ? new Date(newRow.workedOn).toISOString()
-          : new Date().toISOString(),
+          : nowIso,
         categoryName: newRow.category || "기타",
         priorityName: newRow.priority || "일반",
-        processName: procName,
-        siteName: siteName,
-        maintenanceGroupName: maintName,
-        equipmentTypeName: maintName,
+        processName: procName || "",
+        siteName: siteName || "",
+        maintenanceGroupName: maintName || "",
+        equipmentTypeName: maintName || "",
+        workOrderTypeName: newRow.woType || "CM(개량)",
         processId: selectedProcessId ? Number(selectedProcessId) : 0,
         siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+        maintenanceGroupId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+        equipmentId: 0,
         equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+        workOrderId: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso,
         createdBy: getUserInfo()?.name || "admin",
       };
 
@@ -1282,6 +1289,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const handleConfirmBatchAdd = useCallback(() => {
     if (batchParsedRows.length === 0) return;
 
+    const nowIso = new Date().toISOString();
     const vocDataList = batchParsedRows.map((r) => ({
       id: 0,
       repWorkId: 0,
@@ -1299,16 +1307,22 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       equipmentCode: "",
       equipmentName: "",
       woCode: "",
-      workDate: r.workedOn ? new Date(r.workedOn).toISOString() : new Date().toISOString(),
+      workDate: r.workedOn ? new Date(r.workedOn).toISOString() : nowIso,
       categoryName: r.category || "기타",
       priorityName: r.priority || "일반",
       processName: r.process || "",
       siteName: r.site || "",
       maintenanceGroupName: r.maintGroup || "",
       equipmentTypeName: r.maintGroup || "",
+      workOrderTypeName: r.woType || "CM(개량)",
       processId: selectedProcessId ? Number(selectedProcessId) : 0,
       siteId: selectedSiteId ? Number(selectedSiteId) : 0,
+      maintenanceGroupId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      equipmentId: 0,
       equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      workOrderId: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
       createdBy: getUserInfo()?.name || "admin",
     }));
 
