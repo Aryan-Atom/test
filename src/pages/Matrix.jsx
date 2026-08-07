@@ -628,13 +628,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     if (isStaticDataMode) return;
 
     let processId = 0;
-    if (selectedProcess !== "전체" && Array.isArray(filterData?.process)) {
+    if (selectedProcess && selectedProcess !== "전체" && selectedProcess !== "All" && Array.isArray(filterData?.process)) {
       const match = filterData.process.find((p) => p.processName === selectedProcess);
       if (match) processId = match.id ?? match.processId ?? 0;
     }
 
     let equipmentId = 0;
-    if (selectedMaintenance !== "전체") {
+    if (selectedMaintenance && selectedMaintenance !== "전체" && selectedMaintenance !== "All") {
       const eqTypes = filterData?.eqTypes ?? filterData?.maintenance ?? [];
       const match = eqTypes.find(
         (e) => (e.equipmentTypeName || e.eqTypeName || e.maintenanceGroupName || e.name) === selectedMaintenance,
@@ -643,7 +643,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
 
     let siteId = 0;
-    if (selectedSite !== "전체" && Array.isArray(filterData?.site)) {
+    if (selectedSite && selectedSite !== "전체" && selectedSite !== "All" && Array.isArray(filterData?.site)) {
       const match = filterData.site.find((s) => s.siteName === selectedSite);
       if (match) siteId = match.id ?? match.siteId ?? 0;
     }
@@ -661,9 +661,32 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     }
 
     let workOrderId = 0;
-    if (selectedRepWork !== "전체" && Array.isArray(filterData?.representations)) {
+    if (selectedRepWork && selectedRepWork !== "전체" && selectedRepWork !== "All" && Array.isArray(filterData?.representations)) {
       const match = filterData.representations.find((r) => r.representativeWorkName === selectedRepWork);
       if (match) workOrderId = match.id ?? match.representativeWorkId ?? 0;
+    }
+
+    const isDefaultFilter =
+      processId === 0 &&
+      equipmentId === 0 &&
+      siteId === 0 &&
+      categoryId === 0 &&
+      priorityId === 0 &&
+      workOrderId === 0;
+
+    if (isLoadTableDataOnload && isDefaultFilter) {
+      setLoading(true);
+      APIcallGet(pocEndPoints.GET_MATRIX_DATA, {}, (responseData, status) => {
+        setLoading(false);
+        if (status >= 200 && status < 300 && responseData) {
+          const raw = responseData?.data ?? responseData;
+          const records = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
+          setAllRecords(records);
+        } else {
+          console.warn("[Matrix] GetMatrixData API failed:", status, responseData);
+        }
+      });
+      return;
     }
 
     const payload = {
@@ -677,8 +700,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       toDate: endDate || "",
     };
 
+    setLoading(true);
     APIcallPost(pocEndPoints.GET_CHANGE_MATRIX, payload, {}, (responseData, status) => {
-      if (status === 200 && responseData) {
+      setLoading(false);
+      if (status >= 200 && status < 300 && responseData) {
         const raw = responseData?.data ?? responseData;
         const records = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
         setAllRecords(records);
@@ -688,6 +713,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     });
   }, [
     isStaticDataMode,
+    isLoadTableDataOnload,
     selectedProcess,
     selectedMaintenance,
     selectedSite,
@@ -707,7 +733,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     if (isLoadTableDataOnload || (selectedProcess && selectedProcess !== "전체")) {
       fetchMatrixData();
     }
-  }, [fetchMatrixData]);
+  }, [fetchMatrixData, isLoadTableDataOnload, selectedProcess]);
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
@@ -1295,7 +1321,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     });
   };
 
-  const showLanding = !isLoadTableDataOnload && selectedProcess === "전체";
+  const showLanding = !isLoadTableDataOnload && selectedProcess === "전체" && allRecords.length === 0;
 
   if (loading) {
     return (
