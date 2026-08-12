@@ -1167,42 +1167,38 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         getColValue(r, "maintGroup") === selectedMaintenance,
     );
 
-    let resolvedTaskName = taskName;
-    let resolvedTasksList = [];
+    const eqCode = record ? getColValue(record, "equipmentCode") : null;
+    const eqName = record ? getColValue(record, "equipmentName") : null;
+    const targetDate =
+      colKey || (record ? getFormattedDateString(getColValue(record, "workedOn")) : null);
 
-    if (taskName) {
-      resolvedTaskName = taskName;
-      resolvedTasksList = [];
-    } else if (colKey) {
-      const matchedTasks = [
-        ...new Set(
-          currentMaintRecords
-            .filter((r) => {
-              if (mode === "date") {
-                return getFormattedDateString(getColValue(r, "workedOn")) === colKey;
-              } else {
-                return getColValue(r, "representativeWork") === colKey;
-              }
-            })
-            .map((r) => getColValue(r, "representativeWork"))
-            .filter(Boolean),
-        ),
-      ];
-
-      if (matchedTasks.length === 1) {
-        resolvedTaskName = matchedTasks[0];
-        resolvedTasksList = [];
-      } else if (matchedTasks.length > 1) {
-        resolvedTaskName = matchedTasks[0];
-        resolvedTasksList = matchedTasks;
-      } else {
-        resolvedTaskName = "";
-        resolvedTasksList = [];
+    let cellRecords = currentMaintRecords;
+    if (eqCode || eqName) {
+      const eqMatched = cellRecords.filter(
+        (r) =>
+          (!eqCode || getColValue(r, "equipmentCode") === eqCode) &&
+          (!eqName || getColValue(r, "equipmentName") === eqName),
+      );
+      if (eqMatched.length > 0) {
+        cellRecords = eqMatched;
       }
-    } else {
-      resolvedTaskName = "";
-      resolvedTasksList = [];
     }
+
+    if (targetDate && mode === "date") {
+      const dateMatched = cellRecords.filter(
+        (r) => getFormattedDateString(getColValue(r, "workedOn")) === targetDate,
+      );
+      if (dateMatched.length > 0) {
+        cellRecords = dateMatched;
+      }
+    }
+
+    const matchedTasks = [
+      ...new Set(cellRecords.map((r) => getColValue(r, "representativeWork")).filter(Boolean)),
+    ];
+
+    let resolvedTaskName = taskName || matchedTasks[0] || "";
+    let resolvedTasksList = matchedTasks.length > 1 ? matchedTasks : [];
 
     setReplaceTargetTask(resolvedTaskName);
     setReplaceTargetTasksList(resolvedTasksList);
@@ -1841,11 +1837,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               <div className="flex items-center justify-center min-h-[36px]">
                                 <button
                                   type="button"
-                                  className="w-6 h-6 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center justify-center text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                                  className="w-full max-w-[125px] h-[32px] rounded-[6px] border border-gray-200/90 dark:border-gray-700/80 bg-gray-50/70 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 flex items-center justify-center text-xs transition-all cursor-pointer shadow-2xs"
                                   onClick={() => openApplyStatusModal(col)}
                                   title={t("page.matrix.lateralModalTitle", "횡전개 관리")}
                                 >
-                                  <i className="fas fa-plus" />
+                                  <i className="fas fa-plus text-xs" />
                                 </button>
                               </div>
                             </td>
@@ -1887,7 +1883,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                             }}
                           >
                             {mode === X_AXIS_MODE.DATE ? (
-                              <div className="w-full flex flex-col gap-1">
+                              <div className="w-full flex flex-col gap-1 items-center">
                                 {displayValues.slice(0, 3).map((val, idx) => {
                                   const representativeWorkItems = matched.filter(
                                     (d) => getColValue(d, "representativeWork") === val,
@@ -1901,11 +1897,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                   return (
                                     <div
                                       key={idx}
-                                      className={`w-full text-center ${itemStyle.className}`}
+                                      title={String(val || "")}
+                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 ${itemStyle.className}`}
                                       style={{
-                                        backgroundColor: itemStyle.backgroundColor,
-                                        color: itemStyle.color,
-                                        fontWeight: itemStyle.fontWeight,
+                                        backgroundColor: itemStyle.backgroundColor || "#f1f5f9",
+                                        color: itemStyle.color || "var(--text-default)",
+                                        fontWeight: itemStyle.fontWeight || 600,
                                       }}
                                     >
                                       {val}
@@ -1914,22 +1911,40 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                 })}
                                 {displayValues.length > 3 && (
                                   <div
-                                    className="w-full text-center text-[10px] text-gray-500 dark:text-gray-400 font-semibold italic"
-                                    style={{ opacity: 0.8 }}
+                                    title={displayValues.slice(3).join(", ")}
+                                    className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                   >
-                                    +{displayValues.length - 3} more
+                                    {t("page.matrix.andMore", `그 외 ${displayValues.length - 3}`)}
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <div>{displayValues.join("\n")}</div>
+                              <div className="w-full flex flex-col gap-1 items-center">
+                                {displayValues.slice(0, 3).map((val, idx) => (
+                                  <div
+                                    key={idx}
+                                    title={String(val || "")}
+                                    className="w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                                  >
+                                    {val}
+                                  </div>
+                                ))}
+                                {displayValues.length > 3 && (
+                                  <div
+                                    title={displayValues.slice(3).join(", ")}
+                                    className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                  >
+                                    {t("page.matrix.andMore", `그 외 ${displayValues.length - 3}`)}
+                                  </div>
+                                )}
+                              </div>
                             )}
                             <span
                               className="absolute top-[2px] right-[4px] text-[9px] opacity-0 group-hover:opacity-100 transition-all duration-200 text-text-subtle bg-white border border-[#e2e8f0] rounded-[4px] px-1 py-0.5 shadow-sm hover:text-[#4f46e5] hover:scale-105 active:scale-95 z-20 cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const firstTask = getColValue(matched[0], "representativeWork");
-                                openReplaceModal(firstTask, null, matched[0]);
+                                openReplaceModal(firstTask, col, matched[0]);
                               }}
                             >
                               <i className="fas fa-pen text-[8px]" />
@@ -1979,7 +1994,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             <div className="modal-body space-y-5">
               <div>
                 <label className="modal-field-label">
-                  {t("page.matrix.jobNameFind", "Job Name to Find")}
+                  {t("page.matrix.jobNameFind", "Before Representative Work Name")}
                 </label>
                 {replaceTargetTasksList.length > 1 ? (
                   <div>

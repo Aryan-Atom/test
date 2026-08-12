@@ -93,7 +93,7 @@ const translations = {
     "page.matrix.replaceContentWarning": "변경할 내용을 입력하거나 선택하세요.",
     "page.matrix.replaceModalTitle": "대표 작업명 일괄 수정",
     "page.matrix.replaceModalDesc": "대표 작업명, 중요도, 효과 유형을 일괄 변경합니다.",
-    "page.matrix.jobNameFind": "찾을 작업명 (변경 전)",
+    "page.matrix.jobNameFind": "변경 전 대표 작업명",
     "page.matrix.changesGroup": "변경 항목",
     "page.matrix.newRepWorkName": "새 대표 작업명",
     "page.matrix.replaceBefore": "변경 전 (대표 작업명)",
@@ -431,7 +431,7 @@ const translations = {
     "page.matrix.replaceModalTitle": "Representative Work Name Change",
     "page.matrix.replaceModalDesc":
       "Batch changes of representative task names, importance, and effect types",
-    "page.matrix.jobNameFind": "Job Name to Find",
+    "page.matrix.jobNameFind": "Before Representative Work Name",
     "page.matrix.changesGroup": "CHANGES",
     "page.matrix.newRepWorkName": "New Representative Work Name",
     "page.matrix.replaceBefore": "Before Change (Representative Work)",
