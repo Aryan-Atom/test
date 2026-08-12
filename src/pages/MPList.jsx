@@ -12,6 +12,148 @@ import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 
+// Reusable SearchableSelect Dropdown Component (single-select with search)
+function SearchableSelect({
+  options = [],
+  selectedValue,
+  onChange,
+  placeholder,
+  t,
+  disabled,
+  minWidth = "180px",
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(q));
+  }, [options, searchTerm]);
+
+  const displayLabel =
+    selectedValue === "전체" || !selectedValue ? t("app.all", "전체") : selectedValue;
+
+  return (
+    <div ref={containerRef} className="relative flex-none" style={{ minWidth }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen((prev) => !prev);
+            setSearchTerm("");
+          }
+        }}
+        disabled={disabled}
+        className="input-base flex w-full items-center justify-between text-left font-semibold text-text-default"
+        style={{
+          height: "38px",
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled
+            ? "var(--surface-strong, #f8f9fb)"
+            : "var(--surface-default, #ffffff)",
+          border: "1px solid var(--border-base, #e6e9ef)",
+          borderRadius: "10px",
+        }}
+      >
+        <span className="truncate text-xs font-semibold pr-2">{displayLabel}</span>
+        <i
+          className={`fas fa-chevron-down text-[10px] text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-2xl theme-dropdown p-2 animate-fade-in"
+          style={{ minWidth: "220px" }}
+        >
+          {/* Search Input */}
+          <div className="relative mb-2">
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t("matrix.searchRepWork", "Search rep work...")}
+              className="w-full rounded-xl input-base pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+              >
+                <i className="fas fa-times" />
+              </button>
+            )}
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("전체");
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                selectedValue === "전체" || !selectedValue
+                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                  : "text-text-subtle hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              <span>{t("app.all", "All")}</span>
+              {(selectedValue === "전체" || !selectedValue) && (
+                <i className="fas fa-check text-blue-600 dark:text-blue-400 text-xs" />
+              )}
+            </button>
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-3 text-center text-xs text-gray-400">
+                {t("matrix.noMatchingTask", "No matching results")}
+              </div>
+            ) : (
+              filteredOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
+                    selectedValue === opt
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
+                      : "text-text-subtle hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  }`}
+                >
+                  <span className="truncate pr-2">{opt}</span>
+                  {selectedValue === opt && (
+                    <i className="fas fa-check text-blue-600 dark:text-blue-400 text-xs shrink-0" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Reusable MultiSelect Dropdown Component with Checkboxes
 function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,7 +201,9 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
         style={{
           height: "38px",
           cursor: disabled ? "not-allowed" : "pointer",
-          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          background: disabled
+            ? "var(--surface-strong, #f8f9fb)"
+            : "var(--surface-default, #ffffff)",
           opacity: disabled ? 0.6 : 1,
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
@@ -67,7 +211,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
           width: "100%",
           textAlign: "left",
           marginTop: "0px",
-          fontSize: "13px"
+          fontSize: "13px",
         }}
       >
         <span className="truncate">{displayText}</span>
@@ -84,7 +228,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
           className="absolute left-0 right-0 z-[1000] mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-border-base bg-surface-default py-1 shadow-lg"
           style={{
             borderColor: "var(--border-base, #e6e9ef)",
-            backgroundColor: "var(--surface-default, #ffffff)"
+            backgroundColor: "var(--surface-default, #ffffff)",
           }}
         >
           {options.map((opt) => {
@@ -93,7 +237,13 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
               <label
                 key={opt.value}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-text-default hover:bg-surface-strong cursor-pointer"
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", cursor: "pointer" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                }}
               >
                 <input
                   type="checkbox"
@@ -101,9 +251,14 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
                   disabled={disabled}
                   onChange={() => handleToggleOption(opt.value)}
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
-                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
+                  style={{
+                    accentColor: "var(--brand-60, #0f62fe)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                  }}
                 />
-                <span className="truncate" style={{ fontSize: "13px" }}>{opt.label}</span>
+                <span className="truncate" style={{ fontSize: "13px" }}>
+                  {opt.label}
+                </span>
               </label>
             );
           })}
@@ -191,25 +346,25 @@ function FilterToast({ isVisible, status, message, autoClose, onClose }) {
 // Constants — columns shown in the table
 // ─────────────────────────────────────────────────────────────────────────────
 const TABLE_COLUMNS = [
-  "site",
+  "report",
   "representativeWork",
   "work",
   "situation",
   "cause",
-  "bom",
-  "sparePart",
   "hwAsWas",
   "hwAsIs",
   "swAsWas",
   "swAsIs",
-  "priority",
-  "category",
+  "bom",
+  "sparePart",
+  "wOCode",
   "workedOn",
-  "photos",
+  "createdBy",
+  "createdAt",
 ];
 
 const COLUMN_LABELS = {
-  site: "법인",
+  report: "보고서",
   representativeWork: "대표작업명",
   work: "작업 목적",
   situation: "문제 현상",
@@ -220,15 +375,14 @@ const COLUMN_LABELS = {
   hwAsIs: "HW 변경 후",
   swAsWas: "SW 변경 전",
   swAsIs: "SW 변경 후",
-  priority: "중요도",
-  category: "효과 유형",
   wOCode: "W/O코드",
   workedOn: "작업완료일",
-  photos: "사진",
+  createdBy: "생성자",
+  createdAt: "생성일",
 };
 
 const COLUMN_LABEL_KEYS = {
-  site: "field.site",
+  report: "field.report",
   representativeWork: "field.repWork",
   work: "field.work",
   situation: "field.situation",
@@ -239,11 +393,10 @@ const COLUMN_LABEL_KEYS = {
   hwAsIs: "field.hwAfter",
   swAsWas: "field.swBefore",
   swAsIs: "field.swAfter",
-  priority: "field.priority",
-  category: "field.category",
   wOCode: "field.woCode",
   workedOn: "field.workedOn",
-  photos: "field.photos",
+  createdBy: "field.createdBy",
+  createdAt: "field.createdAt",
 };
 
 function columnLabel(col, t) {
@@ -277,16 +430,28 @@ const EMPTY_ROW = {
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representative_work_name ?? row.representativeWorkName ?? row.representativeWork ?? row.workName ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
+    return (
+      row.representative_work_name ??
+      row.representativeWorkName ??
+      row.representativeWork ??
+      row.work_name ??
+      row.workName ??
+      row["대표작업명"] ??
+      row["대표 작업명"] ??
+      ""
+    );
   }
   if (col === "work") {
-    return row.work_name ?? row.workName ?? row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+    return row.purpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
   }
   if (col === "situation") {
     return row.situation ?? row["문제 현상"] ?? "";
   }
   if (col === "cause") {
     return row.cause ?? row["문제 원인"] ?? "";
+  }
+  if (col === "report") {
+    return row.report_content ?? row.report ?? row["보고서"] ?? "";
   }
   if (col === "bom") {
     return row.bom ?? row["BOM"] ?? "";
@@ -295,37 +460,58 @@ function getColValue(row, col) {
     return row.sparePart ?? row["자재명"] ?? "";
   }
   if (col === "hwAsWas") {
-    return row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
+    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
   }
   if (col === "hwAsIs") {
-    return row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
+    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
   }
   if (col === "swAsWas") {
-    return row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
+    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
   }
   if (col === "swAsIs") {
-    return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
+    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
     return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
   }
   if (col === "category") {
-    return row.category_name ?? row.categoryName ?? row.category ?? row.effect_type ?? row.effectType ?? row["효과 유형"] ?? row["효과유형"] ?? "";
+    return (
+      row.category_name ??
+      row.categoryName ??
+      row.category ??
+      row.effect_type ??
+      row.effectType ??
+      row["효과 유형"] ??
+      row["효과유형"] ??
+      ""
+    );
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
-    return row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
+    return (
+      row.work_date ?? row.workedDate ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? ""
+    );
   }
   if (col === "process") {
     return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.equipment_type_name ?? row.equipmentTypeName ?? row.maintGroup ?? row["보전파트"] ?? row.equipment ?? "";
+    return (
+      row.equipment_type_name ??
+      row.equipmentTypeName ??
+      row.maintGroup ??
+      row["보전파트"] ??
+      row.equipment ??
+      ""
+    );
   }
-  if (col === "site") {
-    return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
+  if (col === "createdBy") {
+    return row.created_by ?? row.createdBy ?? row["생성자"] ?? "";
+  }
+  if (col === "createdAt") {
+    return row.created_at ?? row.createdAt ?? row["생성일"] ?? "";
   }
   return row[col] ?? "";
 }
@@ -349,13 +535,13 @@ function rowKey(row, index) {
 
 function isRowSelected(row, drawerItem) {
   if (!row || !drawerItem) return false;
-  
+
   const rowWo = getColValue(row, "wOCode");
   const drawerWo = getColValue(drawerItem, "wOCode");
   if (rowWo && drawerWo && rowWo !== "—" && drawerWo !== "—") {
     return rowWo === drawerWo;
   }
-  
+
   if (row.id && drawerItem.id && row.id !== 0 && drawerItem.id !== 0) {
     return row.id === drawerItem.id;
   }
@@ -363,7 +549,7 @@ function isRowSelected(row, drawerItem) {
   if (row._localId && drawerItem._localId) {
     return row._localId === drawerItem._localId;
   }
-  
+
   return (
     getColValue(row, "representativeWork") === getColValue(drawerItem, "representativeWork") &&
     getColValue(row, "process") === getColValue(drawerItem, "process") &&
@@ -389,7 +575,6 @@ function SelectSkeleton({ width = "100%" }) {
   );
 }
 
-
 function TableSkeleton({ rows = 6, t }) {
   return (
     <div className="mp-table-scroll overflow-auto">
@@ -399,20 +584,21 @@ function TableSkeleton({ rows = 6, t }) {
       >
         <colgroup>
           <col style={{ width: "3%" }} />
-          <col style={{ width: "12%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "7%" }} />
+          <col style={{ width: "7%" }} />
           <col style={{ width: "6%" }} />
           <col style={{ width: "6%" }} />
           <col style={{ width: "6%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
-          <col style={{ width: "5%" }} />
           <col style={{ width: "6%" }} />
-          <col style={{ width: "9%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "10%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "7%" }} />
+          <col style={{ width: "7%" }} />
+          <col style={{ width: "7%" }} />
+          <col style={{ width: "8%" }} />
         </colgroup>
         <thead className="table-header" style={{ position: "sticky", top: 0, zIndex: 1 }}>
           <tr>
@@ -453,21 +639,31 @@ function TableSkeleton({ rows = 6, t }) {
   );
 }
 
-export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, drawerItem, onUpload }) {
+export default function MPList({
+  onAddRow,
+  onExport,
+  searchText,
+  onOpenDetail,
+  drawerItem,
+  onUpload,
+}) {
   const { t, language } = useI18n();
   const batchFileInputRef = useRef(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchModalError, setBatchModalError] = useState("");
   const [batchParsedRows, setBatchParsedRows] = useState([]);
+  const [batchDuplicateFlags, setBatchDuplicateFlags] = useState([]);
+  const [batchFilter, setBatchFilter] = useState("all");
+  const [batchSaving, setBatchSaving] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [applicableRows, setApplicableRows] = useState([]);
   const [notApplicableRows, setNotApplicableRows] = useState([]);
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedProcessId, setSelectedProcessId] = useState(null);
+  const [selectedEquipmentTypeId, setSelectedEquipmentTypeId] = useState(null);
   const [selectedSiteId, setSelectedSiteId] = useState(null);
-  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
-  const [selectedRepWorks, setSelectedRepWorks] = useState([]);
+  const [selectedWoType, setSelectedWoType] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [dateFrom, setDateFrom] = useState(() => {
@@ -489,9 +685,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({
     processId: null,
+    equipmentTypeId: null,
     siteId: null,
-    maintenanceId: null,
-    repWorksJson: "[]",
+    woType: "전체",
     prioritiesJson: "[]",
     categoriesJson: "[]",
     dateFrom: "",
@@ -499,15 +695,14 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     searchText: "",
   });
 
-  const currentRepWorksJson = JSON.stringify(selectedRepWorks);
+  const currentWoType = selectedWoType;
   const currentPrioritiesJson = JSON.stringify(selectedPriorities);
   const currentCategoriesJson = JSON.stringify(selectedCategories);
 
   if (
     selectedProcessId !== prevFilters.processId ||
     selectedSiteId !== prevFilters.siteId ||
-    selectedMaintenanceId !== prevFilters.maintenanceId ||
-    currentRepWorksJson !== prevFilters.repWorksJson ||
+    selectedWoType !== prevFilters.woType ||
     currentPrioritiesJson !== prevFilters.prioritiesJson ||
     currentCategoriesJson !== prevFilters.categoriesJson ||
     dateFrom !== prevFilters.dateFrom ||
@@ -517,8 +712,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     setPrevFilters({
       processId: selectedProcessId,
       siteId: selectedSiteId,
-      maintenanceId: selectedMaintenanceId,
-      repWorksJson: currentRepWorksJson,
+      woType: currentWoType,
       prioritiesJson: currentPrioritiesJson,
       categoriesJson: currentCategoriesJson,
       dateFrom,
@@ -572,78 +766,60 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     return (filterPayload?.process ?? []).filter((p) => p.isChangedData !== false);
   }, [filterPayload]);
 
+  const equipmentTypeList = useMemo(() => {
+    const all = (filterPayload?.eqTypes ?? filterPayload?.EqTypes ?? []).filter(
+      (e) => e.isChangedData !== false,
+    );
+    if (!selectedProcessId) return all;
+    return all.filter((e) => e.processId === selectedProcessId);
+  }, [filterPayload, selectedProcessId]);
+
   const siteList = useMemo(() => {
     const all = (filterPayload?.site ?? []).filter((s) => s.isChangedData !== false);
     if (!selectedProcessId) return all;
     return all.filter((s) => s.processId === selectedProcessId);
   }, [filterPayload, selectedProcessId]);
 
-  const maintenanceList = useMemo(() => {
-    const eqTypes = filterPayload?.eqTypes;
-    if (Array.isArray(eqTypes) && eqTypes.length > 0) {
-      let list = eqTypes.filter((item) => item.isChangedData !== false);
-      if (selectedProcessId !== null && selectedProcessId !== undefined) {
-        list = list.filter((item) => Number(item.processId) === Number(selectedProcessId));
-      }
-      return list;
-    }
-
-    const all = (filterPayload?.maintenance ?? []).filter((m) => m.isChangedData !== false);
-    if (selectedProcessId === null || selectedProcessId === undefined) return all;
-    return all.filter((m) => Number(m.processId) === Number(selectedProcessId));
-  }, [filterPayload, selectedProcessId]);
-
-  const repWorkOptions = useMemo(() => {
-    const selProcessName = processList.find(p => p.id === selectedProcessId)?.processName;
-    const selMaintItem = maintenanceList.find(m => m.id === selectedMaintenanceId);
-    const selMaintName = selMaintItem?.equipmentTypeName || selMaintItem?.eqTypeName || selMaintItem?.maintenanceGroupName;
-
-    const matched = allRecords.filter(r => {
-      const matchProc = !selectedProcessId || getColValue(r, "process") === selProcessName;
-      const itemMaint = getColValue(r, "maintGroup") || getColValue(r, "eqType") || getColValue(r, "equipment");
-      const matchMaint = !selectedMaintenanceId || itemMaint === selMaintName;
-      return matchProc && matchMaint;
-    });
-
-    const unique = [...new Set(matched.map(r => getColValue(r, "representativeWork")).filter(Boolean))].sort();
-    return unique.map(u => ({ label: u, value: u }));
-  }, [allRecords, selectedProcessId, selectedMaintenanceId, processList, maintenanceList]);
+  const woTypeOptions = useMemo(() => {
+    return (filterPayload?.woTypes ?? filterPayload?.WoTypes ?? [])
+      .map((w) => w.workOrderTypeName)
+      .filter(Boolean);
+  }, [filterPayload]);
 
   const priorityOptions = useMemo(() => {
-    const rawList = [...new Set((filterPayload?.priority ?? []).map((p) => p.priorityName).filter(Boolean))];
+    const rawList = [
+      ...new Set((filterPayload?.priority ?? []).map((p) => p.priorityName).filter(Boolean)),
+    ];
     if (rawList.length === 0) {
       return [
         { label: "중요", value: "중요" },
-        { label: "일반", value: "일반" }
+        { label: "일반", value: "일반" },
       ];
     }
-    return rawList.map(p => ({ label: p, value: p }));
+    return rawList.map((p) => ({ label: p, value: p }));
   }, [filterPayload]);
 
   const categoryOptions = useMemo(() => {
-    const rawList = [...new Set((filterPayload?.category ?? []).map((c) => c.categoryName).filter(Boolean))];
+    const rawList = [
+      ...new Set((filterPayload?.category ?? []).map((c) => c.categoryName).filter(Boolean)),
+    ];
     if (rawList.length === 0) {
       return [
         { label: "생산성", value: "생산성" },
         { label: "품질", value: "품질" },
         { label: "보전성", value: "보전성" },
-        { label: "기타", value: "기타" }
+        { label: "기타", value: "기타" },
       ];
     }
-    return rawList.map(c => ({ label: c, value: c }));
+    return rawList.map((c) => ({ label: c, value: c }));
   }, [filterPayload]);
 
   // ── Cascade reset handlers ────────────────────────────────────────────────
   const handleProcessChange = (e) => {
     const val = e.target.value;
     setSelectedProcessId(val === "" ? null : Number(val));
+    setSelectedEquipmentTypeId(null);
     setSelectedSiteId(null);
-    setSelectedMaintenanceId(null);
-  };
-
-  const handleMaintenanceChange = (e) => {
-    const val = e.target.value;
-    setSelectedMaintenanceId(val === "" ? null : Number(val));
   };
 
   const handleResetDates = () => {
@@ -651,19 +827,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     setDateTo("");
   };
 
-  // Auto-select first item effects
   useEffect(() => {
-    if (siteList.length > 0 && selectedProcessId !== null) setSelectedSiteId(siteList[0].id);
-  }, [siteList, selectedProcessId]);
-
-  useEffect(() => {
-    if (maintenanceList.length > 0 && selectedProcessId !== null)
-      setSelectedMaintenanceId(maintenanceList[0].id);
-  }, [maintenanceList, selectedProcessId]);
-
-  useEffect(() => {
-    setSelectedRepWorks([]);
-  }, [selectedProcessId, selectedMaintenanceId]);
+    setSelectedWoType("전체");
+  }, [selectedProcessId]);
 
   // ── Fetch filter options + changedDataJson rows ───────────────────────────
   const fetchData = useCallback(() => {
@@ -788,10 +954,14 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     };
 
     const reqBody = {
-      processId: selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
-      equipmentTypeId: selectedMaintenanceId && !isNaN(Number(selectedMaintenanceId)) ? Number(selectedMaintenanceId) : 0,
+      processId:
+        selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
+      equipmentTypeId:
+        selectedEquipmentTypeId && !isNaN(Number(selectedEquipmentTypeId))
+          ? Number(selectedEquipmentTypeId)
+          : 0,
       siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
-      division: 0,
+      workOrderType: selectedWoType && selectedWoType !== "전체" ? selectedWoType : 0,
       priority: sanitizeArrayOfNums(selectedPriorities),
       effectType: sanitizeArrayOfNums(selectedCategories),
       fromDate: dateFrom ? dateFrom : null,
@@ -806,12 +976,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         const records = Array.isArray(responseData)
           ? responseData
           : Array.isArray(responseData?.data)
-          ? responseData.data
-          : Array.isArray(responseData?.data?.mpList)
-          ? responseData.data.mpList
-          : Array.isArray(responseData?.mpList)
-          ? responseData.mpList
-          : [];
+            ? responseData.data
+            : Array.isArray(responseData?.data?.mpList)
+              ? responseData.data.mpList
+              : Array.isArray(responseData?.mpList)
+                ? responseData.mpList
+                : [];
         setAllRecords(records);
       } else {
         console.warn("[MPList] GetMPList API failed:", status, responseData);
@@ -820,7 +990,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   }, [
     isStaticDataMode,
     selectedProcessId,
-    selectedMaintenanceId,
+    selectedEquipmentTypeId,
+    selectedWoType,
     selectedSiteId,
     selectedPriorities,
     selectedCategories,
@@ -834,10 +1005,31 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   useEffect(() => {
     if (!filterPayload) return;
-    if (isLoadTableDataOnload || selectedProcessId !== null || selectedMaintenanceId !== null) {
+    // Call API on load if any filter is active (not just process/maintenance)
+    const isAnyFilterActive =
+      selectedProcessId !== null ||
+      selectedEquipmentTypeId !== null ||
+      selectedSiteId !== null ||
+      (Array.isArray(selectedPriorities) && selectedPriorities.length > 0) ||
+      (Array.isArray(selectedCategories) && selectedCategories.length > 0) ||
+      Boolean(dateFrom) ||
+      Boolean(dateTo);
+
+    if (isLoadTableDataOnload || isAnyFilterActive) {
       fetchMPList();
     }
-  }, [filterPayload, fetchMPList]);
+  }, [
+    filterPayload,
+    fetchMPList,
+    isLoadTableDataOnload,
+    selectedProcessId,
+    selectedEquipmentTypeId,
+    selectedSiteId,
+    selectedPriorities,
+    selectedCategories,
+    dateFrom,
+    dateTo,
+  ]);
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -845,18 +1037,36 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       return [];
     }
     const selProcessName = processList.find((p) => p.id === selectedProcessId)?.processName;
-    const selMaintItem = maintenanceList.find((m) => m.id === selectedMaintenanceId);
-    const selMaintName = selMaintItem?.equipmentTypeName || selMaintItem?.eqTypeName || selMaintItem?.maintenanceGroupName;
-
+    const selEqTypeName = equipmentTypeList.find(
+      (e) => e.id === selectedEquipmentTypeId,
+    )?.equipmentTypeName;
+    const selSiteName = siteList.find((s) => s.id === selectedSiteId)?.siteName;
     let preFiltered = allRecords.filter((item) => {
+      // Match by name OR by ID — API may return either process_name or process_id
       const itemProc = getColValue(item, "process");
-      const matchProc = !selectedProcessId || itemProc === selProcessName;
+      const itemProcId = item.process_id ?? item.processId ?? null;
+      const matchProc =
+        !selectedProcessId ||
+        itemProc === selProcessName ||
+        Number(itemProcId) === Number(selectedProcessId);
 
-      const itemMaint = getColValue(item, "maintGroup") || getColValue(item, "eqType") || getColValue(item, "equipment");
-      const matchMaint = !selectedMaintenanceId || itemMaint === selMaintName;
+      const itemEqType = getColValue(item, "maintGroup");
+      const itemEqTypeId = item.equipment_type_id ?? item.equipmentTypeId ?? null;
+      const matchEqType =
+        !selectedEquipmentTypeId ||
+        itemEqType === selEqTypeName ||
+        Number(itemEqTypeId) === Number(selectedEquipmentTypeId);
 
-      const itemRepWork = getColValue(item, "representativeWork");
-      const matchRep = selectedRepWorks.length === 0 || selectedRepWorks.includes(itemRepWork);
+      const itemSite = getColValue(item, "site");
+      const itemSiteId = item.site_id ?? item.siteId ?? null;
+      const matchSite =
+        !selectedSiteId ||
+        itemSite === selSiteName ||
+        Number(itemSiteId) === Number(selectedSiteId);
+
+      const itemWoType = getColValue(item, "woType");
+      const matchWoType =
+        selectedWoType === "전체" || !selectedWoType || itemWoType === selectedWoType;
 
       const itemPriority = getColValue(item, "priority");
       const matchPri = selectedPriorities.length === 0 || selectedPriorities.includes(itemPriority);
@@ -884,7 +1094,16 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         matchSearch = text.includes(searchText.toLowerCase());
       }
 
-      return matchProc && matchMaint && matchRep && matchPri && matchCat && matchDate && matchSearch;
+      return (
+        matchProc &&
+        matchEqType &&
+        matchSite &&
+        matchWoType &&
+        matchPri &&
+        matchCat &&
+        matchDate &&
+        matchSearch
+      );
     });
 
     // Grouping: Representative Work unique, keep latest by completion date
@@ -921,14 +1140,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   }, [
     allRecords,
     selectedProcessId,
-    selectedMaintenanceId,
-    selectedRepWorks,
+    selectedEquipmentTypeId,
+    selectedSiteId,
+    selectedWoType,
     selectedPriorities,
     selectedCategories,
     dateFrom,
     dateTo,
     searchText,
     processList,
+    equipmentTypeList,
+    siteList,
     filterPayload,
   ]);
 
@@ -949,8 +1171,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     setCurrentPage(1);
   }, [
     selectedProcessId,
-    selectedMaintenanceId,
-    selectedRepWorks,
+    selectedEquipmentTypeId,
+    selectedWoType,
     selectedPriorities,
     selectedCategories,
     dateFrom,
@@ -987,6 +1209,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       const d = new Date(new Date(1899, 11, 30).getTime() + Number(raw) * 86400000);
       return d.toISOString().slice(0, 10);
     }
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
     return String(raw);
   }
 
@@ -1002,7 +1228,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         const matchPart = getColValue(r, "maintGroup") === part;
         const matchRep = String(getColValue(r, "representativeWork")).trim() === repWork;
 
-        const isTarget = matchProc && matchPart && (repWork ? matchRep : (r._localId === row._localId || r.id === row.id));
+        const isTarget =
+          matchProc &&
+          matchPart &&
+          (repWork ? matchRep : r._localId === row._localId || r.id === row.id);
 
         if (isTarget) {
           const updated = { ...r };
@@ -1088,16 +1317,16 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     if (!woCode || woCode === "—" || woCode === "") {
       setNewRow({
         representativeWork: getColValue(row, "representativeWork"),
-        work: row.work ?? row["작업 목적"] ?? row["작업목적"] ?? "",
-        report: row.report ?? row["보고서"] ?? "",
+        work: getColValue(row, "work"),
+        report: getColValue(row, "report"),
         situation: getColValue(row, "situation"),
         cause: getColValue(row, "cause"),
         bom: row.bom ?? "",
         sparePart: row.sparePart ?? row["자재명"] ?? "",
-        hwAsWas: row.hwAsWas ?? row["HW 변경 전"] ?? "",
-        hwAsIs: row.hwAsIs ?? row["HW 변경 후"] ?? "",
-        swAsWas: row.swAsWas ?? row["SW 변경 전"] ?? "",
-        swAsIs: row.swAsIs ?? row["SW 변경 후"] ?? "",
+        hwAsWas: getColValue(row, "hwAsWas"),
+        hwAsIs: getColValue(row, "hwAsIs"),
+        swAsWas: getColValue(row, "swAsWas"),
+        swAsIs: getColValue(row, "swAsIs"),
         priority: getColValue(row, "priority") || "일반",
         category: getColValue(row, "category") || "기타",
         wOCode: getColValue(row, "wOCode") || "",
@@ -1108,7 +1337,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         maintGroup: getColValue(row, "maintGroup"),
         site: getColValue(row, "site"),
       });
-       setEditingRowLocalId(row._localId || row.id || "temp");
+      setEditingRowLocalId(row._localId || row.id || "temp");
       setModalError("");
       setErrors({});
       setShowModal(true);
@@ -1117,10 +1346,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
   // ── Modal submit: Add or Edit row ─────────────────────────────────────────
   const handleModalAdd = () => {
-    const fieldsToValidate = [
-      "representativeWork",
-      "situation"
-    ];
+    const fieldsToValidate = ["representativeWork", "situation"];
     const nextErrors = {};
     fieldsToValidate.forEach((key) => {
       const val = newRow[key];
@@ -1134,18 +1360,18 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     }
 
     const selProcess = processList.find((p) => p.id === selectedProcessId);
-    const selMaint = (filterPayload?.maintenance ?? []).find((m) => m.id === selectedMaintenanceId);
     const selSite = (filterPayload?.site ?? []).find((s) => s.id === selectedSiteId);
 
     const procName = selProcess?.processName ?? newRow.process ?? "";
-    const maintName = selMaint?.maintenanceGroupName ?? newRow.maintGroup ?? "";
+    const maintName = newRow.maintGroup ?? "";
     const siteName = selSite?.siteName ?? newRow.site ?? "";
 
     if (editingRowLocalId !== null) {
       // Edit Mode
       setAllRecords((prev) => {
         return prev.map((r) => {
-          const isMatch = r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+          const isMatch =
+            r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
           if (isMatch) {
             return {
               ...r,
@@ -1180,14 +1406,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       setIsDirty(true);
     } else {
       // Validation check before Add VoC
-      if (!newRow.representativeWork?.trim() && !newRow.situation?.trim() && !newRow.problemSymptom?.trim()) {
+      if (
+        !newRow.representativeWork?.trim() &&
+        !newRow.situation?.trim() &&
+        !newRow.problemSymptom?.trim()
+      ) {
         setModalError(t("mp.validationRequired", "대표 작업명 또는 문제 현상을 입력해 주세요."));
         return;
       }
       setModalError("");
 
       // Add VoC Mode via API
-      const nowIso = new Date().toISOString();
       const vocItem = {
         id: 0,
         repWorkId: 0,
@@ -1207,22 +1436,16 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         woCode: newRow.woCode || newRow.wOCode || "",
         workDate: newRow.workedOn
           ? new Date(newRow.workedOn).toISOString()
-          : nowIso,
+          : new Date().toISOString(),
         categoryName: newRow.category || "기타",
         priorityName: newRow.priority || "일반",
-        processName: procName || "",
-        siteName: siteName || "",
-        maintenanceGroupName: maintName || "",
-        equipmentTypeName: maintName || "",
-        workOrderTypeName: newRow.woType || "CM(개량)",
+        processName: procName,
+        siteName: siteName,
+        maintenanceGroupName: maintName,
+        equipmentTypeName: maintName,
         processId: selectedProcessId ? Number(selectedProcessId) : 0,
         siteId: selectedSiteId ? Number(selectedSiteId) : 0,
-        maintenanceGroupId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-        equipmentId: 0,
-        equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-        workOrderId: 0,
-        createdAt: nowIso,
-        updatedAt: nowIso,
+        equipmentTypeId: 0,
         createdBy: getUserInfo()?.name || "admin",
       };
 
@@ -1289,52 +1512,54 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
   const handleConfirmBatchAdd = useCallback(() => {
     if (batchParsedRows.length === 0) return;
 
-    const nowIso = new Date().toISOString();
-    const vocDataList = batchParsedRows.map((r) => ({
-      id: 0,
-      repWorkId: 0,
-      reportContent: r.reportContent || "",
-      workName: r.representativeWork || "",
-      purpose: r.work || r.purpose || "",
-      situation: r.situation || "",
-      cause: r.cause || "",
-      hwWas: r.hwAsWas || "",
-      hwIs: r.hwAsIs || "",
-      swWas: r.swAsWas || "",
-      swIs: r.swAsIs || "",
+    const changeDataList = batchParsedRows.map((r, idx) => ({
+      id: idx + 1,
+      site: r.site || "",
+      process: r.process || "",
+      maintGroup: r.maintGroup || "",
+      equipmentCode: r.equipmentCode || "",
+      equipmentName: r.equipmentName || "",
+      woCode: r.woCode || "",
+      report: r.reportContent || r.report || "",
       bom: r.bom || "",
       sparePart: r.sparePart || "",
-      equipmentCode: "",
-      equipmentName: "",
-      woCode: "",
-      workDate: r.workedOn ? new Date(r.workedOn).toISOString() : nowIso,
-      categoryName: r.category || "기타",
-      priorityName: r.priority || "일반",
-      processName: r.process || "",
-      siteName: r.site || "",
-      maintenanceGroupName: r.maintGroup || "",
-      equipmentTypeName: r.maintGroup || "",
-      workOrderTypeName: r.woType || "CM(개량)",
+      workedOn: r.workedOn || "",
+      work: r.work || "",
+      purpose: r.purpose || "",
+      situation: r.situation || "",
+      cause: r.cause || "",
+      hwAsWas: r.hwAsWas || "",
+      hwAsIs: r.hwAsIs || "",
+      swAsWas: r.swAsWas || "",
+      swAsIs: r.swAsIs || "",
+      representativeWork: r.representativeWork || "",
+      priority: r.priority || "일반",
+      category: r.category || "기타",
+      woType: r.woType || "",
+      woTypeId: 0,
+      eqType: r.maintGroup || "",
+      eqTypeId: 0,
+      representativeColor: "",
       processId: selectedProcessId ? Number(selectedProcessId) : 0,
+      categoryId: 0,
+      priorityId: 0,
       siteId: selectedSiteId ? Number(selectedSiteId) : 0,
-      maintenanceGroupId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      maintenanceId: 0,
       equipmentId: 0,
-      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-      workOrderId: 0,
-      createdAt: nowIso,
-      updatedAt: nowIso,
       createdBy: getUserInfo()?.name || "admin",
+      is_voc: false,
     }));
 
     const payload = {
-      vocData: vocDataList,
-      isVoc: true,
+      changeDataList,
+      id: 0,
     };
 
+    setBatchSaving(true);
     setOperationStatus({
-      isVisible: true,
+      isVisible: false,
       status: "loading",
-      message: t("toast.saving", "저장 중입니다..."),
+      message: "",
       autoClose: false,
     });
 
@@ -1343,43 +1568,81 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
       setOperationStatus({
         isVisible: true,
         status: "success",
-        message: `${batchParsedRows.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
+        message: `${batchParsedRows.length} ${t("toast.saveSuccess", "Saved successfully.")}`,
         autoClose: true,
       });
       setBatchParsedRows([]);
+      setBatchDuplicateFlags([]);
+      setBatchFilter("all");
       setShowBatchModal(false);
       return;
     }
 
-    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-      if (status >= 200 && status < 300) {
+    APIcallPost(pocEndPoints.CHANGE_HISTORY_DATA, payload, {}, (responseData, status) => {
+      setBatchSaving(false);
+      // API always returns HTTP 200; actual status is in responseData.statusCode
+      const bizStatus = responseData?.statusCode ?? status;
+      if (bizStatus === 200) {
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: `${batchParsedRows.length}개 VoC 항목이 성공적으로 추가되었습니다.`,
+          message: t("toast.saveSuccess", "Saved successfully."),
           autoClose: true,
         });
         setBatchParsedRows([]);
+        setBatchDuplicateFlags([]);
+        setBatchFilter("all");
         setShowBatchModal(false);
         fetchMPList();
+      } else if (bizStatus === 409) {
+        // Duplicate records found - parse response and flag duplicates
+        const dupData = responseData?.data ?? [];
+        const flags = dupData.map((item) => !!item.is_duplicate);
+        setBatchDuplicateFlags(flags);
+        setBatchFilter("all");
+        const dupCount = flags.filter(Boolean).length;
+        setOperationStatus({
+          isVisible: true,
+          status: "warning",
+          message: `${dupCount} ${t("batch.duplicateFound", "duplicate record(s) found. Please review.")}`,
+          autoClose: true,
+        });
       } else {
-        console.error("Batch SaveVoc failed:", status, responseData);
+        console.error("Batch save failed:", bizStatus, responseData);
         setOperationStatus({
           isVisible: true,
           status: "error",
-          message: t("toast.saveError", "저장에 실패했습니다."),
+          message: t("toast.saveError", "Save failed."),
           autoClose: true,
         });
       }
     });
-  }, [
-    batchParsedRows,
-    selectedProcessId,
-    selectedSiteId,
-    selectedMaintenanceId,
-    t,
-    fetchMPList,
-  ]);
+  }, [batchParsedRows, selectedProcessId, selectedSiteId, t, fetchMPList]);
+
+  // Remove all duplicate rows from batchParsedRows
+  const handleRemoveDuplicates = useCallback(() => {
+    const filteredRows = batchParsedRows.filter((_, idx) => !batchDuplicateFlags[idx]);
+    setBatchParsedRows(filteredRows);
+    setBatchDuplicateFlags([]);
+    setBatchFilter("all");
+  }, [batchParsedRows, batchDuplicateFlags]);
+
+  // Count of duplicate rows
+  const batchDupCount = useMemo(
+    () => batchDuplicateFlags.filter(Boolean).length,
+    [batchDuplicateFlags],
+  );
+
+  // Filtered rows based on batchFilter tab
+  const batchFilteredRows = useMemo(() => {
+    if (batchFilter === "duplicate") {
+      return batchParsedRows.filter((_, idx) => batchDuplicateFlags[idx]);
+    }
+    if (batchFilter === "missing") {
+      return batchParsedRows.filter((_, idx) => !batchDuplicateFlags[idx]);
+    }
+    return batchParsedRows;
+  }, [batchParsedRows, batchDuplicateFlags, batchFilter]);
 
   // ── Save MP Version ───────────────────────────────────────────────────────
   const handleSaveAll = useCallback(() => {
@@ -1407,7 +1670,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     const payload = {
       id: 0,
       processId: selectedProcessId ? Number(selectedProcessId) : 0,
-      equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
+      equipmentTypeId: selectedEquipmentTypeId ? Number(selectedEquipmentTypeId) : 0,
       changeDataList,
     };
 
@@ -1452,7 +1715,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
     applicableRows,
     notApplicableRows,
     selectedProcessId,
-    selectedMaintenanceId,
+    selectedEquipmentTypeId,
     onUpload,
     fetchMPList,
     t,
@@ -1633,37 +1896,32 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
         autoClose: false,
       });
 
-      APIcallGet(
-        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
-        {},
-        (responseData, status) => {
-          if (status === 200 && responseData) {
-            const raw = responseData?.data ?? responseData;
-            const detail = Array.isArray(raw) ? raw[0] : raw;
-            const merged = detail ? { ...row, ...detail } : row;
-            onOpenDetail(merged);
-            setOperationStatus({
-              isVisible: false,
-              status: "loading",
-              message: "",
-              autoClose: true,
-            });
-          } else {
-            console.warn("[MPList] GetMatrixData failed:", status, responseData);
-            onOpenDetail(row);
-            setOperationStatus({
-              isVisible: false,
-              status: "loading",
-              message: "",
-              autoClose: true,
-            });
-          }
-        },
-      );
+      APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          const raw = responseData?.data ?? responseData;
+          const detail = Array.isArray(raw) ? raw[0] : raw;
+          const merged = detail ? { ...row, ...detail } : row;
+          onOpenDetail(merged);
+          setOperationStatus({
+            isVisible: false,
+            status: "loading",
+            message: "",
+            autoClose: true,
+          });
+        } else {
+          console.warn("[MPList] GetMatrixData failed:", status, responseData);
+          onOpenDetail(row);
+          setOperationStatus({
+            isVisible: false,
+            status: "loading",
+            message: "",
+            autoClose: true,
+          });
+        }
+      });
     },
     [onOpenDetail, t],
   );
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -1828,7 +2086,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               {t("page.mp.desc", "보전파트별 대표 작업명을 최신순으로 조회합니다.")}
               {isDirty && (
                 <span style={{ color: "#16a34a", fontWeight: 600, marginLeft: "8px" }}>
-                  {t("page.mp.pending", "저장되지 않은 변경사항이 있습니다. 저장하기를 눌러주세요.")}
+                  {t(
+                    "page.mp.pending",
+                    "저장되지 않은 변경사항이 있습니다. 저장하기를 눌러주세요.",
+                  )}
                 </span>
               )}
             </p>
@@ -1844,11 +2105,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               type="button"
               className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
               onClick={() => {
-                if (!selectedProcessId || !selectedMaintenanceId) {
+                if (!selectedProcessId) {
                   setOperationStatus({
                     isVisible: true,
                     status: "warning",
-                    message: `${t("field.process")} / ${t("field.equipmentType")} ${t("app.search")}`,
+                    message: `${t("field.process")} ${t("app.search")}`,
                     autoClose: true,
                   });
                   return;
@@ -1891,15 +2152,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     const rawData = XLSX.utils.sheet_to_json(ws);
                     if (rawData && rawData.length > 0) {
                       const selProcess = processList.find((p) => p.id === selectedProcessId);
-                      const selMaint = (filterPayload?.maintenance ?? filterPayload?.eqTypes ?? []).find(
-                        (m) => m.id === selectedMaintenanceId,
-                      );
                       const procName = selProcess?.processName || "03.성형";
-                      const maintName =
-                        selMaint?.equipmentTypeName ||
-                        selMaint?.eqTypeName ||
-                        selMaint?.maintenanceGroupName ||
-                        "0202. Nano Mill";
 
                       const newItems = rawData.map((row, idx) => ({
                         ...EMPTY_ROW,
@@ -1910,7 +2163,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                         isVoc: true,
                         is_user: true,
                         process: procName,
-                        maintGroup: maintName,
+                        maintGroup: "",
                         site: row["Corporation"] || row["법인"] || row["site"] || "A3.부산",
                         representativeWork:
                           row["Main Work Name"] ||
@@ -1918,7 +2171,12 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           row["대표 작업명"] ||
                           row["representativeWork"] ||
                           "",
-                        work: row["Purpose"] || row["작업목적"] || row["작업 목적"] || row["purpose"] || "",
+                        work:
+                          row["Purpose"] ||
+                          row["작업목적"] ||
+                          row["작업 목적"] ||
+                          row["purpose"] ||
+                          "",
                         situation: row["Symptom"] || row["문제현상"] || row["symptom"] || "",
                         cause: row["Cause"] || row["문제원인"] || row["cause"] || "",
                         bom: row["BOM"] || row["bom"] || "",
@@ -1933,13 +2191,20 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           row["workedOn"] ||
                           new Date().toISOString().slice(0, 10),
                         priority: row["Importance"] || row["중요도"] || row["priority"] || "일반",
-                        category: row["Effect Type"] || row["효과유형"] || row["효과 유형"] || row["category"] || "기타",
+                        category:
+                          row["Effect Type"] ||
+                          row["효과유형"] ||
+                          row["효과 유형"] ||
+                          row["category"] ||
+                          "기타",
                       }));
                       setBatchParsedRows(newItems);
                     }
                   } catch (err) {
                     console.error("Batch import error:", err);
-                    setBatchModalError(t("mp.importError", "CSV 파일을 읽는 도중 오류가 발생했습니다."));
+                    setBatchModalError(
+                      t("mp.importError", "CSV 파일을 읽는 도중 오류가 발생했습니다."),
+                    );
                   }
                 };
                 reader.readAsBinaryString(file);
@@ -1965,13 +2230,15 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               type="button"
               className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
-                const initialApplicable = filtered.length > 0 ? [...filtered] : [...listRows];
+                const initialApplicable = [...filtered];
                 setApplicableRows(initialApplicable);
                 setNotApplicableRows([]);
                 setShowSaveModal(true);
               }}
-              disabled={savingAll}
-              title={!isDirty ? t("app.noData", "저장할 변경사항이 없습니다.") : t("app.save", "저장")}
+              disabled={savingAll || filtered.length === 0}
+              title={
+                !isDirty ? t("app.noData", "저장할 변경사항이 없습니다.") : t("app.save", "저장")
+              }
             >
               {savingAll ? (
                 <>
@@ -2031,75 +2298,78 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
           {/* Equipment Type Filter */}
           <div className="mp-filter-item">
-            <label>{t("field.equipmentType", "Equipment Type")}</label>
+            <label>{t("field.maintenanceType", "Equipment Type")}</label>
             {filterLoading ? (
-              <SelectSkeleton width="130px" />
+              <SelectSkeleton width="160px" />
             ) : (
               <select
                 className="input-base"
-                value={selectedMaintenanceId ?? ""}
-                onChange={handleMaintenanceChange}
-                disabled={!selectedProcessId}
-                style={{ width: "130px" }}
+                value={selectedEquipmentTypeId ?? ""}
+                onChange={(e) =>
+                  setSelectedEquipmentTypeId(e.target.value === "" ? null : Number(e.target.value))
+                }
+                style={{ width: "160px" }}
               >
-                <option value="">{t("app.all", "전체")}</option>
-                {maintenanceList.map((item) => (
+                <option value="">{t("app.all", "All")}</option>
+                {equipmentTypeList.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.equipmentTypeName || item.eqTypeName || item.maintenanceGroupName || String(item.id)}
+                    {item.equipmentTypeName}
                   </option>
                 ))}
               </select>
             )}
           </div>
 
-          {/* Site Filter (Hidden site input as in index.html to match bindings) */}
-          <div className="hidden">
-            <select value={selectedSiteId ?? ""}>
-              <option value="">{t("app.all")}</option>
-              {siteList.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.siteName}
-                </option>
-              ))}
-            </select>
+          {/* Site Filter */}
+          <div className="mp-filter-item">
+            <label>{t("field.site", "Site")}</label>
+            {filterLoading ? (
+              <SelectSkeleton width="120px" />
+            ) : (
+              <select
+                className="input-base"
+                value={selectedSiteId ?? ""}
+                onChange={(e) =>
+                  setSelectedSiteId(e.target.value === "" ? null : Number(e.target.value))
+                }
+                style={{ width: "120px" }}
+              >
+                <option value="">{t("app.all", "All")}</option>
+                {siteList.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.siteName}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Representative Work Filter (Multi-select) */}
+          {/* WO Type Filter */}
           <div className="mp-filter-item">
-            <label>{t("field.repWork", "대표작업명")}</label>
+            <label>{t("field.woType", "WO Type")}</label>
             {filterLoading ? (
-              <SelectSkeleton width="180px" />
+              <SelectSkeleton width="160px" />
             ) : (
-              <div style={{ width: "180px" }}>
-                <MultiSelect
-                  options={repWorkOptions}
-                  selectedValues={selectedRepWorks}
-                  onChange={setSelectedRepWorks}
-                  placeholder={t("app.all", "전체")}
-                  t={t}
-                  disabled={!selectedProcessId}
-                />
-              </div>
-            )}
-            {!filterLoading && (
-              <span
-                style={{
-                  color: "var(--brand-60, #0f62fe)",
-                  fontSize: "11px",
-                  fontWeight: "bold",
-                  marginLeft: "4px"
-                }}
+              <select
+                className="input-base"
+                value={selectedWoType}
+                onChange={(e) => setSelectedWoType(e.target.value)}
+                style={{ width: "160px" }}
               >
-                ({repWorkOptions.length}개)
-              </span>
+                <option value="전체">{t("app.all", "All")}</option>
+                {woTypeOptions.map((name, idx) => (
+                  <option key={idx} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
           {/* Priority Filter (Multi-select) */}
           <div className="mp-filter-item">
             <label>
-              {t("field.priority", "중요도")}{" "}
-              <span className="text-red-500">*</span>
+              {t("field.priority", "중요도")} <span className="text-red-500">*</span>
             </label>
             {filterLoading ? (
               <SelectSkeleton width="120px" />
@@ -2170,79 +2440,94 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
         {/* ── Table or Empty Landing state ── */}
         <div className="card mp-table-card flex-1 min-h-0 flex flex-col overflow-hidden">
-            {selectedProcessId === null ? (
-              <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl">
-                  <i className="fas fa-clipboard-list" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  {t("landing.selectProcessAndMaint")}
-                </h2>
-                <p className="text-sm text-gray-400 max-w-md">
-                  {t("landing.selectProcessAndMaintMPDesc")}
-                </p>
+          {selectedProcessId === null ? (
+            <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl">
+                <i className="fas fa-clipboard-list" />
               </div>
-            ) : (dataLoading || isFiltering) ? (
-              <TableSkeleton rows={6} t={t} />
-            ) : (
-              <div className="mp-table-scroll overflow-auto border border-border-base dark:border-gray-700 rounded-xl shadow-2xs">
-                <table
-                  className="min-w-full text-left text-sm"
-                  style={{ tableLayout: "fixed", width: "100%", minWidth: "1280px" }}
-                >
-                  <colgroup>
-                    <col style={{ width: "3%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "11%" }} />
-                    <col style={{ width: "9%" }} />
-                    <col style={{ width: "8%" }} />
-                    <col style={{ width: "8%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "5%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "7%" }} />
-                    <col style={{ width: "6%" }} />
-                    <col style={{ width: "5%" }} />
-                  </colgroup>
-                  <thead className="table-header" style={{ position: "sticky", top: 0, zIndex: 1 }}>
+              <h2 className="text-xl font-bold text-gray-800">
+                {t("landing.selectProcessAndMaint")}
+              </h2>
+              <p className="text-sm text-gray-400 max-w-md">
+                {t("landing.selectProcessAndMaintMPDesc")}
+              </p>
+            </div>
+          ) : dataLoading || isFiltering ? (
+            <TableSkeleton rows={6} t={t} />
+          ) : (
+            <div className="mp-table-scroll overflow-auto border border-border-base dark:border-gray-700 rounded-xl shadow-2xs">
+              <table
+                className="min-w-full text-left text-sm"
+                style={{ tableLayout: "fixed", width: "100%", minWidth: "1280px" }}
+              >
+                <colgroup>
+                  <col style={{ width: "3%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "8%" }} />
+                </colgroup>
+                <thead className="table-header" style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                  <tr>
+                    <th
+                      className="border-b border-border-base dark:border-gray-700/60 text-center px-1 py-2"
+                      style={{ textAlign: "center" }}
+                    ></th>
+                    {TABLE_COLUMNS.map((col) => (
+                      <SortableTh
+                        key={col}
+                        columnKey={col}
+                        label={columnLabel(col, t)}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                      />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
                     <tr>
-                      <th className="border-b border-border-base dark:border-gray-700/60 text-center px-1 py-2" style={{ textAlign: "center" }}></th>
-                      {TABLE_COLUMNS.map((col) => (
-                        <SortableTh
-                          key={col}
-                          columnKey={col}
-                          label={columnLabel(col, t)}
-                          sortConfig={sortConfig}
-                          onSort={handleSort}
-                        />
-                      ))}
+                      <td
+                        colSpan={TABLE_COLUMNS.length + 1}
+                        className="text-center py-10 text-text-subtle text-sm"
+                      >
+                        {t("empty.noMatch", "조건에 맞는 데이터가 없습니다.")}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan={TABLE_COLUMNS.length + 1} className="text-center py-10 text-text-subtle text-sm">
-                          {t("empty.noMatch", "조건에 맞는 데이터가 없습니다.")}
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedData.map((row, index) => {
-                        const isVoc = row.is_voc === true || row.isVoc === true || row.is_voc === "true" || row.isVoc === "true" || !!row._pending;
-                        const isPending = !!row._pending;
-                        const detailKey = rowKey(row, index);
-                        const isSelected = isRowSelected(row, drawerItem);
+                  ) : (
+                    paginatedData.map((row, index) => {
+                      const isVoc =
+                        row.is_voc === true ||
+                        row.isVoc === true ||
+                        row.is_voc === "true" ||
+                        row.isVoc === "true" ||
+                        !!row._pending;
+                      const isPending = !!row._pending;
+                      const currentUserName = getUserInfo()?.name || "admin";
+                      const isUser =
+                        (row.created_by ?? row.createdBy ?? "") === currentUserName &&
+                        !row.work_order_id;
+                      const detailKey = rowKey(row, index);
+                      const isSelected = isRowSelected(row, drawerItem);
 
-                        const rowBgClass = isSelected
-                          ? "bg-[#ddeaff] dark:bg-blue-900/60"
-                          : isPending
+                      const rowBgClass = isSelected
+                        ? "bg-[#ddeaff] dark:bg-blue-900/60"
+                        : isPending
                           ? "bg-[#f0fdf4]"
                           : isVoc
-                          ? "bg-[#e8f2ff] dark:bg-blue-950/40 hover:bg-[#dbe9fe] dark:hover:bg-blue-900/50"
-                          : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
+                            ? "bg-[#e8f2ff] dark:bg-blue-950/40 hover:bg-[#dbe9fe] dark:hover:bg-blue-900/50"
+                            : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
 
                       return (
                         <tr
@@ -2274,10 +2559,20 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                           </td>
                           {TABLE_COLUMNS.map((col) => {
                             if (col === "photos") {
-                              const photoList = row.photos || row.attachments || (row.samplePhoto ? [row.samplePhoto] : []);
-                              const photoCount = Array.isArray(photoList) && photoList.length > 0
-                                ? photoList.length
-                                : (row.photoCount || row.attachmentCount || (row.wOCode === "WC09114213" || row.woCode === "WC09114213" || row.samplePhoto ? 1 : 0));
+                              const photoList =
+                                row.photos ||
+                                row.attachments ||
+                                (row.samplePhoto ? [row.samplePhoto] : []);
+                              const photoCount =
+                                Array.isArray(photoList) && photoList.length > 0
+                                  ? photoList.length
+                                  : row.photoCount ||
+                                    row.attachmentCount ||
+                                    (row.wOCode === "WC09114213" ||
+                                    row.woCode === "WC09114213" ||
+                                    row.samplePhoto
+                                      ? 1
+                                      : 0);
 
                               return (
                                 <td key={col} className="px-3 py-2 text-center whitespace-nowrap">
@@ -2287,7 +2582,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                       <span>{String(photoCount).padStart(2, "0")}</span>
                                     </span>
                                   ) : (
-                                    <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                                    <span className="text-gray-300 dark:text-gray-600 text-xs">
+                                      —
+                                    </span>
                                   )}
                                 </td>
                               );
@@ -2300,7 +2597,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                     className="mp-inline-select"
                                     value={val}
                                     onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleInlineChange(row, "priority", e.target.value)}
+                                    onChange={(e) =>
+                                      handleInlineChange(row, "priority", e.target.value)
+                                    }
                                   >
                                     <option value="중요">{t("priority.high", "중요")}</option>
                                     <option value="일반">{t("priority.normal", "일반")}</option>
@@ -2316,11 +2615,17 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                     className="mp-inline-select"
                                     value={val}
                                     onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleInlineChange(row, "category", e.target.value)}
+                                    onChange={(e) =>
+                                      handleInlineChange(row, "category", e.target.value)
+                                    }
                                   >
-                                    <option value="생산성">{t("category.productivity", "생산성")}</option>
+                                    <option value="생산성">
+                                      {t("category.productivity", "생산성")}
+                                    </option>
                                     <option value="품질">{t("category.quality", "품질")}</option>
-                                    <option value="보전성">{t("category.maintenance", "보전성")}</option>
+                                    <option value="보전성">
+                                      {t("category.maintenance", "보전성")}
+                                    </option>
                                     <option value="기타">{t("category.etc", "기타")}</option>
                                   </select>
                                 </td>
@@ -2356,8 +2661,23 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                             }
                             if (col === "workedOn") {
                               return (
-                                <td key={col} className="px-3 py-2 text-text-subtle whitespace-nowrap text-xs">
+                                <td
+                                  key={col}
+                                  className="px-3 py-2 text-text-subtle whitespace-nowrap text-xs"
+                                >
                                   {formatWorkedOn(getColValue(row, "workedOn"))}
+                                </td>
+                              );
+                            }
+                            if (col === "createdAt") {
+                              const rawDate = getColValue(row, "createdAt");
+                              const formatted = rawDate ? formatWorkedOn(rawDate) : "";
+                              return (
+                                <td
+                                  key={col}
+                                  className="px-3 py-2 text-text-subtle whitespace-nowrap text-xs"
+                                >
+                                  {formatted || "—"}
                                 </td>
                               );
                             }
@@ -2377,9 +2697,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                 >
                                   {val === null || val === "" ? "—" : String(val)}
                                   {isUser && (
-                                    <span className="user-badge">
-                                      {t("app.userRow", "사용자")}
-                                    </span>
+                                    <span className="user-badge">{t("app.userRow", "사용자")}</span>
                                   )}
                                 </td>
                               );
@@ -2405,29 +2723,40 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                       );
                     })
                   )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            {/* Pagination bar */}
-            {selectedProcessId !== null && filtered.length > 0 && (
-              <Pagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={sortedFilteredData.length}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
-              />
-            )}
-          </div>
+          {/* Pagination bar */}
+          {selectedProcessId !== null && filtered.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={sortedFilteredData.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
+        </div>
       </section>
 
       {/* ── Add/Edit row modal ── */}
       <Modal
         open={showModal}
-        title={editingRowLocalId !== null ? t("page.mp.modalEditTitle", "MP List 행 수정") : t("page.mp.modalTitle", "Add MP List Row")}
-        description={editingRowLocalId !== null ? t("page.mp.modalEditDesc", "항목 정보를 수정합니다.") : t("page.mp.modalDesc", "Add new items. The W/O code is automatically emptied and separated from system data.")}
+        title={
+          editingRowLocalId !== null
+            ? t("page.mp.modalEditTitle", "MP List 행 수정")
+            : t("page.mp.modalTitle", "Add MP List Row")
+        }
+        description={
+          editingRowLocalId !== null
+            ? t("page.mp.modalEditDesc", "항목 정보를 수정합니다.")
+            : t(
+                "page.mp.modalDesc",
+                "Add new items. The W/O code is automatically emptied and separated from system data.",
+              )
+        }
         onClose={() => {
           setShowModal(false);
           setEditingRowLocalId(null);
@@ -2461,8 +2790,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 type="text"
                 className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
-                  processList.find((p) => p.id === selectedProcessId)
-                    ?.processName || "02.배치"
+                  processList.find((p) => p.id === selectedProcessId)?.processName || "02.배치"
                 }
                 disabled
                 readOnly
@@ -2476,9 +2804,8 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 type="text"
                 className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
-                  (filterPayload?.maintenance ?? []).find(
-                    (m) => m.id === selectedMaintenanceId
-                  )?.maintenanceGroupName || "0202. Nano Mill"
+                  equipmentTypeList.find((e) => e.id === selectedEquipmentTypeId)
+                    ?.equipmentTypeName || ""
                 }
                 disabled
                 readOnly
@@ -2499,8 +2826,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
               onChange={(e) => setField("representativeWork", e.target.value)}
               placeholder={t("placeholder.representativeWorkInput", "Enter the main job name")}
               style={{
-                borderColor: errors.representativeWork ? "var(--color-text-danger, #dc2626)" : undefined,
-                borderWidth: errors.representativeWork ? "1.5px" : undefined
+                borderColor: errors.representativeWork
+                  ? "var(--color-text-danger, #dc2626)"
+                  : undefined,
+                borderWidth: errors.representativeWork ? "1.5px" : undefined,
               }}
             />
             {errors.representativeWork && (
@@ -2529,8 +2858,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.situation", "Problem phenomenon")}{" "}
-                <span className="text-red-500">*</span>
+                {t("field.situation", "Problem phenomenon")} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -2540,7 +2868,7 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 placeholder={t("placeholder.situationInput", "Problem Phenomenon Input")}
                 style={{
                   borderColor: errors.situation ? "var(--color-text-danger, #dc2626)" : undefined,
-                  borderWidth: errors.situation ? "1.5px" : undefined
+                  borderWidth: errors.situation ? "1.5px" : undefined,
                 }}
               />
               {errors.situation && (
@@ -2720,14 +3048,22 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
       {/* ── Batch addition of VoC Modal ── */}
       {showBatchModal && (
-        <div
-          className="modal-overlay animate-fade-in"
-          onClick={() => setShowBatchModal(false)}
-        >
+        <div className="modal-overlay animate-fade-in" onClick={() => setShowBatchModal(false)}>
           <div
             className="modal-panel modal-panel-xl p-6 relative animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Loading Overlay - shown while validating/saving */}
+            {batchSaving && (
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl">
+                <div className="flex flex-col items-center gap-3">
+                  <i className="fas fa-spinner fa-spin text-3xl text-[#1745c2]" />
+                  <p className="text-sm font-semibold text-[#1745c2]">
+                    {t("batch.validating", "Validating...")}
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Modal Header */}
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
@@ -2771,7 +3107,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     {t("page.mp.downloadFormTitle", "Download the input form first")}
                   </h4>
                   <p className="text-[11px] text-text-subtlest mt-0.5 leading-relaxed">
-                    {t("page.mp.downloadFormDesc", "Required columns: Process, Maintenance Part, Main Work Name, Work Completion Date, Importance, Effect Type, Corporation")}
+                    {t(
+                      "page.mp.downloadFormDesc",
+                      "Required columns: Process, Maintenance Part, Main Work Name, Work Completion Date, Importance, Effect Type, Corporation",
+                    )}
                   </p>
                 </div>
               </div>
@@ -2857,50 +3196,167 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
             {/* Row Preview Table if files imported */}
             {batchParsedRows.length > 0 && (
               <div className="mb-5">
+                {/* Filter Tabs: All / Duplicate / Missing */}
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                    <i className="fas fa-table text-xs" />
-                    미리보기 ({batchParsedRows.length}건)
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setBatchFilter("all")}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                        batchFilter === "all"
+                          ? "bg-[#1745c2] text-white shadow-sm"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      {t("batch.all", "All")} ({batchParsedRows.length})
+                    </button>
+                    {batchDupCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setBatchFilter("duplicate")}
+                        className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                          batchFilter === "duplicate"
+                            ? "bg-red-500 text-white shadow-sm"
+                            : "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50"
+                        }`}
+                      >
+                        {t("batch.duplicate", "Duplicate")} ({batchDupCount})
+                      </button>
+                    )}
+                    {batchDupCount > 0 && batchDupCount < batchParsedRows.length && (
+                      <button
+                        type="button"
+                        onClick={() => setBatchFilter("missing")}
+                        className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                          batchFilter === "missing"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                        }`}
+                      >
+                        {t("batch.missing", "Missing")} ({batchParsedRows.length - batchDupCount})
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setBatchParsedRows([])}
+                    onClick={() => {
+                      setBatchParsedRows([]);
+                      setBatchDuplicateFlags([]);
+                      setBatchFilter("all");
+                    }}
                     className="text-[11px] text-red-500 hover:text-red-700 font-medium cursor-pointer"
                   >
-                    초기화
+                    {t("batch.reset", "Reset")}
                   </button>
                 </div>
+
+                {/* Duplicate warning banner */}
+                {batchDupCount > 0 && (
+                  <div className="mb-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg flex items-center gap-2">
+                    <i className="fas fa-exclamation-triangle text-red-500 text-xs" />
+                    <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                      {batchDupCount}{" "}
+                      {t("batch.duplicateFound", "duplicate record(s) found. Please review.")}
+                    </span>
+                  </div>
+                )}
+
                 <div className="max-h-48 overflow-y-auto border border-border-base dark:border-gray-700 rounded-xl overflow-x-auto">
-                  <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                  <table
+                    className="w-full text-left text-xs"
+                    style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                  >
                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[10px] font-bold uppercase">
                       <tr>
                         <th className="px-2.5 py-2 w-8 text-center">#</th>
-                        <th className="px-2.5 py-2">대표 작업명</th>
-                        <th className="px-2.5 py-2">작업 목적</th>
-                        <th className="px-2.5 py-2">HW 변경 전</th>
-                        <th className="px-2.5 py-2">HW 변경 후</th>
-                        <th className="px-2.5 py-2">SW 변경 전</th>
-                        <th className="px-2.5 py-2">SW 변경 후</th>
-                        <th className="px-2.5 py-2 text-center">중요도</th>
-                        <th className="px-2.5 py-2 text-center">효과 유형</th>
-                        <th className="px-2.5 py-2 text-center">작업완료일</th>
+                        <th className="px-2.5 py-2">
+                          {t("field.repWork", "REPRESENTATIVE WORK NAME")}
+                        </th>
+                        <th className="px-2.5 py-2">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
+                        <th className="px-2.5 py-2">
+                          {t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}
+                        </th>
+                        <th className="px-2.5 py-2">
+                          {t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}
+                        </th>
+                        <th className="px-2.5 py-2">
+                          {t("field.swBefore", "BEFORE SOFTWARE CHANGE")}
+                        </th>
+                        <th className="px-2.5 py-2">
+                          {t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}
+                        </th>
+                        <th className="px-2.5 py-2 text-center">
+                          {t("field.priority", "IMPORTANCE")}
+                        </th>
+                        <th className="px-2.5 py-2 text-center">{t("field.category", "EFFECT")}</th>
+                        <th className="px-2.5 py-2 text-center">
+                          {t("field.workedOn", "WORK DATE")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {batchParsedRows.map((r, idx) => (
-                        <tr key={`batch-row-${idx}`} className="bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff]">
-                          <td className="px-2.5 py-1.5 text-center text-gray-400">{idx + 1}</td>
-                          <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate">{r.representativeWork || "—"}</td>
-                          <td className="px-2.5 py-1.5 max-w-[120px] truncate">{r.work || "—"}</td>
-                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.hwAsWas || "—"}</td>
-                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.hwAsIs || "—"}</td>
-                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.swAsWas || "—"}</td>
-                          <td className="px-2.5 py-1.5 max-w-[100px] truncate">{r.swAsIs || "—"}</td>
-                          <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
-                          <td className="px-2.5 py-1.5 text-center">{r.category || "기타"}</td>
-                          <td className="px-2.5 py-1.5 text-center whitespace-nowrap">{r.workedOn || "—"}</td>
+                      {batchFilteredRows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={10}
+                            className="px-4 py-6 text-center text-gray-400 font-medium text-xs"
+                          >
+                            {batchFilter === "duplicate"
+                              ? t("batch.noDuplicates", "No duplicate records")
+                              : batchFilter === "missing"
+                                ? t("batch.noMissing", "No missing records")
+                                : t("batch.noRecords", "No records")}
+                          </td>
                         </tr>
-                      ))}
+                      ) : (
+                        batchFilteredRows.map((r) => {
+                          const origIdx = batchParsedRows.indexOf(r);
+                          const isDup = batchDuplicateFlags[origIdx];
+                          return (
+                            <tr
+                              key={`batch-row-${origIdx}`}
+                              className={
+                                isDup
+                                  ? "bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                  : "bg-[#f0f7ff] dark:bg-blue-950/30 hover:bg-[#e4efff]"
+                              }
+                            >
+                              <td className="px-2.5 py-1.5 text-center text-gray-400">
+                                {origIdx + 1}
+                                {isDup && (
+                                  <i
+                                    className="fas fa-exclamation-circle text-red-500 text-[9px] ml-1"
+                                    title="Duplicate"
+                                  />
+                                )}
+                              </td>
+                              <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate">
+                                {r.representativeWork || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[120px] truncate">
+                                {r.work || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
+                                {r.hwAsWas || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
+                                {r.hwAsIs || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
+                                {r.swAsWas || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
+                                {r.swAsIs || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
+                              <td className="px-2.5 py-1.5 text-center">{r.category || "기타"}</td>
+                              <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
+                                {r.workedOn || "—"}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2909,24 +3365,43 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
 
             {/* Modal Footer */}
             <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
-              <button
-                type="button"
-                className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1"
-                onClick={() => {
-                  setBatchParsedRows([]);
-                  setShowBatchModal(false);
-                }}
-              >
-                {t("app.cancellation", "cancellation")}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer py-1"
+                  onClick={() => {
+                    setBatchParsedRows([]);
+                    setBatchDuplicateFlags([]);
+                    setBatchFilter("all");
+                    setShowBatchModal(false);
+                  }}
+                >
+                  {t("app.cancellation", "cancellation")}
+                </button>
+                {batchDupCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveDuplicates}
+                    className="text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors cursor-pointer px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center gap-1.5"
+                  >
+                    <i className="fas fa-trash-alt text-[10px]" />
+                    {t("batch.removeDuplicate", "Remove Duplicate")} ({batchDupCount})
+                  </button>
+                )}
+              </div>
               {batchParsedRows.length > 0 && (
                 <button
                   type="button"
                   onClick={handleConfirmBatchAdd}
-                  className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                  disabled={batchSaving}
+                  className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <i className="fas fa-plus text-xs" />
-                  <span>VoC 일괄 등록 ({batchParsedRows.length}건)</span>
+                  <i className={`fas ${batchSaving ? "fa-spinner fa-spin" : "fa-save"} text-xs`} />
+                  <span>
+                    {batchSaving
+                      ? t("batch.validating", "Validating...")
+                      : `${t("batch.save", "Save")} (${batchParsedRows.length})`}
+                  </span>
                 </button>
               )}
             </div>
@@ -2955,7 +3430,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     {t("page.mp.storingModalTitle", "Storing MP List")}
                   </h3>
                   <p className="text-xs text-text-subtlest mt-0.5 font-medium">
-                    {processList.find(p => p.id === selectedProcessId)?.processName || "02. Placement"} · {(filterPayload?.maintenance ?? []).find(m => m.id === selectedMaintenanceId)?.maintenanceGroupName || "0202. Nano Mill"} · {dateFrom || "2025-07-27"} ~ {dateTo || "2026-07-27"} · v1
+                    {processList.find((p) => p.id === selectedProcessId)?.processName ||
+                      "02. Placement"}{" "}
+                    · {dateFrom || "2025-07-27"} ~ {dateTo || "2026-07-27"} · v1
                   </p>
                 </div>
               </div>
@@ -2985,14 +3462,20 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                   <button
                     type="button"
                     onClick={() => {
-                      const toMove = applicableRows.filter((r) => r.priority !== "중요" && r.priority !== "Important");
-                      const keep = applicableRows.filter((r) => r.priority === "중요" || r.priority === "Important");
+                      const toMove = applicableRows.filter(
+                        (r) => r.priority !== "중요" && r.priority !== "Important",
+                      );
+                      const keep = applicableRows.filter(
+                        (r) => r.priority === "중요" || r.priority === "Important",
+                      );
                       setApplicableRows(keep);
                       setNotApplicableRows((prev) => [
                         ...prev,
                         ...toMove.map((item) => ({
                           ...item,
-                          nonImplReason: item.nonImplReason || t("page.mp.generalItemReason", "일반 항목 - 미적용 대상"),
+                          nonImplReason:
+                            item.nonImplReason ||
+                            t("page.mp.generalItemReason", "일반 항목 - 미적용 대상"),
                         })),
                       ]);
                     }}
@@ -3006,32 +3489,61 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                 {/* Applicable Items Table */}
                 <div className="border border-emerald-200 dark:border-emerald-800/40 rounded-2xl overflow-hidden border-l-4 border-l-emerald-500 bg-surface-default shadow-2xs">
                   <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                    <table
+                      className="w-full text-left text-xs"
+                      style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                    >
                       <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-border-base shadow-2xs">
                         <tr>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">#</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.priority", "IMPORTANCE")}</th>
-                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">{t("field.category", "EFFECT")}</th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">
+                            #
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.repWork", "REPRESENTATIVE WORK NAME")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.purpose", "PURPOSE OF THE WORK")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.swBefore", "BEFORE SOFTWARE CHANGE")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
+                            {t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">
+                            {t("field.priority", "IMPORTANCE")}
+                          </th>
+                          <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-24 text-center">
+                            {t("field.category", "EFFECT")}
+                          </th>
                           <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-12 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
                         {applicableRows.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="px-4 py-8 text-center text-gray-400 font-medium">
+                            <td
+                              colSpan={10}
+                              className="px-4 py-8 text-center text-gray-400 font-medium"
+                            >
                               {t("page.mp.noApplicable", "No applicable items")}
                             </td>
                           </tr>
                         ) : (
                           applicableRows.map((row, idx) => (
-                            <tr key={`app-${idx}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                              <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                            <tr
+                              key={`app-${idx}`}
+                              className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors"
+                            >
+                              <td className="px-3 py-2 text-center text-gray-400 font-medium">
+                                {idx + 1}
+                              </td>
                               <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">
                                 {getColValue(row, "representativeWork") || "—"}
                               </td>
@@ -3051,11 +3563,13 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                 {getColValue(row, "swAfter") || "No information available"}
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
-                                  row.priority === "중요" || row.priority === "Important"
-                                    ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-100"
-                                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                                }`}>
+                                <span
+                                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                                    row.priority === "중요" || row.priority === "Important"
+                                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-100"
+                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                  }`}
+                                >
                                   {row.priority || "Important"}
                                 </span>
                               </td>
@@ -3070,7 +3584,10 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                   title="Move to Not Applicable"
                                   onClick={() => {
                                     setApplicableRows(applicableRows.filter((_, i) => i !== idx));
-                                    setNotApplicableRows([...notApplicableRows, { ...row, nonImplReason: row.nonImplReason || "" }]);
+                                    setNotApplicableRows([
+                                      ...notApplicableRows,
+                                      { ...row, nonImplReason: row.nonImplReason || "" },
+                                    ]);
                                   }}
                                   className="w-6 h-6 rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center cursor-pointer transition-colors"
                                 >
@@ -3111,26 +3628,54 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                     </div>
                   ) : (
                     <div className="max-h-56 overflow-y-auto custom-scrollbar">
-                      <table className="w-full text-left text-xs" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <table
+                        className="w-full text-left text-xs"
+                        style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                      >
                         <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
                           <tr>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">#</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.repWork", "REPRESENTATIVE WORK NAME")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.priority", "IMPORTANCE")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">{t("field.category", "EFFECT")}</th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">{t("field.nonImplReason", "REASONS FOR NON-IMPLEMENTATION")}</th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">
+                              #
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.repWork", "REPRESENTATIVE WORK NAME")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.purpose", "PURPOSE OF THE WORK")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.swBefore", "BEFORE SOFTWARE CHANGE")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">
+                              {t("field.priority", "IMPORTANCE")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">
+                              {t("field.category", "EFFECT")}
+                            </th>
+                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                              {t("field.nonImplReason", "REASONS FOR NON-IMPLEMENTATION")}
+                            </th>
                             <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-12 text-center"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
                           {notApplicableRows.map((row, idx) => (
-                            <tr key={`not-${idx}`} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
-                              <td className="px-3 py-2 text-center text-gray-400 font-medium">{idx + 1}</td>
+                            <tr
+                              key={`not-${idx}`}
+                              className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors"
+                            >
+                              <td className="px-3 py-2 text-center text-gray-400 font-medium">
+                                {idx + 1}
+                              </td>
                               <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">
                                 {getColValue(row, "representativeWork") || "—"}
                               </td>
@@ -3166,7 +3711,11 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                   value={row.nonImplReason || "Importance Average"}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    setNotApplicableRows(notApplicableRows.map((r, i) => i === idx ? { ...r, nonImplReason: val } : r));
+                                    setNotApplicableRows(
+                                      notApplicableRows.map((r, i) =>
+                                        i === idx ? { ...r, nonImplReason: val } : r,
+                                      ),
+                                    );
                                   }}
                                   className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
                                 />
@@ -3176,7 +3725,9 @@ export default function MPList({ onAddRow, onExport, searchText, onOpenDetail, d
                                   type="button"
                                   title="Restore to Applicable"
                                   onClick={() => {
-                                    setNotApplicableRows(notApplicableRows.filter((_, i) => i !== idx));
+                                    setNotApplicableRows(
+                                      notApplicableRows.filter((_, i) => i !== idx),
+                                    );
                                     setApplicableRows([...applicableRows, row]);
                                   }}
                                   className="w-6 h-6 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center cursor-pointer transition-colors"

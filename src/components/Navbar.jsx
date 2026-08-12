@@ -28,10 +28,11 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
 
   const breadcrumb = PAGE_BREADCRUMBS[activePage] || { section: null, title: "nav.home" };
 
-  const showResetButton = String(import.meta.env.VITE_SHOW_RESET_DATA ?? "")
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .toLowerCase() === "true";
+  const showResetButton =
+    String(import.meta.env.VITE_SHOW_RESET_DATA ?? "")
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .toLowerCase() === "true";
 
   const handleReset = () => {
     setIsResetting(true);
@@ -69,7 +70,8 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
             <i className={`fas ${collapsed ? "fa-indent text-sm" : "fa-bars text-sm"}`} />
           </button>
 
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700/80 h-5">
+          <div className="flex items-center gap-2 pl-2 h-5">
+            {/* Breadcrumb hidden for now
             {breadcrumb.section && (
               <>
                 <span className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
@@ -81,6 +83,7 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
             <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100">
               {t(breadcrumb.title)}
             </span>
+            */}
           </div>
         </div>
 
@@ -137,9 +140,7 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
             </button>
           }
         >
-          <div className="py-2 text-sm text-text-default">
-            {t("app.resetDataConfirmDesc")}
-          </div>
+          <div className="py-2 text-sm text-text-default">{t("app.resetDataConfirmDesc")}</div>
         </Modal>
       )}
 
@@ -169,12 +170,8 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
               />
             </div>
 
-            <h3 className="text-lg font-bold text-text-default mb-2">
-              {t("app.resettingData")}
-            </h3>
-            <p className="text-sm text-text-subtle">
-              {t("app.resettingDataDesc")}
-            </p>
+            <h3 className="text-lg font-bold text-text-default mb-2">{t("app.resettingData")}</h3>
+            <p className="text-sm text-text-subtle">{t("app.resettingDataDesc")}</p>
           </div>
         </div>
       )}

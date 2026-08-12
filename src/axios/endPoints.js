@@ -18,14 +18,14 @@ const pocEndPoints = {
   RESET_DATA: "api/CommonData/ResetData",
   GET_COMMON_DATA_COUNTS: "api/CommonData/GetCommonDataCounts",
   GET_MP_LIST: "api/MPData/GetMPList",
+  GET_MP_VERSION: "api/MPData/GetMPVersion",
+  SAVE_MP_VERSION: "api/MPData/SaveMPVersion",
   EDIT_MP_VERSION: "api/MPData/EditMPVersion",
   DELETE_MP_LIST_ITEM: "api/MPData/DeleteMpListItem",
   SAVE_VOC: "api/ChangeData/SaveVoc",
-  SAVE_MP_VERSION: "api/MPData/SaveMPVersion",
-  GET_MP_VERSION: "api/MPData/GetMPVersion",
+  CHANGE_HISTORY_DATA: "data-management/change-history-data",
+  GET_EQUIPMENT_STATUS: "api/MatrixInquiry/GetequipmentStatus",
   GET_EQUIPMENT_STATUS_COUNT: "api/MatrixInquiry/GetequipmentStatusCount",
-  SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
-  SAVE_IMAGE: "api/MatrixInquiry/SaveImage",
 };
 
 const auth = {

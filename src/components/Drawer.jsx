@@ -57,30 +57,47 @@ const COLUMN_LABEL_KEYS = {
 };
 
 const CHANGE_DETAIL_FIELDS = [
-  { labelKey: "field.repWork", keys: ["representativeWork", "representativeWorkName", "rep_work", "workName", "repWorkId"] },
-  { labelKey: "field.equipmentCode", keys: ["equipmentCode", "equipment_code", "eqCode", "eqcode"] },
-  { labelKey: "field.woCode", keys: ["wOCode", "woCode", "wo_code", "w/ocode", "workOrderTypeName"] },
-  { labelKey: "field.process", keys: ["process", "processName"] },
-  { labelKey: "field.equipmentName", keys: ["equipmentName", "equipment_name", "eqName", "eqname"] },
-  { labelKey: "field.maintenance", keys: ["maintGroup", "maintGroupName", "equipment", "eqType", "equipmentType", "equipmentTypeName", "maintenanceGroupName"] },
-  { labelKey: "field.improvement", keys: ["work", "work_description", "improvement", "workName"] },
-  { labelKey: "field.workPurpose", keys: ["purpose", "work_purpose", "workPurpose"] },
+  { labelKey: "field.report", keys: ["report", "report_content", "reportContent"] },
+  {
+    labelKey: "field.repWork",
+    keys: [
+      "representativeWork",
+      "representativeWorkName",
+      "rep_work",
+      "work_name",
+      "workName",
+      "repWorkId",
+    ],
+  },
+  { labelKey: "field.work", keys: ["work", "work_description", "improvement", "purpose"] },
   { labelKey: "field.situation", keys: ["situation"] },
   { labelKey: "field.cause", keys: ["cause"] },
-  { labelKey: "field.bom", keys: ["bom", "BOM"] },
-  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part", "materialName"] },
   { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore", "hw_was", "hwWas"] },
   { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter", "hw_is", "hwIs"] },
   { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was", "swWas"] },
   { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter", "sw_is", "swIs"] },
-  { labelKey: "field.report", keys: ["report", "report_content", "reportContent"] },
-  { labelKey: "field.site", keys: ["site", "siteName"] },
+  { labelKey: "field.bom", keys: ["bom", "BOM"] },
+  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part", "materialName"] },
+  {
+    labelKey: "field.woCode",
+    keys: ["wOCode", "woCode", "wo_code", "w/ocode", "workOrderTypeName", "work_order_type_name"],
+  },
   { labelKey: "field.workedOn", keys: ["workedOn", "work_date", "worked_date", "workDate"] },
-  { labelKey: "field.priority", keys: ["priority", "priorityName"] },
-  { labelKey: "field.category", keys: ["category", "categoryName"] },
-  { labelKey: "field.woType", keys: ["woType", "wo_type", "wotype", "workOrderTypeName"] },
-  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
-  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
+  {
+    labelKey: "field.registeredBy",
+    keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"],
+  },
+  {
+    labelKey: "field.registeredAt",
+    keys: [
+      "registeredAt",
+      "createdAt",
+      "creationDate",
+      "created_date",
+      "created_at",
+      "registeredDate",
+    ],
+  },
 ];
 
 const SPEC_DETAIL_FIELDS = [
@@ -92,8 +109,21 @@ const SPEC_DETAIL_FIELDS = [
   { labelKey: "field.version", keys: ["version"] },
   { labelKey: "field.specName", keys: ["specName"] },
   { labelKey: "field.specValue", keys: ["specValue"] },
-  { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] },
-  { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] },
+  {
+    labelKey: "field.registeredBy",
+    keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"],
+  },
+  {
+    labelKey: "field.registeredAt",
+    keys: [
+      "registeredAt",
+      "createdAt",
+      "creationDate",
+      "created_date",
+      "created_at",
+      "registeredDate",
+    ],
+  },
 ];
 
 const DEMO_SAMPLE_ATTACHMENT = {
@@ -111,25 +141,59 @@ function firstValue(item, keys) {
   return "";
 }
 
+function getFormattedDateString(raw) {
+  if (!raw) return "";
+  if (!isNaN(Number(raw))) {
+    const d = new Date(new Date(1899, 11, 30).getTime() + Number(raw) * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  const parsed = new Date(raw);
+  if (parsed && !isNaN(parsed)) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return String(raw).trim();
+}
+
 function rowLooksLikeSpec(item) {
   return Boolean(firstValue(item, ["specName", "specValue", "version", "specVersion"]));
 }
 
 function getRecordDetails(item, t) {
-  const isSpec = rowLooksLikeSpec(item);
-  const rawFields = isSpec ? SPEC_DETAIL_FIELDS : CHANGE_DETAIL_FIELDS;
+  const rawFields = CHANGE_DETAIL_FIELDS;
 
   const modifiedByVal = firstValue(item, ["modifiedBy", "editedBy", "updatedBy", "editor"]);
-  const modifiedAtVal = firstValue(item, ["modifiedAt", "editedAt", "updatedAt", "modificationDate"]);
+  const modifiedAtVal = firstValue(item, [
+    "modifiedAt",
+    "editedAt",
+    "updatedAt",
+    "updated_at",
+    "modificationDate",
+  ]);
   const hasModified = Boolean(modifiedByVal || modifiedAtVal);
 
   const lastByField = hasModified
     ? { labelKey: "field.editedBy", keys: ["modifiedBy", "editedBy", "updatedBy", "editor"] }
-    : { labelKey: "field.registeredBy", keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"] };
+    : {
+        labelKey: "field.registeredBy",
+        keys: ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"],
+      };
 
   const lastAtField = hasModified
-    ? { labelKey: "field.editedAt", keys: ["modifiedAt", "editedAt", "updatedAt", "modificationDate"] }
-    : { labelKey: "field.registeredAt", keys: ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"] };
+    ? {
+        labelKey: "field.editedAt",
+        keys: ["modifiedAt", "editedAt", "updatedAt", "modificationDate"],
+      }
+    : {
+        labelKey: "field.registeredAt",
+        keys: [
+          "registeredAt",
+          "createdAt",
+          "creationDate",
+          "created_date",
+          "created_at",
+          "registeredDate",
+        ],
+      };
 
   const baseFields = rawFields.filter(
     (f) =>
@@ -142,8 +206,26 @@ function getRecordDetails(item, t) {
   const orderedFields = [...baseFields, lastByField, lastAtField];
   const usedKeys = new Set(orderedFields.flatMap((field) => field.keys));
 
-  const registeredByVal = firstValue(item, ["registeredBy", "createdBy", "created_by", "uploadedBy", "author", "registrant"]) || "admin";
-  const registeredAtVal = firstValue(item, ["registeredAt", "createdAt", "creationDate", "created_date", "registeredDate"]) || firstValue(item, ["workedOn", "work_date"]) || "2026-06-26";
+  const registeredByVal =
+    firstValue(item, [
+      "registeredBy",
+      "createdBy",
+      "created_by",
+      "uploadedBy",
+      "author",
+      "registrant",
+    ]) || "admin";
+  const registeredAtVal =
+    firstValue(item, [
+      "registeredAt",
+      "createdAt",
+      "creationDate",
+      "created_date",
+      "created_at",
+      "registeredDate",
+    ]) ||
+    firstValue(item, ["workedOn", "work_date"]) ||
+    "2026-06-26";
 
   const orderedDetails = orderedFields
     .map((field) => {
@@ -160,33 +242,16 @@ function getRecordDetails(item, t) {
       };
     })
     .filter((detail) => {
-      if ((detail.labelKey === "field.editedBy" || detail.labelKey === "field.editedAt") && (!detail.value || detail.value === "-")) {
+      if (
+        (detail.labelKey === "field.editedBy" || detail.labelKey === "field.editedAt") &&
+        (!detail.value || detail.value === "-")
+      ) {
         return false;
       }
       return true;
     });
 
-  const extraDetails = Object.entries(item)
-    .filter(
-      ([key, value]) =>
-        !usedKeys.has(key) &&
-        !key.startsWith("_") &&
-        key !== "id" &&
-        key !== "type" &&
-        key !== "attachments" &&
-        key !== "samplePhoto" &&
-        key !== "imageId" &&
-        key !== "imageName" &&
-        key !== "imageData" &&
-        key !== "imageCategoryName" &&
-        value !== undefined,
-    )
-    .map(([key, value]) => ({
-      labelKey: COLUMN_LABEL_KEYS[key] ?? `field.${key}`,
-      label: t(COLUMN_LABEL_KEYS[key] ?? `field.${key}`, key),
-      value,
-    }));
-  return [...orderedDetails, ...extraDetails];
+  return orderedDetails;
 }
 
 export default function Drawer({ item, onClose, allowEdit = false, showEdit = false }) {
@@ -202,9 +267,14 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
   const isArray = Array.isArray(item);
   const firstItem = isArray ? item[0] : item;
 
-  const woCode = firstValue(firstItem, ["wOCode", "woCode", "workOrderTypeName"]);
-  const equipmentName = firstValue(firstItem, ["equipmentName"]);
-  const equipmentCode = firstValue(firstItem, ["equipmentCode"]);
+  const woCode = firstValue(firstItem, [
+    "wOCode",
+    "woCode",
+    "workOrderTypeName",
+    "work_order_type_name",
+  ]);
+  const equipmentName = firstValue(firstItem, ["equipmentName", "equipment_name"]);
+  const equipmentCode = firstValue(firstItem, ["equipmentCode", "equipment_code"]);
 
   const getAttachments = (rec, idx = 0) => {
     const recKey = rec.id || rec.changeHistoryId || rec.wOCode || rec.woCode || `rec-${idx}`;
@@ -216,7 +286,9 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
     }
     if (rec.imageData || rec.imageUrl || rec.imageName) {
       const src = rec.imageData
-        ? (rec.imageData.startsWith("data:") ? rec.imageData : `data:image/jpeg;base64,${rec.imageData}`)
+        ? rec.imageData.startsWith("data:")
+          ? rec.imageData
+          : `data:image/jpeg;base64,${rec.imageData}`
         : rec.imageUrl;
       if (src) {
         return [
@@ -244,10 +316,10 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
         activeTab === "problem"
           ? "문제 현상"
           : activeTab === "after"
-          ? "개선 후"
-          : activeTab === "equipment"
-          ? "설비 참고"
-          : "기타";
+            ? "개선 후"
+            : activeTab === "equipment"
+              ? "설비 참고"
+              : "기타";
 
       const reader = new FileReader();
       reader.onload = (evt) => {
@@ -260,7 +332,8 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
           category: categoryLabel,
         };
         setAttachmentsMap((prev) => {
-          const existing = prev[recKey] || (editingRecord?.attachments ? [...editingRecord.attachments] : []);
+          const existing =
+            prev[recKey] || (editingRecord?.attachments ? [...editingRecord.attachments] : []);
           return {
             ...prev,
             [recKey]: [...existing, newAtt],
@@ -281,7 +354,9 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
     editingRecord.editedBy = "admin";
     editingRecord.editedAt = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-    const historyId = Number(editingRecord.id || editingRecord.historyId || editingRecord.changeHistoryId || 0);
+    const historyId = Number(
+      editingRecord.id || editingRecord.historyId || editingRecord.changeHistoryId || 0,
+    );
     const imagesPayload = updatedAtts.map((att, idx) => ({
       filename: att.name || att.filename || `image_${idx + 1}.png`,
       fileContent: att.fileContent || att.url || "",
@@ -313,6 +388,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
     if (val === undefined || val === null || val === "") return "-";
 
     const key = detail.labelKey;
+
+    // Format date fields
+    if (key === "field.workedOn" || key === "field.registeredAt" || key === "field.editedAt") {
+      const formatted = getFormattedDateString(val);
+      if (formatted) return formatted;
+    }
+
     if (key === "field.priority") {
       if (val === "중요" || val === "High") {
         return <span className="badge badge-danger">{val}</span>;
@@ -330,11 +412,18 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
   return (
     <>
       <div className="eq-drawer-overlay">
-        <aside className="eq-drawer" style={{ pointerEvents: "auto" }} onClick={(e) => e.stopPropagation()}>
+        <aside
+          className="eq-drawer"
+          style={{ pointerEvents: "auto" }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="eq-drawer-header">
             <div>
               <h2 className="eq-drawer-title">{t("drawer.title", "상세 정보")}</h2>
-              <p className="eq-drawer-subtitle flex flex-wrap items-center gap-x-2" style={{ fontSize: "12px", lineHeight: "1.4" }}>
+              <p
+                className="eq-drawer-subtitle flex flex-wrap items-center gap-x-2"
+                style={{ fontSize: "12px", lineHeight: "1.4" }}
+              >
                 {woCode && (
                   <span>
                     <span className="text-text-subtlest">{t("field.woCode", "W/O코드")}: </span>
@@ -346,7 +435,9 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                 )}
                 {(equipmentName || equipmentCode) && (
                   <span>
-                    <span className="text-text-subtlest">{t("field.equipmentName", "설비명")}: </span>
+                    <span className="text-text-subtlest">
+                      {t("field.equipmentName", "설비명")}:{" "}
+                    </span>
                     <span className="text-text-default font-semibold">
                       {equipmentName}
                       {equipmentCode ? ` (${equipmentCode})` : ""}
@@ -375,7 +466,9 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                 <div key={idx} className="detail-group">
                   {isArray && (
                     <div className="detail-group-title flex items-center justify-between">
-                      <span>{t("detail.record", "레코드 상세")} {idx + 1}</span>
+                      <span>
+                        {t("detail.record", "레코드 상세")} {idx + 1}
+                      </span>
                     </div>
                   )}
 
@@ -450,15 +543,16 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
               />
             </div>
 
-            <div className="lightbox-caption">
-              {previewImage.name || "attachment.jpg"}
-            </div>
+            <div className="lightbox-caption">{previewImage.name || "attachment.jpg"}</div>
           </div>
         </div>
       )}
 
       {editingRecord && (
-        <div className="modal-overlay animate-fade-in overflow-y-auto" onClick={() => setEditingRecord(null)}>
+        <div
+          className="modal-overlay animate-fade-in overflow-y-auto"
+          onClick={() => setEditingRecord(null)}
+        >
           <div
             className="modal-panel modal-panel-xl p-6 relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
@@ -469,11 +563,12 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <i className="fas fa-pen-square text-base" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="modal-title">
-                    {t("modal.editItemTitle", "항목 편집")}
-                  </h3>
+                  <h3 className="modal-title">{t("modal.editItemTitle", "항목 편집")}</h3>
                   <p className="modal-description">
-                    {t("modal.editItemSub", "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.")}
+                    {t(
+                      "modal.editItemSub",
+                      "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
+                    )}
                   </p>
                 </div>
               </div>
@@ -489,9 +584,7 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
             <div className="modal-body flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar text-xs !p-0 !pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">
-                    {t("field.process", "공정")}
-                  </label>
+                  <label className="modal-field-label">{t("field.process", "공정")}</label>
                   <input
                     type="text"
                     disabled
@@ -508,7 +601,12 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     type="text"
                     disabled
                     readOnly
-                    value={editingRecord.maintGroup || editingRecord.maintGroupName || editingRecord.maintenanceType || "0202. Nano Mill"}
+                    value={
+                      editingRecord.maintGroup ||
+                      editingRecord.maintGroupName ||
+                      editingRecord.maintenanceType ||
+                      "0202. Nano Mill"
+                    }
                     className="modal-readonly-field"
                   />
                 </div>
@@ -520,8 +618,12 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                 </label>
                 <input
                   type="text"
-                  value={editingRecord.representativeWork || editingRecord.representativeWorkName || ""}
-                  onChange={(e) => setEditingRecord({ ...editingRecord, representativeWork: e.target.value })}
+                  value={
+                    editingRecord.representativeWork || editingRecord.representativeWorkName || ""
+                  }
+                  onChange={(e) =>
+                    setEditingRecord({ ...editingRecord, representativeWork: e.target.value })
+                  }
                   className="modal-input"
                 />
               </div>
@@ -544,7 +646,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <input
                     type="text"
                     value={editingRecord.situation || editingRecord.symptom || ""}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, situation: e.target.value, symptom: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        situation: e.target.value,
+                        symptom: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -576,7 +684,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     type="text"
                     placeholder="자재명 입력"
                     value={editingRecord.sparePart || editingRecord.materialName || ""}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, sparePart: e.target.value, materialName: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        sparePart: e.target.value,
+                        materialName: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -588,7 +702,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <input
                     type="text"
                     value={editingRecord.hwBefore || editingRecord.hwAsWas || "정보 없음"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, hwBefore: e.target.value, hwAsWas: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        hwBefore: e.target.value,
+                        hwAsWas: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -597,7 +717,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <input
                     type="text"
                     value={editingRecord.hwAfter || editingRecord.hwAsIs || "정보 없음"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, hwAfter: e.target.value, hwAsIs: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        hwAfter: e.target.value,
+                        hwAsIs: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -609,7 +735,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <input
                     type="text"
                     value={editingRecord.swBefore || editingRecord.swAsWas || "정보 없음"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, swBefore: e.target.value, swAsWas: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        swBefore: e.target.value,
+                        swAsWas: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -618,7 +750,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <input
                     type="text"
                     value={editingRecord.swAfter || editingRecord.swAsIs || "정보 없음"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, swAfter: e.target.value, swAsIs: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        swAfter: e.target.value,
+                        swAsIs: e.target.value,
+                      })
+                    }
                     className="modal-input"
                   />
                 </div>
@@ -629,7 +767,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <label className="modal-field-label">중요도</label>
                   <select
                     value={editingRecord.priority || editingRecord.priorityName || "중요"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, priority: e.target.value, priorityName: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        priority: e.target.value,
+                        priorityName: e.target.value,
+                      })
+                    }
                     className="modal-select"
                   >
                     <option value="중요">중요</option>
@@ -640,7 +784,13 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   <label className="modal-field-label">효과 유형</label>
                   <select
                     value={editingRecord.category || editingRecord.effectCategory || "품질"}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, category: e.target.value, effectCategory: e.target.value })}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        category: e.target.value,
+                        effectCategory: e.target.value,
+                      })
+                    }
                     className="modal-select"
                   >
                     <option value="품질">품질</option>
@@ -680,7 +830,8 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     { id: "equipment", label: "설비 참고" },
                     { id: "others", label: "기타" },
                   ].map((tab) => {
-                    const recKey = editingRecord.id || editingRecord.wOCode || editingRecord.woCode || `rec-0`;
+                    const recKey =
+                      editingRecord.id || editingRecord.wOCode || editingRecord.woCode || `rec-0`;
                     const currentAtts = attachmentsMap[recKey] || editingRecord.attachments || [];
                     const tabCount = currentAtts.filter((a) => a.category === tab.label).length;
 
@@ -703,7 +854,12 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     accept="image/*"
                     multiple
                     className="hidden"
-                    onChange={(e) => handleFileUpload(e, editingRecord.id || editingRecord.wOCode || editingRecord.woCode || `rec-0`)}
+                    onChange={(e) =>
+                      handleFileUpload(
+                        e,
+                        editingRecord.id || editingRecord.wOCode || editingRecord.woCode || `rec-0`,
+                      )
+                    }
                   />
                   <div className="drawer-upload-icon">
                     <i className="fas fa-cloud-upload-alt text-base" />
@@ -723,11 +879,7 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
               >
                 {t("app.cancellation", "취소")}
               </button>
-              <button
-                type="button"
-                onClick={handleSaveRecord}
-                className="btn-base btn-primary"
-              >
+              <button type="button" onClick={handleSaveRecord} className="btn-base btn-primary">
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.save", "저장하기")}</span>
               </button>

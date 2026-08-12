@@ -54,31 +54,14 @@ function buildExcelToJsonKeyMap(columnDefs) {
 }
 
 function remapRowKeys(row, excelToJsonKey, validKeys = null) {
-  const ALWAYS_ALLOWED = new Set([
-    "id",
-    "eqtype",
-    "equipmenttype",
-    "equipment_type",
-    "equipment type",
-    "eq type",
-    "wotype",
-    "wo_type",
-    "wo type",
-    "maintgroup"
-  ]);
-
   return Object.entries(row).reduce((acc, [key, value]) => {
     const trimmedKey = key.trim();
     const mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
-    const lk = trimmedKey.toLowerCase();
-    const lmk = mappedKey.toLowerCase();
-
     if (
       !validKeys ||
-      validKeys.has(lk) ||
-      validKeys.has(lmk) ||
-      ALWAYS_ALLOWED.has(lk) ||
-      ALWAYS_ALLOWED.has(lmk)
+      validKeys.has(trimmedKey.toLowerCase()) ||
+      validKeys.has(mappedKey.toLowerCase()) ||
+      mappedKey === "id"
     ) {
       acc[mappedKey] = value;
     }
@@ -98,7 +81,7 @@ function normalizeDuplicateValue(value, key = "") {
   let str = String(value).trim();
   if (key.toLowerCase().includes("date") || key === "workedon") {
     str = str.split(/[T ]/)[0];
-    
+
     // Check if it's in DD-MM-YYYY format or similar
     const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
     if (dmyMatch) {
@@ -107,7 +90,7 @@ function normalizeDuplicateValue(value, key = "") {
       const year = dmyMatch[3];
       return `${year}${month}${day}`;
     }
-    
+
     // Check if it's in YYYY-MM-DD format
     const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
     if (ymdMatch) {
@@ -162,9 +145,7 @@ function extractChangedRecords(payload) {
     const envelope = payload.changedDataJson[0];
     try {
       const parsed =
-        typeof envelope.content === "string"
-          ? JSON.parse(envelope.content)
-          : envelope.content;
+        typeof envelope.content === "string" ? JSON.parse(envelope.content) : envelope.content;
       if (Array.isArray(parsed)) return parsed;
     } catch {
       // ignore parse errors
@@ -193,7 +174,7 @@ function parseTotalCountFromResponse(responseData, payload, rowsLength, currentP
     if (!Number.isNaN(num) && num >= 0) return num;
   }
   const page = currentPage || 1;
-  const size = pageSize || 20;
+  const size = pageSize || 10;
   if (rowsLength === size) {
     return page * size + rowsLength;
   }
@@ -246,7 +227,15 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
     "equipment",
     "maintgroup",
     "maint_group",
+    "representativework",
+    "representative_work",
+    "representative work",
+    "rep_work",
+    "rep work",
   ];
+
+  // Track which row keys have already been checked via columnDefs
+  const checkedKeys = new Set();
 
   list.forEach((col) => {
     const excelName = col.excelColumnName?.trim().toLowerCase();
@@ -261,18 +250,51 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
     if (isMandatoryCol) {
       const matchedKey = Object.keys(row).find((k) => {
         const lk = k.trim().toLowerCase();
-        return lk === excelName || lk === jsonKey || lk === krName ||
-               (excelName && (lk.includes(excelName) || excelName.includes(lk))) ||
-               (jsonKey && (lk.includes(jsonKey) || jsonKey.includes(lk)));
+        return lk === excelName || lk === jsonKey || lk === krName;
       });
 
-      const val = matchedKey !== undefined ? row[matchedKey] : undefined;
+      // If the mandatory column doesn't exist in the row at all,
+      // skip it — user can't fill a field that has no column in the data.
+      if (matchedKey === undefined) return;
+
+      checkedKeys.add(matchedKey.trim().toLowerCase());
+
+      const val = row[matchedKey];
       const strVal = val != null ? String(val).trim().toLowerCase() : "";
-      if (val === undefined || val === null || strVal === "" || strVal === "required" || strVal === "[required]" || strVal === "필수") {
+      if (
+        val === undefined ||
+        val === null ||
+        strVal === "" ||
+        strVal === "required" ||
+        strVal === "[required]" ||
+        strVal === "필수"
+      ) {
         missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey);
       }
     }
   });
+
+  // Fallback: also check row keys directly against ALWAYS_MANDATORY_KEYS
+  // This catches mandatory fields even when columnDefs is empty or incomplete
+  Object.keys(row).forEach((k) => {
+    const lk = k.trim().toLowerCase();
+    if (checkedKeys.has(lk)) return; // already checked via columnDefs
+    if (ALWAYS_MANDATORY_KEYS.includes(lk)) {
+      const val = row[k];
+      const strVal = val != null ? String(val).trim().toLowerCase() : "";
+      if (
+        val === undefined ||
+        val === null ||
+        strVal === "" ||
+        strVal === "required" ||
+        strVal === "[required]" ||
+        strVal === "필수"
+      ) {
+        missing.push(k);
+      }
+    }
+  });
+
   return missing;
 }
 
@@ -289,7 +311,15 @@ async function readSpreadsheetRows(file) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MultiSelect — checkbox dropdown for column filter
 // ─────────────────────────────────────────────────────────────────────────────
-function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled, minWidth = "120px" }) {
+function MultiSelect({
+  options,
+  selectedValues,
+  onChange,
+  placeholder,
+  t,
+  disabled,
+  minWidth = "120px",
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -333,7 +363,9 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
         style={{
           height: "38px",
           cursor: disabled ? "not-allowed" : "pointer",
-          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          background: disabled
+            ? "var(--surface-strong, #f8f9fb)"
+            : "var(--surface-default, #ffffff)",
           opacity: disabled ? 0.6 : 1,
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
@@ -367,7 +399,13 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
               <label
                 key={opt.value}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-text-default hover:bg-surface-strong cursor-pointer"
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", cursor: "pointer" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                }}
               >
                 <input
                   type="checkbox"
@@ -375,9 +413,14 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
                   disabled={disabled}
                   onChange={() => handleToggleOption(opt.value)}
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
-                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
+                  style={{
+                    accentColor: "var(--brand-60, #0f62fe)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                  }}
                 />
-                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>{opt.label}</span>
+                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>
+                  {opt.label}
+                </span>
               </label>
             );
           })}
@@ -458,7 +501,14 @@ function TableSkeleton({ rowsCount = 8, columns = [], t, COLUMN_LABEL_KEYS = {} 
 // ─────────────────────────────────────────────────────────────────────────────
 // EditableCell
 // ─────────────────────────────────────────────────────────────────────────────
-function EditableCell({ value, isEditing, col, onChange, duplicate = false, isEmptyMandatory = false }) {
+function EditableCell({
+  value,
+  isEditing,
+  col,
+  onChange,
+  duplicate = false,
+  isEmptyMandatory = false,
+}) {
   const { t } = useI18n();
   const inputRef = useRef(null);
 
@@ -481,17 +531,23 @@ function EditableCell({ value, isEditing, col, onChange, duplicate = false, isEm
           color:
             duplicate || isEmptyMandatory
               ? "#dc2626"
-              :
-            value == null || value === ""
-              ? "var(--color-text-subtle, #9ca3af)"
-              : "var(--color-text-default, #111827)",
+              : value == null || value === ""
+                ? "var(--color-text-subtle, #9ca3af)"
+                : "var(--color-text-default, #111827)",
           fontWeight: duplicate || isEmptyMandatory ? 700 : undefined,
         }}
         title={String(value ?? "")}
       >
         {value == null || value === ""
-          ? (isEmptyMandatory ? t("preview.required", "Required") : "-")
-          : String(value)}
+          ? isEmptyMandatory
+            ? t("preview.required", "Required")
+            : "-"
+          : col === "workedOn" && value
+            ? (() => {
+                const d = new Date(value);
+                return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : String(value);
+              })()
+            : String(value)}
       </span>
     );
   }
@@ -540,7 +596,7 @@ function EditableModalRow({
   const isEditingAnyCell = editingCell && editingCell.rowIndex === index;
   const isCellEditing = useCallback(
     (col) => editingCell && editingCell.rowIndex === index && editingCell.colKey === col,
-    [editingCell, index]
+    [editingCell, index],
   );
   const [draft, setDraft] = useState({});
   const rowRef = useRef(null);
@@ -554,14 +610,44 @@ function EditableModalRow({
     setDraft((prev) => ({ ...prev, [col]: value }));
   }, []);
 
-  const isMandatoryField = useCallback((colKey) => {
-    if (!columnDefs) return false;
-    const colDef = columnDefs.find(c =>
-      c.excelColumnName?.trim().toLowerCase() === colKey.trim().toLowerCase() ||
-      c.jsonKey?.trim().toLowerCase() === colKey.trim().toLowerCase()
-    );
-    return colDef?.isMandatory === true;
-  }, [columnDefs]);
+  const isMandatoryField = useCallback(
+    (colKey) => {
+      const lk = colKey.trim().toLowerCase();
+      // Check ALWAYS_MANDATORY_KEYS first
+      const ALWAYS_MANDATORY = [
+        "eqtype",
+        "equipmenttype",
+        "equipment_type",
+        "equipment type",
+        "site",
+        "process",
+        "equipmentcode",
+        "equipment_code",
+        "equipment code",
+        "equipmentname",
+        "equipment_name",
+        "equipment name",
+        "equipment",
+        "maintgroup",
+        "maint_group",
+        "representativework",
+        "representative_work",
+        "representative work",
+        "rep_work",
+        "rep work",
+      ];
+      if (ALWAYS_MANDATORY.includes(lk)) return true;
+      if (!columnDefs) return false;
+      const colDef = columnDefs.find(
+        (c) =>
+          c.excelColumnName?.trim().toLowerCase() === lk ||
+          c.jsonKey?.trim().toLowerCase() === lk ||
+          c.columnNameKr?.trim().toLowerCase() === lk,
+      );
+      return colDef?.isMandatory === true;
+    },
+    [columnDefs],
+  );
 
   const handleSave = useCallback(
     (e) => {
@@ -608,11 +694,8 @@ function EditableModalRow({
   const totalWidth = 60 + 80 + columns.length * 180;
 
   const hasMissingMandatory = useMemo(() => {
-    return columns.some((col) => {
-      const val = row[col];
-      return isMandatoryField(col) && (val === undefined || val === null || String(val).trim() === "");
-    });
-  }, [row, columns, isMandatoryField]);
+    return getMissingMandatoryFields(row, columns, columnDefs).length > 0;
+  }, [row, columns, columnDefs]);
 
   return (
     <div
@@ -629,11 +712,11 @@ function EditableModalRow({
           ? "#eff6ff"
           : isDuplicate
             ? "#fff1f2"
-          : hasMissingMandatory
-            ? "#fff7ed"
-          : index % 2 === 0
-            ? "var(--color-surface-default, #fff)"
-            : "var(--color-surface-raised, #f9fafb)",
+            : hasMissingMandatory
+              ? "#fff7ed"
+              : index % 2 === 0
+                ? "var(--color-surface-default, #fff)"
+                : "var(--color-surface-raised, #f9fafb)",
         outline: isEditingAnyCell ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
         transition: "background 0.1s",
@@ -652,7 +735,12 @@ function EditableModalRow({
           boxSizing: "border-box",
         }}
       >
-        <span style={{ color: isDuplicate ? "#dc2626" : "inherit", fontWeight: isDuplicate ? 700 : undefined }}>
+        <span
+          style={{
+            color: isDuplicate ? "#dc2626" : "inherit",
+            fontWeight: isDuplicate ? 700 : undefined,
+          }}
+        >
           {(row._originalIndex ?? index) + 1}
         </span>
       </div>
@@ -688,7 +776,15 @@ function EditableModalRow({
       {columns.map((col) => {
         const editing = isCellEditing(col);
         const val = editing ? draft[col] : row[col];
-        const isEmptyMandatory = isMandatoryField(col) && (val === undefined || val === null || String(val).trim() === "");
+        const strVal = val != null ? String(val).trim().toLowerCase() : "";
+        const isEmptyMandatory =
+          isMandatoryField(col) &&
+          (val === undefined ||
+            val === null ||
+            strVal === "" ||
+            strVal === "required" ||
+            strVal === "[required]" ||
+            strVal === "필수");
         return (
           <div
             key={col}
@@ -729,7 +825,8 @@ function EditableModalRow({
                   gap: "4px",
                   zIndex: 40,
                   background: "#fff",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                  boxShadow:
+                    "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                   border: "1px solid #e2e8f0",
                   borderRadius: "6px",
                   padding: "4px",
@@ -795,7 +892,9 @@ export function extractDuplicateKeysFromBackend(responseData, rows, getDuplicate
     responseData?.duplicateRecords ||
     responseData?.duplicateList ||
     responseData?.key ||
-    (responseData?.hasDuplicates ? responseData?.duplicates || responseData?.message || true : null);
+    (responseData?.hasDuplicates
+      ? responseData?.duplicates || responseData?.message || true
+      : null);
 
   if (!dupes) return new Set();
 
@@ -817,8 +916,14 @@ export function extractDuplicateKeysFromBackend(responseData, rows, getDuplicate
         const rowKey = getDuplicateKey ? getDuplicateKey(row) : (row._originalIndex ?? idx);
         let isMatch = false;
         if (dupItem.id && row.id === dupItem.id) isMatch = true;
-        if (dupItem.equipmentCode && (row.equipmentCode === dupItem.equipmentCode || row.equipment_code === dupItem.equipmentCode)) isMatch = true;
-        if (dupItem.woCode && (row.woCode === dupItem.woCode || row.wo_code === dupItem.woCode)) isMatch = true;
+        if (
+          dupItem.equipmentCode &&
+          (row.equipmentCode === dupItem.equipmentCode ||
+            row.equipment_code === dupItem.equipmentCode)
+        )
+          isMatch = true;
+        if (dupItem.woCode && (row.woCode === dupItem.woCode || row.wo_code === dupItem.woCode))
+          isMatch = true;
         if (isMatch) {
           keySet.add(rowKey);
         }
@@ -835,7 +940,6 @@ export function extractDuplicateKeysFromBackend(responseData, rows, getDuplicate
 
   return keySet;
 }
-
 export function UploadPreviewModal({
   rows: initialRows,
   columns,
@@ -903,10 +1007,12 @@ export function UploadPreviewModal({
     (row) => {
       if (!getDuplicateKey) return false;
       const key = getDuplicateKey(row);
-      
+
       try {
         const parsedKey = JSON.parse(key);
-        const isEmptyRow = Object.values(parsedKey).every(v => v === undefined || v === null || String(v).trim() === "");
+        const isEmptyRow = Object.values(parsedKey).every(
+          (v) => v === undefined || v === null || String(v).trim() === "",
+        );
         if (isEmptyRow) return false;
       } catch (e) {
         // Safe fallback
@@ -924,9 +1030,12 @@ export function UploadPreviewModal({
     [rows, isDuplicateRow],
   );
 
-  const getRowMissingMandatoryFields = useCallback((row) => {
-    return getMissingMandatoryFields(row, detectedColumns, columnDefs);
-  }, [detectedColumns, columnDefs]);
+  const getRowMissingMandatoryFields = useCallback(
+    (row) => {
+      return getMissingMandatoryFields(row, detectedColumns, columnDefs);
+    },
+    [detectedColumns, columnDefs],
+  );
 
   const missingMandatoryCount = useMemo(() => {
     return rows.filter((row) => getRowMissingMandatoryFields(row).length > 0).length;
@@ -947,7 +1056,7 @@ export function UploadPreviewModal({
     const originalIndex = payload._originalIndex;
     setRows((prev) => {
       const next = [...prev];
-      const realIndex = next.findIndex(r => r._originalIndex === originalIndex);
+      const realIndex = next.findIndex((r) => r._originalIndex === originalIndex);
       if (realIndex !== -1) {
         next[realIndex] = payload;
         updatePreviewRow(realIndex, payload).catch(console.error);
@@ -959,28 +1068,31 @@ export function UploadPreviewModal({
 
   const handleCancelEdit = useCallback(() => setEditingCell(null), []);
 
-  const handleDeleteRow = useCallback((filteredIndex) => {
-    const rowToDelete = filteredRows[filteredIndex];
-    if (!rowToDelete) return;
-    const originalIndex = rowToDelete._originalIndex;
+  const handleDeleteRow = useCallback(
+    (filteredIndex) => {
+      const rowToDelete = filteredRows[filteredIndex];
+      if (!rowToDelete) return;
+      const originalIndex = rowToDelete._originalIndex;
 
-    setRows((prev) => {
-      const realIndex = prev.findIndex(r => r._originalIndex === originalIndex);
-      if (realIndex === -1) return prev;
+      setRows((prev) => {
+        const realIndex = prev.findIndex((r) => r._originalIndex === originalIndex);
+        if (realIndex === -1) return prev;
 
-      const next = prev.filter((_, rowIndex) => rowIndex !== realIndex);
-      deletePreviewRow(realIndex, prev.length).catch(console.error);
+        const next = prev.filter((_, rowIndex) => rowIndex !== realIndex);
+        deletePreviewRow(realIndex, prev.length).catch(console.error);
 
-      const updatedNext = next.map((row, idx) => ({
-        ...row,
-        _originalIndex: idx,
-      }));
-      savePreviewRows(updatedNext).catch(console.error);
+        const updatedNext = next.map((row, idx) => ({
+          ...row,
+          _originalIndex: idx,
+        }));
+        savePreviewRows(updatedNext).catch(console.error);
 
-      return updatedNext;
-    });
-    setEditingCell(null);
-  }, [filteredRows]);
+        return updatedNext;
+      });
+      setEditingCell(null);
+    },
+    [filteredRows],
+  );
 
   const handleRemoveDuplicates = useCallback(() => {
     setRows((prev) => {
@@ -997,13 +1109,20 @@ export function UploadPreviewModal({
 
   const handleConfirm = async () => {
     try {
-      const currentRows = await getAllPreviewRows();
+      // Use rows state directly (always up-to-date) instead of IndexedDB
+      const currentRows = rows;
 
       const missingRowsInfo = [];
       for (let i = 0; i < currentRows.length; i++) {
-        const missingFields = getMissingMandatoryFields(currentRows[i], detectedColumns, columnDefs);
+        const missingFields = getMissingMandatoryFields(
+          currentRows[i],
+          detectedColumns,
+          columnDefs,
+        );
         if (missingFields.length > 0) {
-          const fieldNames = missingFields.map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)).join(", ");
+          const fieldNames = missingFields
+            .map((col) => t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col))
+            .join(", ");
           missingRowsInfo.push({ rowNum: i + 1, fields: fieldNames });
         }
       }
@@ -1014,9 +1133,10 @@ export function UploadPreviewModal({
           .slice(0, 5)
           .map((r) => `Row ${r.rowNum}: [${r.fields}]`)
           .join("\n");
-        const overflow = missingRowsInfo.length > 5 ? `\n...and ${missingRowsInfo.length - 5} more record(s)` : "";
+        const overflow =
+          missingRowsInfo.length > 5 ? `\n...and ${missingRowsInfo.length - 5} more record(s)` : "";
         alert(
-          `${t("preview.missingRecordsNotice", "Mandatory fields missing in uploaded records:")}\n\n${details}${overflow}\n\n${t("preview.pleaseFillMissing", "Please fill in all mandatory fields before saving.")}`
+          `${t("preview.missingRecordsNotice", "Mandatory fields missing in uploaded records:")}\n\n${details}${overflow}\n\n${t("preview.pleaseFillMissing", "Please fill in all mandatory fields before saving.")}`,
         );
         return;
       }
@@ -1035,8 +1155,8 @@ export function UploadPreviewModal({
             alert(
               t(
                 "preview.backendDuplicatesNotice",
-                "Backend API detected duplicate records. Duplicates filter is now showing."
-              )
+                "Backend API detected duplicate records. Duplicates filter is now showing.",
+              ),
             );
           } else if (res?.hasValidationError) {
             setFilterType("missing");
@@ -1112,17 +1232,21 @@ export function UploadPreviewModal({
                 {t("preview.title")}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
-                {t("preview.total")} <span className="font-semibold">{rows.length}{t("preview.row")}</span>
+                {t("preview.total")}{" "}
+                <span className="font-semibold">
+                  {rows.length}
+                  {t("preview.row")}
+                </span>
                 {" · "}
-                {detectedColumns.length}{t("preview.subtitle")}
+                {detectedColumns.length}
+                {t("preview.subtitle")}
                 {hasServerDuplicates && duplicateCount > 0 && (
-                  <span className="ml-2 font-bold text-red-600">
-                    {duplicateCount} duplicates
-                  </span>
+                  <span className="ml-2 font-bold text-red-600">{duplicateCount} duplicates</span>
                 )}
                 {missingMandatoryCount > 0 && (
                   <span className="ml-2 font-bold text-red-600">
-                    {missingMandatoryCount}{t("preview.missingRequired")}
+                    {missingMandatoryCount}
+                    {t("preview.missingRequired")}
                   </span>
                 )}
               </p>
@@ -1314,7 +1438,12 @@ export function UploadPreviewModal({
                 Remove duplicates ({duplicateCount})
               </button>
             )}
-            <button type="button" onClick={handleClose} disabled={isSaving} className="btn-base btn-secondary">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSaving}
+              className="btn-base btn-secondary"
+            >
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
             </button>
@@ -1522,7 +1651,14 @@ function EditableRow({
             style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
             title={String(row[col] ?? "")}
           >
-            {row[col] == null || row[col] === "" ? "—" : String(row[col])}
+            {row[col] == null || row[col] === ""
+              ? "—"
+              : col === "workedOn"
+                ? (() => {
+                    const d = new Date(row[col]);
+                    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : String(row[col]);
+                  })()
+                : String(row[col])}
           </td>
         ),
       )}
@@ -1555,20 +1691,20 @@ const COLUMN_LABEL_KEYS = {
   workedOn: "field.workedOn",
   improvement: "field.improvement",
   // Korean keys
-  "법인": "field.site",
-  "공정": "field.process",
-  "보전파트": "field.maintenance",
-  "보전그룹": "field.maintenanceGroup",
-  "보전유형": "field.maintenanceType",
-  "설비코드": "field.equipmentCode",
-  "설비명": "field.equipmentName",
+  법인: "field.site",
+  공정: "field.process",
+  보전파트: "field.maintenance",
+  보전그룹: "field.maintenanceGroup",
+  보전유형: "field.maintenanceType",
+  설비코드: "field.equipmentCode",
+  설비명: "field.equipmentName",
   "W/O코드": "field.woCode",
-  "Report내용": "field.report",
-  "BOM": "field.bom",
-  "자재명": "field.sparePart",
-  "작업완료일": "field.workedOn",
+  Report내용: "field.report",
+  BOM: "field.bom",
+  자재명: "field.sparePart",
+  작업완료일: "field.workedOn",
   "개선 작업": "field.improvement",
-  "작업목적": "field.work",
+  작업목적: "field.work",
   "문제 현상": "field.situation",
   "문제 원인": "field.cause",
   "HW 변경 전": "field.hwBefore",
@@ -1576,7 +1712,7 @@ const COLUMN_LABEL_KEYS = {
   "SW 변경 전": "field.swBefore",
   "SW 변경 후": "field.swAfter",
   "대표 작업명": "field.repWork",
-  "중요도": "field.priority",
+  중요도: "field.priority",
   "효과 유형": "field.category",
 
   type: "field.type",
@@ -1609,26 +1745,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
   const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
-    if (!row) return;
-    setDraft({
-      ...row,
-      process: row.processName || row.process || "",
-      maintGroup: row.equipmentTypeName || row.maintGroup || row.eqType || row.maintenanceGroupName || "",
-      representativeWork: row.workName || row.representativeWork || row.work || "",
-      purpose: row.purpose || row.workPurpose || "",
-      situation: row.situation || row.problemPhenomenon || "",
-      cause: row.cause || row.problemCause || "",
-      bom: row.bom || "",
-      sparePart: row.sparePart || row.materialName || "",
-      hwAsWas: row.hwWas || row.hwAsWas || row.hwBefore || "",
-      hwAsIs: row.hwIs || row.hwAsIs || row.hwAfter || "",
-      swAsWas: row.swWas || row.swAsWas || row.swBefore || "",
-      swAsIs: row.swIs || row.swAsIs || row.swAfter || "",
-      priority: row.priorityName || row.priority || "Important",
-      category: row.categoryName || row.category || "integrity",
-      workedOn: row.workDate ? row.workDate.split("T")[0] : (row.workedOn || ""),
-      site: row.siteName || row.site || "",
-    });
+    setDraft({ ...(row ?? {}) });
     setErrors({});
     setPendingPhoto(null);
     setShowCategoryModal(false);
@@ -1761,7 +1878,8 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               <div className="min-w-0">
                 <h2 className="modal-title">Item Edit</h2>
                 <p className="modal-description">
-                  This is the Work Order item. The corporation and the completion date cannot be changed.
+                  This is the Work Order item. The corporation and the completion date cannot be
+                  changed.
                 </p>
               </div>
             </div>
@@ -1779,9 +1897,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 1: Process & Equipment Type (Read-Only) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Process
-                </label>
+                <label className="modal-field-label mb-1.5">Process</label>
                 <input
                   type="text"
                   value={draft.process ?? ""}
@@ -1791,9 +1907,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Equipment Type
-                </label>
+                <label className="modal-field-label mb-1.5">Equipment Type</label>
                 <input
                   type="text"
                   value={draft.maintGroup ?? ""}
@@ -1824,9 +1938,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
             {/* Row 3: Purpose of the Work */}
             <div>
-              <label className="modal-field-label mb-1.5">
-                Purpose of the Work
-              </label>
+              <label className="modal-field-label mb-1.5">Purpose of the Work</label>
               <input
                 type="text"
                 value={draft.purpose ?? draft.work ?? ""}
@@ -1862,9 +1974,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Cause of the problem
-                </label>
+                <label className="modal-field-label mb-1.5">Cause of the problem</label>
                 <input
                   type="text"
                   value={draft.cause ?? ""}
@@ -1882,9 +1992,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 5: BOM & Material Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  BOM
-                </label>
+                <label className="modal-field-label mb-1.5">BOM</label>
                 <input
                   type="text"
                   placeholder="BOM Entry"
@@ -1894,9 +2002,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Material Name
-                </label>
+                <label className="modal-field-label mb-1.5">Material Name</label>
                 <input
                   type="text"
                   placeholder="Enter material name"
@@ -1910,9 +2016,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 6: Before changing the hardware & After changing the hardware */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Before changing the hardware
-                </label>
+                <label className="modal-field-label mb-1.5">Before changing the hardware</label>
                 <input
                   type="text"
                   value={draft.hwAsWas ?? ""}
@@ -1926,9 +2030,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  After changing the hardware
-                </label>
+                <label className="modal-field-label mb-1.5">After changing the hardware</label>
                 <input
                   type="text"
                   value={draft.hwAsIs ?? ""}
@@ -1946,9 +2048,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 7: Before Software Change & After the software change */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Before Software Change
-                </label>
+                <label className="modal-field-label mb-1.5">Before Software Change</label>
                 <input
                   type="text"
                   value={draft.swAsWas ?? ""}
@@ -1962,9 +2062,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  After the software change
-                </label>
+                <label className="modal-field-label mb-1.5">After the software change</label>
                 <input
                   type="text"
                   value={draft.swAsIs ?? ""}
@@ -1982,9 +2080,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 8: Importance & Types of effects */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Importance
-                </label>
+                <label className="modal-field-label mb-1.5">Importance</label>
                 <select
                   value={draft.priority ?? "Important"}
                   onChange={(e) => handleFieldChange("priority", e.target.value)}
@@ -1996,9 +2092,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               </div>
 
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Types of effects
-                </label>
+                <label className="modal-field-label mb-1.5">Types of effects</label>
                 <select
                   value={draft.category ?? "integrity"}
                   onChange={(e) => handleFieldChange("category", e.target.value)}
@@ -2015,9 +2109,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 9: Date of Completion & Requesting Corporation */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Date of Completion
-                </label>
+                <label className="modal-field-label mb-1.5">Date of Completion</label>
                 <input
                   type="text"
                   value={draft.workedOn ?? ""}
@@ -2026,9 +2118,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">
-                  Requesting Corporation
-                </label>
+                <label className="modal-field-label mb-1.5">Requesting Corporation</label>
                 <select
                   value={draft.site ?? "A3. Busan"}
                   onChange={(e) => handleFieldChange("site", e.target.value)}
@@ -2043,16 +2133,24 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 
             {/* Row 10: Metadata Stats Badges */}
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold py-1">
-              <span className={`px-2.5 py-1 rounded-full transition-all ${problemCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all ${problemCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
+              >
                 Problem Phenomenon Chapter {problemCount}
               </span>
-              <span className={`px-2.5 py-1 rounded-full transition-all ${afterCount > 0 ? "bg-emerald-100 text-emerald-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all ${afterCount > 0 ? "bg-emerald-100 text-emerald-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
+              >
                 {afterCount} Chapters After Improvement
               </span>
-              <span className={`px-2.5 py-1 rounded-full transition-all ${equipCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all ${equipCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
+              >
                 Equipment Reference {equipCount} sheets
               </span>
-              <span className={`px-2.5 py-1 rounded-full transition-all ${othersCount > 0 ? "bg-gray-200 text-gray-800 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all ${othersCount > 0 ? "bg-gray-200 text-gray-800 font-bold" : "text-gray-600 dark:text-gray-400"}`}
+              >
                 Others {othersCount} Cards
               </span>
             </div>
@@ -2087,7 +2185,9 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               />
               <div className="flex items-center justify-center gap-2 text-xs font-medium text-text-subtlest">
                 <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
-                <span>Drag or click to upload photos (automatically share to the same group items)</span>
+                <span>
+                  Drag or click to upload photos (automatically share to the same group items)
+                </span>
               </div>
               {uploadError && (
                 <p className="mt-1.5 text-xs font-semibold text-rose-500">{uploadError}</p>
@@ -2153,7 +2253,10 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
       </div>
 
       {showCategoryModal && (
-        <div className="modal-overlay animate-fade-in" onMouseDown={() => setShowCategoryModal(false)}>
+        <div
+          className="modal-overlay animate-fade-in"
+          onMouseDown={() => setShowCategoryModal(false)}
+        >
           <div
             className="modal-panel modal-panel-sm w-full"
             onMouseDown={(e) => e.stopPropagation()}
@@ -2247,7 +2350,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [previewRows, setPreviewRows] = useState(null);
   const [previewColumns, setPreviewColumns] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
-  const [editingRow, setEditingRow] = useState(null);
   const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [filterPayload, setFilterPayload] = useState(null);
   const [filterError, setFilterError] = useState(null);
@@ -2367,9 +2469,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "equipmentType",
       "equipment type",
       "equipment_type",
-      "wotype",
-      "wo_type",
-      "wo type",
       // Excel names
       "site",
       "process",
@@ -2397,23 +2496,15 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "rep_work",
       "priority",
       "category",
-      "eqType",
-      "eq type",
-      "equipmentType",
-      "equipment type",
-      "equipment_type",
-      "wotype",
-      "wo_type",
-      "wo type"
     ]);
 
     if (!changeDataColumns || changeDataColumns.length === 0) return null;
     const keys = new Set();
-    changeDataColumns.forEach(c => {
+    changeDataColumns.forEach((c) => {
       const excelName = c.excelColumnName?.trim().toLowerCase();
       const jsonKey = c.jsonKey?.trim().toLowerCase();
       const krName = c.columnNameKr?.trim().toLowerCase();
-      
+
       if (allowedKeys.has(excelName) || allowedKeys.has(jsonKey)) {
         if (excelName) keys.add(excelName);
         if (jsonKey) keys.add(jsonKey);
@@ -2446,25 +2537,46 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       ["swAfter", "swAsIs", "SW 변경 후"],
       ["representativeWork", "대표 작업명"],
       ["priority", "중요도"],
-      ["category", "효과 유형"]
+      ["category", "효과 유형"],
     ];
-    const idx = groups.findIndex(g => g.includes(key));
+    const idx = groups.findIndex((g) => g.includes(key));
     return idx !== -1 ? idx : 999;
   }, []);
 
   // ── Remap all rows to English jsonKeys to keep keys consistent ────────────────
+  // Build a case-insensitive lookup: lowercase jsonKey → actual jsonKey
+  // so that API keys like "woCode" match DB jsonKey "wOCode"
+  const jsonKeyCaseMap = useMemo(() => {
+    const map = {};
+    if (Array.isArray(changeDataColumns)) {
+      changeDataColumns.forEach((col) => {
+        if (col.jsonKey) {
+          map[col.jsonKey.trim().toLowerCase()] = col.jsonKey.trim();
+        }
+      });
+    }
+    return map;
+  }, [changeDataColumns]);
+
   const combinedData = useMemo(() => {
     const remapRow = (row) => {
       if (!row) return row;
       return Object.entries(row).reduce((acc, [key, value]) => {
-        const mappedKey = excelToJsonKey[key.trim()] ?? key;
+        const trimmedKey = key.trim();
+        // 1. Try exact excelColumnName → jsonKey mapping
+        let mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
+        // 2. If the key doesn't match any known jsonKey, try case-insensitive match
+        //    e.g. API returns "woCode" but DB jsonKey is "wOCode"
+        if (mappedKey === trimmedKey && jsonKeyCaseMap[trimmedKey.toLowerCase()]) {
+          mappedKey = jsonKeyCaseMap[trimmedKey.toLowerCase()];
+        }
         acc[mappedKey] = value;
         return acc;
       }, {});
     };
 
     return changedRecords.map(remapRow);
-  }, [changedRecords, excelToJsonKey]);
+  }, [changedRecords, excelToJsonKey, jsonKeyCaseMap]);
 
   // ── Table columns: sequence-sorted jsonKeys, id excluded ──────────────────
   const dynamicColumns = useMemo(() => {
@@ -2484,23 +2596,20 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     [orderedJsonKeys, dynamicColumns],
   );
 
-  const existingDuplicateKeys = useMemo(
-    () => {
-      const remapRow = (row) => {
-        if (!row) return row;
-        return Object.entries(row).reduce((acc, [key, value]) => {
-          const mappedKey = excelToJsonKey[key.trim()] ?? key;
-          acc[mappedKey] = value;
-          return acc;
-        }, {});
-      };
-      const remappedApiRecords = apiRecords.map(remapRow);
-      return new Set(
-        remappedApiRecords.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
-      );
-    },
-    [apiRecords, excelToJsonKey, duplicateKeyColumns],
-  );
+  const existingDuplicateKeys = useMemo(() => {
+    const remapRow = (row) => {
+      if (!row) return row;
+      return Object.entries(row).reduce((acc, [key, value]) => {
+        const mappedKey = excelToJsonKey[key.trim()] ?? key;
+        acc[mappedKey] = value;
+        return acc;
+      }, {});
+    };
+    const remappedApiRecords = apiRecords.map(remapRow);
+    return new Set(
+      remappedApiRecords.map((row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns)),
+    );
+  }, [apiRecords, excelToJsonKey, duplicateKeyColumns]);
 
   const getPreviewDuplicateKey = useCallback(
     (row) => buildDuplicateKey(row, excelToJsonKey, duplicateKeyColumns),
@@ -2533,8 +2642,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
     return combinedData.filter((item) => {
       const itemProcess = item.process ?? item["ê³µì •"] ?? "";
-      const itemMaint =
-        item.maintGroup ?? item["ë³´ì „íŒŒíŠ¸"] ?? item["ë³´ì „ê·¸ë£¹"] ?? "";
+      const itemMaint = item.maintGroup ?? item["ë³´ì „íŒŒíŠ¸"] ?? item["ë³´ì „ê·¸ë£¹"] ?? "";
 
       if (!selectedProcess || !selectedEquipmentType) {
         const text = Object.values(item)
@@ -2551,8 +2659,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         return matchesProcSelection && matchesMaintSelection && matchesSearch && matchesFilter;
       }
 
-      const matchesProc =
-        (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
+      const matchesProc = (item.process ?? item.공정) === (selectedProcess?.processName ?? "");
 
       const matchesMaint =
         (item.maintGroup ?? item.보전파트 ?? item.보전그룹) === selectedEquipmentTypeName;
@@ -2580,7 +2687,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   // ── Sorting & Pagination ──────────────────────────────────────────────────
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(50);
 
   const handleSort = (colKey) => {
     setSortConfig((prev) => {
@@ -2653,35 +2760,130 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const buildCleanRow = useCallback(
     (row) => {
       const remapped = remapRowKeys(row, excelToJsonKey);
-
       const clean = {
         id: Number(remapped.id ?? row.id ?? 0) || 0,
         site: String(remapped.site ?? row.site ?? "").trim(),
         process: String(remapped.process ?? row.process ?? "").trim(),
-        maintGroup: String(remapped.maintGroup ?? remapped.equipment ?? row.maintGroup ?? row.equipment ?? "").trim(),
-        equipmentCode: String(remapped.equipmentCode ?? remapped.equipment_code ?? remapped.eqcode ?? row.equipmentCode ?? row.Eqcode ?? "").trim(),
-        equipmentName: String(remapped.equipmentName ?? remapped.equipment_name ?? remapped.eqname ?? row.equipmentName ?? row.Eqname ?? "").trim(),
-        woCode: String(remapped.woCode ?? remapped.wo_code ?? remapped["w/ocode"] ?? row.woCode ?? row["W/Ocode"] ?? "").trim(),
-        report: String(remapped.report ?? remapped.report_content ?? remapped["report content"] ?? row.report ?? row["report content"] ?? "").trim(),
+        maintGroup: String(
+          remapped.maintGroup ?? remapped.equipment ?? row.maintGroup ?? row.equipment ?? "",
+        ).trim(),
+        equipmentCode: String(
+          remapped.equipmentCode ??
+            remapped.equipment_code ??
+            remapped.eqcode ??
+            row.equipmentCode ??
+            row.Eqcode ??
+            "",
+        ).trim(),
+        equipmentName: String(
+          remapped.equipmentName ??
+            remapped.equipment_name ??
+            remapped.eqname ??
+            row.equipmentName ??
+            row.Eqname ??
+            "",
+        ).trim(),
+        woCode: String(
+          remapped.woCode ??
+            remapped.wOCode ??
+            remapped.wo_code ??
+            remapped["w/ocode"] ??
+            remapped["W/Ocode"] ??
+            row.woCode ??
+            row.wOCode ??
+            row["W/Ocode"] ??
+            "",
+        ).trim(),
+        report: String(
+          remapped.report ??
+            remapped.report_content ??
+            remapped["report content"] ??
+            row.report ??
+            row["report content"] ??
+            "",
+        ).trim(),
         bom: String(remapped.bom ?? row.bom ?? row.BOM ?? "").trim(),
-        sparePart: String(remapped.sparePart ?? remapped["spare part"] ?? remapped.sparepart ?? row.sparePart ?? row.Sparepart ?? "").trim(),
-        workedOn: String(remapped.workedOn ?? remapped.work_date ?? remapped["worked date"] ?? row.workedOn ?? row["worked date"] ?? "").trim(),
-        work: String(remapped.work ?? remapped["work description"] ?? row.work ?? row["work description"] ?? "").trim(),
+        sparePart: String(
+          remapped.sparePart ??
+            remapped["spare part"] ??
+            remapped.sparepart ??
+            row.sparePart ??
+            row.Sparepart ??
+            "",
+        ).trim(),
+        workedOn: String(
+          remapped.workedOn ??
+            remapped.work_date ??
+            remapped["worked date"] ??
+            row.workedOn ??
+            row["worked date"] ??
+            "",
+        ).trim(),
+        work: String(
+          remapped.work ??
+            remapped["work description"] ??
+            row.work ??
+            row["work description"] ??
+            "",
+        ).trim(),
         purpose: String(remapped.purpose ?? row.purpose ?? "").trim(),
         situation: String(remapped.situation ?? row.situation ?? "").trim(),
         cause: String(remapped.cause ?? row.cause ?? "").trim(),
-        hwAsWas: String(remapped.hwAsWas ?? remapped.hw_was ?? remapped["hw as was"] ?? row.hwAsWas ?? row["HW as was"] ?? "").trim(),
-        hwAsIs: String(remapped.hwAsIs ?? remapped.hw_is ?? remapped["hw as is"] ?? row.hwAsIs ?? row["HW as is"] ?? "").trim(),
-        swAsWas: String(remapped.swAsWas ?? remapped.sw_was ?? remapped["sw as was"] ?? row.swAsWas ?? row["SW as was"] ?? "").trim(),
-        swAsIs: String(remapped.swAsIs ?? remapped.sw_is ?? remapped["sw as is"] ?? row.swAsIs ?? row["SW as is"] ?? "").trim(),
-        representativeWork: String(remapped.representativeWork ?? remapped.rep_work ?? row.representativeWork ?? row.rep_work ?? "").trim(),
+        hwAsWas: String(
+          remapped.hwAsWas ??
+            remapped.hw_was ??
+            remapped["hw as was"] ??
+            row.hwAsWas ??
+            row["HW as was"] ??
+            "",
+        ).trim(),
+        hwAsIs: String(
+          remapped.hwAsIs ??
+            remapped.hw_is ??
+            remapped["hw as is"] ??
+            row.hwAsIs ??
+            row["HW as is"] ??
+            "",
+        ).trim(),
+        swAsWas: String(
+          remapped.swAsWas ??
+            remapped.sw_was ??
+            remapped["sw as was"] ??
+            row.swAsWas ??
+            row["SW as was"] ??
+            "",
+        ).trim(),
+        swAsIs: String(
+          remapped.swAsIs ??
+            remapped.sw_is ??
+            remapped["sw as is"] ??
+            row.swAsIs ??
+            row["SW as is"] ??
+            "",
+        ).trim(),
+        representativeWork: String(
+          remapped.representativeWork ??
+            remapped.rep_work ??
+            row.representativeWork ??
+            row.rep_work ??
+            "",
+        ).trim(),
         priority: String(remapped.priority ?? row.priority ?? "").trim(),
         category: String(remapped.category ?? row.category ?? "").trim(),
         woType: String(remapped.woType ?? remapped.wotype ?? row.woType ?? row.Wotype ?? "").trim(),
         woTypeId: Number(remapped.woTypeId ?? row.woTypeId ?? 0) || 0,
-        eqType: String(remapped.eqType ?? remapped["equipment type"] ?? remapped.equipmentType ?? row.eqType ?? row["equipment type"] ?? "").trim(),
+        eqType: String(
+          remapped.eqType ??
+            remapped["equipment type"] ??
+            remapped.equipmentType ??
+            row.eqType ??
+            row["equipment type"] ??
+            "",
+        ).trim(),
         eqTypeId: Number(remapped.eqTypeId ?? row.eqTypeId ?? 0) || 0,
-        representativeColor: String(remapped.representativeColor ?? row.representativeColor ?? "").trim(),
+        representativeColor: String(
+          remapped.representativeColor ?? row.representativeColor ?? "",
+        ).trim(),
         processId: Number(remapped.processId ?? row.processId ?? 0) || 0,
         categoryId: Number(remapped.categoryId ?? row.categoryId ?? 0) || 0,
         priorityId: Number(remapped.priorityId ?? row.priorityId ?? 0) || 0,
@@ -2704,95 +2906,35 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     [excelToJsonKey],
   );
 
-  // ── START EDIT (FETCH MATRIX DATA DETAILS) ─────────────────────────────
-  const handleStartEdit = useCallback(
-    (index) => {
-      const row = filtered[index];
-      if (!row) return;
-
-      const rowId = Number(row?.id || row?.changeHistoryId || 0);
-
-      if (isStaticDataMode || !rowId || rowId <= 0) {
-        setEditingRow(row);
-        setEditingIndex(index);
-        return;
-      }
-
-      setOperationStatus({
-        isVisible: true,
-        status: "loading",
-        message: t("toast.loadingDetail", "Loading details..."),
-        autoClose: false,
-      });
-
-      APIcallGet(
-        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
-        {},
-        (responseData, status) => {
-          if (status === 200 && responseData) {
-            const detail = parseMatrixDetailResponse(responseData);
-            const merged = detail ? { ...row, ...detail } : row;
-            setEditingRow(merged);
-            setEditingIndex(index);
-            setOperationStatus({
-              isVisible: false,
-              status: "loading",
-              message: "",
-              autoClose: true,
-            });
-          } else {
-            console.warn("[ChangeHistory] GetMatrixData failed for edit:", status, responseData);
-            setEditingRow(row);
-            setEditingIndex(index);
-            setOperationStatus({
-              isVisible: false,
-              status: "loading",
-              message: "",
-              autoClose: true,
-            });
-          }
-        },
-      );
-    },
-    [filtered, t],
-  );
-
-  // ── SAVE VOC ROW ────────────────────────────────────────────────────────
+  // ── SAVE ROW ──────────────────────────────────────────────────────────────
+  // When saving ONE edited row, we must send the ENTIRE changedRecords list
+  // (all 20 rows) with the single edited row merged in, plus id = changedDataId.
+  // The backend replaces the whole content blob for that envelope id.
   const handleSaveRow = useCallback(
     (filteredIndex, draft) => {
-      const originalRow = filtered[filteredIndex] || {};
+      const originalRow = filtered[filteredIndex];
+
+      // Merge draft into the original row
       const mergedRow = { ...originalRow, ...draft };
 
-      const vocItem = {
-        id: Number(mergedRow.id || mergedRow.changeHistoryId || 0),
-        repWorkId: Number(mergedRow.repWorkId || 0),
-        reportContent: mergedRow.reportContent || mergedRow.report || "",
-        workName: mergedRow.representativeWork || mergedRow.workName || mergedRow.work || "",
-        purpose: mergedRow.purpose || mergedRow.workPurpose || "",
-        situation: mergedRow.situation || mergedRow.problemPhenomenon || "",
-        cause: mergedRow.cause || mergedRow.problemCause || "",
-        hwWas: mergedRow.hwWas || mergedRow.hwAsWas || mergedRow.hwBefore || "",
-        hwIs: mergedRow.hwIs || mergedRow.hwAsIs || mergedRow.hwAfter || "",
-        swWas: mergedRow.swWas || mergedRow.swAsWas || mergedRow.swBefore || "",
-        swIs: mergedRow.swIs || mergedRow.swAsIs || mergedRow.swAfter || "",
-        bom: mergedRow.bom || "",
-        sparePart: mergedRow.sparePart || mergedRow.materialName || "",
-        equipmentCode: mergedRow.equipmentCode || "",
-        equipmentName: mergedRow.equipmentName || "",
-        woCode: mergedRow.woCode || mergedRow.wOCode || "",
-        workDate: mergedRow.workDate ? new Date(mergedRow.workDate).toISOString() : (mergedRow.workedOn ? new Date(mergedRow.workedOn).toISOString() : new Date().toISOString()),
-        categoryName: mergedRow.categoryName || mergedRow.category || "",
-        priorityName: mergedRow.priorityName || mergedRow.priority || "",
-        processName: mergedRow.processName || mergedRow.process || "",
-        siteName: mergedRow.siteName || mergedRow.site || "",
-        equipmentTypeName: mergedRow.equipmentTypeName || mergedRow.eqType || mergedRow.maintGroup || "",
-        maintenanceGroupName: mergedRow.maintenanceGroupName || mergedRow.maintGroup || mergedRow.eqType || "",
-        createdBy: getUserInfo()?.name || mergedRow.createdBy || "",
-        is_voc: true,
-      };
+      // Build the full changeDataList:
+      // Take ALL changedRecords, replace the matching row (by row id) with
+      // the edited+merged version, then clean every row for the payload.
+      const changeDataList = changedRecords.map((r) => {
+        const isEditedRow = r.id != null && r.id === mergedRow.id;
+        return buildCleanRow(isEditedRow ? mergedRow : r);
+      });
+
+      // If the edited row isn't in changedRecords yet (e.g. it came from
+      // the `data` prop), append it so the backend doesn't lose it.
+      const editedExists = changedRecords.some((r) => r.id === mergedRow.id);
+      if (!editedExists) {
+        changeDataList.push(buildCleanRow(mergedRow));
+      }
 
       const payload = {
-        vocData: [vocItem],
+        changeDataList,
+        id: changedDataId, // ← the envelope id from changedDataJson[0].id
       };
 
       setOperationStatus({
@@ -2803,30 +2945,31 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       });
 
       if (isStaticDataMode) {
+        setChangedRecords([...changeDataList].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
         setEditingIndex(null);
-        setEditingRow(null);
         setOperationStatus({
           isVisible: true,
           status: "success",
-          message: t("toast.saveSuccess"),
+          message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
           autoClose: true,
         });
+        onUpload?.("change_rows", payload);
         return;
       }
 
-      APIcallPost(pocEndPoints?.SAVE_VOC || "api/ChangeData/SaveVoc", payload, {}, (responseData, status) => {
+      APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
           setEditingIndex(null);
-          setEditingRow(null);
           setOperationStatus({
             isVisible: true,
             status: "success",
-            message: t("toast.saveSuccess"),
+            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
             autoClose: true,
           });
+          onUpload?.("change_rows", payload);
           getFilterDataRef.current?.();
         } else {
-          console.error("SaveVoc API failed:", responseData);
+          console.error("행 저장 실패:", responseData);
           setOperationStatus({
             isVisible: true,
             status: "error",
@@ -2836,13 +2979,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       });
     },
-    [filtered, t],
+    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t],
   );
 
-  const handleCancelEdit = useCallback(() => {
-    setEditingIndex(null);
-    setEditingRow(null);
-  }, []);
+  const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
 
   const handleOpenDetail = useCallback(
     (row) => {
@@ -2861,37 +3001,33 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         autoClose: false,
       });
 
-      APIcallGet(
-        `${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`,
-        {},
-        (responseData, status) => {
-          if (status === 200 && responseData) {
-            const detail = parseMatrixDetailResponse(responseData);
-            const merged = detail ? { ...row, ...detail } : row;
-            const remapped = Object.entries(merged).reduce((acc, [key, value]) => {
-              const mappedKey = excelToJsonKey[key.trim()] ?? key;
-              acc[mappedKey] = value;
-              return acc;
-            }, {});
-            onOpenDetail(remapped);
-            setOperationStatus({
-              isVisible: false,
-              status: "loading",
-              message: "",
-              autoClose: true,
-            });
-          } else {
-            console.warn("[ChangeHistory] GetMatrixData failed:", status, responseData);
-            setOperationStatus({
-              isVisible: true,
-              status: "error",
-              message: t("toast.detailLoadError", "Failed to load row details."),
-              autoClose: true,
-            });
-            onOpenDetail(row);
-          }
-        },
-      );
+      APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          const detail = parseMatrixDetailResponse(responseData);
+          const merged = detail ? { ...row, ...detail } : row;
+          const remapped = Object.entries(merged).reduce((acc, [key, value]) => {
+            const mappedKey = excelToJsonKey[key.trim()] ?? key;
+            acc[mappedKey] = value;
+            return acc;
+          }, {});
+          onOpenDetail(remapped);
+          setOperationStatus({
+            isVisible: false,
+            status: "loading",
+            message: "",
+            autoClose: true,
+          });
+        } else {
+          console.warn("[ChangeHistory] GetMatrixData failed:", status, responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: t("toast.detailLoadError", "Failed to load row details."),
+            autoClose: true,
+          });
+          onOpenDetail(row);
+        }
+      });
     },
     [onOpenDetail, excelToJsonKey, t],
   );
@@ -2902,9 +3038,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     if (selectedIds.size === 0) return;
 
     const rowsToDelete = filtered.filter((_, i) => selectedIds.has(i));
-    const ids = rowsToDelete
-      .map((r) => Number(r.id))
-      .filter((id) => !Number.isNaN(id) && id > 0);
+    const ids = rowsToDelete.map((r) => Number(r.id)).filter((id) => !Number.isNaN(id) && id > 0);
 
     if (ids.length === 0) {
       setOperationStatus({
@@ -2989,7 +3123,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       if (isStaticDataMode) {
         setPreviewRows(null);
         setPreviewColumns(null);
-        setChangedRecords((prev) => [...changeDataList, ...prev].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+        setChangedRecords((prev) =>
+          [...changeDataList, ...prev].sort((a, b) => (b.id ?? 0) - (a.id ?? 0)),
+        );
         setOperationStatus({
           isVisible: true,
           status: "success",
@@ -3003,7 +3139,43 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
         if (status === 200) {
-          const extractedKeys = extractDuplicateKeysFromBackend(responseData, updatedRows, getPreviewDuplicateKey);
+          if (responseData?.statusCode === 409) {
+            // Parse is_duplicate flags from response data and highlight rows in modal
+            // Response data array corresponds 1:1 with updatedRows by index
+            const dupData = responseData?.data ?? [];
+            const dupKeySet = new Set();
+            dupData.forEach((item, idx) => {
+              if (item?.is_duplicate) {
+                const row = updatedRows[idx];
+                if (row) {
+                  const rowKey = getPreviewDuplicateKey(row);
+                  dupKeySet.add(rowKey);
+                }
+              }
+            });
+            onResult?.({
+              success: false,
+              hasDuplicates: true,
+              duplicateKeys: dupKeySet,
+              message:
+                responseData?.message ||
+                t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+            });
+            setOperationStatus({
+              isVisible: true,
+              status: "error",
+              message:
+                responseData?.message ||
+                t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              autoClose: false,
+            });
+            return;
+          }
+          const extractedKeys = extractDuplicateKeysFromBackend(
+            responseData,
+            updatedRows,
+            getPreviewDuplicateKey,
+          );
 
           if (extractedKeys && extractedKeys.size > 0) {
             console.warn("Backend API returned duplicate validation keys:", extractedKeys);
@@ -3011,12 +3183,18 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               success: false,
               hasDuplicates: true,
               duplicateKeys: extractedKeys,
-              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation.")
+              message: t(
+                "toast.duplicateFoundApi",
+                "Duplicate records detected by backend validation.",
+              ),
             });
             setOperationStatus({
               isVisible: true,
               status: "error",
-              message: t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+              message: t(
+                "toast.duplicateFoundApi",
+                "Duplicate records detected by backend validation.",
+              ),
               autoClose: false,
             });
           } else {
@@ -3035,7 +3213,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         } else {
           console.error("일괄 저장 실패:", responseData);
           let errorMsg = responseData?.message || responseData?.error || responseData?.title;
-          
+
           if (responseData?.errors && typeof responseData.errors === "object") {
             const validationList = [];
             Object.entries(responseData.errors).forEach(([field, msgs]) => {
@@ -3062,7 +3240,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       });
     },
-    [changedRecords, changedDataId, excelToJsonKey, buildCleanRow, onUpload, t, validKeys, getPreviewDuplicateKey],
+    [
+      changedRecords,
+      changedDataId,
+      excelToJsonKey,
+      buildCleanRow,
+      onUpload,
+      t,
+      validKeys,
+      getPreviewDuplicateKey,
+    ],
   );
 
   // ── Upload Excel ──────────────────────────────────────────────────────────
@@ -3107,7 +3294,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           if (statusCode === 200) {
             // Always show all active columns from changeDataColumns in sequence order
             const orderedCols = [...changeDataColumns]
-              .filter(c => c.isActive !== false)
+              .filter((c) => c.isActive !== false)
               .sort((a, b) => a.sequence - b.sequence)
               .map((c) => c.excelColumnName)
               .filter(Boolean);
@@ -3117,7 +3304,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               equipmentname: ["eqname", "equipmentname", "equipment name", "eq_name"],
               wocode: ["w/ocode", "wocode", "wo code", "wo_code"],
               wotype: ["wotype", "wo type", "wo_type"],
-              representativework: ["rep_work", "repwork", "representative work", "representative_work"],
+              representativework: [
+                "rep_work",
+                "repwork",
+                "representative work",
+                "representative_work",
+              ],
               workedon: ["worked date", "workeddate", "worked_date", "workedon", "worked on"],
               eqtype: ["equipment type", "equipmenttype", "equipment_type", "eqtype", "eq type"],
               report: ["report content", "reportcontent", "report_content", "report"],
@@ -3212,45 +3404,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   // ── Export ────────────────────────────────────────────────────────────────
-  const fetchRecordsForExport = useCallback(() => {
-    return new Promise((resolve) => {
-      if (selectedIds.size > 0) {
-        const rowsToExport = filtered.filter((_, i) => selectedIds.has(i));
-        return resolve(rowsToExport);
-      }
+  const prepareExportData = () => {
+    const rowsToExport =
+      selectedIds.size > 0 ? filtered.filter((_, i) => selectedIds.has(i)) : filtered;
 
-      if (isStaticDataMode) {
-        return resolve(filtered);
-      }
-
-      const reqBody = {
-        processId: Number(selectedProcessId) || 0,
-        equipmentTypeId: selectedMaintenanceId ? Number(selectedMaintenanceId) : 0,
-        columnIds:
-          Array.isArray(selectedColumnIds) && selectedColumnIds.length > 0
-            ? selectedColumnIds.map(Number)
-            : [0],
-        searchText: debouncedSearchText || "",
-        rowCount: 0,
-        currentPage: 0,
-        isPagination: false,
-        isChangeHistoryData: false,
-      };
-
-      APIcallPost(pocEndPoints.GET_CHANGED_DATA, reqBody, {}, (responseData, status) => {
-        if (status === 200 && responseData) {
-          const payload = responseData?.data ?? responseData;
-          const records = applyChangedDataResponse(payload);
-          if (records && records.length > 0) {
-            return resolve(records);
-          }
-        }
-        resolve(filtered);
-      });
-    });
-  }, [selectedIds, filtered, selectedProcessId, selectedMaintenanceId, selectedColumnIds, debouncedSearchText]);
-
-  const prepareExportDataFromRows = (rowsToExport) => {
     if (!rowsToExport || rowsToExport.length === 0) {
       return null;
     }
@@ -3274,43 +3431,44 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportCsv = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: t("toast.exporting", "Exporting data..."),
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
     try {
-      const rows = await fetchRecordsForExport();
-      const prepared = prepareExportDataFromRows(rows);
-      if (!prepared) {
+      await withMinimumDelay(async () => {
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "change-history.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
         setOperationStatus({
           isVisible: true,
-          status: "error",
-          message: t("toast.noRecordsExport"),
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
-        return;
-      }
-      const { rowsToExport, exportCols, exportData } = prepared;
-      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "change-history.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setOperationStatus({
-        isVisible: true,
-        status: "success",
-        message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
-        autoClose: true,
       });
     } catch (error) {
       console.error("CSV export failed:", error);
@@ -3326,36 +3484,37 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportExcel = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: t("toast.exporting", "Exporting data..."),
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
     try {
-      const rows = await fetchRecordsForExport();
-      const prepared = prepareExportDataFromRows(rows);
-      if (!prepared) {
+      await withMinimumDelay(async () => {
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+        XLSX.writeFile(workbook, "change-history.xlsx");
+
         setOperationStatus({
           isVisible: true,
-          status: "error",
-          message: t("toast.noRecordsExport"),
+          status: "success",
+          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
-        return;
-      }
-      const { rowsToExport, exportCols, exportData } = prepared;
-      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
-      XLSX.writeFile(workbook, "change-history.xlsx");
-
-      setOperationStatus({
-        isVisible: true,
-        status: "success",
-        message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
-        autoClose: true,
       });
     } catch (error) {
       console.error("Excel export failed:", error);
@@ -3371,41 +3530,41 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportZip = async () => {
+    const prepared = prepareExportData();
+    if (!prepared) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.noRecordsExport"),
+        autoClose: true,
+      });
+      return;
+    }
+    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: t("toast.exporting", "Exporting data..."),
+      message: `${rowsToExport.length} ${t("toast.exporting")}`,
       autoClose: false,
     });
     try {
-      const rows = await fetchRecordsForExport();
-      const prepared = prepareExportDataFromRows(rows);
-      if (!prepared) {
-        setOperationStatus({
-          isVisible: true,
-          status: "error",
-          message: t("toast.noRecordsExport"),
-          autoClose: true,
-        });
-        return;
-      }
-      const { rowsToExport, exportCols, exportData } = prepared;
-      const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-      const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
-      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      await withMinimumDelay(async () => {
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
+        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
 
-      const zip = new JSZip();
-      zip.file("change-history.csv", csvContent);
-      zip.file("change-history.xlsx", excelBuffer);
-      const zipBlob = await zip.generateAsync({ type: "blob" });
+        const zip = new JSZip();
+        zip.file("change-history.csv", csvContent);
+        zip.file("change-history.xlsx", excelBuffer);
+        const zipBlob = await zip.generateAsync({ type: "blob" });
 
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "change-history.zip");
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "change-history.zip");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -3417,6 +3576,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
           autoClose: true,
         });
+      });
     } catch (error) {
       console.error("ZIP export failed:", error);
       setOperationStatus({
@@ -3498,7 +3658,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           ? selectedColumnIds.map(Number)
           : [0],
       searchText: debouncedSearchText || "",
-      rowCount: pageSize || 20,
+      rowCount: pageSize || 50,
       currentPage: Math.max(0, (currentPage || 1) - 1),
       isPagination: true,
       isChangeHistoryData: true,
@@ -3513,13 +3673,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           const rowsLength = sorted.length;
           setUsingApiTableData(true);
           setTotalCount(
-            parseTotalCountFromResponse(
-              responseData,
-              payload,
-              rowsLength,
-              currentPage,
-              pageSize,
-            ),
+            parseTotalCountFromResponse(responseData, payload, rowsLength, currentPage, pageSize),
           );
         } else {
           console.warn("[ChangeHistory] GetChangedData returned invalid status:", status);
@@ -3643,9 +3797,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               <i className="fas fa-history text-[#1745c2] text-xl md:text-[22px]" />
               <span>{t("page.change.title")}</span>
             </h1>
-            <p className="page-subtitle">
-              {t("page.change.desc")}
-            </p>
+            <p className="page-subtitle">{t("page.change.desc")}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <AnimatedActionButton
@@ -3687,9 +3839,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           )}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-text-subtle">
-                {t("field.process")}
-              </label>
+              <label className="text-sm font-medium text-text-subtle">{t("field.process")}</label>
               {filterLoading ? (
                 <SelectSkeleton width="120px" />
               ) : (
@@ -3755,9 +3905,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-text-subtle">
-                {t("app.search")}
-              </label>
+              <label className="text-sm font-medium text-text-subtle">{t("app.search")}</label>
               <input
                 className="input-base"
                 value={filter}
@@ -3822,9 +3970,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl">
                 <i className="fas fa-history" />
               </div>
-              <h2 className="text-xl font-bold text-text-default">
-                {t("empty.noMatch")}
-              </h2>
+              <h2 className="text-xl font-bold text-text-default">{t("empty.noMatch")}</h2>
               <p>{t("empty.hint")}</p>
             </div>
           ) : (
@@ -3867,7 +4013,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                         index={idxToUse}
                         columns={dynamicColumns}
                         isEditing={false}
-                        onStartEdit={handleStartEdit}
+                        onStartEdit={setEditingIndex}
                         onSave={handleSaveRow}
                         onCancel={handleCancelEdit}
                         onOpenDetail={handleOpenDetail}
@@ -3908,7 +4054,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       />
 
       <RowEditModal
-        row={editingRow || (editingIndex !== null ? filtered[editingIndex] : null)}
+        row={editingIndex !== null ? filtered[editingIndex] : null}
         index={editingIndex}
         columns={dynamicColumns}
         onSave={handleSaveRow}
@@ -3935,7 +4081,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       >
         <div className="py-2 text-sm text-gray-600 dark:text-gray-300">
-          <p>{t("app.deleteWarning", "선택한 데이터가 삭제되며 시스템에 즉시 반영됩니다. 계속하시겠습니까?")}</p>
+          <p>
+            {t(
+              "app.deleteWarning",
+              "선택한 데이터가 삭제되며 시스템에 즉시 반영됩니다. 계속하시겠습니까?",
+            )}
+          </p>
         </div>
       </Modal>
 
@@ -3980,11 +4131,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               />
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-1">
-              Importing Data...
-            </h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Importing Data...</h3>
             {importFileName && (
-              <p className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full" title={importFileName}>
+              <p
+                className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full"
+                title={importFileName}
+              >
                 {importFileName}
               </p>
             )}

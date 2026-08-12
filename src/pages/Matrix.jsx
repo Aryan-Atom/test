@@ -11,36 +11,40 @@ import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js
 // ─────────────────────────────────────────────────────────────────────────────
 function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
   const rowsCount = equipmentRows.length > 0 ? equipmentRows.length : 8;
-  const displayCols = columns.length > 0 ? columns : Array.from({ length: 6 }).map((_, i) => `Col ${i + 1}`);
+  const displayCols =
+    columns.length > 0 ? columns : Array.from({ length: 6 }).map((_, i) => `Col ${i + 1}`);
 
   return (
     <div className="overflow-auto flex-1 min-h-0">
-      <table className="w-full min-w-max text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+      <table
+        className="w-full min-w-max text-sm"
+        style={{ borderCollapse: "separate", borderSpacing: 0 }}
+      >
         <thead>
           <tr className="border-b border-border-base bg-surface-strong">
             <th
-              className="sticky left-0 z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-              style={{ width: "100px", position: "sticky", left: 0 }}
+              className="sticky left-0 top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "100px", position: "sticky", left: 0, top: 0 }}
             >
               {t("field.site", "SITE")}
             </th>
             <th
-              className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-              style={{ width: "120px", position: "sticky", left: "100px" }}
+              className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "120px", position: "sticky", left: "100px", top: 0 }}
             >
               {t("field.equipmentCode", "EQUIPMENT CODE")}
             </th>
             <th
-              className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-              style={{ width: "180px", position: "sticky", left: "220px" }}
+              className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+              style={{ width: "180px", position: "sticky", left: "220px", top: 0 }}
             >
               {t("field.equipmentName", "EQUIPMENT NAME")}
             </th>
             {displayCols.map((col) => (
               <th
                 key={col}
-                className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
-                style={{ width: "160px" }}
+                className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
+                style={{ width: "160px", position: "sticky", top: 0 }}
               >
                 {col}
               </th>
@@ -120,9 +124,7 @@ function SearchableSelect({
   }, [options, searchTerm]);
 
   const displayLabel =
-    selectedValue === "전체" || !selectedValue
-      ? t("app.all", "전체")
-      : selectedValue;
+    selectedValue === "전체" || !selectedValue ? t("app.all", "전체") : selectedValue;
 
   return (
     <div ref={containerRef} className="relative flex-none" style={{ minWidth }}>
@@ -140,13 +142,17 @@ function SearchableSelect({
           height: "38px",
           opacity: disabled ? 0.6 : 1,
           cursor: disabled ? "not-allowed" : "pointer",
-          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          background: disabled
+            ? "var(--surface-strong, #f8f9fb)"
+            : "var(--surface-default, #ffffff)",
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
         }}
       >
         <span className="truncate text-xs font-semibold pr-2">{displayLabel}</span>
-        <i className={`fas fa-chevron-down text-[10px] text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <i
+          className={`fas fa-chevron-down text-[10px] text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {isOpen && (
@@ -230,7 +236,15 @@ function SearchableSelect({
 }
 
 // Reusable MultiSelect Dropdown Component with Checkboxes
-function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabled, minWidth = "120px" }) {
+function MultiSelect({
+  options,
+  selectedValues,
+  onChange,
+  placeholder,
+  t,
+  disabled,
+  minWidth = "120px",
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -276,14 +290,16 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
         style={{
           height: "38px",
           cursor: disabled ? "not-allowed" : "pointer",
-          background: disabled ? "var(--surface-strong, #f8f9fb)" : "var(--surface-default, #ffffff)",
+          background: disabled
+            ? "var(--surface-strong, #f8f9fb)"
+            : "var(--surface-default, #ffffff)",
           opacity: disabled ? 0.6 : 1,
           border: "1px solid var(--border-base, #e6e9ef)",
           borderRadius: "10px",
           padding: "8px 14px",
           width: "100%",
           textAlign: "left",
-          marginTop: "0px"
+          marginTop: "0px",
         }}
       >
         <span className="truncate">{displayText}</span>
@@ -301,7 +317,7 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
           style={{
             borderColor: "var(--border-base, #e6e9ef)",
             backgroundColor: "var(--surface-default, #ffffff)",
-            minWidth: "100%"
+            minWidth: "100%",
           }}
         >
           {options.map((opt) => {
@@ -310,7 +326,13 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
               <label
                 key={opt.value}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-text-default hover:bg-surface-strong cursor-pointer"
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", cursor: "pointer" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                }}
               >
                 <input
                   type="checkbox"
@@ -318,9 +340,14 @@ function MultiSelect({ options, selectedValues, onChange, placeholder, t, disabl
                   disabled={disabled}
                   onChange={() => handleToggleOption(opt.value)}
                   className="rounded border-border-base text-brand-60 focus:ring-brand-50"
-                  style={{ accentColor: "var(--brand-60, #0f62fe)", cursor: disabled ? "not-allowed" : "pointer" }}
+                  style={{
+                    accentColor: "var(--brand-60, #0f62fe)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                  }}
                 />
-                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>{opt.label}</span>
+                <span className="whitespace-nowrap" style={{ fontSize: "13px" }}>
+                  {opt.label}
+                </span>
               </label>
             );
           })}
@@ -349,13 +376,21 @@ function getFormattedDateString(raw) {
 }
 
 function normalizeName(value) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
-    return row.representative_work_name ?? row.representativeWork ?? row["대표작업명"] ?? row["대표 작업명"] ?? "";
+    return (
+      row.representative_work_name ??
+      row.representativeWork ??
+      row["대표작업명"] ??
+      row["대표 작업명"] ??
+      ""
+    );
   }
   if (col === "work") {
     return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
@@ -388,7 +423,14 @@ function getColValue(row, col) {
     return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
   }
   if (col === "category") {
-    return row.category_name ?? row.categoryName ?? row.category ?? row["효과 유형"] ?? row["효과유형"] ?? "";
+    return (
+      row.category_name ??
+      row.categoryName ??
+      row.category ??
+      row["효과 유형"] ??
+      row["효과유형"] ??
+      ""
+    );
   }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
@@ -400,7 +442,14 @@ function getColValue(row, col) {
     return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
   }
   if (col === "maintGroup") {
-    return row.equipment_type_name ?? row.equipmentTypeName ?? row.maintGroup ?? row["보전파트"] ?? row.equipment ?? "";
+    return (
+      row.equipment_type_name ??
+      row.equipmentTypeName ??
+      row.maintGroup ??
+      row["보전파트"] ??
+      row.equipment ??
+      ""
+    );
   }
   if (col === "site") {
     return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
@@ -474,51 +523,75 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     not_applied: 0,
     hasFetched: false,
   });
+  const openApplyStatusModal = useCallback(
+    (repWork) => {
+      const repWorkName =
+        typeof repWork === "object"
+          ? repWork.representativeWork || repWork.workName || ""
+          : repWork;
+      let repWorkId =
+        typeof repWork === "object"
+          ? repWork.id || repWork.repWorkId || repWork.representativeWorkId || 0
+          : 0;
 
-  const openApplyStatusModal = useCallback((repWork) => {
-    const repWorkName = typeof repWork === "object" ? repWork.representativeWork || repWork.workName || "" : repWork;
-    const repWorkId = typeof repWork === "object" ? repWork.id || repWork.repWorkId || repWork.representativeWorkId || 0 : 0;
-
-    setAsRepWork(repWorkName || repWork);
-    setAsActiveTab("unconfirmed");
-    setAsSelectedEqCodes(new Set());
-    setAsStaging({});
-    setApiStatusCounts({
-      wo_applied: 0,
-      before_verification: 0,
-      applied: 0,
-      not_applied: 0,
-      hasFetched: false,
-    });
-
-    if (!isStaticDataMode) {
-      const url = repWorkId > 0
-        ? `${pocEndPoints.GET_EQUIPMENT_STATUS_COUNT}?repWorkId=${repWorkId}`
-        : pocEndPoints.GET_EQUIPMENT_STATUS_COUNT;
-
-      APIcallGet(url, {}, (responseData, status) => {
-        if (status === 200 && responseData) {
-          const countsObj = Array.isArray(responseData)
-            ? responseData[0]
-            : Array.isArray(responseData?.data)
-            ? responseData.data[0]
-            : responseData?.data || responseData;
-
-          if (countsObj) {
-            setApiStatusCounts({
-              wo_applied: Number(countsObj.wo_applied ?? countsObj.woApplied ?? 0),
-              before_verification: Number(countsObj.before_verification ?? countsObj.beforeVerification ?? countsObj.unconfirmed ?? 0),
-              applied: Number(countsObj.applied ?? 0),
-              not_applied: Number(countsObj.not_applied ?? countsObj.notApplied ?? countsObj.rejected ?? 0),
-              hasFetched: true,
-            });
-          }
+      // If repWork is a string (work name), look up rep_work_id from allRecords
+      if (repWorkId === 0 && repWorkName) {
+        const match = allRecords.find((r) => getColValue(r, "representativeWork") === repWorkName);
+        if (match) {
+          repWorkId = match.rep_work_id ?? match.repWorkId ?? match.representativeWorkId ?? 0;
         }
-      });
-    }
+      }
 
-    setShowApplyStatusModal(true);
-  }, []);
+      setAsRepWork(repWorkName || repWork);
+      setAsActiveTab("unconfirmed");
+      setAsSelectedEqCodes(new Set());
+      setAsStaging({});
+      setApiStatusCounts({
+        wo_applied: 0,
+        before_verification: 0,
+        applied: 0,
+        not_applied: 0,
+        hasFetched: false,
+      });
+
+      if (!isStaticDataMode) {
+        const url =
+          repWorkId > 0
+            ? `${pocEndPoints.GET_EQUIPMENT_STATUS_COUNT}?repoWorkId=${repWorkId}`
+            : pocEndPoints.GET_EQUIPMENT_STATUS_COUNT;
+
+        APIcallGet(url, {}, (responseData, status) => {
+          if (status === 200 && responseData) {
+            const countsObj = Array.isArray(responseData)
+              ? responseData[0]
+              : Array.isArray(responseData?.data)
+                ? responseData.data[0]
+                : responseData?.data || responseData;
+
+            if (countsObj) {
+              setApiStatusCounts({
+                wo_applied: Number(countsObj.wo_applied ?? countsObj.woApplied ?? 0),
+                before_verification: Number(
+                  countsObj.before_verification ??
+                    countsObj.beforeVerification ??
+                    countsObj.unconfirmed ??
+                    0,
+                ),
+                applied: Number(countsObj.applied ?? 0),
+                not_applied: Number(
+                  countsObj.not_applied ?? countsObj.notApplied ?? countsObj.rejected ?? 0,
+                ),
+                hasFetched: true,
+              });
+            }
+          }
+        });
+      }
+
+      setShowApplyStatusModal(true);
+    },
+    [allRecords],
+  );
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({
@@ -630,7 +703,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     if (isStaticDataMode) return;
 
     let processId = 0;
-    if (selectedProcess && selectedProcess !== "전체" && selectedProcess !== "All" && Array.isArray(filterData?.process)) {
+    if (
+      selectedProcess &&
+      selectedProcess !== "전체" &&
+      selectedProcess !== "All" &&
+      Array.isArray(filterData?.process)
+    ) {
       const match = filterData.process.find((p) => p.processName === selectedProcess);
       if (match) processId = match.id ?? match.processId ?? 0;
     }
@@ -639,32 +717,50 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     if (selectedMaintenance && selectedMaintenance !== "전체" && selectedMaintenance !== "All") {
       const eqTypes = filterData?.eqTypes ?? filterData?.maintenance ?? [];
       const match = eqTypes.find(
-        (e) => (e.equipmentTypeName || e.eqTypeName || e.maintenanceGroupName || e.name) === selectedMaintenance,
+        (e) =>
+          (e.equipmentTypeName || e.eqTypeName || e.maintenanceGroupName || e.name) ===
+          selectedMaintenance,
       );
       if (match) equipmentId = match.id ?? match.equipmentTypeId ?? match.maintenanceGroupId ?? 0;
     }
 
     let siteId = 0;
-    if (selectedSite && selectedSite !== "전체" && selectedSite !== "All" && Array.isArray(filterData?.site)) {
+    if (
+      selectedSite &&
+      selectedSite !== "전체" &&
+      selectedSite !== "All" &&
+      Array.isArray(filterData?.site)
+    ) {
       const match = filterData.site.find((s) => s.siteName === selectedSite);
       if (match) siteId = match.id ?? match.siteId ?? 0;
     }
 
     let categoryId = 0;
     if (selectedCategories.length > 0 && Array.isArray(filterData?.category)) {
-      const match = filterData.category.find((c) => selectedCategories.includes(c.categoryName || c.name));
+      const match = filterData.category.find((c) =>
+        selectedCategories.includes(c.categoryName || c.name),
+      );
       if (match) categoryId = match.id ?? match.categoryId ?? 0;
     }
 
     let priorityId = 0;
     if (selectedPriorities.length > 0 && Array.isArray(filterData?.priority)) {
-      const match = filterData.priority.find((p) => selectedPriorities.includes(p.priorityName || p.name));
+      const match = filterData.priority.find((p) =>
+        selectedPriorities.includes(p.priorityName || p.name),
+      );
       if (match) priorityId = match.id ?? match.priorityId ?? 0;
     }
 
     let workOrderId = 0;
-    if (selectedRepWork && selectedRepWork !== "전체" && selectedRepWork !== "All" && Array.isArray(filterData?.representations)) {
-      const match = filterData.representations.find((r) => r.representativeWorkName === selectedRepWork);
+    if (
+      selectedRepWork &&
+      selectedRepWork !== "전체" &&
+      selectedRepWork !== "All" &&
+      Array.isArray(filterData?.representations)
+    ) {
+      const match = filterData.representations.find(
+        (r) => r.representativeWorkName === selectedRepWork,
+      );
       if (match) workOrderId = match.id ?? match.representativeWorkId ?? 0;
     }
 
@@ -685,7 +781,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       if (status >= 200 && status < 300 && responseData) {
         const raw = responseData?.data ?? responseData;
         const records = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
-        setAllRecords(records);
+        // Enrich records with process_name and equipment_type_name from selected filters
+        // The API response omits these fields, but the frontend filter logic needs them
+        const enriched = records.map((r) => ({
+          ...r,
+          process_name:
+            r.process_name || r.processName || (selectedProcess !== "전체" ? selectedProcess : ""),
+          equipment_type_name:
+            r.equipment_type_name ||
+            r.equipmentTypeName ||
+            (selectedMaintenance !== "전체" ? selectedMaintenance : ""),
+        }));
+        setAllRecords(enriched);
       } else {
         console.warn("[Matrix] GetChangeMatrix API failed:", status, responseData);
       }
@@ -709,17 +816,41 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [getFilterData]);
 
   useEffect(() => {
-    if (isLoadTableDataOnload || (selectedProcess && selectedProcess !== "전체")) {
+    // Call API on load if any filter is active (not just process)
+    const isAnyFilterActive =
+      selectedProcess !== "전체" ||
+      selectedMaintenance !== "전체" ||
+      selectedSite !== "전체" ||
+      selectedRepWork !== "전체" ||
+      selectedPriorities.length > 0 ||
+      selectedCategories.length > 0 ||
+      selectedWoTypes.length > 0 ||
+      Boolean(startDate) ||
+      Boolean(endDate);
+
+    if (isLoadTableDataOnload || isAnyFilterActive) {
       fetchMatrixData();
     }
-  }, [fetchMatrixData, isLoadTableDataOnload, selectedProcess]);
+  }, [
+    fetchMatrixData,
+    isLoadTableDataOnload,
+    selectedProcess,
+    selectedMaintenance,
+    selectedSite,
+    selectedRepWork,
+    selectedPriorities,
+    selectedCategories,
+    selectedWoTypes,
+    startDate,
+    endDate,
+  ]);
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
-    const raw = [...new Set(allRecords.map(r => getColValue(r, "process")).filter(Boolean))];
+    const raw = [...new Set(allRecords.map((r) => getColValue(r, "process")).filter(Boolean))];
     const allowed = (filterData?.process ?? [])
-      .filter(p => p.isChangedData !== false)
-      .map(p => p.processName)
+      .filter((p) => p.isChangedData !== false)
+      .map((p) => p.processName)
       .filter(Boolean);
     const combined = [...new Set([...raw, ...allowed])];
     return combined.sort();
@@ -731,7 +862,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       ...new Set(
         allRecords
           .filter((r) => getColValue(r, "process") === selectedProcess)
-          .map((r) => getColValue(r, "maintGroup") || getColValue(r, "eqType") || getColValue(r, "equipment"))
+          .map(
+            (r) =>
+              getColValue(r, "maintGroup") ||
+              getColValue(r, "eqType") ||
+              getColValue(r, "equipment"),
+          )
           .filter(Boolean),
       ),
     ];
@@ -757,13 +893,22 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [allRecords, selectedProcess, filterData]);
 
   const siteOptions = useMemo(() => {
-    const raw = [...new Set(allRecords.filter(r => 
-      (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
-      (selectedMaintenance === "전체" || getColValue(r, "maintGroup") === selectedMaintenance)
-    ).map(r => getColValue(r, "site")).filter(Boolean))];
+    const raw = [
+      ...new Set(
+        allRecords
+          .filter(
+            (r) =>
+              (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
+              (selectedMaintenance === "전체" ||
+                getColValue(r, "maintGroup") === selectedMaintenance),
+          )
+          .map((r) => getColValue(r, "site"))
+          .filter(Boolean),
+      ),
+    ];
     const allowed = (filterData?.site ?? [])
-      .filter(s => s.isChangedData !== false)
-      .map(s => s.siteName)
+      .filter((s) => s.isChangedData !== false)
+      .map((s) => s.siteName)
       .filter(Boolean);
     const combined = [...new Set([...raw, ...allowed])];
     return combined.sort();
@@ -771,11 +916,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   const repWorkOptions = useMemo(() => {
     const reps = filterData?.representations ?? [];
-    return [...new Set(reps.map(r => r.representativeWorkName).filter(Boolean))].sort();
+    return [...new Set(reps.map((r) => r.representativeWorkName).filter(Boolean))].sort();
   }, [filterData]);
 
   const priorityOptions = useMemo(() => {
-    const rawList = [...new Set((filterData?.priority ?? []).map((p) => p.priorityName).filter(Boolean))];
+    const rawList = [
+      ...new Set((filterData?.priority ?? []).map((p) => p.priorityName).filter(Boolean)),
+    ];
     if (rawList.length === 0) {
       return ["중요", "일반"];
     }
@@ -783,7 +930,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [filterData]);
 
   const categoryOptions = useMemo(() => {
-    const rawList = [...new Set((filterData?.category ?? []).map((c) => c.categoryName).filter(Boolean))];
+    const rawList = [
+      ...new Set((filterData?.category ?? []).map((c) => c.categoryName).filter(Boolean)),
+    ];
     if (rawList.length === 0) {
       return ["생산성", "품질", "보전성", "기타"];
     }
@@ -814,10 +963,27 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       setSelectedSite("전체");
       setSelectedRepWork("전체");
     } else {
-      const parts = [...new Set(allRecords.filter(r => getColValue(r, "process") === proc).map(r => getColValue(r, "maintGroup")).filter(Boolean))].sort();
+      const parts = [
+        ...new Set(
+          allRecords
+            .filter((r) => getColValue(r, "process") === proc)
+            .map((r) => getColValue(r, "maintGroup"))
+            .filter(Boolean),
+        ),
+      ].sort();
       if (parts.length === 1) {
         setSelectedMaintenance(parts[0]);
-        const sites = [...new Set(allRecords.filter(r => getColValue(r, "process") === proc && getColValue(r, "maintGroup") === parts[0]).map(r => getColValue(r, "site")).filter(Boolean))].sort();
+        const sites = [
+          ...new Set(
+            allRecords
+              .filter(
+                (r) =>
+                  getColValue(r, "process") === proc && getColValue(r, "maintGroup") === parts[0],
+              )
+              .map((r) => getColValue(r, "site"))
+              .filter(Boolean),
+          ),
+        ].sort();
         if (sites.length === 1) {
           setSelectedSite(sites[0]);
         } else {
@@ -839,10 +1005,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       setSelectedSite("전체");
       setSelectedRepWork("전체");
     } else {
-      const sites = [...new Set(allRecords.filter(r => 
-        (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
-        getColValue(r, "maintGroup") === part
-      ).map(r => getColValue(r, "site")).filter(Boolean))].sort();
+      const sites = [
+        ...new Set(
+          allRecords
+            .filter(
+              (r) =>
+                (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
+                getColValue(r, "maintGroup") === part,
+            )
+            .map((r) => getColValue(r, "site"))
+            .filter(Boolean),
+        ),
+      ].sort();
       if (sites.length === 1) {
         setSelectedSite(sites[0]);
       } else {
@@ -865,7 +1039,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // Filtered rows for the matrix table
   const filtered = useMemo(() => {
-    if (!isLoadTableDataOnload && selectedProcess === "전체") {
+    // Show data if any filter is active or if load-on-load mode is enabled
+    const isAnyFilterActive =
+      selectedProcess !== "전체" ||
+      selectedMaintenance !== "전체" ||
+      selectedSite !== "전체" ||
+      selectedRepWork !== "전체" ||
+      selectedPriorities.length > 0 ||
+      selectedCategories.length > 0 ||
+      selectedWoTypes.length > 0 ||
+      Boolean(startDate) ||
+      Boolean(endDate);
+
+    if (!isLoadTableDataOnload && !isAnyFilterActive) {
       return [];
     }
     return allRecords.filter((item) => {
@@ -937,12 +1123,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         eqMap.set(k, { site, equipmentCode: scode, equipmentName: sname });
       }
     });
-    const equipmentRows = [...eqMap.values()].sort((a, b) => a.equipmentName.localeCompare(b.equipmentName));
+    const equipmentRows = [...eqMap.values()].sort((a, b) =>
+      a.equipmentName.localeCompare(b.equipmentName),
+    );
 
     // Columns (X axis values)
     let columns = [];
     if (mode === "date") {
-      columns = [...new Set(filtered.map(d => getFormattedDateString(getColValue(d, "workedOn"))).filter(Boolean))].sort();
+      columns = [
+        ...new Set(
+          filtered.map((d) => getFormattedDateString(getColValue(d, "workedOn"))).filter(Boolean),
+        ),
+      ].sort();
     } else {
       // Sort representative tasks by latest date in descending order
       const repLatest = {};
@@ -972,10 +1164,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     columns.forEach((col) => {
       let count = 0;
       equipmentRows.forEach((eq) => {
-        const hasTask = filtered.some(d => 
-          getColValue(d, "equipmentCode") === eq.equipmentCode && 
-          getColValue(d, "equipmentName") === eq.equipmentName && 
-          getColValue(d, "representativeWork") === col
+        const hasTask = filtered.some(
+          (d) =>
+            getColValue(d, "equipmentCode") === eq.equipmentCode &&
+            getColValue(d, "equipmentName") === eq.equipmentName &&
+            getColValue(d, "representativeWork") === col,
         );
         if (hasTask) count++;
       });
@@ -991,14 +1184,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       alert(t("page.matrix.selectWarning", "공정과 보전파트를 먼저 선택하세요."));
       return;
     }
-    
+
     setClickedRecord(record);
-    
-    const currentMaintRecords = allRecords.filter(r => 
-      getColValue(r, "process") === selectedProcess && 
-      getColValue(r, "maintGroup") === selectedMaintenance
+
+    const currentMaintRecords = allRecords.filter(
+      (r) =>
+        getColValue(r, "process") === selectedProcess &&
+        getColValue(r, "maintGroup") === selectedMaintenance,
     );
-    
+
     let resolvedTaskName = taskName;
     let resolvedTasksList = [];
 
@@ -1006,13 +1200,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       resolvedTaskName = taskName;
       resolvedTasksList = [];
     } else if (colKey) {
-      const matchedTasks = [...new Set(currentMaintRecords.filter(r => {
-        if (mode === "date") {
-          return getFormattedDateString(getColValue(r, "workedOn")) === colKey;
-        } else {
-          return getColValue(r, "representativeWork") === colKey;
-        }
-      }).map(r => getColValue(r, "representativeWork")).filter(Boolean))];
+      const matchedTasks = [
+        ...new Set(
+          currentMaintRecords
+            .filter((r) => {
+              if (mode === "date") {
+                return getFormattedDateString(getColValue(r, "workedOn")) === colKey;
+              } else {
+                return getColValue(r, "representativeWork") === colKey;
+              }
+            })
+            .map((r) => getColValue(r, "representativeWork"))
+            .filter(Boolean),
+        ),
+      ];
 
       if (matchedTasks.length === 1) {
         resolvedTaskName = matchedTasks[0];
@@ -1035,7 +1236,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     // Prepopulate priority and effect type if they already exist in the matched records / clicked record
     let existingPriority = "";
     let existingCategory = "";
-    
+
     if (record) {
       existingPriority = getColValue(record, "priority");
       existingCategory = getColValue(record, "category");
@@ -1043,10 +1244,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
     if (!existingPriority && !existingCategory && resolvedTaskName) {
       const matchedRecords = currentMaintRecords.filter(
-        (r) => getColValue(r, "representativeWork") === resolvedTaskName
+        (r) => getColValue(r, "representativeWork") === resolvedTaskName,
       );
       if (matchedRecords.length > 0) {
-        const firstWithPriority = matchedRecords.find(r => getColValue(r, "priority") || getColValue(r, "category")) || matchedRecords[0];
+        const firstWithPriority =
+          matchedRecords.find((r) => getColValue(r, "priority") || getColValue(r, "category")) ||
+          matchedRecords[0];
         existingPriority = getColValue(firstWithPriority, "priority");
         existingCategory = getColValue(firstWithPriority, "category");
       }
@@ -1060,7 +1263,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // ── Lateral Deployment Data Calculations & Action Handlers ──
   const asEquipmentData = useMemo(() => {
-    if (!asRepWork || !equipmentRows) return { woApplied: [], unconfirmed: [], applied: [], rejected: [] };
+    if (!asRepWork || !equipmentRows)
+      return { woApplied: [], unconfirmed: [], applied: [], rejected: [] };
 
     const woApplied = [];
     const unconfirmed = [];
@@ -1075,7 +1279,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       const matched = allRecords.filter(
         (r) =>
           getColValue(r, "equipmentCode") === eqCode &&
-          getColValue(r, "representativeWork") === asRepWork
+          getColValue(r, "representativeWork") === asRepWork,
       );
 
       const hasWo = matched.some((r) => Boolean(getColValue(r, "wOCode")));
@@ -1264,7 +1468,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     else if (!isNaN(Number(newCategory))) cId = Number(newCategory);
 
     const updatePayload = {
-      id: Number(clickedRecord?.id || clickedRecord?.repWorkId || clickedRecord?.representativeWorkId || 0),
+      id: Number(
+        clickedRecord?.id || clickedRecord?.repWorkId || clickedRecord?.representativeWorkId || 0,
+      ),
       name: newRepresentativeWork.trim() || targetTask,
       priorityId: pId,
       categoryId: cId,
@@ -1282,31 +1488,38 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       return;
     }
 
-    APIcallPost(pocEndPoints.UPDATE_REPRESENTATIVE_WORK, updatePayload, {}, (responseData, status) => {
-      setReplacing(false);
-      if (status >= 200 && status < 300) {
-        setShowReplaceModal(false);
-        setOperationStatus({
-          isVisible: true,
-          status: "success",
-          message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
-          autoClose: true,
-        });
-        getFilterData();
-        fetchMatrixData();
-      } else {
-        alert(t("toast.saveError", "저장에 실패했습니다."));
-      }
-    });
+    APIcallPost(
+      pocEndPoints.UPDATE_REPRESENTATIVE_WORK,
+      updatePayload,
+      {},
+      (responseData, status) => {
+        setReplacing(false);
+        if (status >= 200 && status < 300) {
+          setShowReplaceModal(false);
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
+            autoClose: true,
+          });
+          getFilterData();
+          fetchMatrixData();
+        } else {
+          alert(t("toast.saveError", "저장에 실패했습니다."));
+        }
+      },
+    );
   };
 
-  const showLanding = !isLoadTableDataOnload && selectedProcess === "전체" && allRecords.length === 0;
+  const showLanding =
+    !isLoadTableDataOnload && selectedProcess === "전체" && allRecords.length === 0;
 
   if (loading) {
     return (
       <section className="space-y-6">
         <div className="flex min-h-[240px] items-center justify-center text-text-subtle">
-          <i className="fas fa-spinner fa-spin mr-2" /> {t("app.loadingData", "데이터를 불러오는 중...")}
+          <i className="fas fa-spinner fa-spin mr-2" />{" "}
+          {t("app.loadingData", "데이터를 불러오는 중...")}
         </div>
       </section>
     );
@@ -1347,7 +1560,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         <div className="flex flex-wrap items-center gap-3">
           {/* 공정 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.process", "공정")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.process", "공정")}
+            </label>
             <select
               className="input-base"
               value={selectedProcess}
@@ -1365,7 +1580,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 보전파트 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.equipmentType", "Equipment Type")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.equipmentType", "Equipment Type")}
+            </label>
             <select
               className="input-base"
               value={selectedMaintenance}
@@ -1384,7 +1601,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 법인 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.site", "법인")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.site", "법인")}
+            </label>
             <select
               className="input-base"
               value={selectedSite}
@@ -1403,7 +1622,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 대표 작업명 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.repWork", "대표 작업명")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.repWork", "대표 작업명")}
+            </label>
             <SearchableSelect
               options={repWorkOptions}
               selectedValue={selectedRepWork}
@@ -1412,7 +1633,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               t={t}
               minWidth="180px"
             />
-            <span className="text-[10px] font-bold text-brand-60" style={{ color: "var(--brand-60, #0f62fe)" }}>
+            <span
+              className="text-[10px] font-bold text-brand-60"
+              style={{ color: "var(--brand-60, #0f62fe)" }}
+            >
               {repWorkOptions.length ? `(${repWorkOptions.length}개)` : ""}
             </span>
           </div>
@@ -1433,7 +1657,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 효과 유형 */}
           <div className="flex items-center gap-2 flex-none" style={{ minWidth: "190px" }}>
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.category", "효과유형")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.category", "효과유형")}
+            </label>
             <MultiSelect
               options={categoryOptions.map((c) => ({ label: c, value: c }))}
               selectedValues={selectedCategories}
@@ -1445,7 +1671,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* WO 유형 */}
           <div className="flex items-center gap-2 flex-none" style={{ minWidth: "190px" }}>
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.woType", "WO유형")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.woType", "WO유형")}
+            </label>
             <MultiSelect
               options={woTypeOptions.map((w) => ({ label: w, value: w }))}
               selectedValues={selectedWoTypes}
@@ -1457,7 +1685,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
           {/* 기간 */}
           <div className="flex items-center gap-2 ml-auto">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">{t("field.period", "기간")}</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              {t("field.period", "기간")}
+            </label>
             <input
               type="date"
               className="input-base py-1 px-2 text-xs"
@@ -1495,21 +1725,24 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl mb-4">
               <i className="fas fa-th-large" />
             </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">{t("landing.selectProcessAndMaint")}</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              {t("landing.selectProcessAndMaint")}
+            </h3>
             <p className="text-sm text-gray-400 max-w-md mx-auto">
               {t("landing.selectProcessAndMaintMatrixDesc")}
             </p>
           </div>
         ) : isFiltering ? (
-          <TableSkeleton
-            columns={columns}
-            equipmentRows={equipmentRows}
-            mode={mode}
-            t={t}
-          />
+          <TableSkeleton columns={columns} equipmentRows={equipmentRows} mode={mode} t={t} />
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 p-10 text-center text-text-subtle flex-1">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl" style={{ backgroundColor: "var(--brand-10, #eff6ff)", color: "var(--brand-60, #0f62fe)" }}>
+            <div
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-3xl"
+              style={{
+                backgroundColor: "var(--brand-10, #eff6ff)",
+                color: "var(--brand-60, #0f62fe)",
+              }}
+            >
               <i className="fas fa-layer-group" />
             </div>
             <h2 className="text-xl font-bold text-text-default">
@@ -1519,24 +1752,27 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
           </div>
         ) : (
           <div className="overflow-auto flex-1 min-h-0">
-            <table className="w-full min-w-max text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+            <table
+              className="w-full min-w-max text-sm"
+              style={{ borderCollapse: "separate", borderSpacing: 0 }}
+            >
               <thead>
                 <tr className="border-b border-border-base bg-surface-strong">
                   <th
-                    className="sticky left-0 z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "100px", position: "sticky", left: 0 }}
+                    className="sticky left-0 top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+                    style={{ width: "100px", position: "sticky", left: 0, top: 0 }}
                   >
                     {t("field.site", "SITE")}
                   </th>
                   <th
-                    className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "120px", position: "sticky", left: "100px" }}
+                    className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+                    style={{ width: "120px", position: "sticky", left: "100px", top: 0 }}
                   >
                     {t("field.equipmentCode", "EQUIPMENT CODE")}
                   </th>
                   <th
-                    className="sticky z-25 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "180px", position: "sticky", left: "220px" }}
+                    className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
+                    style={{ width: "180px", position: "sticky", left: "220px", top: 0 }}
                   >
                     {t("field.equipmentName", "EQUIPMENT NAME")}
                   </th>
@@ -1545,8 +1781,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <th
                           key={col}
-                          className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
-                          style={{ width: "160px" }}
+                          className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
+                          style={{ width: "160px", position: "sticky", top: 0 }}
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{col}</span>
@@ -1558,8 +1794,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <th
                           key={col}
-                          className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
-                          style={{ width: "200px", whiteSpace: "normal" }}
+                          className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
+                          style={{
+                            width: "200px",
+                            whiteSpace: "normal",
+                            position: "sticky",
+                            top: 0,
+                          }}
                         >
                           <div className="flex flex-col items-center justify-center">
                             <div className="flex items-center justify-center gap-1">
@@ -1600,11 +1841,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       {eq.equipmentName}
                     </td>
                     {columns.map((col) => {
-                      const matched = filtered.filter(d => {
+                      const matched = filtered.filter((d) => {
                         const isEquip =
                           getColValue(d, "equipmentCode") === eq.equipmentCode &&
                           getColValue(d, "equipmentName") === eq.equipmentName &&
-                          (getColValue(d, "site") || getColValue(d, "법인") || "A1. Seoul") === eq.site;
+                          (getColValue(d, "site") || getColValue(d, "법인") || "A1. Seoul") ===
+                            eq.site;
                         if (!isEquip) return false;
                         if (mode === "date") {
                           return getFormattedDateString(getColValue(d, "workedOn")) === col;
@@ -1633,14 +1875,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         return <td key={col} className="px-4 py-3" />;
                       }
 
-                      const displayValues = [...new Set(matched.map(d =>
-                        mode === X_AXIS_MODE.DATE ? getColValue(d, "representativeWork") : getFormattedDateString(getColValue(d, "workedOn"))
-                      ).filter(Boolean))].sort();
+                      const displayValues = [
+                        ...new Set(
+                          matched
+                            .map((d) =>
+                              mode === X_AXIS_MODE.DATE
+                                ? getColValue(d, "representativeWork")
+                                : getFormattedDateString(getColValue(d, "workedOn")),
+                            )
+                            .filter(Boolean),
+                        ),
+                      ].sort();
 
-                      const cellStyle = getCellStyle(
-                        matched,
-                        mode,
-                        (item) => getColValue(item, "priority"),
+                      const cellStyle = getCellStyle(matched, mode, (item) =>
+                        getColValue(item, "priority"),
                       );
 
                       return (
@@ -1656,14 +1904,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               lineHeight: "1.4",
                               minHeight: "36px",
                               whiteSpace: "pre-line",
-                              wordBreak: "break-all"
+                              wordBreak: "break-all",
                             }}
                           >
                             {mode === X_AXIS_MODE.DATE ? (
                               <div className="w-full flex flex-col gap-1">
-                                {displayValues.map((val, idx) => {
-                                  const representativeWorkItems = matched.filter(d =>
-                                    getColValue(d, "representativeWork") === val
+                                {displayValues.slice(0, 3).map((val, idx) => {
+                                  const representativeWorkItems = matched.filter(
+                                    (d) => getColValue(d, "representativeWork") === val,
                                   );
                                   const itemStyle = getDateModeItemStyle(
                                     representativeWorkItems,
@@ -1685,18 +1933,24 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                     </div>
                                   );
                                 })}
+                                {displayValues.length > 3 && (
+                                  <div
+                                    className="w-full text-center text-[10px] text-gray-500 dark:text-gray-400 font-semibold italic"
+                                    style={{ opacity: 0.8 }}
+                                  >
+                                    +{displayValues.length - 3} more
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div>
-                                {displayValues.join("\n")}
-                              </div>
+                              <div>{displayValues.join("\n")}</div>
                             )}
-                            <span 
+                            <span
                               className="absolute top-[2px] right-[4px] text-[9px] opacity-0 group-hover:opacity-100 transition-all duration-200 text-text-subtle bg-white border border-[#e2e8f0] rounded-[4px] px-1 py-0.5 shadow-sm hover:text-[#4f46e5] hover:scale-105 active:scale-95 z-20 cursor-pointer"
                               onClick={(e) => {
-                                  e.stopPropagation();
-                                  const firstTask = getColValue(matched[0], "representativeWork");
-                                  openReplaceModal(firstTask, null, matched[0]);
+                                e.stopPropagation();
+                                const firstTask = getColValue(matched[0], "representativeWork");
+                                openReplaceModal(firstTask, null, matched[0]);
                               }}
                             >
                               <i className="fas fa-pen text-[8px]" />
@@ -1716,10 +1970,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       {/* Find & Replace Modal (Representative Work Name Change) */}
       {showReplaceModal && (
         <div className="modal-overlay" onClick={() => setShowReplaceModal(false)}>
-          <div
-            className="modal-panel modal-panel-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="modal-panel modal-panel-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="flex items-start gap-3.5 min-w-0">
                 <div className="modal-icon-wrap mt-0.5">
@@ -1763,7 +2014,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           const currentMaintRecords = allRecords.filter(
                             (r) =>
                               getColValue(r, "process") === selectedProcess &&
-                              getColValue(r, "maintGroup") === selectedMaintenance
+                              getColValue(r, "maintGroup") === selectedMaintenance,
                           );
 
                           let foundRecord = null;
@@ -1774,7 +2025,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               (r) =>
                                 getColValue(r, "equipmentCode") === eqCode &&
                                 getColValue(r, "equipmentName") === eqName &&
-                                getColValue(r, "representativeWork") === nextTask
+                                getColValue(r, "representativeWork") === nextTask,
                             );
                           }
 
@@ -1783,12 +2034,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                             setNewCategory(getColValue(foundRecord, "category"));
                           } else {
                             const matchedRecords = currentMaintRecords.filter(
-                              (r) => getColValue(r, "representativeWork") === nextTask
+                              (r) => getColValue(r, "representativeWork") === nextTask,
                             );
                             if (matchedRecords.length > 0) {
                               const firstWithVal =
                                 matchedRecords.find(
-                                  (r) => getColValue(r, "priority") || getColValue(r, "category")
+                                  (r) => getColValue(r, "priority") || getColValue(r, "category"),
                                 ) || matchedRecords[0];
                               setNewPriority(getColValue(firstWithVal, "priority"));
                               setNewCategory(getColValue(firstWithVal, "category"));
@@ -1949,7 +2200,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* WO Applied */}
                 <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/40 text-center">
                   <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-300">
-                    {apiStatusCounts.hasFetched ? apiStatusCounts.wo_applied : asEquipmentData.woApplied.length}
+                    {apiStatusCounts.hasFetched
+                      ? apiStatusCounts.wo_applied
+                      : asEquipmentData.woApplied.length}
                   </div>
                   <div className="text-xs font-semibold text-blue-800/80 dark:text-blue-300/80 mt-0.5">
                     {t("page.matrix.woApplied", "WO 적용")}
@@ -1959,7 +2212,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Before Confirmation */}
                 <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-center">
                   <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">
-                    {apiStatusCounts.hasFetched ? apiStatusCounts.before_verification : asEquipmentData.unconfirmed.length}
+                    {apiStatusCounts.hasFetched
+                      ? apiStatusCounts.before_verification
+                      : asEquipmentData.unconfirmed.length}
                   </div>
                   <div className="text-xs font-semibold text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
                     {t("page.matrix.beforeConfirmation", "확인 전")}
@@ -1969,7 +2224,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Applied */}
                 <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
                   <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
-                    {apiStatusCounts.hasFetched ? apiStatusCounts.applied : asEquipmentData.applied.length}
+                    {apiStatusCounts.hasFetched
+                      ? apiStatusCounts.applied
+                      : asEquipmentData.applied.length}
                   </div>
                   <div className="text-xs font-semibold text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
                     {t("page.matrix.application", "적용됨")}
@@ -1979,7 +2236,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Not Applied */}
                 <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/40 text-center">
                   <div className="text-2xl font-extrabold text-rose-700 dark:text-rose-300">
-                    {apiStatusCounts.hasFetched ? apiStatusCounts.not_applied : asEquipmentData.rejected.length}
+                    {apiStatusCounts.hasFetched
+                      ? apiStatusCounts.not_applied
+                      : asEquipmentData.rejected.length}
                   </div>
                   <div className="text-xs font-semibold text-rose-800/80 dark:text-rose-300/80 mt-0.5">
                     {t("page.matrix.notApplied", "미적용")}
@@ -1998,7 +2257,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  📋 {t("page.matrix.woApplied", "WO적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.wo_applied : asEquipmentData.woApplied.length})
+                  📋 {t("page.matrix.woApplied", "WO적용")} (
+                  {apiStatusCounts.hasFetched
+                    ? apiStatusCounts.wo_applied
+                    : asEquipmentData.woApplied.length}
+                  )
                 </button>
                 <button
                   type="button"
@@ -2009,7 +2272,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  🔍 {t("page.matrix.beforeConfirmation", "확인전")} ({apiStatusCounts.hasFetched ? apiStatusCounts.before_verification : asEquipmentData.unconfirmed.length})
+                  🔍 {t("page.matrix.beforeConfirmation", "확인전")} (
+                  {apiStatusCounts.hasFetched
+                    ? apiStatusCounts.before_verification
+                    : asEquipmentData.unconfirmed.length}
+                  )
                 </button>
                 <button
                   type="button"
@@ -2020,7 +2287,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  ✅ {t("page.matrix.application", "적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.applied : asEquipmentData.applied.length})
+                  ✅ {t("page.matrix.application", "적용")} (
+                  {apiStatusCounts.hasFetched
+                    ? apiStatusCounts.applied
+                    : asEquipmentData.applied.length}
+                  )
                 </button>
                 <button
                   type="button"
@@ -2031,7 +2302,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   }`}
                 >
-                  ❌ {t("page.matrix.notApplied", "미적용")} ({apiStatusCounts.hasFetched ? apiStatusCounts.not_applied : asEquipmentData.rejected.length})
+                  ❌ {t("page.matrix.notApplied", "미적용")} (
+                  {apiStatusCounts.hasFetched
+                    ? apiStatusCounts.not_applied
+                    : asEquipmentData.rejected.length}
+                  )
                 </button>
               </div>
 
@@ -2080,7 +2355,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <label className="flex items-center gap-2 text-xs font-bold text-text-subtle cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    checked={currentTabItems.length > 0 && asSelectedEqCodes.size === currentTabItems.length}
+                    checked={
+                      currentTabItems.length > 0 &&
+                      asSelectedEqCodes.size === currentTabItems.length
+                    }
                     onChange={handleToggleSelectAllEq}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />

@@ -28,3 +28,6 @@ Thumbs.db
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# SEMCo-Work preview
+.semco_preview

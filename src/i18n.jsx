@@ -64,6 +64,7 @@ const translations = {
     "page.mp.saveHint": "저장하기를 눌러 반영하세요.",
     "page.mp.addRow": "행 추가",
     "page.mp.addVoc": "VoC 추가",
+    "mp.selectProcessAndEquipment": "Please select Process and Equipment Type first.",
     "page.mp.batchAddVoc": "VoC 일괄 추가",
     "page.mp.saveMpList": "MP List 저장",
     "page.mp.saveButton": "저장하기",
@@ -91,8 +92,7 @@ const translations = {
     "page.matrix.replaceTargetWarning": "변경할 작업명을 지정하세요.",
     "page.matrix.replaceContentWarning": "변경할 내용을 입력하거나 선택하세요.",
     "page.matrix.replaceModalTitle": "대표 작업명 일괄 수정",
-    "page.matrix.replaceModalDesc":
-      "대표 작업명, 중요도, 효과 유형을 일괄 변경합니다.",
+    "page.matrix.replaceModalDesc": "대표 작업명, 중요도, 효과 유형을 일괄 변경합니다.",
     "page.matrix.jobNameFind": "찾을 작업명 (변경 전)",
     "page.matrix.changesGroup": "변경 항목",
     "page.matrix.newRepWorkName": "새 대표 작업명",
@@ -131,6 +131,7 @@ const translations = {
     "field.equipmentType": "설비 유형",
     "field.site": "법인",
     "field.repWork": "대표 작업명",
+    "field.woType": "WO 유형",
     "field.priority": "중요도",
     "field.category": "효과 유형",
     "field.period": "기간",
@@ -185,14 +186,21 @@ const translations = {
     "toast.specDataUploaded": "사양 데이터가 업로드되었습니다.",
     "toast.excelEmptyRows": "엑셀 업로드 후 rows가 없습니다.",
     "toast.excelError": "엑셀 업로드 중 오류가 발생했습니다.",
-    "toast.unsupportedFormat":
-      "지원되지 않는 파일 형식입니다. CSV 또는 XLSX만 지원합니다.",
+    "toast.unsupportedFormat": "지원되지 않는 파일 형식입니다. CSV 또는 XLSX만 지원합니다.",
     "toast.postSaved": "게시글이 저장되었습니다.",
     "toast.mpRowAdded": "MP List 행이 추가되었습니다.",
     "toast.permissionsSaved": "사용자 권한 정보가 저장되었습니다.",
     "toast.saveSuccess": "데이터가 성공적으로 저장되었습니다.",
     "toast.rowsSavedSuccess": "개 행이 성공적으로 저장되었습니다.",
     "toast.saveError": "데이터 저장에 실패했습니다.",
+    "batch.duplicateFound": "중복 레코드가 발견되었습니다. 확인해주세요.",
+    "batch.all": "전체",
+    "batch.duplicate": "중복",
+    "batch.missing": "누락",
+    "batch.removeDuplicate": "중복 제거",
+    "batch.save": "저장",
+    "batch.preview": "미리보기",
+    "batch.validating": "검증 중...",
     "placeholder.workPurpose": "작업의 목적을 입력하세요",
     "placeholder.changeSearch": "설비명, 작업명...",
     "placeholder.repWorkInput": "대표작업명 입력",
@@ -222,8 +230,7 @@ const translations = {
     "toast.saving": "저장 중입니다...",
     "preview.title": "업로드 데이터 미리보기",
     "preview.subtitle": "개 컬럼 · 셀을 더블 클릭하여 수정하세요",
-    "preview.tip":
-      "셀을 더블 클릭하여 수정한 후, 저장 버튼으로 전체 데이터를 저장하세요",
+    "preview.tip": "셀을 더블 클릭하여 수정한 후, 저장 버튼으로 전체 데이터를 저장하세요",
     "preview.total": "총",
     "preview.row": "행",
     "preview.noData": "미리보기할 데이터가 없습니다.",
@@ -231,18 +238,15 @@ const translations = {
     "preview.saveCount": "저장 ({count}건)",
     "preview.missingRequired": "건 필수 항목 누락",
     "preview.required": "필수 입력",
-    "preview.duplicateWarning":
-      "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
-    "preview.mandatoryFieldsRequired":
-      "{rowNumber}행의 필수 입력 항목이 비어 있습니다: {fields}",
+    "preview.duplicateWarning": "중복된 항목이 있습니다. 먼저 중복 항목을 제거한 후 저장해주세요.",
+    "preview.mandatoryFieldsRequired": "{rowNumber}행의 필수 입력 항목이 비어 있습니다: {fields}",
     "preview.filterAll": "전체",
     "preview.filterDuplicate": "중복",
     "preview.filterMissing": "필수 누락",
     "preview.noDuplicates": "중복된 항목이 없습니다.",
     "preview.noMissing": "누락된 필수 항목이 없습니다.",
     "empty.noMatch": "조건에 맞는 데이터가 없습니다.",
-    "empty.hint":
-      "공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.",
+    "empty.hint": "공정과 보전그룹을 선택하거나 검색어를 입력해서 데이터를 확인하세요.",
     "empty.noSpecMatch": "조건에 맞는 사양 데이터가 없습니다.",
     "empty.specHint": "공정과 보전그룹을 선택하거나 검색어를 입력해 주세요.",
     "matrix.dateMode": "날짜 모드",
@@ -294,8 +298,7 @@ const translations = {
       "설비별 작업 이력을 테이블로 관리하고, CSV/Excel로 내보낼 수 있습니다.",
     "page.home.changeMatrixDesc":
       "설비×작업 이력을 매트릭스로 시각화하여 횡전개를 관리하고, 설비 산포를 개선합니다.",
-    "page.home.mpListDesc":
-      "설비 변경 이력을 리포트로 저장 및 관리해서 다음 설계에 반영합니다.",
+    "page.home.mpListDesc": "설비 변경 이력을 리포트로 저장 및 관리해서 다음 설계에 반영합니다.",
     "page.home.aiProcessTitle": "✨ AI가 데이터를 만드는 과정",
     "page.home.step1.title": "WO 원본",
     "page.home.step1.desc":
@@ -319,8 +322,7 @@ const translations = {
     "page.home.guide3.title": "매트릭스 확인",
     "page.home.guide3.desc": "변경 이력 매트릭스를 확인합니다",
     "page.mpManagement.title": "MP List 관리",
-    "page.mpManagement.desc":
-      "공정·설비 유형별 저장된 MP List를 버전별로 관리합니다",
+    "page.mpManagement.desc": "공정·설비 유형별 저장된 MP List를 버전별로 관리합니다",
     "page.mpManagement.compare": "MP 비교",
     "page.mpManagement.emptyTitle": "공정 및 설비 유형을 선택하세요",
     "page.mpManagement.emptyDesc":
@@ -399,6 +401,7 @@ const translations = {
     "page.mp.saveHint": "Click Save to apply changes.",
     "page.mp.addRow": "Add Row",
     "page.mp.addVoc": "Add VoC",
+    "mp.selectProcessAndEquipment": "Please select Process and Equipment Type first.",
     "page.mp.batchAddVoc": "Batch Add VoC",
     "page.mp.saveMpList": "Save MP List",
     "page.mp.saveButton": "Save",
@@ -421,14 +424,10 @@ const translations = {
     "page.admin.desc": "Control process access permissions for each user.",
     "page.admin.showAll": "Show All Users",
     "page.matrix.title": "Change Matrix",
-    "page.matrix.desc":
-      "Analyze change history visually by process and work item.",
-    "page.matrix.selectWarning":
-      "Please select process and maintenance part first.",
-    "page.matrix.replaceTargetWarning":
-      "Please specify the work name to change.",
-    "page.matrix.replaceContentWarning":
-      "Please enter or select content to change.",
+    "page.matrix.desc": "Analyze change history visually by process and work item.",
+    "page.matrix.selectWarning": "Please select process and maintenance part first.",
+    "page.matrix.replaceTargetWarning": "Please specify the work name to change.",
+    "page.matrix.replaceContentWarning": "Please enter or select content to change.",
     "page.matrix.replaceModalTitle": "Representative Work Name Change",
     "page.matrix.replaceModalDesc":
       "Batch changes of representative task names, importance, and effect types",
@@ -452,14 +451,11 @@ const translations = {
     "app.applying": "Applying...",
     "app.apply": "Apply",
     "page.change.title": "Change History Data",
-    "page.change.desc":
-      "Manage equipment change history data used for Change Matrix and MP List.",
+    "page.change.desc": "Manage equipment change history data used for Change Matrix and MP List.",
     "page.specData.title": "Spec Data",
-    "page.specData.desc":
-      "Manage equipment specification data for the Spec Matrix.",
+    "page.specData.desc": "Manage equipment specification data for the Spec Matrix.",
     "page.specMatrix.title": "Spec Matrix",
-    "page.specMatrix.desc":
-      "Compare equipment specification items and versions.",
+    "page.specMatrix.desc": "Compare equipment specification items and versions.",
     "drawer.title": "Details",
     "drawer.desc": "Full detail history for the selected record",
     "detail.record": "Record Detail",
@@ -471,6 +467,7 @@ const translations = {
     "field.equipmentType": "Equipment Type",
     "field.site": "Site",
     "field.repWork": "Representative Work",
+    "field.woType": "Work Order Type",
     "field.priority": "Priority",
     "field.category": "Effect Type",
     "field.period": "Period",
@@ -525,14 +522,21 @@ const translations = {
     "toast.specDataUploaded": "Spec data uploaded.",
     "toast.excelEmptyRows": "No rows found after Excel upload.",
     "toast.excelError": "Error occurred during Excel upload.",
-    "toast.unsupportedFormat":
-      "Unsupported file format. Only CSV or XLSX are supported.",
+    "toast.unsupportedFormat": "Unsupported file format. Only CSV or XLSX are supported.",
     "toast.postSaved": "Post saved.",
     "toast.mpRowAdded": "MP List row added.",
     "toast.permissionsSaved": "User permissions saved.",
     "toast.saveSuccess": "Data saved successfully.",
     "toast.rowsSavedSuccess": "rows successfully saved.",
     "toast.saveError": "Failed to save data.",
+    "batch.duplicateFound": "duplicate record(s) found. Please review.",
+    "batch.all": "All",
+    "batch.duplicate": "Duplicate",
+    "batch.missing": "Missing",
+    "batch.removeDuplicate": "Remove Duplicate",
+    "batch.save": "Save",
+    "batch.preview": "Preview",
+    "batch.validating": "Validating...",
     "placeholder.workPurpose": "Enter the purpose of work",
     "placeholder.changeSearch": "Equipment name, work name...",
     "placeholder.repWorkInput": "Enter representative work",
@@ -573,8 +577,7 @@ const translations = {
     "preview.required": "Required",
     "preview.duplicateWarning":
       "Duplicate items are present. Please remove duplicates first before saving.",
-    "preview.mandatoryFieldsRequired":
-      "Row {rowNumber} has empty mandatory fields: {fields}",
+    "preview.mandatoryFieldsRequired": "Row {rowNumber} has empty mandatory fields: {fields}",
     "preview.filterAll": "All",
     "preview.filterDuplicate": "Duplicates",
     "preview.filterMissing": "Missing Required",
@@ -584,8 +587,7 @@ const translations = {
     "empty.hint":
       "Please select a process and maintenance group or enter a search query to check the data.",
     "empty.noSpecMatch": "No spec data matches the conditions.",
-    "empty.specHint":
-      "Please select a process and maintenance group or enter a search query.",
+    "empty.specHint": "Please select a process and maintenance group or enter a search query.",
     "matrix.dateMode": "Date Mode",
     "matrix.taskMode": "Work Name Mode",
     "matrix.resetDate": "Reset Date",
@@ -601,12 +603,10 @@ const translations = {
     "specMatrix.inc": "Increase compared to previous",
     "specMatrix.dec": "Decrease compared to previous",
     "specMatrix.mod": "Changed from previous version",
-    "landing.selectProcessAndMaint":
-      "Please select process and equipment type",
+    "landing.selectProcessAndMaint": "Please select process and equipment type",
     "landing.selectProcessAndMaintDesc":
       "Select process and equipment type in the top filter first to display the change history data.",
-    "landing.selectProcessAndMaintType":
-      "Please select process and equipment type",
+    "landing.selectProcessAndMaintType": "Please select process and equipment type",
     "landing.selectProcessAndMaintTypeDesc":
       "Select process and equipment type in the top filter first to display the spec data.",
     "landing.selectProcessAndMaintTypeMatrixDesc":
@@ -644,8 +644,7 @@ const translations = {
     "page.home.step1.desc":
       "Equipment work history collected from EMS system. Unstructured data in report format as free-form text.",
     "page.home.step2.title": "Analysis AI",
-    "page.home.step2.desc":
-      "Reads and analyzes unstructured report content to structure it.",
+    "page.home.step2.desc": "Reads and analyzes unstructured report content to structure it.",
     "page.home.step3.title": "Clustering AI",
     "page.home.step3.desc":
       "Analyzes structured content to group similar work and create representative work names for each group.",
@@ -685,9 +684,10 @@ const translations = {
 const I18nContext = createContext(null);
 
 export function I18nProvider({ children }) {
-  const [language, setLanguage] = useState(
-    () => localStorage.getItem("eq_language") || "ko",
-  );
+  const [language, setLanguage] = useState(() => {
+    // Always default to English for this app
+    return "en";
+  });
 
   useEffect(() => {
     localStorage.setItem("eq_language", language);
@@ -700,8 +700,7 @@ export function I18nProvider({ children }) {
     return {
       language,
       setLanguage,
-      toggleLanguage: () =>
-        setLanguage((current) => (current === "ko" ? "en" : "ko")),
+      toggleLanguage: () => setLanguage((current) => (current === "ko" ? "en" : "ko")),
       t,
     };
   }, [language]);
