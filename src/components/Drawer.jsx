@@ -149,6 +149,7 @@ function getRecordDetails(item, t) {
     "editedBy",
     "edited_by",
     "updatedBy",
+    "updated_by",
     "editor",
   ]);
   const modifiedAtVal = firstValue(item, [
@@ -157,58 +158,61 @@ function getRecordDetails(item, t) {
     "modifiedAt",
     "modified_at",
     "editedAt",
+    "edited_at",
     "updatedAt",
+    "updated_at",
     "modificationDate",
   ]);
 
-  const hasModified = Boolean(
-    (modifiedByVal &&
-      String(modifiedByVal).trim() !== "" &&
-      String(modifiedByVal) !== "0" &&
-      String(modifiedByVal) !== "-") ||
-      (modifiedAtVal &&
-        String(modifiedAtVal).trim() !== "" &&
-        String(modifiedAtVal) !== "0" &&
-        !String(modifiedAtVal).startsWith("0001-01-01") &&
-        String(modifiedAtVal) !== "-"),
-  );
+  const isValidValue = (val) => {
+    if (val === undefined || val === null) return false;
+    const str = String(val).trim();
+    if (!str || str === "0" || str === "-" || str === "—" || str === "N/A" || str === "undefined" || str === "null") return false;
+    if (str.startsWith("0001-01-01")) return false;
+    return true;
+  };
 
-  let lastByField, lastAtField;
+  const hasModifiedBy = isValidValue(modifiedByVal);
+  const hasModifiedAt = isValidValue(modifiedAtVal);
 
-  if (hasModified) {
-    lastByField = {
-      labelKey: "field.editedBy",
-      keys: ["modifiedBy", "modified_by", "editedBy", "updatedBy", "editor"],
-    };
-    lastAtField = {
-      labelKey: "field.editedAt",
-      keys: [
-        "modifiedOn",
-        "modified_on",
-        "modifiedAt",
-        "editedAt",
-        "updatedAt",
-        "modificationDate",
-      ],
-    };
-  } else {
-    lastByField = {
-      labelKey: "field.registeredBy",
-      keys: ["createdBy", "created_by", "registeredBy", "uploadedBy", "author", "registrant"],
-    };
-    lastAtField = {
-      labelKey: "field.registeredAt",
-      keys: [
-        "createdOn",
-        "created_on",
-        "createdAt",
-        "created_at",
-        "registeredAt",
-        "creationDate",
-        "registeredDate",
-      ],
-    };
-  }
+  const lastByField = hasModifiedBy
+    ? {
+        labelKey: "field.editedBy",
+        keys: ["modifiedBy", "modified_by", "editedBy", "edited_by", "updatedBy", "updated_by", "editor"],
+      }
+    : {
+        labelKey: "field.registeredBy",
+        keys: ["createdBy", "created_by", "registeredBy", "registered_by", "uploadedBy", "uploaded_by", "author", "registrant"],
+      };
+
+  const lastAtField = hasModifiedAt
+    ? {
+        labelKey: "field.editedAt",
+        keys: [
+          "modifiedOn",
+          "modified_on",
+          "modifiedAt",
+          "modified_at",
+          "editedAt",
+          "edited_at",
+          "updatedAt",
+          "updated_at",
+          "modificationDate",
+        ],
+      }
+    : {
+        labelKey: "field.registeredAt",
+        keys: [
+          "createdOn",
+          "created_on",
+          "createdAt",
+          "created_at",
+          "registeredAt",
+          "registered_at",
+          "creationDate",
+          "registeredDate",
+        ],
+      };
 
   const baseFields = rawFields.filter(
     (f) =>
@@ -229,7 +233,9 @@ function getRecordDetails(item, t) {
       "createdBy",
       "created_by",
       "registeredBy",
+      "registered_by",
       "uploadedBy",
+      "uploaded_by",
       "author",
       "registrant",
     ]) || "admin";
@@ -242,6 +248,7 @@ function getRecordDetails(item, t) {
         "createdAt",
         "created_at",
         "registeredAt",
+        "registered_at",
         "creationDate",
         "registeredDate",
       ]),
@@ -255,17 +262,17 @@ function getRecordDetails(item, t) {
     let val = firstValue(item, field.keys);
 
     if (field.labelKey === "field.registeredBy" || field.labelKey === "field.createdBy") {
-      if (!val) val = createdByVal;
+      if (!isValidValue(val)) val = createdByVal;
     }
     if (field.labelKey === "field.registeredAt" || field.labelKey === "field.createdAt") {
-      if (!val) val = createdAtVal;
+      if (!isValidValue(val)) val = createdAtVal;
       else val = getFormattedDateString(val);
     }
     if (field.labelKey === "field.editedBy" || field.labelKey === "field.modifiedBy") {
-      if (!val) val = modifiedByVal;
+      if (!isValidValue(val)) val = modifiedByVal || createdByVal;
     }
     if (field.labelKey === "field.editedAt" || field.labelKey === "field.modifiedAt") {
-      if (!val) val = formattedModifiedAt;
+      if (!isValidValue(val)) val = formattedModifiedAt || createdAtVal;
       else val = getFormattedDateString(val);
     }
     if (field.labelKey === "field.workedOn") {
@@ -286,7 +293,15 @@ function getRecordDetails(item, t) {
   return orderedDetails;
 }
 
-export default function Drawer({ item, onClose, allowEdit = false, showEdit = false }) {
+export default function Drawer({
+  item,
+  onClose,
+  allowEdit = false,
+  showEdit = false,
+  showAttachments = true,
+  showFooter = true,
+  variant = "default",
+}) {
   const { t } = useI18n();
 
   const [previewImage, setPreviewImage] = useState(null);
@@ -307,6 +322,8 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
   ]);
   const equipmentName = firstValue(firstItem, ["equipmentName", "equipment_name"]);
   const equipmentCode = firstValue(firstItem, ["equipmentCode", "equipment_code"]);
+
+  const isChangeHistoryView = variant === "changeHistory" || (!showEdit && !showFooter);
 
   const getAttachments = (rec, idx = 0) => {
     const recKey = rec.id || rec.changeHistoryId || rec.wOCode || rec.woCode || `rec-${idx}`;
@@ -417,7 +434,7 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
 
   const renderValue = (detail) => {
     const val = detail.value;
-    if (val === undefined || val === null || val === "") return "-";
+    if (val === undefined || val === null || val === "" || val === "-") return "—";
 
     const key = detail.labelKey;
 
@@ -427,16 +444,18 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
       if (formatted) return formatted;
     }
 
-    if (key === "field.priority") {
-      if (val === "중요" || val === "High") {
-        return <span className="badge badge-danger">{val}</span>;
+    if (!isChangeHistoryView) {
+      if (key === "field.priority") {
+        if (val === "중요" || val === "High") {
+          return <span className="badge badge-danger">{val}</span>;
+        }
+        if (val === "일반" || val === "Normal") {
+          return <span className="badge badge-success">{val}</span>;
+        }
       }
-      if (val === "일반" || val === "Normal") {
-        return <span className="badge badge-success">{val}</span>;
+      if (key === "field.category") {
+        return <span className="badge badge-primary">{val}</span>;
       }
-    }
-    if (key === "field.category") {
-      return <span className="badge badge-primary">{val}</span>;
     }
     return String(val);
   };
@@ -455,26 +474,32 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
               <p
                 className="eq-drawer-subtitle flex flex-wrap items-center gap-x-1.5 mt-1 text-xs"
               >
-                {(() => {
-                  const repWorkVal = firstValue(firstItem, [
-                    "representativeWork",
-                    "representativeWorkName",
-                    "rep_work",
-                    "work_name",
-                    "workName",
-                  ]);
-                  const siteVal = firstValue(firstItem, ["site", "siteName", "corporation"]);
+                {isChangeHistoryView ? (
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">
+                    W/O코드: {woCode || "N/A"} | 설비: {equipmentName || ""}{equipmentCode ? ` (${equipmentCode})` : ""}
+                  </span>
+                ) : (
+                  (() => {
+                    const repWorkVal = firstValue(firstItem, [
+                      "representativeWork",
+                      "representativeWorkName",
+                      "rep_work",
+                      "work_name",
+                      "workName",
+                    ]);
+                    const siteVal = firstValue(firstItem, ["site", "siteName", "corporation"]);
 
-                  return (
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">
-                      {repWorkVal ? `작업명 : ${repWorkVal}` : ""}
-                      {repWorkVal && (siteVal || equipmentName || equipmentCode) ? " | " : ""}
-                      {siteVal ? `${siteVal} ` : ""}
-                      {equipmentName || ""}
-                      {equipmentCode ? ` (${equipmentCode})` : ""}
-                    </span>
-                  );
-                })()}
+                    return (
+                      <span className="text-gray-500 dark:text-gray-400 font-medium">
+                        {repWorkVal ? `작업명 : ${repWorkVal}` : ""}
+                        {repWorkVal && (siteVal || equipmentName || equipmentCode) ? " | " : ""}
+                        {siteVal ? `${siteVal} ` : ""}
+                        {equipmentName || ""}
+                        {equipmentCode ? ` (${equipmentCode})` : ""}
+                      </span>
+                    );
+                  })()
+                )}
               </p>
             </div>
             <button
@@ -514,40 +539,48 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
 
               return (
                 <div key={idx} className="detail-group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-2xs">
-                  {/* Top Status Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700/60">
-                    <span className="px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
-                      {t("detail.record", "항목")} {idx + 1}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs font-bold min-w-0">
-                      {isWoApplied ? (
-                        <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0">
-                          <i className="fas fa-check-square" />
-                          <span>W/O 적용완료</span>
-                        </span>
-                      ) : isApplied ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
-                          <i className="fas fa-check-square" />
-                          <span>적용 확인</span>
-                        </span>
-                      ) : isNotApplied ? (
-                        <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
-                          <i className="fas fa-square-xmark" />
-                          <span>미적용 확인</span>
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
-                          <i className="far fa-square" />
-                          <span>미확인</span>
-                        </span>
-                      )}
-                      {recRepWork && (
-                        <span className="text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
-                          {recRepWork}
-                        </span>
-                      )}
+                  {/* Card Section Header */}
+                  {isChangeHistoryView ? (
+                    <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60">
+                      <span className="text-xs font-bold text-[#1745c2] dark:text-blue-400">
+                        레코드 상세
+                      </span>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700/60">
+                      <span className="px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                        {t("detail.record", "항목")} {idx + 1}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-xs font-bold min-w-0">
+                        {isWoApplied ? (
+                          <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0">
+                            <i className="fas fa-check-square" />
+                            <span>W/O 적용완료</span>
+                          </span>
+                        ) : isApplied ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                            <i className="fas fa-check-square" />
+                            <span>적용 확인</span>
+                          </span>
+                        ) : isNotApplied ? (
+                          <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
+                            <i className="fas fa-square-xmark" />
+                            <span>미적용 확인</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
+                            <i className="far fa-square" />
+                            <span>미확인</span>
+                          </span>
+                        )}
+                        {recRepWork && (
+                          <span className="text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+                            {recRepWork}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Detail Field DL */}
                   <dl className="detail-field">
@@ -560,62 +593,66 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                   </dl>
 
                   {/* Attachment Section */}
-                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <i className="fas fa-camera text-gray-400 text-xs" />
-                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                        첨부사진 ({atts ? atts.length : 0}개)
-                      </span>
-                    </div>
-                    {atts && atts.length > 0 && (
-                      <div
-                        className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
-                        onClick={() => setPreviewImage(atts[0])}
-                      >
-                        <img
-                          src={atts[0].url}
-                          alt="Attachment Preview"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
+                  {showAttachments && !isChangeHistoryView && (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <i className="fas fa-camera text-gray-400 text-xs" />
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                          첨부사진 ({atts ? atts.length : 0}개)
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      {atts && atts.length > 0 && (
+                        <div
+                          className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
+                          onClick={() => setPreviewImage(atts[0])}
+                        >
+                          <img
+                            src={atts[0].url}
+                            alt="Attachment Preview"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
           {/* Drawer Footer Buttons Bar */}
-          <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setEditingRecord({ ...firstItem })}
-              className="px-4 py-2 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <i className="fas fa-pen-to-square text-xs" />
-              <span>{t("app.edit", "편집")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                const repWork = firstValue(firstItem, [
-                  "representativeWork",
-                  "representativeWorkName",
-                  "rep_work",
-                  "work_name",
-                ]);
-                const ev = new CustomEvent("openLateralDeploymentModal", {
-                  detail: { repWork, item: firstItem },
-                });
-                window.dispatchEvent(ev);
-              }}
-              className="px-5 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <i className="fas fa-clipboard-check text-xs" />
-              <span>{t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
-            </button>
-          </div>
+          {showFooter && !isChangeHistoryView && (showEdit || allowEdit) && (
+            <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingRecord({ ...firstItem })}
+                className="px-4 py-2 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <i className="fas fa-pen-to-square text-xs" />
+                <span>{t("app.edit", "편집")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  const repWork = firstValue(firstItem, [
+                    "representativeWork",
+                    "representativeWorkName",
+                    "rep_work",
+                    "work_name",
+                  ]);
+                  const ev = new CustomEvent("openLateralDeploymentModal", {
+                    detail: { repWork, item: firstItem },
+                  });
+                  window.dispatchEvent(ev);
+                }}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <i className="fas fa-clipboard-check text-xs" />
+                <span>{t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
+              </button>
+            </div>
+          )}
         </aside>
       </div>
 

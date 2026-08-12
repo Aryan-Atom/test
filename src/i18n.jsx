@@ -204,7 +204,7 @@ const translations = {
     "field.situation": "문제 현상",
     "field.cause": "문제 원인",
     "field.bom": "BOM",
-    "field.sparePart": "자재목록",
+    "field.sparePart": "자재명",
     "field.hwBefore": "HW 변경 전",
     "field.hwAfter": "HW 변경 후",
     "field.swBefore": "SW 변경 전",

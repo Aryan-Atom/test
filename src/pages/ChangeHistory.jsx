@@ -4574,7 +4574,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       )}
 
       {/* Detailed Information Drawer */}
-      <Drawer item={drawerItem} onClose={() => setDrawerItem(null)} />
+      <Drawer
+        item={drawerItem}
+        onClose={() => setDrawerItem(null)}
+        variant="changeHistory"
+        showEdit={false}
+        showAttachments={false}
+        showFooter={false}
+      />
     </>
   );
 }
