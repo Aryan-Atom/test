@@ -3651,39 +3651,39 @@ export default function MPList({
                         className="w-full text-left text-xs"
                         style={{ borderCollapse: "separate", borderSpacing: 0 }}
                       >
-                        <thead className="sticky top-0 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-red-200 dark:border-red-800 shadow-2xs">
+                        <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] font-bold tracking-wider z-20 border-b border-border-base shadow-2xs">
                           <tr>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-8 text-center">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-8 text-center">
                               #
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.repWork", "REPRESENTATIVE WORK NAME")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.purpose", "PURPOSE OF THE WORK")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.swBefore", "BEFORE SOFTWARE CHANGE")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-20 text-center">
                               {t("field.priority", "IMPORTANCE")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-20 text-center">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-20 text-center">
                               {t("field.category", "EFFECT")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5">
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5">
                               {t("field.nonImplReason", "REASONS FOR NON-IMPLEMENTATION")}
                             </th>
-                            <th className="bg-red-100 dark:bg-red-950 px-3 py-2.5 w-12 text-center"></th>
+                            <th className="bg-gray-100 dark:bg-gray-800 px-3 py-2.5 w-12 text-center"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
@@ -3724,8 +3724,8 @@ export default function MPList({
                                 </span>
                               </td>
                               <td className="px-3 py-2">
-                                <textarea
-                                  rows={2}
+                                <input
+                                  type="text"
                                   placeholder={t("page.mp.reasonPlaceholder", "사유 입력")}
                                   value={row.nonImplReason ?? ""}
                                   onChange={(e) => {
@@ -3736,10 +3736,10 @@ export default function MPList({
                                       ),
                                     );
                                   }}
-                                  className={`w-full min-w-[180px] p-2 text-xs border rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none shadow-2xs resize-y ${
+                                  className={`w-full h-8 px-3 text-xs border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium focus:outline-none shadow-2xs ${
                                     !row.nonImplReason || !row.nonImplReason.trim()
-                                      ? "border-red-400 focus:ring-2 focus:ring-red-400"
-                                      : "border-red-300 dark:border-red-700/60 focus:ring-1 focus:ring-red-400"
+                                      ? "border-red-300 focus:ring-1 focus:ring-red-400"
+                                      : "border-gray-200 dark:border-gray-700 focus:ring-1 focus:ring-blue-400"
                                   }`}
                                 />
                               </td>

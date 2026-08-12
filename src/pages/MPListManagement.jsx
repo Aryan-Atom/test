@@ -1114,7 +1114,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                                   className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
                                                     priorityVal === "중요" || priorityVal === "Important"
                                                       ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                                                      : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
                                                   }`}
                                                   title={priorityVal}
                                                 >
@@ -1123,7 +1123,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                               </td>
                                               <td className="px-3 py-2 text-center">
                                                 <span
-                                                  className="px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                                                  className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
                                                   title={categoryVal}
                                                 >
                                                   {categoryVal}
@@ -1241,7 +1241,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                                   className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
                                                     priorityVal === "중요" || priorityVal === "Important"
                                                       ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                                                      : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
                                                   }`}
                                                   title={priorityVal}
                                                 >
@@ -1250,7 +1250,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                               </td>
                                               <td className="px-3 py-2 text-center">
                                                 <span
-                                                  className="px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                                                  className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
                                                   title={categoryVal}
                                                 >
                                                   {categoryVal}
