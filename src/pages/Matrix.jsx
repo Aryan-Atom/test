@@ -1486,7 +1486,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   };
 
   const showLanding =
-    !isLoadTableDataOnload && selectedProcess === "전체" && allRecords.length === 0;
+    !selectedProcess ||
+    selectedProcess === "전체" ||
+    selectedProcess === "All" ||
+    !selectedMaintenance ||
+    selectedMaintenance === "전체" ||
+    selectedMaintenance === "All";
 
   if (loading) {
     return (

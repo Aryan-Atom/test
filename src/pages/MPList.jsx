@@ -2452,7 +2452,10 @@ export default function MPList({
 
         {/* ── Table or Empty Landing state ── */}
         <div className="card mp-table-card flex-1 min-h-0 flex flex-col overflow-hidden">
-          {selectedProcessId === null ? (
+          {selectedProcessId === null ||
+          selectedEquipmentTypeId === null ||
+          Number(selectedProcessId) <= 0 ||
+          Number(selectedEquipmentTypeId) <= 0 ? (
             <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eff4ff] text-[#1745c2] text-4xl">
                 <i className="fas fa-clipboard-list" />

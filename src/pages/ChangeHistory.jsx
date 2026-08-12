@@ -3962,7 +3962,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
         {/* Data table */}
         <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
-          {!isLoadTableDataOnload && selectedProcessId === null && !usingApiTableData ? (
+          {selectedProcessId === null ||
+          selectedMaintenanceId === null ||
+          Number(selectedProcessId) <= 0 ||
+          Number(selectedMaintenanceId) <= 0 ? (
             <div className="flex-grow flex flex-col items-center justify-center gap-4 p-10 text-center">
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-10 text-brand-60 text-4xl">
                 <i className="fas fa-history" />
