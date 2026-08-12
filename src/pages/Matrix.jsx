@@ -5,6 +5,7 @@ import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
+import { useToast } from "../components/ToastContext.jsx";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
@@ -465,6 +466,8 @@ function getColValue(row, col) {
 
 export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const { t } = useI18n();
+  const toastCtx = useToast();
+  const pushToast = toastCtx?.pushToast || ((msg) => console.log(msg));
   const [mode, setMode] = useState("date");
   const [filterData, setFilterData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1368,7 +1371,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     });
 
     return { woApplied, unconfirmed, applied, rejected };
-  }, [asRepWork, equipmentRows, allRecords, asStaging]);
+  }, [asRepWork, equipmentRows, allRecords, asStaging, apiEquipmentList]);
 
   const currentTabItems = useMemo(() => {
     switch (asActiveTab) {
@@ -1402,7 +1405,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   const handleApplyStatusAction = (targetStatus) => {
     if (asSelectedEqCodes.size === 0) return;
-    const count = asSelectedEqCodes.size;
     setAsStaging((prev) => {
       const next = { ...prev };
       asSelectedEqCodes.forEach((code) => {
@@ -1411,17 +1413,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       return next;
     });
     setAsSelectedEqCodes(new Set());
-
-    const targetLabel = targetStatus === "applied" ? "적용" : "미적용";
-    setOperationStatus({
-      isVisible: true,
-      status: "success",
-      message: `${count}건을 ${targetLabel}으로 이동했습니다`,
-      autoClose: true,
-    });
   };
 
-   const handleSaveApplyStatus = () => {
+  const handleSaveApplyStatus = () => {
     if (Object.keys(asStaging).length === 0) {
       setShowApplyStatusModal(false);
       return;
@@ -1436,28 +1430,17 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         apiItem?.equipment_id || apiItem?.equipmentId || fallbackItem?.id || fallbackItem?.equipmentId || 0,
       );
 
+      const isApplied = statusStr === "applied";
       return {
         repo_Work_Id: asRepoWorkId || 1483,
         equipment_Id: eqId,
-        status: statusStr === "applied" ? 1 : 2,
-        reason: statusStr === "rejected" ? "test" : "",
+        status: isApplied ? 1 : 2,
+        reason: isApplied ? "" : "test",
       };
     });
 
-    setOperationStatus({
-      isVisible: true,
-      status: "loading",
-      message: t("toast.saving", "저장 중입니다..."),
-      autoClose: false,
-    });
-
     if (isStaticDataMode) {
-      setOperationStatus({
-        isVisible: true,
-        status: "success",
-        message: t("toast.saveSuccess", "저장 성공했습니다."),
-        autoClose: true,
-      });
+      pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
       setShowApplyStatusModal(false);
       setAsStaging({});
       setAsSelectedEqCodes(new Set());
@@ -1470,24 +1453,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       {},
       (responseData, status) => {
         if (status >= 200 && status < 300) {
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: t("toast.saveSuccess", "저장 성공했습니다."),
-            autoClose: true,
-          });
+          pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
           setShowApplyStatusModal(false);
           setAsStaging({});
           setAsSelectedEqCodes(new Set());
           fetchMatrixData();
         } else {
           console.error("Save MatrixInquiry failed:", status, responseData);
-          setOperationStatus({
-            isVisible: true,
-            status: "error",
-            message: t("toast.saveError", "저장 실패했습니다."),
-            autoClose: true,
-          });
+          pushToast(t("toast.saveError", "저장 실패했습니다."), "error");
         }
       },
     );
@@ -1532,12 +1505,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     if (isStaticDataMode) {
       setReplacing(false);
       setShowReplaceModal(false);
-      setOperationStatus({
-        isVisible: true,
-        status: "success",
-        message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
-        autoClose: true,
-      });
+      pushToast(t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."), "success");
       return;
     }
 
@@ -1549,12 +1517,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         setReplacing(false);
         if (status >= 200 && status < 300) {
           setShowReplaceModal(false);
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."),
-            autoClose: true,
-          });
+          pushToast(t("toast.updateSuccess", "대표작업명이 성공적으로 변경되었습니다."), "success");
           getFilterData();
           fetchMatrixData();
         } else {
@@ -2278,9 +2241,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* WO Applied */}
                 <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/40 text-center">
                   <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-300">
-                    {apiStatusCounts.hasFetched
-                      ? apiStatusCounts.wo_applied
-                      : asEquipmentData.woApplied.length}
+                    {asEquipmentData.woApplied.length}
                   </div>
                   <div className="text-xs font-semibold text-blue-800/80 dark:text-blue-300/80 mt-0.5">
                     {t("page.matrix.woAppliedDone", "WO 적용완료")}
@@ -2290,9 +2251,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Before Confirmation */}
                 <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-center">
                   <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">
-                    {apiStatusCounts.hasFetched
-                      ? apiStatusCounts.before_verification
-                      : asEquipmentData.unconfirmed.length}
+                    {asEquipmentData.unconfirmed.length}
                   </div>
                   <div className="text-xs font-semibold text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
                     {t("page.matrix.beforeConfirmation", "확인 전")}
@@ -2302,9 +2261,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Applied */}
                 <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
                   <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
-                    {apiStatusCounts.hasFetched
-                      ? apiStatusCounts.applied
-                      : asEquipmentData.applied.length}
+                    {asEquipmentData.applied.length}
                   </div>
                   <div className="text-xs font-semibold text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
                     {t("page.matrix.appliedDone", "적용됨")}
@@ -2314,9 +2271,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 {/* Not Applied */}
                 <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/40 text-center">
                   <div className="text-2xl font-extrabold text-gray-700 dark:text-gray-300">
-                    {apiStatusCounts.hasFetched
-                      ? apiStatusCounts.not_applied
-                      : asEquipmentData.rejected.length}
+                    {asEquipmentData.rejected.length}
                   </div>
                   <div className="text-xs font-semibold text-gray-700/80 dark:text-gray-300/80 mt-0.5">
                     {t("page.matrix.notApplied", "미적용")}
@@ -2325,66 +2280,62 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 toggle-group rounded-xl">
+              <div className="grid grid-cols-4 gap-1 p-1 bg-[#f4f5f7] dark:bg-gray-800/60 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("wo_applied")}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "wo_applied"
-                      ? "bg-surface-default text-blue-600 dark:text-blue-400 shadow-xs border border-blue-200 dark:border-blue-800"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                      ? "bg-white dark:bg-gray-800 text-[#1745c2] dark:text-blue-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
                   }`}
                 >
-                  📋 {t("page.matrix.woAppliedTab", "WO적용")} (
-                  {apiStatusCounts.hasFetched
-                    ? apiStatusCounts.wo_applied
-                    : asEquipmentData.woApplied.length}
-                  )
+                  <span className="text-2xs">📋</span>
+                  <span>
+                    {t("page.matrix.woAppliedTab", "WO적용")} ({asEquipmentData.woApplied.length})
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("unconfirmed")}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "unconfirmed"
-                      ? "bg-surface-default text-blue-600 dark:text-blue-400 shadow-xs border border-blue-200 dark:border-blue-800"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                      ? "bg-white dark:bg-gray-800 text-[#1745c2] dark:text-blue-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
                   }`}
                 >
-                  🔍 {t("page.matrix.beforeConfirmationTab", "확인전")} (
-                  {apiStatusCounts.hasFetched
-                    ? apiStatusCounts.before_verification
-                    : asEquipmentData.unconfirmed.length}
-                  )
+                  <span className="text-2xs">🔍</span>
+                  <span>
+                    {t("page.matrix.beforeConfirmationTab", "확인전")} ({asEquipmentData.unconfirmed.length})
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("applied")}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "applied"
-                      ? "bg-surface-default text-emerald-600 dark:text-emerald-400 shadow-xs border border-emerald-200 dark:border-emerald-800"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                      ? "bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
                   }`}
                 >
-                  ✅ {t("page.matrix.applicationTab", "적용")} (
-                  {apiStatusCounts.hasFetched
-                    ? apiStatusCounts.applied
-                    : asEquipmentData.applied.length}
-                  )
+                  <span className="text-2xs">✅</span>
+                  <span>
+                    {t("page.matrix.applicationTab", "적용")} ({asEquipmentData.applied.length})
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("rejected")}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "rejected"
-                      ? "bg-surface-default text-rose-600 dark:text-rose-400 shadow-xs border border-rose-200 dark:border-rose-800"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                      ? "bg-white dark:bg-gray-800 text-rose-600 dark:text-rose-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
                   }`}
                 >
-                  ❌ {t("page.matrix.notAppliedTab", "미적용")} (
-                  {apiStatusCounts.hasFetched
-                    ? apiStatusCounts.not_applied
-                    : asEquipmentData.rejected.length}
-                  )
+                  <span className="text-2xs">❌</span>
+                  <span>
+                    {t("page.matrix.notAppliedTab", "미적용")} ({asEquipmentData.rejected.length})
+                  </span>
                 </button>
               </div>
 
@@ -2455,8 +2406,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
               {/* Bottom Sub-actions Bar */}
               {asActiveTab !== "wo_applied" && (
-                <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 text-xs font-bold text-text-subtle cursor-pointer select-none">
+                <div className="flex items-center justify-between p-3 bg-[#f4f5f7] dark:bg-gray-800/60 rounded-xl">
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={
@@ -2469,14 +2420,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                     <span>{t("page.matrix.overall", "전체")}</span>
                   </label>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     {asActiveTab === "unconfirmed" && (
                       <>
                         <button
                           type="button"
                           onClick={() => handleApplyStatusAction("applied")}
                           disabled={asSelectedEqCodes.size === 0}
-                          className="px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer bg-transparent border-0"
                         >
                           <i className="fas fa-arrow-right text-[10px]" />
                           {t("page.matrix.toApply", "적용")}
@@ -2485,7 +2436,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           type="button"
                           onClick={() => handleApplyStatusAction("rejected")}
                           disabled={asSelectedEqCodes.size === 0}
-                          className="px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                          className="text-xs font-bold text-rose-600 hover:text-rose-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer bg-transparent border-0"
                         >
                           <i className="fas fa-arrow-right text-[10px]" />
                           {t("page.matrix.toNotApply", "미적용")}
@@ -2498,7 +2449,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         type="button"
                         onClick={() => handleApplyStatusAction("rejected")}
                         disabled={asSelectedEqCodes.size === 0}
-                        className="px-3.5 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
                         <i className="fas fa-arrow-right text-[10px]" />
                         {t("page.matrix.toNotApplied", "미적용으로")}
@@ -2510,7 +2461,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         type="button"
                         onClick={() => handleApplyStatusAction("applied")}
                         disabled={asSelectedEqCodes.size === 0}
-                        className="px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
                         <i className="fas fa-arrow-right text-[10px]" />
                         {t("page.matrix.toApplied", "적용으로")}
@@ -2521,20 +2472,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="modal-cancel-btn"
+                className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
               >
                 {t("app.close", "닫기")}
               </button>
               <button
                 type="button"
                 onClick={handleSaveApplyStatus}
-                className="btn-base bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-6 py-2 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
-                <i className="fas fa-lock text-xs" />
+                <i className="fas fa-save text-xs" />
                 {t("app.save", "저장하기")}
               </button>
             </div>
