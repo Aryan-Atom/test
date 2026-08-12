@@ -2751,6 +2751,7 @@ export default function MPList({
       {/* ── Add/Edit row modal ── */}
       <Modal
         open={showModal}
+        maxWidth="1024px"
         title={
           editingRowLocalId !== null
             ? t("page.mp.modalEditTitle", "MP List 행 수정")
@@ -2774,7 +2775,6 @@ export default function MPList({
             <i className={`fas ${editingRowLocalId !== null ? "fa-edit" : "fa-plus"}`} />
           </span>
         }
-        maxWidth="680px"
         footer={
           <button
             type="button"
@@ -3057,7 +3057,7 @@ export default function MPList({
       {showBatchModal && (
         <div className="modal-overlay animate-fade-in" onClick={() => setShowBatchModal(false)}>
           <div
-            className="modal-panel modal-panel-xl p-6 relative animate-scale-up w-full"
+            className="modal-panel modal-panel-3xl p-6 relative my-6 max-h-[90vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Loading Overlay - shown while validating/saving */}
@@ -3423,7 +3423,7 @@ export default function MPList({
           onClick={() => setShowSaveModal(false)}
         >
           <div
-            className="modal-panel modal-panel-2xl p-6 relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
+            className="modal-panel modal-panel-3xl p-6 relative my-6 max-h-[92vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

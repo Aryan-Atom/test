@@ -313,14 +313,34 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     setNewConsultTitle("");
     setNewConsultAttendees("");
 
-    const appRows =
-      Array.isArray(v.applicableRows) && v.applicableRows.length > 0
-        ? v.applicableRows
-        : generateExpandedApplicableRows(v.appliedCount || 46);
-    const notAppRows =
-      Array.isArray(v.notApplicableRows) && v.notApplicableRows.length > 0
-        ? v.notApplicableRows
-        : generateExpandedNotApplicableRows(v.excludedCount || 40);
+    let appRows = [];
+    let notAppRows = [];
+
+    if (Array.isArray(v.applicableRows) && v.applicableRows.length > 0) {
+      appRows = v.applicableRows;
+    }
+    if (Array.isArray(v.notApplicableRows) && v.notApplicableRows.length > 0) {
+      notAppRows = v.notApplicableRows;
+    }
+
+    if (appRows.length === 0 && notAppRows.length === 0) {
+      let rawList = [];
+      if (Array.isArray(v.rows) && v.rows.length > 0) {
+        rawList = v.rows;
+      } else if (v.changedDataJson) {
+        rawList = parseChangedDataJson(v.changedDataJson, v.appliedCount || 0, v.excludedCount || 0);
+      } else if (Array.isArray(v.changeDataList) && v.changeDataList.length > 0) {
+        rawList = v.changeDataList;
+      }
+
+      if (rawList.length > 0) {
+        appRows = rawList.filter((r) => r.isApplicable !== false);
+        notAppRows = rawList.filter((r) => r.isApplicable === false);
+      } else {
+        appRows = generateExpandedApplicableRows(v.appliedCount || 46);
+        notAppRows = generateExpandedNotApplicableRows(v.excludedCount || 40);
+      }
+    }
 
     setEditApplicableRows(appRows);
     setEditNotApplicableRows(notAppRows);
@@ -1629,31 +1649,31 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">
-                              {row.repWork || "—"}
+                              {getRowValue(row, "representativeWork", "equipmentName", "repWork", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[140px] truncate">
-                              {row.purpose || "—"}
+                              {getRowValue(row, "purpose", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[130px] truncate">
-                              {row.hwBefore || "—"}
+                              {getRowValue(row, "hwAsWas", "hwBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[130px] truncate">
-                              {row.hwAfter || "—"}
+                              {getRowValue(row, "hwAsIs", "hwAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
-                              {row.swBefore || "—"}
+                              {getRowValue(row, "swAsWas", "swBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
-                              {row.swAfter || "—"}
+                              {getRowValue(row, "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {row.importance || "General"}
+                                {getRowValue(row, "priority", "priorityName", "importance") || "General"}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {row.effect || "Others"}
+                                {getRowValue(row, "category", "categoryName", "effect") || "Others"}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
@@ -1736,46 +1756,46 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">
-                              {row.repWork || "—"}
+                              {getRowValue(row, "representativeWork", "equipmentName", "repWork", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
-                              {row.purpose || "—"}
+                              {getRowValue(row, "purpose", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[110px] truncate">
-                              {row.hwBefore || "—"}
+                              {getRowValue(row, "hwAsWas", "hwBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[110px] truncate">
-                              {row.hwAfter || "—"}
+                              {getRowValue(row, "hwAsIs", "hwAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[100px] truncate">
-                              {row.swBefore || "—"}
+                              {getRowValue(row, "swAsWas", "swBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[100px] truncate">
-                              {row.swAfter || "—"}
+                              {getRowValue(row, "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {row.importance || "General"}
+                                {getRowValue(row, "priority", "priorityName", "importance") || "General"}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {row.effect || "Others"}
+                                {getRowValue(row, "category", "categoryName", "effect") || "Others"}
                               </span>
                             </td>
                             <td className="px-3 py-2">
                               <textarea
                                 rows={2}
-                                value={row.reasoning || "Importance Average"}
+                                value={getRowValue(row, "reason", "reasoning", "nonImplReason") || ""}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setEditNotApplicableRows(
                                     editNotApplicableRows.map((r, i) =>
-                                      i === idx ? { ...r, reasoning: val } : r,
+                                      i === idx ? { ...r, reasoning: val, reason: val, nonImplReason: val } : r,
                                     ),
                                   );
                                 }}
-                                className="modal-input text-xs min-w-[180px] !py-2 resize-y text-red-600 font-semibold"
+                                className="w-full min-w-[180px] p-2 text-xs border border-red-300 rounded-xl bg-surface-default text-red-600 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
                               />
                             </td>
                             <td className="px-3 py-2 text-center">
