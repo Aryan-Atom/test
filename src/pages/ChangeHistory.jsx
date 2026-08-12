@@ -11,6 +11,7 @@ import ExportDropdown from "../components/ExportDropdown.jsx";
 import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
 import Modal from "../components/Modal.jsx";
+import Drawer from "../components/Drawer.jsx";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import {
@@ -461,7 +462,13 @@ function SelectSkeleton({ width = "120px" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ rowsCount = 8, columns = [], t, getColumnHeaderLabel, COLUMN_LABEL_KEYS = {} }) {
+function TableSkeleton({
+  rowsCount = 8,
+  columns = [],
+  t,
+  getColumnHeaderLabel,
+  COLUMN_LABEL_KEYS = {},
+}) {
   return (
     <div className="overflow-auto flex-1 min-h-0">
       <table className="min-w-full text-left text-sm">
@@ -478,7 +485,9 @@ function TableSkeleton({ rowsCount = 8, columns = [], t, getColumnHeaderLabel, C
             </th>
             {columns.map((col) => (
               <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
-                {getColumnHeaderLabel ? getColumnHeaderLabel(col) : t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+                {getColumnHeaderLabel
+                  ? getColumnHeaderLabel(col)
+                  : t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
               </th>
             ))}
           </tr>
@@ -1660,12 +1669,27 @@ function EditableRow({
             key={col}
             className="px-4 py-3 text-text-subtle whitespace-nowrap"
             style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
-            title={String(col === "workedOn" ? (row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? "") : (row[col] ?? ""))}
+            title={String(
+              col === "workedOn"
+                ? (row.workedOn ??
+                    row.workedDate ??
+                    row.worked_date ??
+                    row.workDate ??
+                    row.work_date ??
+                    "")
+                : (row[col] ?? ""),
+            )}
           >
             {(() => {
-              const rawVal = col === "workedOn"
-                ? (row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? row[col])
-                : row[col];
+              const rawVal =
+                col === "workedOn"
+                  ? (row.workedOn ??
+                    row.workedDate ??
+                    row.worked_date ??
+                    row.workDate ??
+                    row.work_date ??
+                    row[col])
+                  : row[col];
               if (rawVal == null || rawVal === "" || rawVal === "null" || rawVal === "undefined") {
                 return "—";
               }
@@ -1952,7 +1976,8 @@ function RowEditModal({
             {/* Row 2: Representative Work Name * with Saved Info Suggestions Popover */}
             <div className="relative">
               <label className="modal-field-label mb-1.5">
-                {t("field.repWork", "Representative Work Name")} <span className="text-rose-500">*</span>
+                {t("field.repWork", "Representative Work Name")}{" "}
+                <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -1994,7 +2019,7 @@ function RowEditModal({
                         onMouseDown={() => {
                           handleFieldChange("representativeWork", suggestionName);
                           const repObj = (filterPayload?.representations || []).find(
-                            (r) => (r.representativeWorkName || r.workName) === suggestionName
+                            (r) => (r.representativeWorkName || r.workName) === suggestionName,
                           );
                           if (repObj) {
                             if (repObj.categoryId) {
@@ -2222,7 +2247,12 @@ function RowEditModal({
                   value={
                     draft.workedOn
                       ? (function (val) {
-                          if (!val || String(val).startsWith("0000") || String(val).startsWith("0001")) return "";
+                          if (
+                            !val ||
+                            String(val).startsWith("0000") ||
+                            String(val).startsWith("0001")
+                          )
+                            return "";
                           if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
                           const d = new Date(val);
                           if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "";
@@ -2508,6 +2538,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   const [usingApiTableData, setUsingApiTableData] = useState(!isStaticDataMode);
+  const [drawerItem, setDrawerItem] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -2599,7 +2630,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       .map((col) => ({
         label: isKo
           ? (col.excelColumnNameKr || col.columnNameKr || col.jsonKey).trim()
-          : (col.excelColumnName || col.jsonKey).replace(/[\r\n]+/g, " ").trim().toUpperCase(),
+          : (col.excelColumnName || col.jsonKey)
+              .replace(/[\r\n]+/g, " ")
+              .trim()
+              .toUpperCase(),
         value: col.id,
       }));
   }, [changeDataColumns, language]);
@@ -3169,9 +3203,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const catObj = (categoryList || []).find(
         (c) => c.categoryName === catName || c.name === catName,
       );
-      const categoryIdVal = mergedRow.categoryId
-        ? Number(mergedRow.categoryId)
-        : (catObj?.id || 1);
+      const categoryIdVal = mergedRow.categoryId ? Number(mergedRow.categoryId) : catObj?.id || 1;
 
       const priName = mergedRow.priority || mergedRow.priorityName || "일반";
       const priObj = (priorityList || []).find(
@@ -3179,13 +3211,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       );
       const priorityIdVal = mergedRow.priorityId
         ? Number(mergedRow.priorityId)
-        : (priObj?.id || (priName === "중요" || priName === "Important" ? 2 : 1));
+        : priObj?.id || (priName === "중요" || priName === "Important" ? 2 : 1);
 
       const siteNameVal = mergedRow.site || mergedRow.siteName || "";
       const siteObj = (siteList || []).find(
         (s) => s.siteName === siteNameVal || s.name === siteNameVal,
       );
-      const siteIdVal = mergedRow.siteId ? Number(mergedRow.siteId) : (siteObj?.id || 1);
+      const siteIdVal = mergedRow.siteId ? Number(mergedRow.siteId) : siteObj?.id || 1;
 
       const procNameVal = mergedRow.process || mergedRow.processName || "";
       const procObj = (filterPayload?.process || []).find(
@@ -3193,7 +3225,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       );
       const processIdVal = mergedRow.processId
         ? Number(mergedRow.processId)
-        : (procObj?.id || (selectedProcessId ? Number(selectedProcessId) : 1));
+        : procObj?.id || (selectedProcessId ? Number(selectedProcessId) : 1);
 
       const eqTypeNameVal =
         mergedRow.eqType ||
@@ -3207,7 +3239,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const equipmentTypeIdVal =
         mergedRow.eqTypeId || mergedRow.equipmentTypeId
           ? Number(mergedRow.eqTypeId || mergedRow.equipmentTypeId)
-          : (eqTypeObj?.id ? Number(eqTypeObj.id) : (selectedMaintenanceId ? Number(selectedMaintenanceId) : 78));
+          : eqTypeObj?.id
+            ? Number(eqTypeObj.id)
+            : selectedMaintenanceId
+              ? Number(selectedMaintenanceId)
+              : 78;
 
       const vocItem = {
         id: Number(mergedRow.id) || 0,
@@ -3226,7 +3262,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         equipmentCode: mergedRow.equipmentCode || mergedRow.equipment_code || "-",
         equipmentName: mergedRow.equipmentName || mergedRow.equipment_name || " Common",
         woCode: mergedRow.woCode || mergedRow.wOCode || mergedRow.wo_code || "",
-        workDate: formatValidDateIso(mergedRow.workedOn || mergedRow.workDate || mergedRow.work_date),
+        workDate: formatValidDateIso(
+          mergedRow.workedOn || mergedRow.workDate || mergedRow.work_date,
+        ),
         categoryName: catName,
         priorityName: priName,
         priorityId: priorityIdVal,
@@ -3316,11 +3354,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   const handleOpenDetail = useCallback(
     (row) => {
-      if (!onOpenDetail) return;
-
       const rowId = Number(row?.id);
       if (isStaticDataMode || !rowId || rowId <= 0) {
-        onOpenDetail(row);
+        setDrawerItem(row);
         return;
       }
 
@@ -3340,7 +3376,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             acc[mappedKey] = value;
             return acc;
           }, {});
-          onOpenDetail(remapped);
+          setDrawerItem(remapped);
           setOperationStatus({
             isVisible: false,
             status: "loading",
@@ -3355,11 +3391,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             message: t("toast.detailLoadError", "Failed to load row details."),
             autoClose: true,
           });
-          onOpenDetail(row);
+          setDrawerItem(row);
         }
       });
     },
-    [onOpenDetail, excelToJsonKey, t],
+    [excelToJsonKey, t],
   );
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -3961,7 +3997,14 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       } else if (numId >= nextId) {
         nextId = numId + 1;
       }
-      const wDate = clean.workedDate ?? clean.worked_date ?? clean.workDate ?? clean.work_date ?? clean.workedOn ?? clean["worked date"] ?? clean["작업완료일"];
+      const wDate =
+        clean.workedDate ??
+        clean.worked_date ??
+        clean.workDate ??
+        clean.work_date ??
+        clean.workedOn ??
+        clean["worked date"] ??
+        clean["작업완료일"];
       if (wDate) {
         clean.workedOn = wDate;
       }
@@ -4529,6 +4572,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           </div>
         </div>
       )}
+
+      {/* Detailed Information Drawer */}
+      <Drawer item={drawerItem} onClose={() => setDrawerItem(null)} />
     </>
   );
 }

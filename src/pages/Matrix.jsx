@@ -438,7 +438,15 @@ function getColValue(row, col) {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
-    return row.workedDate ?? row.worked_date ?? row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
+    return (
+      row.workedDate ??
+      row.worked_date ??
+      row.work_date ??
+      row.workDate ??
+      row.workedOn ??
+      row["작업완료일"] ??
+      ""
+    );
   }
   if (col === "process") {
     return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
@@ -916,11 +924,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     } else {
       setAllRecords([]);
     }
-  }, [
-    fetchMatrixData,
-    selectedProcess,
-    selectedMaintenance,
-  ]);
+  }, [fetchMatrixData, selectedProcess, selectedMaintenance]);
 
   // Extract Cascade options dynamically from allRecords
   const processOptions = useMemo(() => {
@@ -1308,23 +1312,16 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       // Priority 1: Check if any record is "w/o applied"
       const woRecord = matchedRecords.find((item) => {
         const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
-        ).toLowerCase().trim();
-        return (
-          s === "w/o applied" ||
-          s === "wo_applied" ||
-          s === "wo applied" ||
-          s.includes("w/o")
-        );
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
+        )
+          .toLowerCase()
+          .trim();
+        return s === "w/o applied" || s === "wo_applied" || s === "wo applied" || s.includes("w/o");
       });
 
       if (woRecord) {
         const workDateRaw =
-          woRecord.work_date ||
-          woRecord.workDate ||
-          woRecord.workedOn ||
-          woRecord.work_Date ||
-          "";
+          woRecord.work_date || woRecord.workDate || woRecord.workedOn || woRecord.work_Date || "";
         const formattedDate = getFormattedDateString(workDateRaw);
         return {
           type: "wo_applied",
@@ -1336,8 +1333,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       // Priority 2: Check if any record is "applied"
       const appliedRecord = matchedRecords.find((item) => {
         const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
-        ).toLowerCase().trim();
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
+        )
+          .toLowerCase()
+          .trim();
         return s === "applied" || s === "1" || s === "0";
       });
 
@@ -1352,8 +1351,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       // Priority 3: Check if any record is "notApplied" / "rejected"
       const notAppliedRecord = matchedRecords.find((item) => {
         const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
-        ).toLowerCase().trim();
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
+        )
+          .toLowerCase()
+          .trim();
         return (
           s === "notapplied" ||
           s === "not_applied" ||
@@ -1392,7 +1393,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         const eqCode = eq.equipment_code || eq.equipmentCode || String(eq.equipment_id || "");
         const eqName = eq.equipment_name || eq.equipmentName || "";
         const eqId = Number(eq.equipment_id || eq.equipmentId || 0);
-        const rawStatusStr = String(eq.status ?? "").toLowerCase().trim();
+        const rawStatusStr = String(eq.status ?? "")
+          .toLowerCase()
+          .trim();
 
         const matchEq = equipmentRows.find(
           (e) => e.equipmentCode === eqCode || e.equipmentName === eqName,
@@ -1558,13 +1561,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       );
       const fallbackItem = equipmentRows.find((e) => e.equipmentCode === eqCode);
       const eqId = Number(
-        apiItem?.equipment_id || apiItem?.equipmentId || fallbackItem?.id || fallbackItem?.equipmentId || 0,
+        apiItem?.equipment_id ||
+          apiItem?.equipmentId ||
+          fallbackItem?.id ||
+          fallbackItem?.equipmentId ||
+          0,
       );
 
       const isApplied = statusStr === "applied";
-      const reasonVal = isApplied
-        ? ""
-        : asStagingReasons[eqCode] || rejectReasonText || "test";
+      const reasonVal = isApplied ? "" : asStagingReasons[eqCode] || rejectReasonText || "test";
 
       return {
         repo_Work_Id: asRepoWorkId || 1483,
@@ -1916,19 +1921,37 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <tr className="border-b border-border-base bg-gray-100 dark:bg-gray-900">
                   <th
                     className="sticky left-0 top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
-                    style={{ width: "100px", minWidth: "100px", position: "sticky", left: 0, top: 0 }}
+                    style={{
+                      width: "100px",
+                      minWidth: "100px",
+                      position: "sticky",
+                      left: 0,
+                      top: 0,
+                    }}
                   >
                     {t("field.site", "SITE")}
                   </th>
                   <th
                     className="sticky top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
-                    style={{ width: "150px", minWidth: "150px", position: "sticky", left: "100px", top: 0 }}
+                    style={{
+                      width: "150px",
+                      minWidth: "150px",
+                      position: "sticky",
+                      left: "100px",
+                      top: 0,
+                    }}
                   >
                     {t("field.equipmentCode", "EQUIPMENT CODE")}
                   </th>
                   <th
                     className="sticky top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
-                    style={{ width: "200px", minWidth: "200px", position: "sticky", left: "250px", top: 0 }}
+                    style={{
+                      width: "200px",
+                      minWidth: "200px",
+                      position: "sticky",
+                      left: "250px",
+                      top: 0,
+                    }}
                   >
                     {t("field.equipmentName", "EQUIPMENT NAME")}
                   </th>
@@ -2059,7 +2082,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               setDrawerItem(matched);
                               onOpenDetail?.(matched);
                             }}
-                            className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10"
+                            className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10 hover:shadow-md"
                             style={{
                               backgroundColor: "transparent",
                               color: "inherit",
@@ -2089,9 +2112,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                       title={String(val || "")}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        // Show drawer with representative work items
                                         setDrawerItem(representativeWorkItems);
                                       }}
-                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 ${itemStyle.className}`}
+                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
                                       style={{
                                         backgroundColor: itemStyle.backgroundColor || "#f1f5f9",
                                         color: itemStyle.color || "var(--text-default)",
@@ -2121,10 +2145,16 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                 if (!info) return null;
 
                                 return (
-                                  <div className="w-full flex items-center justify-center">
+                                  <div
+                                    className="w-full flex items-center justify-center"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDrawerItem(matched);
+                                    }}
+                                  >
                                     <div
                                       title={info.label}
-                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs transition-all duration-150 ${info.className}`}
+                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${info.className}`}
                                     >
                                       {info.label}
                                     </div>
@@ -2452,7 +2482,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 >
                   <span className="text-2xs">🔍</span>
                   <span>
-                    {t("page.matrix.beforeConfirmationTab", "확인전")} ({asEquipmentData.unconfirmed.length})
+                    {t("page.matrix.beforeConfirmationTab", "확인전")} (
+                    {asEquipmentData.unconfirmed.length})
                   </span>
                 </button>
                 <button
@@ -2660,7 +2691,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                     {t("page.matrix.reasonModalTitle", "미적용 사유 입력")}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
-                    {asSelectedEqCodes.size} {t("page.matrix.reasonModalSub", "개 설비를 미적용으로 이동")}
+                    {asSelectedEqCodes.size}{" "}
+                    {t("page.matrix.reasonModalSub", "개 설비를 미적용으로 이동")}
                   </p>
                 </div>
               </div>
