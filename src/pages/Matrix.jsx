@@ -6,7 +6,7 @@ import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode
 import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { useToast } from "../components/ToastContext.jsx";
-import MatrixDrawer from "../components/MatrixDrawer.jsx";
+import Drawer from "../components/Drawer.jsx";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
@@ -2793,11 +2793,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         </div>
       )}
 
-      {/* Dedicated Matrix Detail Drawer */}
-      <MatrixDrawer
+      {/* Detail Drawer */}
+      <Drawer
         item={drawerItem}
         onClose={() => setDrawerItem(null)}
-        onOpenApplyStatus={openApplyStatusModal}
       />
     </section>
   );
