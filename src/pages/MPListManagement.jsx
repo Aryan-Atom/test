@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
+import { useToast } from "../components/ToastContext.jsx";
 import { mpManagementStaticData, sampleCompareRows } from "./static-data/MPListManagementData.js";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { APIcallGet, APIcallPost, APIcallDelete } from "../axios/apiCall.js";
@@ -196,7 +197,7 @@ function generateExpandedNotApplicableRows(count) {
       swAfter: "—",
       importance: "General",
       effect: "Others",
-      reasoning: "Importance Average",
+      reasoning: "",
     },
     {
       repWork: "Motor Carbon Brush Replacement",
@@ -207,7 +208,7 @@ function generateExpandedNotApplicableRows(count) {
       swAfter: "—",
       importance: "General",
       effect: "Others",
-      reasoning: "Importance Average",
+      reasoning: "",
     },
   ];
 
@@ -230,6 +231,7 @@ function generateExpandedNotApplicableRows(count) {
 
 export default function MPListManagement({ data = [], searchText = "" }) {
   const { t } = useI18n();
+  const { pushToast } = useToast() || {};
 
   // Row expansion state
   const [expandedRowIds, setExpandedRowIds] = useState(new Set(["101"]));
@@ -280,6 +282,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const [newConsultAttendees, setNewConsultAttendees] = useState("");
   const [editApplicableRows, setEditApplicableRows] = useState([]);
   const [editNotApplicableRows, setEditNotApplicableRows] = useState([]);
+  const [editAdditionalItems, setEditAdditionalItems] = useState([]);
+  const [additionalSearchText, setAdditionalSearchText] = useState("");
+  const [additionalStartDate, setAdditionalStartDate] = useState("2026-08-11");
+  const [additionalEndDate, setAdditionalEndDate] = useState("2026-08-12");
 
   // Deletion modal state
   const [deletedRowIds, setDeletedRowIds] = useState(new Set());
@@ -287,25 +293,20 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   const openEditModal = (v) => {
     setEditingVersion(v);
-    setEditEquipmentIds(
-      Array.isArray(v.equipmentIds) && v.equipmentIds.length > 0 && v.equipmentIds[0] !== "—"
-        ? v.equipmentIds
-        : [
-            "E2300803",
-            "E2300805",
-            "E2201617",
-            "E2300806",
-            "E2101491",
-            "E2300804",
-            "E2101425",
-            "E2101490",
-            "E2101492",
-          ],
-    );
+    const versionId = Number(v.id || v.mpVersionId || v.versionId || 0);
+
     setNewEquipIdInput("");
-    setEditConsultations([]);
     setNewConsultTitle("");
     setNewConsultAttendees("");
+    setAdditionalSearchText("");
+    setEditAdditionalItems([]);
+
+    let initialEquipIds =
+      Array.isArray(v.equipmentIds) && v.equipmentIds.length > 0 && v.equipmentIds[0] !== "—"
+        ? v.equipmentIds
+        : [];
+    setEditEquipmentIds(initialEquipIds);
+    setEditConsultations([]);
 
     let appRows = [];
     let notAppRows = [];
@@ -338,6 +339,61 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
     setEditApplicableRows(appRows);
     setEditNotApplicableRows(notAppRows);
+
+    if (!isStaticDataMode && versionId > 0) {
+      const url = `${pocEndPoints.GET_MP_ROW_VERSION_DATA}?id=${versionId}`;
+      APIcallGet(url, {}, (responseData, status) => {
+        if (status === 200 && responseData) {
+          const apiData = responseData?.data || responseData;
+
+          if (apiData) {
+            if (Array.isArray(apiData.equipmentIds)) {
+              setEditEquipmentIds(apiData.equipmentIds.map((id) => String(id)));
+            }
+
+            if (Array.isArray(apiData.actionItems)) {
+              setEditConsultations(
+                apiData.actionItems.map((item) => ({
+                  date: item.date ? item.date.split("T")[0] : "",
+                  title: item.title || "",
+                  attendees: item.attendees || "",
+                })),
+              );
+            }
+
+            if (Array.isArray(apiData.items) && apiData.items.length > 0) {
+              const mappedItems = apiData.items.map((item) => ({
+                ...item,
+                id: item.changeDataHistoryId || item.changeHistoryId || item.id || 0,
+                changeDataHistoryId: item.changeDataHistoryId || item.changeHistoryId || item.id || 0,
+                representativeWork: item.workName || item.repWorkName || item.representativeWork || "",
+                workName: item.workName || item.repWorkName || "",
+                purpose: item.purpose || "",
+                hwWas: item.hwWas || "",
+                hwIs: item.hwIs || "",
+                swWas: item.swWas || "",
+                swIs: item.swIs || "",
+                hwAsWas: item.hwWas || item.hwAsWas || "",
+                hwAsIs: item.hwIs || item.hwAsIs || "",
+                swAsWas: item.swWas || item.swAsWas || "",
+                swAsIs: item.swIs || item.swAsIs || "",
+                priority: item.priority || item.priorityName || "General",
+                category: item.category || item.categoryName || "Others",
+                isApplicable: item.isApplicable !== false,
+                reason: item.reason || "",
+                reasoning: item.reason || "",
+              }));
+
+              const fetchedApp = mappedItems.filter((r) => r.isApplicable);
+              const fetchedNotApp = mappedItems.filter((r) => !r.isApplicable);
+
+              setEditApplicableRows(fetchedApp);
+              setEditNotApplicableRows(fetchedNotApp);
+            }
+          }
+        }
+      });
+    }
   };
 
   const [apiRows, setApiRows] = useState([]);
@@ -405,27 +461,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [apiVersionList, setApiVersionList] = useState([]);
 
-  const fetchMPList = useCallback((procId = 0, eqTypeId = 0) => {
-    if (isStaticDataMode) return;
 
-    const reqBody = {
-      processId: Number(procId) || 0,
-      equipmentTypeId: Number(eqTypeId) || 0,
-      siteId: 0,
-      division: 0,
-      priority: [0],
-      effectType: [0],
-      fromDate: null,
-      toDate: null,
-    };
-
-    APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
-      if (status === 200 && responseData) {
-        const records = extractVersionListFromResponse(responseData);
-        setApiRows(records);
-      }
-    });
-  }, []);
 
   const fetchMPVersion = useCallback((procId = 0, eqTypeId = 0) => {
     if (isStaticDataMode) return;
@@ -495,22 +531,21 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       };
 
       if (isStaticDataMode) {
-        alert(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."));
+        pushToast(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."), "success");
         return;
       }
 
       APIcallPost(pocEndPoints.SAVE_MP_VERSION, payload, {}, (responseData, status) => {
         if (status === 200 || status === 201) {
           fetchMPVersion(procId, eqTypeId);
-          fetchMPList(procId, eqTypeId);
-          alert(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."));
+          pushToast(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."), "success");
         } else {
           console.error("SaveMPVersion copy failed:", status, responseData);
-          alert(t("toast.copyFailed", "버전 복사에 실패했습니다."));
+          pushToast(t("toast.copyFailed", "버전 복사에 실패했습니다."), "error");
         }
       });
     },
-    [selectedProcessId, selectedMaintenanceId, apiRows, fetchMPVersion, fetchMPList, t],
+    [selectedProcessId, selectedMaintenanceId, apiRows, fetchMPVersion, t],
   );
 
   useEffect(() => {
@@ -521,14 +556,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         Number(selectedProcessId) > 0 &&
         Number(selectedMaintenanceId) > 0
       ) {
-        fetchMPList(selectedProcessId, selectedMaintenanceId);
         fetchMPVersion(selectedProcessId, selectedMaintenanceId);
       } else {
         setApiVersionList([]);
         setApiRows([]);
       }
     }
-  }, [selectedProcessId, selectedMaintenanceId, filterPayload, fetchMPList, fetchMPVersion]);
+  }, [selectedProcessId, selectedMaintenanceId, filterPayload, fetchMPVersion]);
 
   const filteredRows = useMemo(() => {
     const q = normalizeText(searchText).toLowerCase();
@@ -760,13 +794,6 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     }
   };
 
-  useEffect(() => {
-    if (displayVersionRows.length > 0 && selectedRowIds.size === 0) {
-      const top2Keys = displayVersionRows.slice(0, 2).map((v) => String(v.id || v.version));
-      setSelectedRowIds(new Set(top2Keys));
-    }
-  }, [displayVersionRows]);
-
   const dynamicCompareData = useMemo(() => {
     if (!compareV1 || !compareV2) {
       return {
@@ -895,12 +922,18 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             const selectedArray = displayVersionRows.filter((v) =>
               selectedRowIds.has(String(v.id || v.version)),
             );
-            const v1 = selectedArray[0] || displayVersionRows[0];
-            const v2 = selectedArray[1] || displayVersionRows[1];
-            if (v1 && v2) {
+            if (selectedArray.length === 1) {
               return (
                 <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                  {v1.version} vs {v2.version} 비교
+                  {t("page.mpManagement.selectSecondVersion", "비교할 두 번째 버전을 선택하세요")}
+                </span>
+              );
+            }
+            if (selectedArray.length === 2) {
+              return (
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {selectedArray[0].version} vs {selectedArray[1].version}{" "}
+                  {t("page.mpManagement.comparePrefix", "비교")}
                 </span>
               );
             }
@@ -913,12 +946,15 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               const selectedArray = displayVersionRows.filter((v) =>
                 selectedRowIds.has(String(v.id || v.version)),
               );
-              let v1 = selectedArray[0];
-              let v2 = selectedArray[1];
-              if (!v1) v1 = displayVersionRows[0] || { version: "v1", appliedCount: 46, excludedCount: 40 };
-              if (!v2) v2 = displayVersionRows[1] || displayVersionRows[0] || { version: "v2", appliedCount: 20, excludedCount: 21 };
-              setCompareV1(v1);
-              setCompareV2(v2);
+              if (selectedArray.length < 2) {
+                pushToast(
+                  t("toast.select2MPLists", "비교해서 조회할 2개의 MP List를 선택하세요"),
+                  "warning",
+                );
+                return;
+              }
+              setCompareV1(selectedArray[0]);
+              setCompareV2(selectedArray[1]);
               setShowCompareModal(true);
             }}
           >
@@ -1969,22 +2005,22 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">
-                              {getRowValue(row, "representativeWork", "equipmentName", "repWork", "work") || "—"}
+                              {getRowValue(row, "workName", "repWorkName", "representativeWork", "equipmentName", "repWork", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[140px] truncate">
                               {getRowValue(row, "purpose", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[130px] truncate">
-                              {getRowValue(row, "hwAsWas", "hwBefore") || "—"}
+                              {getRowValue(row, "hwWas", "hwAsWas", "hwBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[130px] truncate">
-                              {getRowValue(row, "hwAsIs", "hwAfter") || "—"}
+                              {getRowValue(row, "hwIs", "hwAsIs", "hwAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
-                              {getRowValue(row, "swAsWas", "swBefore") || "—"}
+                              {getRowValue(row, "swWas", "swAsWas", "swBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
-                              {getRowValue(row, "swAsIs", "swAfter") || "—"}
+                              {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
@@ -2006,7 +2042,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   );
                                   setEditNotApplicableRows([
                                     ...editNotApplicableRows,
-                                    { ...row, reasoning: "Importance Average" },
+                                    { ...row, reasoning: "", reason: "" },
                                   ]);
                                 }}
                                 className="w-6 h-6 rounded-md border border-border-base bg-surface-strong text-text-subtle hover:bg-fill-active flex items-center justify-center cursor-pointer transition-colors"
@@ -2076,22 +2112,22 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">
-                              {getRowValue(row, "representativeWork", "equipmentName", "repWork", "work") || "—"}
+                              {getRowValue(row, "workName", "repWorkName", "representativeWork", "equipmentName", "repWork", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
                               {getRowValue(row, "purpose", "work") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[110px] truncate">
-                              {getRowValue(row, "hwAsWas", "hwBefore") || "—"}
+                              {getRowValue(row, "hwWas", "hwAsWas", "hwBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[110px] truncate">
-                              {getRowValue(row, "hwAsIs", "hwAfter") || "—"}
+                              {getRowValue(row, "hwIs", "hwAsIs", "hwAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[100px] truncate">
-                              {getRowValue(row, "swAsWas", "swBefore") || "—"}
+                              {getRowValue(row, "swWas", "swAsWas", "swBefore") || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[100px] truncate">
-                              {getRowValue(row, "swAsIs", "swAfter") || "—"}
+                              {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
@@ -2140,6 +2176,115 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   </div>
                 </div>
               </div>
+
+              {/* Section 5: Additional Available Items */}
+              <div className="mt-4 p-4 border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/60 shadow-xs space-y-3">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                    {t("page.mp.additionalAvailableItems", "추가 가능 항목")}
+                  </h4>
+                  <span className="px-2 py-0.5 text-2xs font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 rounded-full">
+                    {editAdditionalItems.length}건
+                  </span>
+                </div>
+
+                {/* Filter controls bar */}
+                <div className="flex items-center gap-2.5 w-full">
+                  <input
+                    type="text"
+                    placeholder={t("page.mp.searchRepWorkPlaceholder", "대표 작업명 검색")}
+                    value={additionalSearchText}
+                    onChange={(e) => setAdditionalSearchText(e.target.value)}
+                    className="flex-1 px-4 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-text-default placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                  />
+                  <input
+                    type="date"
+                    value={additionalStartDate}
+                    onChange={(e) => setAdditionalStartDate(e.target.value)}
+                    className="w-36 px-3 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-text-default focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                  />
+                  <input
+                    type="date"
+                    value={additionalEndDate}
+                    onChange={(e) => setAdditionalEndDate(e.target.value)}
+                    className="w-36 px-3 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-text-default focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    className="w-9 h-9 flex items-center justify-center border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    <i className="fas fa-search text-xs" />
+                  </button>
+                </div>
+
+                {/* Items table */}
+                <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                  <table
+                    className="mgmt-table w-full text-left text-xs"
+                    style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                  >
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 uppercase text-[9px] font-bold text-gray-500 tracking-wider z-20 border-b border-gray-200 dark:border-gray-700">
+                      <tr>
+                        <th className="px-3 py-2.5 w-8 text-center">#</th>
+                        <th className="px-3 py-2.5">
+                          {t("field.repWork", "대표 작업명")}
+                        </th>
+                        <th className="px-3 py-2.5">
+                          {t("field.purpose", "작업 목적")}
+                        </th>
+                        <th className="px-3 py-2.5">
+                          {t("field.hwBefore", "HW 변경 전")}
+                        </th>
+                        <th className="px-3 py-2.5">
+                          {t("field.hwAfter", "HW 변경 후")}
+                        </th>
+                        <th className="px-3 py-2.5">
+                          {t("field.swBefore", "SW 변경 전")}
+                        </th>
+                        <th className="px-3 py-2.5">
+                          {t("field.swAfter", "SW 변경 후")}
+                        </th>
+                        <th className="px-3 py-2.5 w-20 text-center">
+                          {t("field.priority", "중요도")}
+                        </th>
+                        <th className="px-3 py-2.5 w-20 text-center">
+                          {t("field.category", "효과 유형")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-normal text-text-subtle">
+                      {editAdditionalItems.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={9}
+                            className="py-6 text-center text-xs text-gray-400 font-medium"
+                          >
+                            {t("page.mp.noOtherItems", "그 외 항목이 없습니다")}
+                          </td>
+                        </tr>
+                      ) : (
+                        editAdditionalItems.map((item, idx) => (
+                          <tr key={`add-item-${idx}`}>
+                            <td className="px-3 py-2 text-center text-text-subtlest font-medium">
+                              {idx + 1}
+                            </td>
+                            <td className="px-3 py-2 font-semibold text-text-default">
+                              {item.repWork || item.workName || "—"}
+                            </td>
+                            <td className="px-3 py-2">{item.purpose || "—"}</td>
+                            <td className="px-3 py-2">{item.hwWas || item.hwBefore || "—"}</td>
+                            <td className="px-3 py-2">{item.hwIs || item.hwAfter || "—"}</td>
+                            <td className="px-3 py-2">{item.swWas || item.swBefore || "—"}</td>
+                            <td className="px-3 py-2">{item.swIs || item.swAfter || "—"}</td>
+                            <td className="px-3 py-2 text-center">{item.priority || "General"}</td>
+                            <td className="px-3 py-2 text-center">{item.category || "Others"}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
             <div className="modal-footer shrink-0">
@@ -2154,6 +2299,20 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 type="button"
                 onClick={() => {
                   if (!editingVersion) return;
+
+                  // Mandatory reason validation for Not Applicable items
+                  const emptyReasonItem = editNotApplicableRows.find(
+                    (r) => !String(r.reason || r.reasoning || r.nonImplReason || "").trim(),
+                  );
+
+                  if (emptyReasonItem) {
+                    pushToast(
+                      t("page.mp.reasonRequired", "미적용 항목의 사유를 입력해 주세요."),
+                      "error",
+                    );
+                    return;
+                  }
+
                   const versionId = Number(
                     editingVersion.id ||
                       editingVersion.mpVersionId ||
@@ -2192,6 +2351,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   };
 
                   if (isStaticDataMode) {
+                    pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
                     setEditingVersion(null);
                     return;
                   }
@@ -2202,11 +2362,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     {},
                     (responseData, status) => {
                       if (status >= 200 && status < 300) {
+                        pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
                         setEditingVersion(null);
                         fetchMPVersion(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
-                        fetchMPList(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
                       } else {
                         console.error("EditMPVersion failed:", status, responseData);
+                        pushToast(t("toast.saveError", "저장 실패했습니다."), "error");
                       }
                     },
                   );
@@ -2290,7 +2451,6 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     setRowToDelete(null);
                     if (status >= 200 && status < 300) {
                       fetchMPVersion(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
-                      fetchMPList(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
                     } else {
                       console.error("DeleteMpListItem failed:", status, responseData);
                     }

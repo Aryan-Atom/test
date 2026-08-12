@@ -22,6 +22,7 @@ const pocEndPoints = {
   SAVE_MP_VERSION: "api/MPData/SaveMPVersion",
   EDIT_MP_VERSION: "api/MPData/EditMPVersion",
   DELETE_MP_LIST_ITEM: "api/MPData/DeleteMpListItem",
+  GET_MP_ROW_VERSION_DATA: "api/MPData/GetMPRowVersionData",
   SAVE_VOC: "api/ChangeData/SaveVoc",
   CHANGE_HISTORY_DATA: "data-management/change-history-data",
   GET_EQUIPMENT_STATUS: "api/MatrixInquiry/GetequipmentStatus",
