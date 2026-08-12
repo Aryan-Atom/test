@@ -263,18 +263,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedRowIds.size === versionRows.length && versionRows.length > 0) {
-      setSelectedRowIds(new Set());
-    } else {
-      setSelectedRowIds(new Set(versionRows.map((v) => String(v.id || v.version))));
-    }
-  };
-
   // Compare modal states
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [compareV1, setCompareV1] = useState(null);
   const [compareV2, setCompareV2] = useState(null);
+
+
 
   // Edit modal states
   const [editingVersion, setEditingVersion] = useState(null);
@@ -752,6 +746,132 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     });
   }, [apiVersionList, versionRows, filteredRows, deletedRowIds, t]);
 
+  const toggleSelectAll = () => {
+    const top2Keys = displayVersionRows.slice(0, 2).map((v) => String(v.id || v.version));
+    const isTop2Selected =
+      top2Keys.length > 0 &&
+      top2Keys.every((k) => selectedRowIds.has(k)) &&
+      selectedRowIds.size === top2Keys.length;
+
+    if (isTop2Selected) {
+      setSelectedRowIds(new Set());
+    } else {
+      setSelectedRowIds(new Set(top2Keys));
+    }
+  };
+
+  useEffect(() => {
+    if (displayVersionRows.length > 0 && selectedRowIds.size === 0) {
+      const top2Keys = displayVersionRows.slice(0, 2).map((v) => String(v.id || v.version));
+      setSelectedRowIds(new Set(top2Keys));
+    }
+  }, [displayVersionRows]);
+
+  const dynamicCompareData = useMemo(() => {
+    if (!compareV1 || !compareV2) {
+      return {
+        v1Version: "v1",
+        v2Version: "v2",
+        v1Applied: 0,
+        v1Excluded: 0,
+        v1Total: 0,
+        v2Applied: 0,
+        v2Excluded: 0,
+        v2Total: 0,
+        rows: [],
+      };
+    }
+
+    const rows1 = Array.isArray(compareV1.rows)
+      ? compareV1.rows
+      : Array.isArray(compareV1.applicableRows) || Array.isArray(compareV1.notApplicableRows)
+        ? [...(compareV1.applicableRows || []), ...(compareV1.notApplicableRows || [])]
+        : [];
+    const rows2 = Array.isArray(compareV2.rows)
+      ? compareV2.rows
+      : Array.isArray(compareV2.applicableRows) || Array.isArray(compareV2.notApplicableRows)
+        ? [...(compareV2.applicableRows || []), ...(compareV2.notApplicableRows || [])]
+        : [];
+
+    const getWorkName = (r) =>
+      getRowValue(
+        r,
+        "representativeWork",
+        "representative_work_name",
+        "repWork",
+        "work",
+        "equipmentName",
+      ) || "";
+
+    const map1 = new Map();
+    rows1.forEach((r) => {
+      const name = getWorkName(r);
+      if (name) map1.set(name.trim().toLowerCase(), r);
+    });
+
+    const map2 = new Map();
+    rows2.forEach((r) => {
+      const name = getWorkName(r);
+      if (name) map2.set(name.trim().toLowerCase(), r);
+    });
+
+    const allKeys = new Set([...map1.keys(), ...map2.keys()]);
+    const comparedRows = [];
+
+    allKeys.forEach((key) => {
+      const r1 = map1.get(key);
+      const r2 = map2.get(key);
+      const ref = r1 || r2;
+      if (!ref) return;
+
+      const repWork = getWorkName(ref);
+      const purpose = getRowValue(ref, "purpose", "work") || "—";
+      const problem = getRowValue(ref, "situation", "report", "problem") || "—";
+      const cause = getRowValue(ref, "cause") || "—";
+      const bom = getRowValue(ref, "bom", "BOM") || "—";
+      const materialName = getRowValue(ref, "sparePart", "materialName", "material") || "—";
+      const hwBefore = getRowValue(ref, "hwAsWas", "hwBefore") || "—";
+      const importance = getRowValue(ref, "priority", "priorityName") || "일반";
+      const effect = getRowValue(ref, "category", "categoryName") || "보전성";
+
+      const v1Status = r1 ? (r1.isApplicable !== false ? "Applied" : "Not applied") : "Not applied";
+      const v2Status = r2 ? (r2.isApplicable !== false ? "Applied" : "Not applied") : "Not applied";
+
+      comparedRows.push({
+        repWork,
+        purpose,
+        problem,
+        cause,
+        bom,
+        materialName,
+        hwBefore,
+        importance,
+        effect,
+        v1Status,
+        v2Status,
+      });
+    });
+
+    const finalRows = comparedRows.length > 0 ? comparedRows : sampleCompareRows;
+
+    const v1Applied = compareV1.appliedCount ?? rows1.filter((r) => r.isApplicable !== false).length;
+    const v1Excluded = compareV1.excludedCount ?? rows1.filter((r) => r.isApplicable === false).length;
+    const v2Applied = compareV2.appliedCount ?? rows2.filter((r) => r.isApplicable !== false).length;
+    const v2Excluded = compareV2.excludedCount ?? rows2.filter((r) => r.isApplicable === false).length;
+
+    return {
+      v1Version: compareV1.version || "v1",
+      v2Version: compareV2.version || "v2",
+      v1Applied,
+      v1Excluded,
+      v1Total: v1Applied + v1Excluded,
+      v2Applied,
+      v2Excluded,
+      v2Total: v2Applied + v2Excluded,
+      rows: finalRows,
+    };
+  }, [compareV1, compareV2]);
+
   const showLanding = selectedProcessId === null || selectedMaintenanceId === null;
 
   return (
@@ -771,12 +891,32 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {(() => {
+            const selectedArray = displayVersionRows.filter((v) =>
+              selectedRowIds.has(String(v.id || v.version)),
+            );
+            const v1 = selectedArray[0] || displayVersionRows[0];
+            const v2 = selectedArray[1] || displayVersionRows[1];
+            if (v1 && v2) {
+              return (
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {v1.version} vs {v2.version} 비교
+                </span>
+              );
+            }
+            return null;
+          })()}
           <button
             type="button"
             className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer h-[38px]"
             onClick={() => {
-              const v1 = versionRows[0] || { version: "v1", appliedCount: 46, excludedCount: 40 };
-              const v2 = versionRows[1] || { version: "v2", appliedCount: 20, excludedCount: 21 };
+              const selectedArray = displayVersionRows.filter((v) =>
+                selectedRowIds.has(String(v.id || v.version)),
+              );
+              let v1 = selectedArray[0];
+              let v2 = selectedArray[1];
+              if (!v1) v1 = displayVersionRows[0] || { version: "v1", appliedCount: 46, excludedCount: 40 };
+              if (!v2) v2 = displayVersionRows[1] || displayVersionRows[0] || { version: "v2", appliedCount: 20, excludedCount: 21 };
               setCompareV1(v1);
               setCompareV2(v2);
               setShowCompareModal(true);
@@ -872,7 +1012,14 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   <th className="px-4 py-3.5 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={versionRows.length > 0 && selectedRowIds.size === versionRows.length}
+                      checked={(() => {
+                        const top2Keys = displayVersionRows.slice(0, 2).map((v) => String(v.id || v.version));
+                        return (
+                          top2Keys.length > 0 &&
+                          top2Keys.every((k) => selectedRowIds.has(k)) &&
+                          selectedRowIds.size === top2Keys.length
+                        );
+                      })()}
                       onChange={toggleSelectAll}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
@@ -1068,7 +1215,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                           return (
                                             <tr
                                               key={`app-${item.changeHistoryId || item.id || idx}`}
-                                              className="transition-colors border-b border-border-base/50 hover:bg-fill-active"
+                                              className="transition-colors border-b border-border-base/50"
                                             >
                                               <td className="px-3 py-2 text-center text-text-subtlest font-medium">
                                                 {idx + 1}
@@ -1195,7 +1342,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                           return (
                                             <tr
                                               key={`not-${item.changeHistoryId || item.id || idx}`}
-                                              className="transition-colors border-b border-border-base/50 hover:bg-fill-active"
+                                              className="transition-colors border-b border-border-base/50"
                                             >
                                               <td className="px-3 py-2 text-center text-text-subtlest font-medium">
                                                 {idx + 1}
@@ -1444,7 +1591,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 </div>
                 <div className="min-w-0">
                   <h3 className="modal-title">
-                    {compareV1?.version || "v1"} vs {compareV2?.version || "v2"} comparison
+                    {dynamicCompareData.v1Version} vs {dynamicCompareData.v2Version} comparison
                   </h3>
                   <p className="modal-description">
                     {t("page.mpManagement.compareDesc", "Compare the two versions of MP List")}
@@ -1465,13 +1612,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               <div className="bg-surface-strong rounded-2xl p-5 flex items-center justify-between mb-6 border border-border-base">
                 <div className="flex-1 text-center">
                   <div className="text-xs font-semibold text-text-subtlest">
-                    {compareV1?.version || "v1"}
+                    {dynamicCompareData.v1Version}
                   </div>
                   <div className="text-2xl font-extrabold text-text-default my-1">
-                    {compareV1?.appliedCount ?? 46} cases
+                    {dynamicCompareData.v1Total} cases
                   </div>
                   <div className="text-xs font-medium text-text-subtlest">
-                    Applied / {compareV1?.excludedCount ?? 40} cases Not applied
+                    Applied / {dynamicCompareData.v1Excluded} cases Not applied
                   </div>
                 </div>
 
@@ -1481,13 +1628,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
                 <div className="flex-1 text-center">
                   <div className="text-xs font-semibold text-text-subtlest">
-                    {compareV2?.version || "v2"}
+                    {dynamicCompareData.v2Version}
                   </div>
                   <div className="text-2xl font-extrabold text-text-default my-1">
-                    {compareV2?.appliedCount ?? 20} cases
+                    {dynamicCompareData.v2Total} cases
                   </div>
                   <div className="text-xs font-medium text-text-subtlest">
-                    Applied / {compareV2?.excludedCount ?? 21} cases Not applied
+                    Applied / {dynamicCompareData.v2Excluded} cases Not applied
                   </div>
                 </div>
               </div>
@@ -1501,25 +1648,25 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   >
                     <thead className="sticky top-0 bg-gray-50/90 dark:bg-gray-700/80 text-gray-400 dark:text-gray-300 uppercase text-[10px] font-bold tracking-wider z-10 border-b border-border-base">
                       <tr>
-                        <th className="px-3 py-3 font-bold">REPRESENTATIVE WORK NAME</th>
-                        <th className="px-3 py-3 font-bold">PURPOSE OF THE WORK</th>
-                        <th className="px-3 py-3 font-bold">PROBLEM PHENOMENON</th>
-                        <th className="px-3 py-3 font-bold">CAUSE OF THE ISSUE</th>
+                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerRepWork", "REPRESENTATIVE WORK NAME")}</th>
+                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerPurpose", "PURPOSE OF THE WORK")}</th>
+                        <th className="px-3 py-3 font-bold">{t("field.situation", "PROBLEM PHENOMENON")}</th>
+                        <th className="px-3 py-3 font-bold">{t("field.cause", "CAUSE OF THE ISSUE")}</th>
                         <th className="px-3 py-3 font-bold">BOM</th>
-                        <th className="px-3 py-3 font-bold">MATERIAL NAME</th>
-                        <th className="px-3 py-3 font-bold">BEFORE CHANGING HARDWARE</th>
-                        <th className="px-3 py-3 font-bold text-center">IMPORTANCE</th>
-                        <th className="px-3 py-3 font-bold text-center">EFFECT</th>
+                        <th className="px-3 py-3 font-bold">{t("field.materialName", "MATERIAL NAME")}</th>
+                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerHwBefore", "BEFORE CHANGING HARDWARE")}</th>
+                        <th className="px-3 py-3 font-bold text-center">{t("page.mpManagement.headerImportance", "IMPORTANCE")}</th>
+                        <th className="px-3 py-3 font-bold text-center">{t("page.mpManagement.headerEffectType", "EFFECT")}</th>
                         <th className="px-3 py-3 font-bold text-center uppercase">
-                          {compareV1?.version || "v1"}
+                          {dynamicCompareData.v1Version}
                         </th>
                         <th className="px-3 py-3 font-bold text-center uppercase">
-                          {compareV2?.version || "v2"}
+                          {dynamicCompareData.v2Version}
                         </th>
                       </tr>
                     </thead>
                     <tbody className="font-medium">
-                      {sampleCompareRows.map((row, idx) => (
+                      {dynamicCompareData.rows.map((row, idx) => (
                         <tr
                           key={idx}
                           className="hover:bg-blue-50/20 dark:hover:bg-blue-900/10 transition-colors"
@@ -1555,7 +1702,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                               }`}
                             >
-                              {row.v1Status}
+                              {row.v1Status === "Applied" ? t("page.mp.applied", "Applied") : t("page.mp.notApplied", "Not applied")}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
@@ -1566,7 +1713,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                               }`}
                             >
-                              {row.v2Status}
+                              {row.v2Status === "Applied" ? t("page.mp.applied", "Applied") : t("page.mp.notApplied", "Not applied")}
                             </span>
                           </td>
                         </tr>

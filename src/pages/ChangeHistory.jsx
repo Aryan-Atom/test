@@ -141,12 +141,20 @@ function extractChangedRecords(payload) {
   if (Array.isArray(payload?.changedData)) {
     return payload.changedData;
   }
+  if (Array.isArray(payload?.data?.changedData)) {
+    return payload.data.changedData;
+  }
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
   if (Array.isArray(payload?.changedDataJson) && payload.changedDataJson.length > 0) {
     const envelope = payload.changedDataJson[0];
     try {
       const parsed =
         typeof envelope.content === "string" ? JSON.parse(envelope.content) : envelope.content;
       if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.changedData)) return parsed.changedData;
+      if (Array.isArray(parsed?.data?.changedData)) return parsed.data.changedData;
     } catch {
       // ignore parse errors
     }
@@ -1652,21 +1660,24 @@ function EditableRow({
             key={col}
             className="px-4 py-3 text-text-subtle whitespace-nowrap"
             style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
-            title={String(row[col] ?? "")}
+            title={String(col === "workedOn" ? (row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? "") : (row[col] ?? ""))}
           >
-            {row[col] == null || row[col] === ""
-              ? "—"
-              : col === "workedOn"
-                ? (() => {
-                    const rawVal = row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? row[col];
-                    const valStr = String(rawVal).trim();
-                    if (!valStr || valStr === "null" || valStr === "undefined") return "—";
-                    if (valStr.includes("T")) return valStr.split("T")[0];
-                    if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
-                    const d = new Date(rawVal);
-                    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : valStr;
-                  })()
-                : String(row[col])}
+            {(() => {
+              const rawVal = col === "workedOn"
+                ? (row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? row[col])
+                : row[col];
+              if (rawVal == null || rawVal === "" || rawVal === "null" || rawVal === "undefined") {
+                return "—";
+              }
+              if (col === "workedOn") {
+                const valStr = String(rawVal).trim();
+                if (valStr.includes("T")) return valStr.split("T")[0];
+                if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
+                const d = new Date(rawVal);
+                return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : valStr;
+              }
+              return String(rawVal);
+            })()}
           </td>
         ),
       )}
@@ -3646,6 +3657,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         clean.id = nextId++;
       } else if (numId >= nextId) {
         nextId = numId + 1;
+      }
+      const wDate = clean.workedDate ?? clean.worked_date ?? clean.workDate ?? clean.work_date ?? clean.workedOn ?? clean["worked date"] ?? clean["작업완료일"];
+      if (wDate) {
+        clean.workedOn = wDate;
       }
       return clean;
     });

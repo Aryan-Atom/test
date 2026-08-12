@@ -2159,20 +2159,24 @@ html:not([data-theme="dark"]) .mgmt-table tbody tr td {
   color: #374151 !important;
 }
 
-html:not([data-theme="dark"]) .mgmt-nested-table tbody tr:hover {
+html:not([data-theme="dark"]) .mgmt-nested-table tbody tr:hover,
+html:not([data-theme="dark"]) .mgmt-nested-table tbody tr:hover > td {
   background-color: #eff6ff !important;
 }
 
-html:not([data-theme="dark"]) .mgmt-not-applied-table tbody tr:hover {
+html:not([data-theme="dark"]) .mgmt-not-applied-table tbody tr:hover,
+html:not([data-theme="dark"]) .mgmt-not-applied-table tbody tr:hover > td {
   background-color: #fef2f2 !important;
 }
 
-[data-theme="dark"] .mgmt-nested-table tbody tr:hover {
-  background-color: rgba(30, 58, 138, 0.3) !important;
+[data-theme="dark"] .mgmt-nested-table tbody tr:hover,
+[data-theme="dark"] .mgmt-nested-table tbody tr:hover > td {
+  background-color: rgba(30, 58, 138, 0.35) !important;
 }
 
-[data-theme="dark"] .mgmt-not-applied-table tbody tr:hover {
-  background-color: rgba(127, 29, 29, 0.3) !important;
+[data-theme="dark"] .mgmt-not-applied-table tbody tr:hover,
+[data-theme="dark"] .mgmt-not-applied-table tbody tr:hover > td {
+  background-color: rgba(127, 29, 29, 0.35) !important;
 }
 
 html:not([data-theme="dark"]) .mgmt-surface {
