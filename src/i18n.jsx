@@ -529,7 +529,7 @@ const translations = {
     "field.repWork": "Representative Work",
     "field.woType": "Work Order Type",
     "field.priority": "Priority",
-    "field.category": "Effect Type",
+    "field.category": "Category",
     "field.period": "Period",
     "field.columnFilter": "Column Filter",
     "field.work": "Work Purpose",

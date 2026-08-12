@@ -26,6 +26,7 @@ const pocEndPoints = {
   CHANGE_HISTORY_DATA: "data-management/change-history-data",
   GET_EQUIPMENT_STATUS: "api/MatrixInquiry/GetequipmentStatus",
   GET_EQUIPMENT_STATUS_COUNT: "api/MatrixInquiry/GetequipmentStatusCount",
+  SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
 };
 
 const auth = {

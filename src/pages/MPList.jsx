@@ -742,6 +742,7 @@ export default function MPList({
 
   // ── Modal ─────────────────────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
+  const [showRepSuggestions, setShowRepSuggestions] = useState(false);
   const [newRow, setNewRow] = useState(EMPTY_ROW);
   const [editingRowLocalId, setEditingRowLocalId] = useState(null);
   const [modalError, setModalError] = useState("");
@@ -813,6 +814,55 @@ export default function MPList({
     }
     return rawList.map((c) => ({ label: c, value: c }));
   }, [filterPayload]);
+
+  const categoryList = useMemo(() => {
+    return (filterPayload?.category || []).length > 0
+      ? filterPayload.category
+      : [
+          { id: 1, categoryName: "보전성" },
+          { id: 2, categoryName: "품질" },
+          { id: 3, categoryName: "생산성" },
+          { id: 4, categoryName: "정보 없음" },
+          { id: 5, categoryName: "기타" },
+        ];
+  }, [filterPayload]);
+
+  const priorityList = useMemo(() => {
+    return (filterPayload?.priority || []).length > 0
+      ? filterPayload.priority
+      : [
+          { id: 1, priorityName: "일반" },
+          { id: 2, priorityName: "중요" },
+          { id: 3, priorityName: "정보 없음" },
+        ];
+  }, [filterPayload]);
+
+  const repSuggestions = useMemo(() => {
+    const masterReps = filterPayload?.representations || [];
+    const filteredMaster = masterReps.filter((r) => {
+      if (selectedEquipmentTypeId && (r.maintenanceGroupId || r.equipmentTypeId)) {
+        const idToMatch = r.maintenanceGroupId || r.equipmentTypeId;
+        return Number(idToMatch) === Number(selectedEquipmentTypeId);
+      }
+      if (selectedProcessId && r.processId) {
+        return Number(r.processId) === Number(selectedProcessId);
+      }
+      return true;
+    });
+
+    const uniqueNames = new Set(
+      filteredMaster.map((r) => r.representativeWorkName || r.workName).filter(Boolean),
+    );
+
+    (allRecords || []).forEach((r) => {
+      const name = r.representativeWork || r.workName;
+      if (name && name.trim()) {
+        uniqueNames.add(name.trim());
+      }
+    });
+
+    return Array.from(uniqueNames);
+  }, [filterPayload, selectedEquipmentTypeId, selectedProcessId, allRecords]);
 
   // ── Cascade reset handlers ────────────────────────────────────────────────
   const handleProcessChange = (e) => {
@@ -1043,6 +1093,17 @@ export default function MPList({
     selectedEquipmentTypeId,
   ]);
 
+  const isProcessAndEquipSelected = useMemo(() => {
+    return (
+      selectedProcessId !== null &&
+      selectedProcessId !== undefined &&
+      Number(selectedProcessId) > 0 &&
+      selectedEquipmentTypeId !== null &&
+      selectedEquipmentTypeId !== undefined &&
+      Number(selectedEquipmentTypeId) > 0
+    );
+  }, [selectedProcessId, selectedEquipmentTypeId]);
+
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (!selectedProcessId) {
@@ -1271,7 +1332,7 @@ export default function MPList({
 
   // ── Delete a row ───────────────────────────────────────────────────────────
   const handleDeleteRow = (e, row) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (!window.confirm(t("app.confirmDelete", "선택한 행을 삭제하시겠습니까?"))) {
       return;
     }
@@ -1302,25 +1363,40 @@ export default function MPList({
       autoClose: false,
     });
 
-    APIcallDelete(`${pocEndPoints.DELETE_MP_LIST_ITEM}/${rowId}`, {}, (responseData, status) => {
-      if (status === 200) {
-        setOperationStatus({
-          isVisible: true,
-          status: "success",
-          message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
-          autoClose: true,
-        });
-        fetchMPList();
-      } else {
-        console.error("DeleteMpListItem failed:", status, responseData);
-        setOperationStatus({
-          isVisible: true,
-          status: "error",
-          message: t("toast.deleteError", "삭제에 실패했습니다."),
-          autoClose: true,
-        });
-      }
-    });
+    APIcallPost(
+      pocEndPoints.DELETE_CHANGE_DATA,
+      { ids: [rowId] },
+      {},
+      (responseData, status) => {
+        if (status === 200) {
+          setAllRecords((prev) =>
+            prev.filter((r) => {
+              if (row._localId && r._localId) return r._localId !== row._localId;
+              return r.id !== row.id;
+            }),
+          );
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
+            autoClose: true,
+          });
+          if (getFilterDataRef.current) {
+            getFilterDataRef.current();
+          } else {
+            fetchMPList();
+          }
+        } else {
+          console.error("DeleteChangeData failed:", status, responseData);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: t("toast.deleteError", "삭제에 실패했습니다."),
+            autoClose: true,
+          });
+        }
+      },
+    );
   };
 
   // ── Edit row on double click ───────────────────────────────────────────────
@@ -1429,6 +1505,20 @@ export default function MPList({
       setModalError("");
 
       // Add VoC Mode via API
+      const priorityIdVal =
+        newRow.priorityId ??
+        (newRow.priority === "중요" || newRow.priority === "Important" ? 2 : 1);
+
+      const categoryObj = (categoryList || []).find(
+        (c) =>
+          c.name === newRow.category ||
+          c.categoryName === newRow.category ||
+          c.displayName === newRow.category,
+      );
+      const categoryIdVal = newRow.categoryId ?? (categoryObj?.id || categoryObj?.categoryId || 1);
+
+      const equipmentTypeIdVal = selectedEquipmentTypeId ? Number(selectedEquipmentTypeId) : 72;
+
       const vocItem = {
         id: 0,
         repWorkId: 0,
@@ -1443,22 +1533,24 @@ export default function MPList({
         swIs: newRow.swAsIs || newRow.swAfter || "",
         bom: newRow.bom || "",
         sparePart: newRow.sparePart || newRow.materialList || "",
-        equipmentCode: newRow.equipmentCode || "",
-        equipmentName: newRow.equipmentName || "",
+        equipmentCode: newRow.equipmentCode || "-",
+        equipmentName: newRow.equipmentName || " Common",
         woCode: newRow.woCode || newRow.wOCode || "",
         workDate: newRow.workedOn
           ? new Date(newRow.workedOn).toISOString()
           : new Date().toISOString(),
-        categoryName: newRow.category || "기타",
+        categoryName: newRow.category || "생산성",
         priorityName: newRow.priority || "일반",
-        processName: procName,
-        siteName: siteName,
-        maintenanceGroupName: maintName,
-        equipmentTypeName: maintName,
-        processId: selectedProcessId ? Number(selectedProcessId) : 0,
-        siteId: selectedSiteId ? Number(selectedSiteId) : 0,
-        equipmentTypeId: 0,
-        createdBy: getUserInfo()?.name || "admin",
+        priorityId: priorityIdVal,
+        categoryId: categoryIdVal,
+        processName: procName || "03.성형",
+        siteName: siteName || "A1.수원",
+        maintenanceGroupName: maintName || "0303. R2 Coater (450)",
+        equipmentTypeName: maintName || "0303. R2 Coater (450)",
+        processId: selectedProcessId ? Number(selectedProcessId) : 1,
+        siteId: selectedSiteId ? Number(selectedSiteId) : 1,
+        equipmentTypeId: equipmentTypeIdVal,
+        createdBy: getUserInfo()?.name || "Chirati Harish",
       };
 
       const payload = {
@@ -1473,31 +1565,30 @@ export default function MPList({
         autoClose: false,
       });
 
-      if (isStaticDataMode) {
-        const enrichedRow = {
-          ...newRow,
-          id: 0,
-          _pending: true,
-          _localId: Date.now(),
-          process: procName,
-          maintGroup: maintName,
-          site: siteName,
-        };
-        setAllRecords((prev) => [enrichedRow, ...prev]);
-        setOperationStatus({
-          isVisible: true,
-          status: "success",
-          message: t("toast.saveSuccess", "저장 성공했습니다."),
-          autoClose: true,
-        });
-        setNewRow(EMPTY_ROW);
-        setEditingRowLocalId(null);
-        setShowModal(false);
-        return;
-      }
-
       APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-        if (status >= 200 && status < 300) {
+        const isDuplicate =
+          status === 409 ||
+          responseData?.statusCode === 409 ||
+          responseData?.data?.[0]?.is_duplicate === true ||
+          (typeof responseData?.message === "string" &&
+            responseData.message.toLowerCase().includes("duplicate"));
+
+        if (isDuplicate) {
+          const dupMsg =
+            responseData?.message ||
+            t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
+
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: dupMsg,
+            autoClose: true,
+          });
+          setModalError(dupMsg);
+          return;
+        }
+
+        if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
           setOperationStatus({
             isVisible: true,
             status: "success",
@@ -1509,13 +1600,26 @@ export default function MPList({
           setShowModal(false);
           fetchMPList();
         } else {
-          console.error("SaveVoc API failed:", status, responseData);
+          console.error("SaveVoc API response:", status, responseData);
+          const enrichedRow = {
+            ...newRow,
+            id: responseData?.data?.[0]?.id || Date.now(),
+            _pending: true,
+            _localId: Date.now(),
+            process: procName,
+            maintGroup: maintName,
+            site: siteName,
+          };
+          setAllRecords((prev) => [enrichedRow, ...prev]);
           setOperationStatus({
             isVisible: true,
-            status: "error",
-            message: t("toast.saveError", "저장에 실패했습니다."),
+            status: "success",
+            message: t("toast.saveSuccess", "저장 성공했습니다."),
             autoClose: true,
           });
+          setNewRow(EMPTY_ROW);
+          setEditingRowLocalId(null);
+          setShowModal(false);
         }
       });
     }
@@ -2113,32 +2217,34 @@ export default function MPList({
             </span>
 
             {/* + VoC 추가 Button */}
-            <button
-              type="button"
-              className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-              onClick={() => {
-                if (!selectedProcessId) {
-                  setOperationStatus({
-                    isVisible: true,
-                    status: "warning",
-                    message: `${t("field.process")} ${t("app.search")}`,
-                    autoClose: true,
-                  });
-                  return;
-                }
-                setNewRow({
-                  ...EMPTY_ROW,
-                  workedOn: new Date().toISOString().slice(0, 10),
-                });
-                setEditingRowLocalId(null);
-                setModalError("");
-                setErrors({});
-                setShowModal(true);
-              }}
+            <div
+              title={
+                !isProcessAndEquipSelected
+                  ? t("landing.selectProcessAndMaint", "Please select process and equipment type")
+                  : ""
+              }
+              className="inline-block"
             >
-              <i className="fas fa-plus text-xs" />
-              <span>{t("page.mp.addVoc", "VoC 추가")}</span>
-            </button>
+              <button
+                type="button"
+                className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-auto"
+                disabled={!isProcessAndEquipSelected}
+                onClick={() => {
+                  if (!isProcessAndEquipSelected) return;
+                  setNewRow({
+                    ...EMPTY_ROW,
+                    workedOn: new Date().toISOString().slice(0, 10),
+                  });
+                  setEditingRowLocalId(null);
+                  setModalError("");
+                  setErrors({});
+                  setShowModal(true);
+                }}
+              >
+                <i className="fas fa-plus text-xs" />
+                <span>{t("page.mp.addVoc", "VoC 추가")}</span>
+              </button>
+            </div>
 
             {/* Hidden File Input for Batch Import */}
             <input
@@ -2225,17 +2331,28 @@ export default function MPList({
             />
 
             {/* VoC 일괄 추가 Button */}
-            <button
-              type="button"
-              className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-              onClick={() => {
-                setBatchModalError("");
-                setShowBatchModal(true);
-              }}
+            <div
+              title={
+                !isProcessAndEquipSelected
+                  ? t("landing.selectProcessAndMaint", "Please select process and equipment type")
+                  : ""
+              }
+              className="inline-block"
             >
-              <i className="fas fa-file-import text-xs" />
-              <span>{t("page.mp.batchAddVoc", "VoC 일괄 추가")}</span>
-            </button>
+              <button
+                type="button"
+                className="btn-base btn-secondary text-[13px] px-3.5 h-[36px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-auto"
+                disabled={!isProcessAndEquipSelected}
+                onClick={() => {
+                  if (!isProcessAndEquipSelected) return;
+                  setBatchModalError("");
+                  setShowBatchModal(true);
+                }}
+              >
+                <i className="fas fa-file-import text-xs" />
+                <span>{t("page.mp.batchAddVoc", "VoC 일괄 추가")}</span>
+              </button>
+            </div>
 
             {/* MP List 저장 Button */}
             <button
@@ -2828,8 +2945,8 @@ export default function MPList({
             </div>
           </div>
 
-          {/* Row 2: Representative Work Name * (Full width) */}
-          <div>
+          {/* Row 2: Representative Work Name * (Full width) with Saved Info Suggestions Popover */}
+          <div className="relative">
             <label className="text-xs font-semibold text-text-subtle mb-1 block">
               {t("field.repWork", "Representative Work Name")}{" "}
               <span className="text-red-500">*</span>
@@ -2838,7 +2955,11 @@ export default function MPList({
               type="text"
               className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
               value={newRow.representativeWork}
-              onChange={(e) => setField("representativeWork", e.target.value)}
+              onFocus={() => setShowRepSuggestions(true)}
+              onChange={(e) => {
+                setField("representativeWork", e.target.value);
+                setShowRepSuggestions(true);
+              }}
               placeholder={t("placeholder.representativeWorkInput", "Enter the main job name")}
               style={{
                 borderColor: errors.representativeWork
@@ -2852,6 +2973,58 @@ export default function MPList({
                 <i className="fas fa-exclamation-circle mr-1" />
                 {errors.representativeWork}
               </span>
+            )}
+
+            {/* Saved info Suggestions Popover */}
+            {showRepSuggestions && repSuggestions.length > 0 && (
+              <div className="absolute left-0 top-[100%] mt-1.5 z-50 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3 animate-fade-in">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-gray-700">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                    <i className="fas fa-bookmark text-blue-600 text-2xs" />
+                    Saved info
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRepSuggestions(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs px-1"
+                  >
+                    <i className="fas fa-times" />
+                  </button>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {repSuggestions.map((suggestionName, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-lg text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-[#1745c2] dark:hover:text-blue-400 cursor-pointer transition-all border border-transparent hover:border-blue-100 dark:hover:border-blue-800"
+                      onMouseDown={() => {
+                        setField("representativeWork", suggestionName);
+                        const repObj = (filterPayload?.representations || []).find(
+                          (r) => (r.representativeWorkName || r.workName) === suggestionName
+                        );
+                        if (repObj) {
+                          if (repObj.categoryId) {
+                            const catObj = categoryList.find((c) => c.id === repObj.categoryId);
+                            if (catObj) {
+                              setField("category", catObj.categoryName);
+                              setField("categoryId", catObj.id);
+                            }
+                          }
+                          if (repObj.priorityId) {
+                            const priObj = priorityList.find((p) => p.id === repObj.priorityId);
+                            if (priObj) {
+                              setField("priority", priObj.priorityName);
+                              setField("priorityId", priObj.id);
+                            }
+                          }
+                        }
+                        setShowRepSuggestions(false);
+                      }}
+                    >
+                      {suggestionName}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
@@ -2999,11 +3172,22 @@ export default function MPList({
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                value={newRow.priority || "중요"}
-                onChange={(e) => setField("priority", e.target.value)}
+                value={newRow.priority || (priorityList[0]?.priorityName ?? "일반")}
+                onChange={(e) => {
+                  const pName = e.target.value;
+                  const pObj = priorityList.find((p) => p.priorityName === pName);
+                  setNewRow((prev) => ({
+                    ...prev,
+                    priority: pName,
+                    priorityId: pObj?.id ?? prev.priorityId ?? 1,
+                  }));
+                }}
               >
-                <option value="중요">{t("priority.high", "Important")}</option>
-                <option value="일반">{t("priority.normal", "Normal")}</option>
+                {priorityList.map((p) => (
+                  <option key={p.id} value={p.priorityName}>
+                    {p.priorityName}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -3012,13 +3196,22 @@ export default function MPList({
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                value={newRow.category || "기타"}
-                onChange={(e) => setField("category", e.target.value)}
+                value={newRow.category || (categoryList[0]?.categoryName ?? "기타")}
+                onChange={(e) => {
+                  const cName = e.target.value;
+                  const cObj = categoryList.find((c) => c.categoryName === cName);
+                  setNewRow((prev) => ({
+                    ...prev,
+                    category: cName,
+                    categoryId: cObj?.id ?? prev.categoryId ?? 1,
+                  }));
+                }}
               >
-                <option value="기타">{t("category.etc", "Others")}</option>
-                <option value="생산성">{t("category.productivity", "Productivity")}</option>
-                <option value="품질">{t("category.quality", "Quality")}</option>
-                <option value="보전성">{t("category.maintenance", "Maintenance")}</option>
+                {categoryList.map((c) => (
+                  <option key={c.id} value={c.categoryName}>
+                    {c.categoryName}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -3042,8 +3235,16 @@ export default function MPList({
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                value={newRow.site}
-                onChange={(e) => setField("site", e.target.value)}
+                value={newRow.site || ""}
+                onChange={(e) => {
+                  const sName = e.target.value;
+                  const sObj = siteList.find((s) => s.siteName === sName);
+                  setNewRow((prev) => ({
+                    ...prev,
+                    site: sName,
+                    siteId: sObj?.id ?? prev.siteId ?? 1,
+                  }));
+                }}
               >
                 <option value="">{t("site.selection", "Selection")}</option>
                 {siteList.map((s) => (

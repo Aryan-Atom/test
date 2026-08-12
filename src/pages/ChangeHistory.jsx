@@ -461,7 +461,7 @@ function SelectSkeleton({ width = "120px" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ rowsCount = 8, columns = [], t, COLUMN_LABEL_KEYS = {} }) {
+function TableSkeleton({ rowsCount = 8, columns = [], t, getColumnHeaderLabel, COLUMN_LABEL_KEYS = {} }) {
   return (
     <div className="overflow-auto flex-1 min-h-0">
       <table className="min-w-full text-left text-sm">
@@ -478,7 +478,7 @@ function TableSkeleton({ rowsCount = 8, columns = [], t, COLUMN_LABEL_KEYS = {} 
             </th>
             {columns.map((col) => (
               <th key={col} className="px-4 py-3 text-text-subtle whitespace-nowrap">
-                {t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+                {getColumnHeaderLabel ? getColumnHeaderLabel(col) : t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
               </th>
             ))}
           </tr>
@@ -1753,10 +1753,22 @@ const COLUMN_LABEL_KEYS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ChangeHistory component
 // ─────────────────────────────────────────────────────────────────────────────
-function RowEditModal({ row, index, columns, onSave, onClose }) {
+function RowEditModal({
+  row,
+  index,
+  columns,
+  onSave,
+  onClose,
+  filterPayload,
+  categoryList = [],
+  priorityList = [],
+  siteList = [],
+  repSuggestions = [],
+}) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
   const [errors, setErrors] = useState({});
+  const [showRepSuggestions, setShowRepSuggestions] = useState(false);
 
   const fileInputRef = useRef(null);
   const [pendingPhoto, setPendingPhoto] = useState(null);
@@ -1937,21 +1949,77 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
               </div>
             </div>
 
-            {/* Row 2: Representative Work Name * */}
-            <div>
+            {/* Row 2: Representative Work Name * with Saved Info Suggestions Popover */}
+            <div className="relative">
               <label className="modal-field-label mb-1.5">
-                Representative Work Name <span className="text-rose-500">*</span>
+                {t("field.repWork", "Representative Work Name")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={draft.representativeWork ?? ""}
-                onChange={(e) => handleFieldChange("representativeWork", e.target.value)}
+                onFocus={() => setShowRepSuggestions(true)}
+                onChange={(e) => {
+                  handleFieldChange("representativeWork", e.target.value);
+                  setShowRepSuggestions(true);
+                }}
                 className={`modal-input ${errors.representativeWork ? "is-error" : ""}`}
               />
               {errors.representativeWork && (
                 <span className="mt-1 block text-[11px] font-semibold text-rose-500">
                   {errors.representativeWork}
                 </span>
+              )}
+
+              {/* Saved info Suggestions Popover */}
+              {showRepSuggestions && repSuggestions.length > 0 && (
+                <div className="absolute left-0 top-[100%] mt-1.5 z-50 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3 animate-fade-in">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-gray-700">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                      <i className="fas fa-bookmark text-blue-600 text-2xs" />
+                      Saved info
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRepSuggestions(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs px-1"
+                    >
+                      <i className="fas fa-times" />
+                    </button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {repSuggestions.map((suggestionName, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-lg text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-[#1745c2] dark:hover:text-blue-400 cursor-pointer transition-all border border-transparent hover:border-blue-100 dark:hover:border-blue-800"
+                        onMouseDown={() => {
+                          handleFieldChange("representativeWork", suggestionName);
+                          const repObj = (filterPayload?.representations || []).find(
+                            (r) => (r.representativeWorkName || r.workName) === suggestionName
+                          );
+                          if (repObj) {
+                            if (repObj.categoryId) {
+                              const catObj = categoryList.find((c) => c.id === repObj.categoryId);
+                              if (catObj) {
+                                handleFieldChange("category", catObj.categoryName);
+                                handleFieldChange("categoryId", catObj.id);
+                              }
+                            }
+                            if (repObj.priorityId) {
+                              const priObj = priorityList.find((p) => p.id === repObj.priorityId);
+                              if (priObj) {
+                                handleFieldChange("priority", priObj.priorityName);
+                                handleFieldChange("priorityId", priObj.id);
+                              }
+                            }
+                          }
+                          setShowRepSuggestions(false);
+                        }}
+                      >
+                        {suggestionName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -2099,28 +2167,46 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 8: Importance & Types of effects */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">Importance</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.priority", "Priority")}
+                </label>
                 <select
-                  value={draft.priority ?? "Important"}
-                  onChange={(e) => handleFieldChange("priority", e.target.value)}
+                  value={draft.priority ?? (priorityList[0]?.priorityName || "일반")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const pObj = priorityList.find((p) => p.priorityName === val);
+                    handleFieldChange("priority", val);
+                    if (pObj) handleFieldChange("priorityId", pObj.id);
+                  }}
                   className="modal-select"
                 >
-                  <option value="Important">Important</option>
-                  <option value="Normal">Normal</option>
+                  {priorityList.map((p) => (
+                    <option key={p.id} value={p.priorityName}>
+                      {p.priorityName}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="modal-field-label mb-1.5">Types of effects</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.category", "Category")}
+                </label>
                 <select
-                  value={draft.category ?? "integrity"}
-                  onChange={(e) => handleFieldChange("category", e.target.value)}
+                  value={draft.category ?? (categoryList[0]?.categoryName || "기타")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const cObj = categoryList.find((c) => c.categoryName === val);
+                    handleFieldChange("category", val);
+                    if (cObj) handleFieldChange("categoryId", cObj.id);
+                  }}
                   className="modal-select"
                 >
-                  <option value="integrity">integrity</option>
-                  <option value="Quality">Quality</option>
-                  <option value="Productivity">Productivity</option>
-                  <option value="Etc">Etc</option>
+                  {categoryList.map((c) => (
+                    <option key={c.id} value={c.categoryName}>
+                      {c.categoryName}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -2128,24 +2214,46 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
             {/* Row 9: Date of Completion & Requesting Corporation */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">Date of Completion</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.workedOn", "Date of Completion")}
+                </label>
                 <input
-                  type="text"
-                  value={draft.workedOn ?? ""}
+                  type="date"
+                  value={
+                    draft.workedOn
+                      ? (function (val) {
+                          if (!val || String(val).startsWith("0000") || String(val).startsWith("0001")) return "";
+                          if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+                          const d = new Date(val);
+                          if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "";
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                        })(draft.workedOn)
+                      : ""
+                  }
                   onChange={(e) => handleFieldChange("workedOn", e.target.value)}
-                  className="modal-input"
+                  className="modal-input cursor-pointer"
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">Requesting Corporation</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.site", "Requesting Corporation")}
+                </label>
                 <select
-                  value={draft.site ?? "A3. Busan"}
-                  onChange={(e) => handleFieldChange("site", e.target.value)}
+                  value={draft.site ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const sObj = siteList.find((s) => s.siteName === val);
+                    handleFieldChange("site", val);
+                    if (sObj) handleFieldChange("siteId", sObj.id);
+                  }}
                   className="modal-select"
                 >
-                  <option value="A3. Busan">A3. Busan</option>
-                  <option value="A1. Seoul">A1. Seoul</option>
-                  <option value="A2. Gumi">A2. Gumi</option>
+                  <option value="">{t("site.selection", "Selection")}</option>
+                  {siteList.map((s) => (
+                    <option key={s.id} value={s.siteName}>
+                      {s.siteName}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -2360,7 +2468,7 @@ function RowEditModal({ row, index, columns, onSave, onClose }) {
 }
 
 export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [selectedProcessId, setSelectedProcessId] = useState(null);
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
   const [selectedColumnIds, setSelectedColumnIds] = useState([]);
@@ -2428,15 +2536,100 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     return all.filter((m) => Number(m.processId) === Number(selectedProcessId));
   }, [filterPayload, selectedProcessId]);
 
+  const siteList = useMemo(() => {
+    const all = (filterPayload?.site ?? []).filter((s) => s.isChangedData !== false);
+    if (selectedProcessId === null || selectedProcessId === undefined) return all;
+    return all.filter((s) => Number(s.processId) === Number(selectedProcessId));
+  }, [filterPayload, selectedProcessId]);
+
+  const priorityList = useMemo(() => {
+    return (filterPayload?.priority || []).length > 0
+      ? filterPayload.priority
+      : [
+          { id: 1, priorityName: "일반" },
+          { id: 2, priorityName: "중요" },
+          { id: 3, priorityName: "정보 없음" },
+        ];
+  }, [filterPayload]);
+
+  const categoryList = useMemo(() => {
+    return (filterPayload?.category || []).length > 0
+      ? filterPayload.category
+      : [
+          { id: 1, categoryName: "보전성" },
+          { id: 2, categoryName: "품질" },
+          { id: 3, categoryName: "생산성" },
+          { id: 4, categoryName: "정보 없음" },
+          { id: 5, categoryName: "기타" },
+        ];
+  }, [filterPayload]);
+
+  const repSuggestions = useMemo(() => {
+    const masterReps = filterPayload?.representations || [];
+    const filteredMaster = masterReps.filter((r) => {
+      if (selectedMaintenanceId && (r.maintenanceGroupId || r.equipmentTypeId)) {
+        const idToMatch = r.maintenanceGroupId || r.equipmentTypeId;
+        return Number(idToMatch) === Number(selectedMaintenanceId);
+      }
+      if (selectedProcessId && r.processId) {
+        return Number(r.processId) === Number(selectedProcessId);
+      }
+      return true;
+    });
+
+    const uniqueNames = new Set(
+      filteredMaster.map((r) => r.representativeWorkName || r.workName).filter(Boolean),
+    );
+
+    (changedRecords || []).forEach((r) => {
+      const name = r.representativeWork || r.workName;
+      if (name && name.trim()) {
+        uniqueNames.add(name.trim());
+      }
+    });
+
+    return Array.from(uniqueNames);
+  }, [filterPayload, selectedMaintenanceId, selectedProcessId, changedRecords]);
+
   const columnFilterOptions = useMemo(() => {
+    const isKo = (language || "ko").startsWith("ko");
     return (changeDataColumns ?? [])
       .filter((col) => col.isActive !== false)
       .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .map((col) => ({
-        label: col.columnNameKr || col.excelColumnNameKr || col.jsonKey,
+        label: isKo
+          ? (col.excelColumnNameKr || col.columnNameKr || col.jsonKey).trim()
+          : (col.excelColumnName || col.jsonKey).replace(/[\r\n]+/g, " ").trim().toUpperCase(),
         value: col.id,
       }));
-  }, [changeDataColumns]);
+  }, [changeDataColumns, language]);
+
+  const getColumnHeaderLabel = useCallback(
+    (colKey) => {
+      const colDef = (changeDataColumns ?? []).find(
+        (c) =>
+          c.jsonKey === colKey ||
+          c.excelColumnName === colKey ||
+          c.jsonKey?.toLowerCase() === String(colKey).toLowerCase() ||
+          c.excelColumnName?.toLowerCase() === String(colKey).toLowerCase(),
+      );
+
+      const isKo = (language || "ko").startsWith("ko");
+
+      if (colDef) {
+        if (isKo) {
+          const krName = (colDef.excelColumnNameKr || colDef.columnNameKr || "").trim();
+          if (krName) return krName;
+        } else {
+          const enName = (colDef.excelColumnName || colKey).replace(/[\r\n]+/g, " ").trim();
+          if (enName) return enName.toUpperCase();
+        }
+      }
+
+      return t(COLUMN_LABEL_KEYS[colKey] ?? `field.${colKey}`, colKey);
+    },
+    [changeDataColumns, language, t],
+  );
 
   const handleProcessChange = (e) => {
     const val = e.target.value;
@@ -2917,8 +3110,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         siteId: Number(remapped.siteId ?? row.siteId ?? 0) || 0,
         maintenanceId: Number(remapped.maintenanceId ?? row.maintenanceId ?? 0) || 0,
         equipmentId: Number(remapped.equipmentId ?? row.equipmentId ?? 0) || 0,
-        createdBy: getUserInfo()?.name,
+        createdBy: getUserInfo()?.name || "Chirati Harish",
         is_voc: false,
+        isVoc: false,
       };
 
       if (!clean.eqType && clean.maintGroup) {
@@ -2959,9 +3153,97 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         changeDataList.push(buildCleanRow(mergedRow));
       }
 
+      // Safe date formatter to avoid invalid dates like "0000-12-31" or "0001-01-01"
+      const formatValidDateIso = (rawDate) => {
+        if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
+          return new Date().toISOString();
+        }
+        const p = new Date(rawDate);
+        if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
+          return new Date().toISOString();
+        }
+        return p.toISOString();
+      };
+
+      const catName = mergedRow.category || mergedRow.categoryName || "기타";
+      const catObj = (categoryList || []).find(
+        (c) => c.categoryName === catName || c.name === catName,
+      );
+      const categoryIdVal = mergedRow.categoryId
+        ? Number(mergedRow.categoryId)
+        : (catObj?.id || 1);
+
+      const priName = mergedRow.priority || mergedRow.priorityName || "일반";
+      const priObj = (priorityList || []).find(
+        (p) => p.priorityName === priName || p.name === priName,
+      );
+      const priorityIdVal = mergedRow.priorityId
+        ? Number(mergedRow.priorityId)
+        : (priObj?.id || (priName === "중요" || priName === "Important" ? 2 : 1));
+
+      const siteNameVal = mergedRow.site || mergedRow.siteName || "";
+      const siteObj = (siteList || []).find(
+        (s) => s.siteName === siteNameVal || s.name === siteNameVal,
+      );
+      const siteIdVal = mergedRow.siteId ? Number(mergedRow.siteId) : (siteObj?.id || 1);
+
+      const procNameVal = mergedRow.process || mergedRow.processName || "";
+      const procObj = (filterPayload?.process || []).find(
+        (p) => p.processName === procNameVal || p.name === procNameVal,
+      );
+      const processIdVal = mergedRow.processId
+        ? Number(mergedRow.processId)
+        : (procObj?.id || (selectedProcessId ? Number(selectedProcessId) : 1));
+
+      const eqTypeNameVal =
+        mergedRow.eqType ||
+        mergedRow.equipmentTypeName ||
+        mergedRow.maintGroup ||
+        mergedRow.maintenanceGroupName ||
+        "";
+      const eqTypeObj = (filterPayload?.eqTypes || filterPayload?.maintenance || []).find(
+        (e) => e.equipmentTypeName === eqTypeNameVal || e.maintenanceGroupName === eqTypeNameVal,
+      );
+      const equipmentTypeIdVal =
+        mergedRow.eqTypeId || mergedRow.equipmentTypeId
+          ? Number(mergedRow.eqTypeId || mergedRow.equipmentTypeId)
+          : (eqTypeObj?.id ? Number(eqTypeObj.id) : (selectedMaintenanceId ? Number(selectedMaintenanceId) : 78));
+
+      const vocItem = {
+        id: Number(mergedRow.id) || 0,
+        repWorkId: Number(mergedRow.repWorkId ?? mergedRow.rep_work_id ?? 0) || 0,
+        reportContent: mergedRow.reportContent || mergedRow.report || "",
+        workName: mergedRow.representativeWork || mergedRow.workName || mergedRow.work_name || "",
+        purpose: mergedRow.purpose || mergedRow.workPurpose || mergedRow.work || "",
+        situation: mergedRow.situation || mergedRow.problemSymptom || "",
+        cause: mergedRow.cause || mergedRow.problemCause || "",
+        hwWas: mergedRow.hwAsWas || mergedRow.hw_was || mergedRow.hwBefore || "",
+        hwIs: mergedRow.hwAsIs || mergedRow.hw_is || mergedRow.hwAfter || "",
+        swWas: mergedRow.swAsWas || mergedRow.sw_was || mergedRow.swBefore || "",
+        swIs: mergedRow.swAsIs || mergedRow.sw_is || mergedRow.swAfter || "",
+        bom: mergedRow.bom || "",
+        sparePart: mergedRow.sparePart || mergedRow.spare_part || mergedRow.materialList || "",
+        equipmentCode: mergedRow.equipmentCode || mergedRow.equipment_code || "-",
+        equipmentName: mergedRow.equipmentName || mergedRow.equipment_name || " Common",
+        woCode: mergedRow.woCode || mergedRow.wOCode || mergedRow.wo_code || "",
+        workDate: formatValidDateIso(mergedRow.workedOn || mergedRow.workDate || mergedRow.work_date),
+        categoryName: catName,
+        priorityName: priName,
+        priorityId: priorityIdVal,
+        categoryId: categoryIdVal,
+        processName: procNameVal,
+        siteName: siteNameVal,
+        maintenanceGroupName: eqTypeNameVal,
+        equipmentTypeName: eqTypeNameVal,
+        processId: processIdVal,
+        siteId: siteIdVal,
+        equipmentTypeId: equipmentTypeIdVal,
+        createdBy: mergedRow.createdBy || getUserInfo()?.name || "Chirati Harish",
+      };
+
       const payload = {
-        changeDataList,
-        id: changedDataId, // ← the envelope id from changedDataJson[0].id
+        vocData: [vocItem],
+        isVoc: false,
       };
 
       setOperationStatus({
@@ -2984,8 +3266,29 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         return;
       }
 
-      APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-        if (status === 200) {
+      APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+        const isDuplicate =
+          status === 409 ||
+          responseData?.statusCode === 409 ||
+          responseData?.data?.[0]?.is_duplicate === true ||
+          (typeof responseData?.message === "string" &&
+            responseData.message.toLowerCase().includes("duplicate"));
+
+        if (isDuplicate) {
+          const dupMsg =
+            responseData?.message ||
+            t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
+
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: dupMsg,
+            autoClose: true,
+          });
+          return;
+        }
+
+        if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
           setEditingIndex(null);
           setOperationStatus({
             isVisible: true,
@@ -3000,13 +3303,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message: t("toast.rowSaveError"),
+            message: responseData?.message || t("toast.rowSaveError"),
             autoClose: true,
           });
         }
       });
     },
-    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload, t],
+    [filtered, changedRecords, changedDataId, buildCleanRow, onUpload, selectedProcessId, t],
   );
 
   const handleCancelEdit = useCallback(() => setEditingIndex(null), []);
@@ -4070,7 +4373,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                       <SortableTh
                         key={col}
                         columnKey={col}
-                        label={t(COLUMN_LABEL_KEYS[col] ?? `field.${col}`, col)}
+                        label={getColumnHeaderLabel(col)}
                         sortConfig={sortConfig}
                         onSort={handleSort}
                       />
@@ -4134,6 +4437,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         columns={dynamicColumns}
         onSave={handleSaveRow}
         onClose={handleCancelEdit}
+        filterPayload={filterPayload}
+        categoryList={categoryList}
+        priorityList={priorityList}
+        siteList={siteList}
+        repSuggestions={repSuggestions}
       />
 
       {/* Delete Confirmation Modal */}
