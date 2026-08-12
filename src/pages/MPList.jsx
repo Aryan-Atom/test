@@ -942,6 +942,16 @@ export default function MPList({
   const fetchMPList = useCallback(() => {
     if (isStaticDataMode) return;
 
+    if (
+      selectedProcessId === null ||
+      selectedEquipmentTypeId === null ||
+      Number(selectedProcessId) <= 0 ||
+      Number(selectedEquipmentTypeId) <= 0
+    ) {
+      setAllRecords([]);
+      return;
+    }
+
     const sanitizeArrayOfNums = (arr) => {
       if (!Array.isArray(arr) || arr.length === 0) return [0];
       const res = arr
@@ -1012,30 +1022,25 @@ export default function MPList({
 
   useEffect(() => {
     if (!filterPayload) return;
-    // Call API on load if any filter is active (not just process/maintenance)
-    const isAnyFilterActive =
-      selectedProcessId !== null ||
-      selectedEquipmentTypeId !== null ||
-      selectedSiteId !== null ||
-      (Array.isArray(selectedPriorities) && selectedPriorities.length > 0) ||
-      (Array.isArray(selectedCategories) && selectedCategories.length > 0) ||
-      Boolean(dateFrom) ||
-      Boolean(dateTo);
+    const hasProcess =
+      selectedProcessId !== null &&
+      selectedProcessId !== undefined &&
+      Number(selectedProcessId) > 0;
+    const hasEqType =
+      selectedEquipmentTypeId !== null &&
+      selectedEquipmentTypeId !== undefined &&
+      Number(selectedEquipmentTypeId) > 0;
 
-    if (isLoadTableDataOnload || isAnyFilterActive) {
+    if (hasProcess && hasEqType) {
       fetchMPList();
+    } else {
+      setAllRecords([]);
     }
   }, [
     filterPayload,
     fetchMPList,
-    isLoadTableDataOnload,
     selectedProcessId,
     selectedEquipmentTypeId,
-    selectedSiteId,
-    selectedPriorities,
-    selectedCategories,
-    dateFrom,
-    dateTo,
   ]);
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────

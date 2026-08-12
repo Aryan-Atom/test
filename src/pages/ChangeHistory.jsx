@@ -3640,7 +3640,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [applyChangedDataResponse, t]);
 
   const fetchChangedData = useCallback(() => {
-    if (!isLoadTableDataOnload && selectedProcessId === null) {
+    if (
+      selectedProcessId === null ||
+      selectedMaintenanceId === null ||
+      Number(selectedProcessId) <= 0 ||
+      Number(selectedMaintenanceId) <= 0
+    ) {
       setChangedRecords([]);
       setApiRecords([]);
       setTotalCount(0);
@@ -3754,8 +3759,19 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [fetchMasterData]);
 
   useEffect(() => {
-    fetchChangedData();
-  }, [fetchChangedData]);
+    if (
+      selectedProcessId !== null &&
+      selectedMaintenanceId !== null &&
+      Number(selectedProcessId) > 0 &&
+      Number(selectedMaintenanceId) > 0
+    ) {
+      fetchChangedData();
+    } else {
+      setChangedRecords([]);
+      setApiRecords([]);
+      setTotalCount(0);
+    }
+  }, [selectedProcessId, selectedMaintenanceId, fetchChangedData]);
 
   useEffect(() => {
     if (isStaticDataMode) {

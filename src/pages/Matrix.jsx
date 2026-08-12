@@ -702,6 +702,22 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const fetchMatrixData = useCallback(() => {
     if (isStaticDataMode) return;
 
+    const isProcessSelected =
+      selectedProcess &&
+      selectedProcess !== "전체" &&
+      selectedProcess !== "All" &&
+      selectedProcess.trim() !== "";
+    const isMaintenanceSelected =
+      selectedMaintenance &&
+      selectedMaintenance !== "전체" &&
+      selectedMaintenance !== "All" &&
+      selectedMaintenance.trim() !== "";
+
+    if (!isProcessSelected || !isMaintenanceSelected) {
+      setAllRecords([]);
+      return;
+    }
+
     let processId = 0;
     if (
       selectedProcess &&
@@ -816,33 +832,26 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [getFilterData]);
 
   useEffect(() => {
-    // Call API on load if any filter is active (not just process)
-    const isAnyFilterActive =
-      selectedProcess !== "전체" ||
-      selectedMaintenance !== "전체" ||
-      selectedSite !== "전체" ||
-      selectedRepWork !== "전체" ||
-      selectedPriorities.length > 0 ||
-      selectedCategories.length > 0 ||
-      selectedWoTypes.length > 0 ||
-      Boolean(startDate) ||
-      Boolean(endDate);
+    const isProcessSelected =
+      selectedProcess &&
+      selectedProcess !== "전체" &&
+      selectedProcess !== "All" &&
+      selectedProcess.trim() !== "";
+    const isMaintenanceSelected =
+      selectedMaintenance &&
+      selectedMaintenance !== "전체" &&
+      selectedMaintenance !== "All" &&
+      selectedMaintenance.trim() !== "";
 
-    if (isLoadTableDataOnload || isAnyFilterActive) {
+    if (isProcessSelected && isMaintenanceSelected) {
       fetchMatrixData();
+    } else {
+      setAllRecords([]);
     }
   }, [
     fetchMatrixData,
-    isLoadTableDataOnload,
     selectedProcess,
     selectedMaintenance,
-    selectedSite,
-    selectedRepWork,
-    selectedPriorities,
-    selectedCategories,
-    selectedWoTypes,
-    startDate,
-    endDate,
   ]);
 
   // Extract Cascade options dynamically from allRecords
@@ -957,44 +966,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const handleProcessChange = (e) => {
     const proc = e.target.value;
     setSelectedProcess(proc);
-
-    if (proc === "전체") {
-      setSelectedMaintenance("전체");
-      setSelectedSite("전체");
-      setSelectedRepWork("전체");
-    } else {
-      const parts = [
-        ...new Set(
-          allRecords
-            .filter((r) => getColValue(r, "process") === proc)
-            .map((r) => getColValue(r, "maintGroup"))
-            .filter(Boolean),
-        ),
-      ].sort();
-      if (parts.length === 1) {
-        setSelectedMaintenance(parts[0]);
-        const sites = [
-          ...new Set(
-            allRecords
-              .filter(
-                (r) =>
-                  getColValue(r, "process") === proc && getColValue(r, "maintGroup") === parts[0],
-              )
-              .map((r) => getColValue(r, "site"))
-              .filter(Boolean),
-          ),
-        ].sort();
-        if (sites.length === 1) {
-          setSelectedSite(sites[0]);
-        } else {
-          setSelectedSite("전체");
-        }
-      } else {
-        setSelectedMaintenance("전체");
-        setSelectedSite("전체");
-      }
-      setSelectedRepWork("전체");
-    }
+    setSelectedMaintenance("전체");
+    setSelectedSite("전체");
+    setSelectedRepWork("전체");
   };
 
   const handleMaintenanceChange = (e) => {
