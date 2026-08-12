@@ -370,7 +370,6 @@ export default function Dashboard() {
               <Matrix
                 data={changeData}
                 searchText={searchText}
-                onOpenDetail={setDrawerItem}
                 changeDataColumns={changeDataColumns}
                 onUpload={handleUpload}
               />

@@ -453,30 +453,28 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
             <div>
               <h2 className="eq-drawer-title">{t("drawer.title", "상세 정보")}</h2>
               <p
-                className="eq-drawer-subtitle flex flex-wrap items-center gap-x-2"
-                style={{ fontSize: "12px", lineHeight: "1.4" }}
+                className="eq-drawer-subtitle flex flex-wrap items-center gap-x-1.5 mt-1 text-xs"
               >
-                {woCode && (
-                  <span>
-                    <span className="text-text-subtlest">{t("field.woCode", "W/O코드")}: </span>
-                    <span className="text-text-default font-semibold">{woCode}</span>
-                  </span>
-                )}
-                {woCode && (equipmentName || equipmentCode) && (
-                  <span className="text-text-disabled mx-1">|</span>
-                )}
-                {(equipmentName || equipmentCode) && (
-                  <span>
-                    <span className="text-text-subtlest">
-                      {t("field.equipmentName", "설비명")}:{" "}
-                    </span>
-                    <span className="text-text-default font-semibold">
-                      {equipmentName}
+                {(() => {
+                  const repWorkVal = firstValue(firstItem, [
+                    "representativeWork",
+                    "representativeWorkName",
+                    "rep_work",
+                    "work_name",
+                    "workName",
+                  ]);
+                  const siteVal = firstValue(firstItem, ["site", "siteName", "corporation"]);
+
+                  return (
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">
+                      {repWorkVal ? `작업명 : ${repWorkVal}` : ""}
+                      {repWorkVal && (siteVal || equipmentName || equipmentCode) ? " | " : ""}
+                      {siteVal ? `${siteVal} ` : ""}
+                      {equipmentName || ""}
                       {equipmentCode ? ` (${equipmentCode})` : ""}
                     </span>
-                  </span>
-                )}
-                {!woCode && !equipmentName && !equipmentCode && t("drawer.desc")}
+                  );
+                })()}
               </p>
             </div>
             <button
@@ -489,21 +487,69 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
             </button>
           </div>
 
-          <div className="eq-drawer-body">
+          <div className="eq-drawer-body flex-1 overflow-y-auto p-5 space-y-4">
             {(isArray ? item : [item]).map((rec, idx) => {
               const details = getRecordDetails(rec, t);
               const atts = getAttachments(rec, idx);
+              const recRepWork =
+                firstValue(rec, [
+                  "representativeWork",
+                  "representativeWorkName",
+                  "rep_work",
+                  "workName",
+                ]) || "";
+              const recStatus = String(
+                rec.status || rec.apply_status || rec.effectiveStatus || rec.rawStatus || "",
+              )
+                .toLowerCase()
+                .trim();
+              const isApplied = recStatus === "applied" || recStatus === "1" || recStatus === "0";
+              const isWoApplied =
+                recStatus === "w/o applied" || recStatus === "wo_applied" || recStatus.includes("w/o");
+              const isNotApplied =
+                recStatus === "notapplied" ||
+                recStatus === "not_applied" ||
+                recStatus === "rejected" ||
+                recStatus === "2";
 
               return (
-                <div key={idx} className="detail-group">
-                  {isArray && (
-                    <div className="detail-group-title flex items-center justify-between">
-                      <span>
-                        {t("detail.record", "레코드 상세")} {idx + 1}
-                      </span>
+                <div key={idx} className="detail-group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-2xs">
+                  {/* Top Status Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700/60">
+                    <span className="px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                      {t("detail.record", "항목")} {idx + 1}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs font-bold min-w-0">
+                      {isWoApplied ? (
+                        <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0">
+                          <i className="fas fa-check-square" />
+                          <span>W/O 적용완료</span>
+                        </span>
+                      ) : isApplied ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                          <i className="fas fa-check-square" />
+                          <span>적용 확인</span>
+                        </span>
+                      ) : isNotApplied ? (
+                        <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
+                          <i className="fas fa-square-xmark" />
+                          <span>미적용 확인</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
+                          <i className="far fa-square" />
+                          <span>미확인</span>
+                        </span>
+                      )}
+                      {recRepWork && (
+                        <span className="text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+                          {recRepWork}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
 
+                  {/* Detail Field DL */}
                   <dl className="detail-field">
                     {details.map((detail, index) => (
                       <div key={`${detail.label}-${index}`} style={{ display: "contents" }}>
@@ -513,45 +559,62 @@ export default function Drawer({ item, onClose, allowEdit = false, showEdit = fa
                     ))}
                   </dl>
 
-                  {atts && atts.length > 0 && (
-                    <div className="detail-group-footer">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="detail-attachment-label">
-                          {atts[0].category || "기타"} ({atts.length})
-                        </span>
-                        <div
-                          className="detail-attachment-thumb group cursor-pointer"
-                          onClick={() => setPreviewImage(atts[0])}
-                          title={atts[0].name}
-                        >
-                          <img
-                            src={atts[0].url}
-                            alt="Attachment Preview"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                          />
-                          <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-[10px] font-bold py-0.5 text-center truncate px-1">
-                            {atts[0].category || "기타"}
-                          </div>
-                        </div>
-                      </div>
-
-                      {(allowEdit || showEdit) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingRecord({ ...rec });
-                          }}
-                          className="drawer-edit-btn"
-                        >
-                          <i className="fas fa-edit text-xs" />
-                          <span>{t("app.edit", "편집")}</span>
-                        </button>
-                      )}
+                  {/* Attachment Section */}
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <i className="fas fa-camera text-gray-400 text-xs" />
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                        첨부사진 ({atts ? atts.length : 0}개)
+                      </span>
                     </div>
-                  )}
+                    {atts && atts.length > 0 && (
+                      <div
+                        className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
+                        onClick={() => setPreviewImage(atts[0])}
+                      >
+                        <img
+                          src={atts[0].url}
+                          alt="Attachment Preview"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Drawer Footer Buttons Bar */}
+          <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setEditingRecord({ ...firstItem })}
+              className="px-4 py-2 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <i className="fas fa-pen-to-square text-xs" />
+              <span>{t("app.edit", "편집")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                const repWork = firstValue(firstItem, [
+                  "representativeWork",
+                  "representativeWorkName",
+                  "rep_work",
+                  "work_name",
+                ]);
+                const ev = new CustomEvent("openLateralDeploymentModal", {
+                  detail: { repWork, item: firstItem },
+                });
+                window.dispatchEvent(ev);
+              }}
+              className="px-5 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <i className="fas fa-clipboard-check text-xs" />
+              <span>{t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
+            </button>
           </div>
         </aside>
       </div>

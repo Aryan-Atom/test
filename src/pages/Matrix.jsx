@@ -6,6 +6,7 @@ import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode
 import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { useToast } from "../components/ToastContext.jsx";
+import MatrixDrawer from "../components/MatrixDrawer.jsx";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
@@ -468,6 +469,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const { t } = useI18n();
   const toastCtx = useToast();
   const pushToast = toastCtx?.pushToast || ((msg) => console.log(msg));
+  const [drawerItem, setDrawerItem] = useState(null);
   const [mode, setMode] = useState("date");
   const [filterData, setFilterData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -521,6 +523,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [asActiveTab, setAsActiveTab] = useState("unconfirmed");
   const [asSelectedEqCodes, setAsSelectedEqCodes] = useState(new Set());
   const [asStaging, setAsStaging] = useState({});
+  const [asStagingReasons, setAsStagingReasons] = useState({});
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [reasonMode, setReasonMode] = useState("batch");
+  const [rejectReasonText, setRejectReasonText] = useState("");
   const [apiStatusCounts, setApiStatusCounts] = useState({
     wo_applied: 0,
     before_verification: 0,
@@ -617,6 +623,43 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     },
     [allRecords],
   );
+
+  useEffect(() => {
+    const handleCustomOpen = (e) => {
+      if (e.detail && e.detail.repWork) {
+        openApplyStatusModal(e.detail.repWork);
+      }
+    };
+
+    const handleReasonModalOpen = (e) => {
+      if (e.detail && e.detail.item) {
+        const itemCode = getColValue(e.detail.item, "equipmentCode");
+        setAsSelectedEqCodes(new Set([itemCode]));
+        setRejectReasonText("");
+        setReasonMode("batch");
+        setShowReasonModal(true);
+      }
+    };
+
+    const handleDirectStatusChange = (e) => {
+      if (e.detail && e.detail.item) {
+        const itemCode = getColValue(e.detail.item, "equipmentCode");
+        const targetStatus = e.detail.targetStatus || "applied";
+        setAsStaging((prev) => ({ ...prev, [itemCode]: targetStatus }));
+        pushToast(t("toast.updateSuccess", "상태가 변경되었습니다."), "success");
+      }
+    };
+
+    window.addEventListener("openLateralDeploymentModal", handleCustomOpen);
+    window.addEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
+    window.addEventListener("changeStatusDirectly", handleDirectStatusChange);
+
+    return () => {
+      window.removeEventListener("openLateralDeploymentModal", handleCustomOpen);
+      window.removeEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
+      window.removeEventListener("changeStatusDirectly", handleDirectStatusChange);
+    };
+  }, [openApplyStatusModal, pushToast, t]);
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({
@@ -1256,6 +1299,87 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     setShowReplaceModal(true);
   };
 
+  const getSingleCellStatusInfo = useCallback(
+    (matchedRecords) => {
+      if (!matchedRecords || matchedRecords.length === 0) {
+        return null;
+      }
+
+      // Priority 1: Check if any record is "w/o applied"
+      const woRecord = matchedRecords.find((item) => {
+        const s = String(
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
+        ).toLowerCase().trim();
+        return (
+          s === "w/o applied" ||
+          s === "wo_applied" ||
+          s === "wo applied" ||
+          s.includes("w/o")
+        );
+      });
+
+      if (woRecord) {
+        const workDateRaw =
+          woRecord.work_date ||
+          woRecord.workDate ||
+          woRecord.workedOn ||
+          woRecord.work_Date ||
+          "";
+        const formattedDate = getFormattedDateString(workDateRaw);
+        return {
+          type: "wo_applied",
+          label: formattedDate || "2026-05-13",
+          className: "text-blue-600 dark:text-blue-400 font-semibold text-xs",
+        };
+      }
+
+      // Priority 2: Check if any record is "applied"
+      const appliedRecord = matchedRecords.find((item) => {
+        const s = String(
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
+        ).toLowerCase().trim();
+        return s === "applied" || s === "1" || s === "0";
+      });
+
+      if (appliedRecord) {
+        return {
+          type: "applied",
+          label: t("page.matrix.appliedConfirmed", "적용 확인"),
+          className: "text-emerald-600 dark:text-emerald-400 font-bold text-xs",
+        };
+      }
+
+      // Priority 3: Check if any record is "notApplied" / "rejected"
+      const notAppliedRecord = matchedRecords.find((item) => {
+        const s = String(
+          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || ""
+        ).toLowerCase().trim();
+        return (
+          s === "notapplied" ||
+          s === "not_applied" ||
+          s === "not applied" ||
+          s === "rejected" ||
+          s === "2"
+        );
+      });
+
+      if (notAppliedRecord) {
+        return {
+          type: "notApplied",
+          label: t("page.matrix.notAppliedConfirmed", "미적용 확인"),
+          className: "text-gray-400 dark:text-gray-500 font-medium text-xs",
+        };
+      }
+
+      return {
+        type: "unconfirmed",
+        label: t("page.matrix.beforeConfirmation", "미확인"),
+        className: "text-gray-400 dark:text-gray-500 font-medium text-xs",
+      };
+    },
+    [t],
+  );
+
   // ── Lateral Deployment Data Calculations & Action Handlers ──
   const asEquipmentData = useMemo(() => {
     const woApplied = [];
@@ -1405,6 +1529,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   const handleApplyStatusAction = (targetStatus) => {
     if (asSelectedEqCodes.size === 0) return;
+    if (targetStatus === "rejected" || targetStatus === "notApplied") {
+      setRejectReasonText("");
+      setReasonMode("batch");
+      setShowReasonModal(true);
+      return;
+    }
+
     setAsStaging((prev) => {
       const next = { ...prev };
       asSelectedEqCodes.forEach((code) => {
@@ -1431,11 +1562,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       );
 
       const isApplied = statusStr === "applied";
+      const reasonVal = isApplied
+        ? ""
+        : asStagingReasons[eqCode] || rejectReasonText || "test";
+
       return {
         repo_Work_Id: asRepoWorkId || 1483,
         equipment_Id: eqId,
-        status: isApplied ? 1 : 2,
-        reason: isApplied ? "" : "test",
+        status: isApplied ? 0 : 1,
+        reason: reasonVal,
       };
     });
 
@@ -1864,12 +1999,16 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                     </td>
                     {columns.map((col) => {
                       const matched = filtered.filter((d) => {
-                        const isEquip =
-                          getColValue(d, "equipmentCode") === eq.equipmentCode &&
-                          getColValue(d, "equipmentName") === eq.equipmentName &&
-                          (getColValue(d, "site") || getColValue(d, "법인") || "A1. Seoul") ===
-                            eq.site;
-                        if (!isEquip) return false;
+                        const dEqCode = String(
+                          d.equipment_code ||
+                            d.equipmentCode ||
+                            d.equipmentId ||
+                            getColValue(d, "equipmentCode") ||
+                            "",
+                        ).trim();
+                        const eqCode = String(eq.equipmentCode || "").trim();
+                        if (dEqCode !== eqCode) return false;
+
                         if (mode === "date") {
                           return getFormattedDateString(getColValue(d, "workedOn")) === col;
                         } else {
@@ -1916,7 +2055,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <td key={col} className="px-3 py-2 align-middle">
                           <div
-                            onClick={() => onOpenDetail?.(matched)}
+                            onClick={() => {
+                              setDrawerItem(matched);
+                              onOpenDetail?.(matched);
+                            }}
                             className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10"
                             style={{
                               backgroundColor: "transparent",
@@ -1945,6 +2087,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                     <div
                                       key={idx}
                                       title={String(val || "")}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDrawerItem(representativeWorkItems);
+                                      }}
                                       className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 ${itemStyle.className}`}
                                       style={{
                                         backgroundColor: itemStyle.backgroundColor || "#f1f5f9",
@@ -1959,6 +2105,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                 {displayValues.length > 3 && (
                                   <div
                                     title={displayValues.slice(3).join(", ")}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDrawerItem(matched);
+                                    }}
                                     className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                   >
                                     {t("page.matrix.andMore", `그 외 ${displayValues.length - 3}`)}
@@ -1966,25 +2116,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                 )}
                               </div>
                             ) : (
-                              <div className="w-full flex flex-col gap-1 items-center">
-                                {displayValues.slice(0, 3).map((val, idx) => (
-                                  <div
-                                    key={idx}
-                                    title={String(val || "")}
-                                    className="w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                  >
-                                    {val}
+                              (() => {
+                                const info = getSingleCellStatusInfo(matched);
+                                if (!info) return null;
+
+                                return (
+                                  <div className="w-full flex items-center justify-center">
+                                    <div
+                                      title={info.label}
+                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs transition-all duration-150 ${info.className}`}
+                                    >
+                                      {info.label}
+                                    </div>
                                   </div>
-                                ))}
-                                {displayValues.length > 3 && (
-                                  <div
-                                    title={displayValues.slice(3).join(", ")}
-                                    className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                  >
-                                    {t("page.matrix.andMore", `그 외 ${displayValues.length - 3}`)}
-                                  </div>
-                                )}
-                              </div>
+                                );
+                              })()
                             )}
                             <span
                               className="absolute top-[2px] right-[4px] text-[9px] opacity-0 group-hover:opacity-100 transition-all duration-200 text-text-subtle bg-white border border-[#e2e8f0] rounded-[4px] px-1 py-0.5 shadow-sm hover:text-[#4f46e5] hover:scale-105 active:scale-95 z-20 cursor-pointer"
@@ -2492,6 +2638,135 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
           </div>
         </div>
       )}
+
+      {/* ── Reason Entry Modal (미적용 사유 입력 모달) ── */}
+      {showReasonModal && (
+        <div
+          className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[100000] bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowReasonModal(false)}
+        >
+          <div
+            className="modal-panel max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden animate-scale-up p-6 space-y-5 relative border border-gray-200 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/40">
+                  <i className="fas fa-comment-dots text-base" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                    {t("page.matrix.reasonModalTitle", "미적용 사유 입력")}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                    {asSelectedEqCodes.size} {t("page.matrix.reasonModalSub", "개 설비를 미적용으로 이동")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReasonModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
+              >
+                <i className="fas fa-times text-sm" />
+              </button>
+            </div>
+
+            {/* Radio Options */}
+            <div className="space-y-2.5">
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-750 transition-colors">
+                <input
+                  type="radio"
+                  name="reasonMode"
+                  checked={reasonMode === "batch"}
+                  onChange={() => setReasonMode("batch")}
+                  className="w-4 h-4 text-blue-600 accent-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                  {t("page.matrix.batchReason", "동일 사유 일괄 입력")}
+                </span>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-750 transition-colors">
+                <input
+                  type="radio"
+                  name="reasonMode"
+                  checked={reasonMode === "individual"}
+                  onChange={() => setReasonMode("individual")}
+                  className="w-4 h-4 text-blue-600 accent-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                  {t("page.matrix.individualReason", "개별 입력")}
+                </span>
+              </label>
+            </div>
+
+            {/* Reason Textarea */}
+            <div>
+              <textarea
+                rows={3}
+                placeholder={t("page.matrix.reasonPlaceholder", "미적용 사유를 입력하세요")}
+                value={rejectReasonText}
+                onChange={(e) => setRejectReasonText(e.target.value)}
+                className="w-full p-3.5 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs resize-none"
+              />
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowReasonModal(false)}
+                className="px-5 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors cursor-pointer"
+              >
+                {t("app.cancellation", "취소")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!rejectReasonText.trim()) {
+                    pushToast(
+                      t("page.matrix.reasonRequiredToast", "미적용 사유를 입력하세요"),
+                      "error",
+                    );
+                    return;
+                  }
+
+                  setAsStaging((prev) => {
+                    const next = { ...prev };
+                    asSelectedEqCodes.forEach((code) => {
+                      next[code] = "rejected";
+                    });
+                    return next;
+                  });
+
+                  setAsStagingReasons((prev) => {
+                    const next = { ...prev };
+                    asSelectedEqCodes.forEach((code) => {
+                      next[code] = rejectReasonText.trim();
+                    });
+                    return next;
+                  });
+
+                  setAsSelectedEqCodes(new Set());
+                  setShowReasonModal(false);
+                }}
+                className="px-6 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <i className="fas fa-check text-xs" />
+                <span>{t("app.confirm", "확인")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Matrix Detail Drawer */}
+      <MatrixDrawer
+        item={drawerItem}
+        onClose={() => setDrawerItem(null)}
+        onOpenApplyStatus={openApplyStatusModal}
+      />
     </section>
   );
 }
