@@ -1668,11 +1668,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* ── MP Comparison Modal ── */}
       {showCompareModal && (
         <div
-          className="modal-overlay animate-fade-in overflow-y-auto"
+          className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[10000] bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto animate-fade-in"
           onClick={() => setShowCompareModal(false)}
         >
           <div
-            className="modal-panel modal-panel-3xl relative my-6 flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
+            className="modal-panel modal-panel-3xl relative my-auto max-h-[90vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header shrink-0">
@@ -1832,11 +1832,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       {/* ── MP List Inquiry / Edit Modal ── */}
       {editingVersion && (
         <div
-          className="modal-overlay animate-fade-in overflow-y-auto"
+          className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[10000] bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto animate-fade-in"
           onClick={() => setEditingVersion(null)}
         >
           <div
-            className="modal-panel modal-panel-3xl relative my-6 max-h-[92vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
+            className="modal-panel modal-panel-3xl relative my-auto max-h-[90vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header shrink-0">
@@ -2440,9 +2440,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
       {/* ── Delete Confirmation Modal ── */}
       {rowToDelete && (
-        <div className="modal-overlay animate-fade-in" onClick={() => setRowToDelete(null)}>
+        <div
+          className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[10000] bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto animate-fade-in"
+          onClick={() => setRowToDelete(null)}
+        >
           <div
-            className="modal-panel modal-panel-sm relative animate-scale-up w-full"
+            className="modal-panel modal-panel-sm relative my-auto animate-scale-up w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header shrink-0">

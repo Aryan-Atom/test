@@ -283,13 +283,13 @@ select.input-base {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.5) !important;
+  background: rgba(15, 23, 42, 0.6) !important;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   display: flex;
