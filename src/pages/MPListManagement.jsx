@@ -229,6 +229,61 @@ function generateExpandedNotApplicableRows(count) {
   });
 }
 
+const renderPriorityBadge = (val) => {
+  const text = String(val || "General").trim();
+  const isHigh =
+    text.includes("중요") ||
+    text.toLowerCase().includes("critical") ||
+    text.toLowerCase().includes("important") ||
+    text.toLowerCase().includes("high") ||
+    text.toLowerCase().includes("essential");
+
+  if (isHigh) {
+    return (
+      <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 inline-block text-center min-w-[44px]">
+        {text}
+      </span>
+    );
+  }
+  return (
+    <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 inline-block text-center min-w-[44px]">
+      {text}
+    </span>
+  );
+};
+
+const renderCategoryBadge = (val) => {
+  const text = String(val || "Others").trim();
+  const lower = text.toLowerCase();
+
+  if (text.includes("보전성") || lower.includes("maintain")) {
+    return (
+      <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-800 inline-block text-center min-w-[48px]">
+        {text}
+      </span>
+    );
+  }
+  if (text.includes("품질") || lower.includes("quality")) {
+    return (
+      <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 inline-block text-center min-w-[48px]">
+        {text}
+      </span>
+    );
+  }
+  if (text.includes("생산성") || lower.includes("product")) {
+    return (
+      <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 inline-block text-center min-w-[48px]">
+        {text}
+      </span>
+    );
+  }
+  return (
+    <span className="px-2.5 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 inline-block text-center min-w-[48px]">
+      {text}
+    </span>
+  );
+};
+
 export default function MPListManagement({ data = [], searchText = "" }) {
   const { t } = useI18n();
   const { pushToast } = useToast() || {};
@@ -1789,11 +1844,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 <div className="modal-icon-wrap">
                   <i className="fas fa-edit text-sm" />
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <h3 className="modal-title">
-                    {t("page.mp.inquiryModalTitle", "MP List Inquiry")}
-                  </h3>
-                  <span className="badge badge-primary">{editingVersion.version || "v1"}</span>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="modal-title">
+                      {t("page.mp.inquiryModalTitle", "MP List Inquiry")}
+                    </h3>
+                    <span className="badge badge-primary">{editingVersion.version || "v1"}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                    {processList.find((p) => p.id === selectedProcessId)?.processName || "02.배치"} - {maintenanceList.find((m) => m.id === selectedMaintenanceId)?.equipmentTypeName || "0202. Nano Mill"}
+                  </p>
                 </div>
               </div>
               <button
@@ -2023,14 +2083,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {getRowValue(row, "priority", "priorityName", "importance") || "General"}
-                              </span>
+                              {renderPriorityBadge(getRowValue(row, "priority", "priorityName", "importance"))}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {getRowValue(row, "category", "categoryName", "effect") || "Others"}
-                              </span>
+                              {renderCategoryBadge(getRowValue(row, "category", "categoryName", "effect"))}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <button
@@ -2130,14 +2186,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {getRowValue(row, "priority", "priorityName", "importance") || "General"}
-                              </span>
+                              {renderPriorityBadge(getRowValue(row, "priority", "priorityName", "importance"))}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 text-[10px] font-medium text-text-subtle bg-surface-strong rounded-md">
-                                {getRowValue(row, "category", "categoryName", "effect") || "Others"}
-                              </span>
+                              {renderCategoryBadge(getRowValue(row, "category", "categoryName", "effect"))}
                             </td>
                             <td className="px-3 py-2">
                               <textarea
@@ -2276,8 +2328,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                             <td className="px-3 py-2">{item.hwIs || item.hwAfter || "—"}</td>
                             <td className="px-3 py-2">{item.swWas || item.swBefore || "—"}</td>
                             <td className="px-3 py-2">{item.swIs || item.swAfter || "—"}</td>
-                            <td className="px-3 py-2 text-center">{item.priority || "General"}</td>
-                            <td className="px-3 py-2 text-center">{item.category || "Others"}</td>
+                            <td className="px-3 py-2 text-center">
+                              {renderPriorityBadge(item.priority)}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {renderCategoryBadge(item.category)}
+                            </td>
                           </tr>
                         ))
                       )}
