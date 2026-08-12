@@ -1732,22 +1732,22 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               style={{ borderCollapse: "separate", borderSpacing: 0 }}
             >
               <thead>
-                <tr className="border-b border-border-base bg-surface-strong">
+                <tr className="border-b border-border-base bg-gray-100 dark:bg-gray-900">
                   <th
-                    className="sticky left-0 top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "100px", position: "sticky", left: 0, top: 0 }}
+                    className="sticky left-0 top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
+                    style={{ width: "100px", minWidth: "100px", position: "sticky", left: 0, top: 0 }}
                   >
                     {t("field.site", "SITE")}
                   </th>
                   <th
-                    className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "120px", position: "sticky", left: "100px", top: 0 }}
+                    className="sticky top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
+                    style={{ width: "150px", minWidth: "150px", position: "sticky", left: "100px", top: 0 }}
                   >
                     {t("field.equipmentCode", "EQUIPMENT CODE")}
                   </th>
                   <th
-                    className="sticky top-0 z-30 bg-surface-strong px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle"
-                    style={{ width: "180px", position: "sticky", left: "220px", top: 0 }}
+                    className="sticky top-0 z-50 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-subtle shadow-2xs"
+                    style={{ width: "200px", minWidth: "200px", position: "sticky", left: "250px", top: 0 }}
                   >
                     {t("field.equipmentName", "EQUIPMENT NAME")}
                   </th>
@@ -1756,8 +1756,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <th
                           key={col}
-                          className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
-                          style={{ width: "160px", position: "sticky", top: 0 }}
+                          className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
+                          style={{ width: "160px", minWidth: "160px", position: "sticky", top: 0 }}
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{col}</span>
@@ -1769,9 +1769,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <th
                           key={col}
-                          className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
+                          className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
                           style={{
                             width: "200px",
+                            minWidth: "200px",
                             whiteSpace: "normal",
                             position: "sticky",
                             top: 0,
@@ -1811,7 +1812,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                     </td>
                     <td
                       className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"
-                      style={{ position: "sticky", left: "220px" }}
+                      style={{ position: "sticky", left: "250px" }}
                     >
                       {eq.equipmentName}
                     </td>
@@ -1837,7 +1838,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               <div className="flex items-center justify-center min-h-[36px]">
                                 <button
                                   type="button"
-                                  className="w-full max-w-[125px] h-[32px] rounded-[6px] border border-gray-200/90 dark:border-gray-700/80 bg-gray-50/70 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 flex items-center justify-center text-xs transition-all cursor-pointer shadow-2xs"
+                                  className="w-full max-w-[115px] h-[30px] rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 flex items-center justify-center text-xs transition-all cursor-pointer"
                                   onClick={() => openApplyStatusModal(col)}
                                   title={t("page.matrix.lateralModalTitle", "횡전개 관리")}
                                 >
@@ -1870,10 +1871,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         <td key={col} className="px-3 py-2 align-middle">
                           <div
                             onClick={() => onOpenDetail?.(matched)}
-                            className="matrix-cell p-2 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:shadow-md hover:z-10"
+                            className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10"
                             style={{
-                              backgroundColor: cellStyle.backgroundColor,
-                              color: cellStyle.color,
+                              backgroundColor: "transparent",
+                              color: "inherit",
                               fontSize: "11px",
                               fontWeight: 700,
                               lineHeight: "1.4",

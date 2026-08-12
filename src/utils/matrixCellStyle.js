@@ -23,22 +23,6 @@ export function getHashBasedHslColor(representativeWorkName) {
 }
 
 export function getCellStyle(items, xAxisMode, getPriority = (item) => item?.priority) {
-  if (xAxisMode === X_AXIS_MODE.DATE) {
-    return {
-      backgroundColor: "transparent",
-      color: "inherit",
-    };
-  }
-
-  const hasImportantItem = items.some((item) => isImportantPriority(getPriority(item)));
-
-  if (hasImportantItem) {
-    return {
-      backgroundColor: "var(--primary-soft)",
-      color: "var(--primary)",
-    };
-  }
-
   return {
     backgroundColor: "transparent",
     color: "inherit",

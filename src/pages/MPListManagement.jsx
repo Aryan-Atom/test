@@ -460,17 +460,38 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       const procId = Number(selectedProcessId) || 0;
       const eqTypeId = Number(selectedMaintenanceId) || 0;
 
-      const rows = Array.isArray(versionItem.rows)
-        ? versionItem.rows
-        : Array.isArray(versionItem.changeDataList)
-          ? versionItem.changeDataList
-          : apiRows;
+      let rawRows = versionItem?.rows;
+      if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) {
+        if (versionItem?.changedDataJson) {
+          rawRows = parseChangedDataJson(
+            versionItem.changedDataJson,
+            versionItem.appliedCount || 0,
+            versionItem.excludedCount || 0,
+          );
+        } else if (versionItem?.changeDataList) {
+          rawRows = versionItem.changeDataList;
+        } else {
+          rawRows = apiRows || [];
+        }
+      }
 
-      const changeDataList = rows.map((r) => ({
-        changeHistoryId: Number(r.id || r.changeHistoryId || r.mpListId || 0),
-        isApplicable: r.isApplicable !== false,
-        reason: r.reason || r.nonImplReason || r.reasoning || "",
-      }));
+      const changeDataList = (Array.isArray(rawRows) ? rawRows : []).map((r, idx) => {
+        const changeHistoryId = Number(r.id || r.changeHistoryId || r.mpListId || idx + 1);
+        let isApplicable = r.isApplicable;
+        if (isApplicable === undefined) {
+          if (r.isApplied !== undefined) isApplicable = r.isApplied;
+          else if (r.applied !== undefined) isApplicable = r.applied;
+          else isApplicable = true;
+        }
+
+        const reason = String(r.reason || r.unappliedReason || r.reasoning || r.memo || "");
+
+        return {
+          changeHistoryId,
+          isApplicable: Boolean(isApplicable),
+          reason,
+        };
+      });
 
       const payload = {
         id: 0,
@@ -485,11 +506,13 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       }
 
       APIcallPost(pocEndPoints.SAVE_MP_VERSION, payload, {}, (responseData, status) => {
-        if (status === 200) {
-          fetchMPVersion(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
-          fetchMPList(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
+        if (status === 200 || status === 201) {
+          fetchMPVersion(procId, eqTypeId);
+          fetchMPList(procId, eqTypeId);
+          alert(t("toast.copySuccess", "새 버전이 성공적으로 생성되었습니다."));
         } else {
           console.error("SaveMPVersion copy failed:", status, responseData);
+          alert(t("toast.copyFailed", "버전 복사에 실패했습니다."));
         }
       });
     },
