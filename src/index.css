@@ -332,7 +332,13 @@ select.input-base {
 }
 
 .modal-panel-2xl {
-  max-width: 1024px;
+  width: min(92vw, 1280px);
+  max-width: 1280px;
+}
+
+.modal-panel-3xl {
+  width: min(95vw, 1480px);
+  max-width: 1480px;
 }
 
 .modal-header {

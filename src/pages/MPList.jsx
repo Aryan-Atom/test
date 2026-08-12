@@ -973,15 +973,22 @@ export default function MPList({
     APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
       setDataLoading(false);
       if (status === 200 && responseData) {
-        const records = Array.isArray(responseData)
-          ? responseData
-          : Array.isArray(responseData?.data)
-            ? responseData.data
-            : Array.isArray(responseData?.data?.mpList)
-              ? responseData.data.mpList
-              : Array.isArray(responseData?.mpList)
-                ? responseData.mpList
-                : [];
+        let records = [];
+        if (Array.isArray(responseData) && Array.isArray(responseData[0]?.data?.dataList)) {
+          records = responseData[0].data.dataList;
+        } else if (Array.isArray(responseData?.data?.dataList)) {
+          records = responseData.data.dataList;
+        } else if (Array.isArray(responseData?.dataList)) {
+          records = responseData.dataList;
+        } else if (Array.isArray(responseData) && responseData.length > 0 && !responseData[0]?.data) {
+          records = responseData;
+        } else if (Array.isArray(responseData?.data)) {
+          records = responseData.data;
+        } else if (Array.isArray(responseData?.data?.mpList)) {
+          records = responseData.data.mpList;
+        } else if (Array.isArray(responseData?.mpList)) {
+          records = responseData.mpList;
+        }
         setAllRecords(records);
       } else {
         console.warn("[MPList] GetMPList API failed:", status, responseData);

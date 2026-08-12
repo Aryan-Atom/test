@@ -49,6 +49,48 @@ function parseChangedDataJson(raw, defaultAppliedCount = 0, defaultNotAppliedCou
   });
 }
 
+function extractVersionListFromResponse(responseData) {
+  if (!responseData) return [];
+
+  // Handle array wrapping a response object: [ { data: { dataList: [...] } } ]
+  if (Array.isArray(responseData)) {
+    for (const item of responseData) {
+      if (Array.isArray(item?.data?.dataList)) return item.data.dataList;
+      if (Array.isArray(item?.dataList)) return item.dataList;
+      if (Array.isArray(item?.data?.mpVersionList)) return item.data.mpVersionList;
+      if (Array.isArray(item?.mpVersionList)) return item.mpVersionList;
+      if (Array.isArray(item?.data)) return item.data;
+    }
+    if (
+      responseData.length > 0 &&
+      (responseData[0]?.versionId !== undefined ||
+        responseData[0]?.changedDataJson !== undefined ||
+        responseData[0]?.id !== undefined)
+    ) {
+      return responseData;
+    }
+  }
+
+  // Handle object response: { data: { dataList: [...] } }
+  if (Array.isArray(responseData?.data?.dataList)) {
+    return responseData.data.dataList;
+  }
+  if (Array.isArray(responseData?.dataList)) {
+    return responseData.dataList;
+  }
+  if (Array.isArray(responseData?.data?.mpVersionList)) {
+    return responseData.data.mpVersionList;
+  }
+  if (Array.isArray(responseData?.mpVersionList)) {
+    return responseData.mpVersionList;
+  }
+  if (Array.isArray(responseData?.data)) {
+    return responseData.data;
+  }
+
+  return [];
+}
+
 function normalizeText(value) {
   return String(value ?? "").trim();
 }
@@ -333,14 +375,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
 
-  // Auto-select first maintenance when process changes
+  // Reset maintenance selection when process changes (do not auto-select)
   useEffect(() => {
-    if (maintenanceList.length > 0 && selectedProcessId !== null) {
-      setSelectedMaintenanceId(maintenanceList[0].id);
-    } else {
-      setSelectedMaintenanceId(null);
-    }
-  }, [maintenanceList, selectedProcessId]);
+    setSelectedMaintenanceId(null);
+  }, [selectedProcessId]);
 
   // Derived names for display
   const selectedProcess = processList.find((p) => p.id === selectedProcessId)?.processName || "";
@@ -369,20 +407,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
     APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
       if (status === 200 && responseData) {
-        let records = [];
-        if (Array.isArray(responseData)) {
-          records = responseData;
-        } else if (Array.isArray(responseData?.data?.dataList)) {
-          records = responseData.data.dataList;
-        } else if (Array.isArray(responseData?.dataList)) {
-          records = responseData.dataList;
-        } else if (Array.isArray(responseData?.data?.mpList)) {
-          records = responseData.data.mpList;
-        } else if (Array.isArray(responseData?.mpList)) {
-          records = responseData.mpList;
-        } else if (Array.isArray(responseData?.data)) {
-          records = responseData.data;
-        }
+        const records = extractVersionListFromResponse(responseData);
         setApiRows(records);
       }
     });
@@ -398,20 +423,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
     APIcallPost(pocEndPoints.GET_MP_VERSION, reqBody, {}, (responseData, status) => {
       if (status === 200 && responseData) {
-        let versions = [];
-        if (Array.isArray(responseData)) {
-          versions = responseData;
-        } else if (Array.isArray(responseData?.data?.dataList)) {
-          versions = responseData.data.dataList;
-        } else if (Array.isArray(responseData?.dataList)) {
-          versions = responseData.dataList;
-        } else if (Array.isArray(responseData?.data?.mpVersionList)) {
-          versions = responseData.data.mpVersionList;
-        } else if (Array.isArray(responseData?.mpVersionList)) {
-          versions = responseData.mpVersionList;
-        } else if (Array.isArray(responseData?.data)) {
-          versions = responseData.data;
-        }
+        const versions = extractVersionListFromResponse(responseData);
         setApiVersionList(versions);
       }
     });
@@ -466,9 +478,17 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   useEffect(() => {
     if (!isStaticDataMode && filterPayload) {
-      if (isLoadTableDataOnload || selectedProcessId !== null) {
-        fetchMPList(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
-        fetchMPVersion(selectedProcessId ?? 0, selectedMaintenanceId ?? 0);
+      if (
+        selectedProcessId !== null &&
+        selectedMaintenanceId !== null &&
+        Number(selectedProcessId) > 0 &&
+        Number(selectedMaintenanceId) > 0
+      ) {
+        fetchMPList(selectedProcessId, selectedMaintenanceId);
+        fetchMPVersion(selectedProcessId, selectedMaintenanceId);
+      } else {
+        setApiVersionList([]);
+        setApiRows([]);
       }
     }
   }, [selectedProcessId, selectedMaintenanceId, filterPayload, fetchMPList, fetchMPVersion]);
@@ -806,7 +826,25 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 </tr>
               </thead>
               <tbody className="font-medium">
-                {displayVersionRows.map((v) => {
+                {displayVersionRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-16 text-center text-text-subtle">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <i className="fas fa-inbox text-3xl text-gray-300 dark:text-gray-600 mb-1" />
+                        <span className="text-sm font-semibold text-text-subtle">
+                          {t("app.noDataAvailable", "No data available")}
+                        </span>
+                        <p className="text-xs text-text-subtlest">
+                          {t(
+                            "page.mpManagement.noDataDesc",
+                            "There are no MP List records matching the selected process and equipment type.",
+                          )}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayVersionRows.map((v) => {
                   const rowId = String(v.id || v.version);
                   const isExpanded = expandedRowIds.has(rowId);
                   const isChecked = selectedRowIds.has(rowId);
@@ -1099,7 +1137,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       )}
                     </React.Fragment>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>
@@ -1202,7 +1241,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           onClick={() => setShowCompareModal(false)}
         >
           <div
-            className="modal-panel modal-panel-2xl relative my-8 flex flex-col animate-scale-up w-full"
+            className="modal-panel modal-panel-3xl relative my-6 flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header shrink-0">
@@ -1366,7 +1405,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           onClick={() => setEditingVersion(null)}
         >
           <div
-            className="modal-panel modal-panel-2xl relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
+            className="modal-panel modal-panel-3xl relative my-6 max-h-[92vh] flex flex-col animate-scale-up !w-[94vw] !max-w-[1480px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header shrink-0">
@@ -1450,28 +1489,28 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 <h4 className="modal-field-label mb-3">
                   {t("page.mp.additionalConsultation", "Additional Consultation")}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                  <div>
-                    <label className="modal-field-label !text-[10px] !mb-1">Date</label>
+                <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                  <div className="w-full md:w-44 shrink-0">
+                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">Date</label>
                     <input
                       type="date"
                       value={newConsultDate}
                       onChange={(e) => setNewConsultDate(e.target.value)}
-                      className="modal-input text-xs"
+                      className="modal-input text-xs w-full"
                     />
                   </div>
-                  <div>
-                    <label className="modal-field-label !text-[10px] !mb-1">Title</label>
+                  <div className="w-full md:flex-1 min-w-[200px]">
+                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">Title</label>
                     <input
                       type="text"
                       placeholder="Consultation Title"
                       value={newConsultTitle}
                       onChange={(e) => setNewConsultTitle(e.target.value)}
-                      className="modal-input text-xs"
+                      className="modal-input text-xs w-full"
                     />
                   </div>
-                  <div>
-                    <label className="modal-field-label !text-[10px] !mb-1">
+                  <div className="w-full md:flex-1 min-w-[240px]">
+                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
                       Attendees (comma separation)
                     </label>
                     <input
@@ -1479,10 +1518,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       placeholder="Hong Gil-dong, Yi Sun-sin"
                       value={newConsultAttendees}
                       onChange={(e) => setNewConsultAttendees(e.target.value)}
-                      className="modal-input text-xs"
+                      className="modal-input text-xs w-full"
                     />
                   </div>
-                  <div>
+                  <div className="shrink-0 pb-0.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -1499,7 +1538,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                           setNewConsultAttendees("");
                         }
                       }}
-                      className="btn-base btn-secondary !w-8 !h-8 !p-0 flex items-center justify-center"
+                      className="btn-base btn-secondary !w-9 !h-9 !p-0 flex items-center justify-center shrink-0"
                     >
                       <i className="fas fa-plus text-xs" />
                     </button>
