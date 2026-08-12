@@ -3445,9 +3445,15 @@ export default function MPList({
                     {t("page.mp.storingModalTitle", "Storing MP List")}
                   </h3>
                   <p className="text-xs text-text-subtlest mt-0.5 font-medium">
-                    {processList.find((p) => p.id === selectedProcessId)?.processName ||
-                      "02. Placement"}{" "}
-                    · {dateFrom || "2025-07-27"} ~ {dateTo || "2026-07-27"} · v1
+                    {processList.find((p) => Number(p.id) === Number(selectedProcessId))?.processName ||
+                      "02.배치"}
+                    {" · "}
+                    {equipmentTypeList.find((e) => Number(e.id) === Number(selectedEquipmentTypeId))?.equipmentTypeName ||
+                      "0202. Nano Mill"}
+                    {" · "}
+                    {dateFrom || "2025-08-12"} ~ {dateTo || "2026-08-12"}
+                    {" · "}
+                    v9
                   </p>
                 </div>
               </div>
@@ -3488,9 +3494,7 @@ export default function MPList({
                         ...prev,
                         ...toMove.map((item) => ({
                           ...item,
-                          nonImplReason:
-                            item.nonImplReason ||
-                            t("page.mp.generalItemReason", "일반 항목 - 미적용 대상"),
+                          nonImplReason: item.nonImplReason || "",
                         })),
                       ]);
                     }}
@@ -3722,8 +3726,8 @@ export default function MPList({
                               <td className="px-3 py-2">
                                 <textarea
                                   rows={2}
-                                  placeholder="Importance Average"
-                                  value={row.nonImplReason || "Importance Average"}
+                                  placeholder={t("page.mp.reasonPlaceholder", "사유 입력")}
+                                  value={row.nonImplReason ?? ""}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setNotApplicableRows(
@@ -3732,7 +3736,11 @@ export default function MPList({
                                       ),
                                     );
                                   }}
-                                  className="w-full min-w-[180px] p-2 text-xs border border-red-300 dark:border-red-700/60 rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none focus:ring-1 focus:ring-red-400 shadow-2xs resize-y"
+                                  className={`w-full min-w-[180px] p-2 text-xs border rounded-xl bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 font-semibold focus:outline-none shadow-2xs resize-y ${
+                                    !row.nonImplReason || !row.nonImplReason.trim()
+                                      ? "border-red-400 focus:ring-2 focus:ring-red-400"
+                                      : "border-red-300 dark:border-red-700/60 focus:ring-1 focus:ring-red-400"
+                                  }`}
                                 />
                               </td>
                               <td className="px-3 py-2 text-center">
@@ -3772,6 +3780,18 @@ export default function MPList({
               <button
                 type="button"
                 onClick={() => {
+                  const invalidRow = notApplicableRows.find(
+                    (r) => !r.nonImplReason || !r.nonImplReason.trim(),
+                  );
+                  if (invalidRow) {
+                    alert(
+                      t(
+                        "page.mp.reasonRequiredAlert",
+                        "미적용 항목의 사유를 입력해주세요.",
+                      ),
+                    );
+                    return;
+                  }
                   setShowSaveModal(false);
                   handleSaveAll();
                 }}

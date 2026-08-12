@@ -436,7 +436,7 @@ function getColValue(row, col) {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
-    return row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
+    return row.workedDate ?? row.worked_date ?? row.work_date ?? row.workDate ?? row.workedOn ?? row["작업완료일"] ?? "";
   }
   if (col === "process") {
     return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";

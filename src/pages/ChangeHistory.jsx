@@ -544,8 +544,11 @@ function EditableCell({
             : "-"
           : col === "workedOn" && value
             ? (() => {
+                const valStr = String(value).trim();
+                if (valStr.includes("T")) return valStr.split("T")[0];
+                if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
                 const d = new Date(value);
-                return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : String(value);
+                return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : valStr;
               })()
             : String(value)}
       </span>
@@ -1655,8 +1658,13 @@ function EditableRow({
               ? "—"
               : col === "workedOn"
                 ? (() => {
-                    const d = new Date(row[col]);
-                    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : String(row[col]);
+                    const rawVal = row.workedOn ?? row.workedDate ?? row.worked_date ?? row.workDate ?? row.work_date ?? row[col];
+                    const valStr = String(rawVal).trim();
+                    if (!valStr || valStr === "null" || valStr === "undefined") return "—";
+                    if (valStr.includes("T")) return valStr.split("T")[0];
+                    if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
+                    const d = new Date(rawVal);
+                    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : valStr;
                   })()
                 : String(row[col])}
           </td>
@@ -2813,10 +2821,18 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         ).trim(),
         workedOn: String(
           remapped.workedOn ??
+            remapped.workedDate ??
+            remapped.worked_date ??
             remapped.work_date ??
+            remapped.workDate ??
             remapped["worked date"] ??
             row.workedOn ??
+            row.workedDate ??
+            row.worked_date ??
+            row.work_date ??
+            row.workDate ??
             row["worked date"] ??
+            row["작업완료일"] ??
             "",
         ).trim(),
         work: String(
@@ -3310,7 +3326,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 "representative work",
                 "representative_work",
               ],
-              workedon: ["worked date", "workeddate", "worked_date", "workedon", "worked on"],
+              workedon: [
+                "worked date",
+                "workeddate",
+                "worked_date",
+                "workedon",
+                "worked on",
+                "workdate",
+                "work_date",
+                "workeddate",
+              ],
               eqtype: ["equipment type", "equipmenttype", "equipment_type", "eqtype", "eq type"],
               report: ["report content", "reportcontent", "report_content", "report"],
               work: ["work description", "workdescription", "work_description", "work"],
@@ -3375,6 +3400,22 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               if (woTypeVal) {
                 cleanRow.woType = cleanRow.woType || woTypeVal;
                 cleanRow.Wotype = cleanRow.Wotype || woTypeVal;
+              }
+
+              const workedOnVal =
+                row["workedDate"] ||
+                row["worked_date"] ||
+                row["workDate"] ||
+                row["work_date"] ||
+                row["workedOn"] ||
+                row["worked date"] ||
+                row["작업완료일"] ||
+                cleanRow.workedOn;
+
+              if (workedOnVal) {
+                cleanRow.workedOn = cleanRow.workedOn || workedOnVal;
+                cleanRow.workedDate = cleanRow.workedDate || workedOnVal;
+                cleanRow["worked date"] = cleanRow["worked date"] || workedOnVal;
               }
 
               return cleanRow;
