@@ -43,12 +43,15 @@ export default function Modal({
           )}
         </div>
         <div className="modal-body max-h-[75vh] overflow-y-auto">{children}</div>
-        <div className="modal-footer">
-          <button type="button" onClick={onClose} className="modal-cancel-btn">
-            {t("app.cancel", "cancellation")}
-          </button>
-          {footer}
-        </div>
+        {footer ? (
+          <div className="modal-footer">{footer}</div>
+        ) : (
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="modal-cancel-btn">
+              {t("app.cancel", "취소")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

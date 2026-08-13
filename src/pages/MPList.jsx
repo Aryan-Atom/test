@@ -1644,7 +1644,7 @@ export default function MPList({
 
     const payload = {
       vocData: [vocItem],
-      isVoc: false,
+      isVoc: true,
     };
 
     setOperationStatus({
@@ -3070,10 +3070,7 @@ export default function MPList({
         }
         description={
           editingRowLocalId !== null
-            ? t(
-                "page.mp.modalEditDesc",
-                "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
-              )
+            ? t("page.mp.modalEditDesc", "VoC 항목을 편집합니다.")
             : t(
                 "page.mp.modalDesc",
                 "Add new items. The W/O code is automatically emptied and separated from system data.",
@@ -3120,7 +3117,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.process", "Fairness")}
+                {t("field.process", "공정")}
               </label>
               <input
                 type="text"
@@ -3134,7 +3131,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.equipmentType", "Conservation Part")}
+                {t("field.equipmentType", "보전파트")}
               </label>
               <input
                 type="text"
@@ -3152,7 +3149,7 @@ export default function MPList({
           {/* Row 2: Representative Work Name * (Full width) with Saved Info Suggestions Popover */}
           <div className="relative">
             <label className="text-xs font-semibold text-text-subtle mb-1 block">
-              {t("field.repWork", "Representative Work Name")}{" "}
+              {t("field.repWork", "대표 작업명")}{" "}
               <span className="text-red-500">*</span>
             </label>
             <input
@@ -3235,7 +3232,7 @@ export default function MPList({
           {/* Row 3: Purpose of the Work (Full width) */}
           <div>
             <label className="text-xs font-semibold text-text-subtle mb-1 block">
-              {t("field.work", "Purpose of the Work")}
+              {t("field.work", "작업 목적")}
             </label>
             <input
               type="text"
@@ -3250,7 +3247,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.situation", "Problem phenomenon")} <span className="text-red-500">*</span>
+                {t("field.situation", "문제 현상")} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -3272,7 +3269,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.cause", "Cause of the problem")}
+                {t("field.cause", "문제 원인")}
               </label>
               <input
                 type="text"
@@ -3300,7 +3297,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.sparePart", "Material Name")}
+                {t("field.sparePart", "자재명")}
               </label>
               <input
                 type="text"
@@ -3316,7 +3313,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.hwBefore", "Before changing the hardware")}
+                {t("field.hwBefore", "HW 변경 전")}
               </label>
               <input
                 type="text"
@@ -3328,7 +3325,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.hwAfter", "After changing the hardware")}
+                {t("field.hwAfter", "HW 변경 후")}
               </label>
               <input
                 type="text"
@@ -3344,7 +3341,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.swBefore", "Before Software Change")}
+                {t("field.swBefore", "SW 변경 전")}
               </label>
               <input
                 type="text"
@@ -3356,7 +3353,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.swAfter", "After the software change")}
+                {t("field.swAfter", "SW 변경 후")}
               </label>
               <input
                 type="text"
@@ -3372,7 +3369,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.priority", "Importance")}
+                {t("field.priority", "중요도")}
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
@@ -3396,7 +3393,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.category", "Types of effects")}
+                {t("field.category", "효과 유형")}
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
@@ -3424,7 +3421,7 @@ export default function MPList({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.workedOn", "Date of Completion")}
+                {t("field.workedOn", "작업완료일")}
               </label>
               <input
                 type="date"
@@ -3435,7 +3432,7 @@ export default function MPList({
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
-                {t("field.site", "Requesting Corporation")}
+                {t("field.site", "요청 법인")}
               </label>
               <select
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
@@ -3500,8 +3497,8 @@ export default function MPList({
                   onChange={handleFileUploadInModal}
                 />
                 <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                  <i className="fas fa-plus text-blue-600 text-xs" />
-                  <span>사진 파일 선택 / 파일 드래그 & 드롭</span>
+                  <i className="fas fa-upload text-gray-400 text-xs" />
+                  <span>사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)</span>
                 </div>
               </label>
 
