@@ -1067,7 +1067,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [allRecords, filterData]);
 
   const maintenanceOptions = useMemo(() => {
-    if (selectedProcess === "전체") return [];
+    if (!selectedProcess || selectedProcess === "전체" || selectedProcess === "Choose") return [];
+
+    // Find selected process object in filterData.process to get its processId
+    const selProcObj = (filterData?.process ?? []).find(
+      (p) => p.processName === selectedProcess || p.name === selectedProcess,
+    );
+    const selectedProcId = selProcObj ? Number(selProcObj.id ?? selProcObj.processId) : null;
+
     const raw = [
       ...new Set(
         allRecords
@@ -1083,23 +1090,23 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     ];
 
     let allowed = [];
-    if (Array.isArray(filterData?.eqTypes) && filterData.eqTypes.length > 0) {
-      allowed = filterData.eqTypes
-        .filter((e) => e.isChangedData !== false)
-        .map((e) => e.equipmentTypeName || e.eqTypeName || e.name)
-        .filter(Boolean);
-    } else if (Array.isArray(filterData?.maintenance) && filterData.maintenance.length > 0) {
-      allowed = filterData.maintenance
-        .filter((m) => m.isChangedData !== false)
-        .map((m) => m.maintenanceGroupName)
+    const eqList = filterData?.eqTypes ?? filterData?.maintenance ?? [];
+    if (Array.isArray(eqList) && eqList.length > 0) {
+      allowed = eqList
+        .filter((e) => {
+          if (e.isChangedData === false) return false;
+          if (selectedProcId !== null && selectedProcId !== undefined && selectedProcId > 0) {
+            const eProcId = Number(e.processId ?? e.process_id ?? e.procId ?? 0);
+            return eProcId === 0 || eProcId === selectedProcId;
+          }
+          return true;
+        })
+        .map((e) => e.equipmentTypeName || e.eqTypeName || e.maintenanceGroupName || e.name)
         .filter(Boolean);
     }
 
-    if (allowed.length > 0) {
-      const combined = [...new Set([...raw, ...allowed])];
-      return combined.sort();
-    }
-    return raw.sort();
+    const combined = [...new Set([...raw, ...allowed])];
+    return combined.sort();
   }, [allRecords, selectedProcess, filterData]);
 
   const siteOptions = useMemo(() => {
