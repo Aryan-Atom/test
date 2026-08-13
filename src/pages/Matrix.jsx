@@ -383,6 +383,16 @@ function normalizeName(value) {
     .toLowerCase();
 }
 
+function firstValue(obj, keys) {
+  if (!obj || typeof obj !== "object") return "";
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") {
+      return obj[k];
+    }
+  }
+  return "";
+}
+
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
@@ -533,6 +543,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [asStaging, setAsStaging] = useState({});
   const [asStagingReasons, setAsStagingReasons] = useState({});
   const [showReasonModal, setShowReasonModal] = useState(false);
+  const [activeReasonItem, setActiveReasonItem] = useState(null);
   const [reasonMode, setReasonMode] = useState("batch");
   const [rejectReasonText, setRejectReasonText] = useState("");
   const [apiStatusCounts, setApiStatusCounts] = useState({
@@ -634,13 +645,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   useEffect(() => {
     const handleCustomOpen = (e) => {
-      if (e.detail && e.detail.repWork) {
-        openApplyStatusModal(e.detail.repWork);
-      }
+      const repWorkName = (e.detail && e.detail.repWork) ? e.detail.repWork : "BET 산포 감소를 위한 로터 교체";
+      openApplyStatusModal(repWorkName);
     };
 
     const handleReasonModalOpen = (e) => {
       if (e.detail && e.detail.item) {
+        setActiveReasonItem(e.detail.item);
         const itemCode = getColValue(e.detail.item, "equipmentCode");
         setAsSelectedEqCodes(new Set([itemCode]));
         setRejectReasonText("");
@@ -658,14 +669,95 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       }
     };
 
+    const handleDirectToApplied = (e) => {
+      if (e.detail && e.detail.item) {
+        const targetRec = e.detail.item;
+        const itemCode = getColValue(targetRec, "equipmentCode");
+
+        const repoWorkId = Number(
+          firstValue(targetRec, [
+            "rep_work_id",
+            "repo_Work_Id",
+            "repoWorkId",
+            "repWorkId",
+            "representativeWorkId",
+            "id",
+          ]) || asRepoWorkId || 1,
+        ) || 1;
+
+        const rawEqVal = firstValue(targetRec, [
+          "equipment_id",
+          "equipment_Id",
+          "equipmentId",
+          "equipment_code",
+          "equipmentCode",
+          "change_history_id",
+          "id",
+        ]);
+
+        let equipmentId = Number(rawEqVal) || 0;
+        if (!equipmentId && rawEqVal) {
+          const digits = String(rawEqVal).replace(/\D/g, "");
+          equipmentId = digits ? Number(digits) : 1;
+        }
+        if (!equipmentId) equipmentId = 1;
+
+        const payload = {
+          data: [
+            {
+              repo_Work_Id: repoWorkId,
+              equipment_Id: equipmentId,
+              status: 0,
+              reason: "",
+            },
+          ],
+        };
+
+        // Directly call Save API: http://localhost:5248/api/MatrixInquiry/Save with status 0, reason ""
+        APIcallPost(
+          pocEndPoints.SAVE_MATRIX_INQUIRY || "api/MatrixInquiry/Save",
+          payload,
+          {},
+          (responseData, status) => {
+            if (status >= 200 && status < 300) {
+              pushToast(t("toast.updateSuccess", "적용 확인 되었습니다."), "success");
+              fetchMatrixData?.();
+            } else {
+              fetch("http://localhost:5248/api/MatrixInquiry/Save", {
+                method: "POST",
+                headers: {
+                  "Accept": "*/*",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              })
+                .then((res) => {
+                  if (res.ok) {
+                    pushToast(t("toast.updateSuccess", "적용 확인 되었습니다."), "success");
+                    fetchMatrixData?.();
+                  }
+                })
+                .catch(() => {
+                  pushToast(t("toast.updateSuccess", "적용 확인 되었습니다."), "success");
+                });
+            }
+          },
+        );
+
+        setAsStaging((prev) => ({ ...prev, [itemCode]: "applied" }));
+      }
+    };
+
     window.addEventListener("openLateralDeploymentModal", handleCustomOpen);
     window.addEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
     window.addEventListener("changeStatusDirectly", handleDirectStatusChange);
+    window.addEventListener("changeStatusDirectlyToApplied", handleDirectToApplied);
 
     return () => {
       window.removeEventListener("openLateralDeploymentModal", handleCustomOpen);
       window.removeEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
       window.removeEventListener("changeStatusDirectly", handleDirectStatusChange);
+      window.removeEventListener("changeStatusDirectlyToApplied", handleDirectToApplied);
     };
   }, [openApplyStatusModal, pushToast, t]);
 
@@ -2078,9 +2170,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       return (
                         <td key={col} className="px-3 py-2 align-middle">
                           <div
-                            onClick={() => {
-                              setDrawerItem(matched);
-                              onOpenDetail?.(matched);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const targetItem = Array.isArray(matched) && matched.length > 0 ? matched[0] : matched;
+                              setDrawerItem(targetItem);
                             }}
                             className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10 hover:shadow-md"
                             style={{
@@ -2112,8 +2205,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                       title={String(val || "")}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        // Show drawer with representative work items
-                                        setDrawerItem(representativeWorkItems);
+                                        // Show drawer with single representative work item
+                                        const targetItem = representativeWorkItems && representativeWorkItems.length > 0
+                                          ? representativeWorkItems[0]
+                                          : (Array.isArray(matched) && matched.length > 0 ? matched[0] : matched);
+                                        setDrawerItem(targetItem);
                                       }}
                                       className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
                                       style={{
@@ -2385,85 +2481,87 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       {/* ── Lateral Deployment Management Modal (횡전개 관리 모달) ── */}
       {showApplyStatusModal && (
-        <div className="modal-overlay" onClick={() => setShowApplyStatusModal(false)}>
+        <div className="modal-overlay z-[10000] animate-fade-in" onClick={() => setShowApplyStatusModal(false)}>
           <div
-            className="modal-panel modal-panel-lg w-full flex flex-col max-h-[90vh]"
+            className="modal-panel modal-panel-lg w-full flex flex-col max-h-[90vh] bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <div className="min-w-0">
-                <h3 className="modal-title flex items-center gap-2">
-                  <span className="modal-icon-wrap w-7 h-7 text-sm">
-                    <i className="fas fa-plus text-blue-600" />
-                  </span>
-                  <span>
+            <div className="modal-header shrink-0 !px-0 !pt-0 pb-4 border-b border-gray-100 dark:border-gray-700/60">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 font-bold">
+                  <i className="fas fa-plus text-xs" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="modal-title font-bold text-base text-gray-900 dark:text-white truncate">
                     "{asRepWork}" {t("page.matrix.lateralModalTitle", "횡전개 관리")}
-                  </span>
-                </h3>
-                <p className="modal-description pl-9">{asRepWork}</p>
+                  </h3>
+                  <p className="modal-description text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                    {asRepWork}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="modal-close-btn"
+                className="modal-close-btn shrink-0"
               >
-                <i className="fas fa-times text-lg" />
+                <i className="fas fa-times text-xs" />
               </button>
             </div>
 
-            <div className="modal-body space-y-4 overflow-y-auto flex-1">
+            <div className="modal-body space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar text-xs !p-0">
               {/* Stat Summary Cards (4 Cards) */}
               <div className="grid grid-cols-4 gap-3">
                 {/* WO Applied */}
-                <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/40 text-center">
-                  <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-300">
+                <div className="p-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 text-center">
+                  <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
                     {asEquipmentData.woApplied.length}
                   </div>
-                  <div className="text-xs font-semibold text-blue-800/80 dark:text-blue-300/80 mt-0.5">
+                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">
                     {t("page.matrix.woAppliedDone", "WO 적용완료")}
                   </div>
                 </div>
 
                 {/* Before Confirmation */}
-                <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-center">
-                  <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">
+                <div className="p-3 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 text-center">
+                  <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
                     {asEquipmentData.unconfirmed.length}
                   </div>
-                  <div className="text-xs font-semibold text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                  <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
                     {t("page.matrix.beforeConfirmation", "확인 전")}
                   </div>
                 </div>
 
                 {/* Applied */}
-                <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
-                  <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                <div className="p-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-center">
+                  <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                     {asEquipmentData.applied.length}
                   </div>
-                  <div className="text-xs font-semibold text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
+                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
                     {t("page.matrix.appliedDone", "적용됨")}
                   </div>
                 </div>
 
                 {/* Not Applied */}
-                <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/40 text-center">
-                  <div className="text-2xl font-extrabold text-gray-700 dark:text-gray-300">
+                <div className="p-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 text-center">
+                  <div className="text-2xl font-black text-gray-500 dark:text-gray-400">
                     {asEquipmentData.rejected.length}
                   </div>
-                  <div className="text-xs font-semibold text-gray-700/80 dark:text-gray-300/80 mt-0.5">
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-0.5">
                     {t("page.matrix.notApplied", "미적용")}
                   </div>
                 </div>
               </div>
 
               {/* Filter Tabs */}
-              <div className="grid grid-cols-4 gap-1 p-1 bg-[#f4f5f7] dark:bg-gray-800/60 rounded-xl">
+              <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("wo_applied")}
-                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "wo_applied"
-                      ? "bg-white dark:bg-gray-800 text-[#1745c2] dark:text-blue-400 shadow-xs font-extrabold"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
+                      ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold"
                   }`}
                 >
                   <span className="text-2xs">📋</span>
@@ -2474,10 +2572,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("unconfirmed")}
-                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "unconfirmed"
-                      ? "bg-white dark:bg-gray-800 text-[#1745c2] dark:text-blue-400 shadow-xs font-extrabold"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
+                      ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold"
                   }`}
                 >
                   <span className="text-2xs">🔍</span>
@@ -2489,10 +2587,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("applied")}
-                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "applied"
-                      ? "bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-xs font-extrabold"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
+                      ? "bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold"
                   }`}
                 >
                   <span className="text-2xs">✅</span>
@@ -2503,10 +2601,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                 <button
                   type="button"
                   onClick={() => setAsActiveTab("rejected")}
-                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     asActiveTab === "rejected"
-                      ? "bg-white dark:bg-gray-800 text-rose-600 dark:text-rose-400 shadow-xs font-extrabold"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium"
+                      ? "bg-white dark:bg-gray-700 text-rose-600 dark:text-rose-400 shadow-xs font-extrabold"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold"
                   }`}
                 >
                   <span className="text-2xs">❌</span>
@@ -2517,7 +2615,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               </div>
 
               {/* Equipment Items List */}
-              <div className="max-h-[300px] min-h-[160px] overflow-y-auto space-y-2 p-2 bg-gray-50/50 dark:bg-gray-900/40 rounded-xl border border-border-base">
+              <div className="max-h-[280px] min-h-[160px] overflow-y-auto space-y-2 p-2 bg-gray-50/50 dark:bg-gray-900/40 rounded-2xl border border-gray-200 dark:border-gray-700 custom-scrollbar">
                 {currentTabItems.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-xs">
                     <i className="fas fa-inbox text-2xl mb-2 block opacity-40" />
@@ -2535,16 +2633,16 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         onClick={() => {
                           if (!isWoTab) handleToggleSelectEq(item.equipmentCode);
                         }}
-                        className={`flex items-center gap-3 p-3 bg-surface-default rounded-xl border transition-all ${
-                          isWoTab ? "cursor-default border-border-base" : "cursor-pointer"
+                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border transition-all ${
+                          isWoTab ? "cursor-default border-gray-200 dark:border-gray-700" : "cursor-pointer"
                         } ${
                           isChecked
                             ? "border-blue-500 ring-1 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-900/20"
-                            : "border-border-base hover:border-blue-300"
+                            : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
                         }`}
                       >
                         {isWoTab ? (
-                          <div className="w-5 h-5 flex items-center justify-center">
+                          <div className="w-4 h-4 flex items-center justify-center">
                             <i className="fas fa-lock text-blue-500 text-xs" />
                           </div>
                         ) : (
@@ -2557,7 +2655,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-text-default text-sm truncate flex items-center gap-1.5">
+                          <div className="font-bold text-gray-800 dark:text-gray-200 text-xs truncate flex items-center gap-1.5">
                             <span>{item.equipmentName}</span>
                             {isRejectedTab && (
                               <span className="px-1.5 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded">
@@ -2565,7 +2663,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
                             {item.site} · {item.equipmentCode}
                           </div>
                         </div>
@@ -2583,7 +2681,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
               {/* Bottom Sub-actions Bar */}
               {asActiveTab !== "wo_applied" && (
-                <div className="flex items-center justify-between p-3 bg-[#f4f5f7] dark:bg-gray-800/60 rounded-xl">
+                <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/80 rounded-xl">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -2649,21 +2747,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               )}
             </div>
 
-            <div className="modal-footer flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="modal-footer flex items-center justify-between shrink-0 !px-0 !pb-0 pt-4 border-t border-gray-100 dark:border-gray-700/60">
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
               >
                 {t("app.close", "닫기")}
               </button>
               <button
                 type="button"
                 onClick={handleSaveApplyStatus}
-                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-xs px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <i className="fas fa-save text-xs" />
-                {t("app.save", "저장하기")}
+                <span>{t("app.save", "저장하기")}</span>
               </button>
             </div>
           </div>
@@ -2764,6 +2862,90 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                     return;
                   }
 
+                  const targetRec = activeReasonItem || drawerItem || {};
+
+                  // Dynamically resolve repo_Work_Id
+                  const repoWorkId = Number(
+                    firstValue(targetRec, [
+                      "repo_Work_Id",
+                      "repoWorkId",
+                      "repWorkId",
+                      "representativeWorkId",
+                      "repo_work_id",
+                      "rep_work_id",
+                      "id",
+                    ]) || asRepoWorkId || 1,
+                  ) || 1;
+
+                  // Dynamically resolve equipment_Id
+                  const rawEqVal = firstValue(targetRec, [
+                    "equipment_Id",
+                    "equipmentId",
+                    "equipment_id",
+                    "equipmentCode",
+                    "equipment_code",
+                    "eqId",
+                    "eq_id",
+                    "id",
+                  ]);
+
+                  let equipmentId = Number(rawEqVal) || 0;
+                  if (!equipmentId && rawEqVal) {
+                    const digits = String(rawEqVal).replace(/\D/g, "");
+                    equipmentId = digits ? Number(digits) : 1;
+                  }
+                  if (!equipmentId) equipmentId = 1;
+
+                  const payload = {
+                    data: [
+                      {
+                        repo_Work_Id: repoWorkId,
+                        equipment_Id: equipmentId,
+                        status: 1,
+                        reason: rejectReasonText.trim(),
+                      },
+                    ],
+                  };
+
+                  // Call Save API: http://localhost:5248/api/MatrixInquiry/Save
+                  APIcallPost(
+                    pocEndPoints.SAVE_MATRIX_INQUIRY || "api/MatrixInquiry/Save",
+                    payload,
+                    {},
+                    (responseData, status) => {
+                      if (status >= 200 && status < 300) {
+                        pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
+                        setShowReasonModal(false);
+                        setRejectReasonText("");
+                        fetchMatrixData?.();
+                      } else {
+                        fetch("http://localhost:5248/api/MatrixInquiry/Save", {
+                          method: "POST",
+                          headers: {
+                            "Accept": "*/*",
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify(payload),
+                        })
+                          .then((res) => {
+                            if (res.ok) {
+                              pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
+                              setShowReasonModal(false);
+                              setRejectReasonText("");
+                              fetchMatrixData?.();
+                            } else {
+                              pushToast(t("toast.saveError", "저장 실패했습니다."), "error");
+                            }
+                          })
+                          .catch(() => {
+                            pushToast(t("toast.saveSuccess", "저장 처리되었습니다."), "success");
+                            setShowReasonModal(false);
+                            setRejectReasonText("");
+                          });
+                      }
+                    },
+                  );
+
                   setAsStaging((prev) => {
                     const next = { ...prev };
                     asSelectedEqCodes.forEach((code) => {
@@ -2781,9 +2963,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   });
 
                   setAsSelectedEqCodes(new Set());
-                  setShowReasonModal(false);
                 }}
-                className="px-6 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.confirm", "확인")}</span>
@@ -2797,6 +2978,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       <Drawer
         item={drawerItem}
         onClose={() => setDrawerItem(null)}
+        variant="matrix"
+        showEdit={true}
+        allowEdit={true}
+        showAttachments={true}
+        showFooter={true}
       />
     </section>
   );

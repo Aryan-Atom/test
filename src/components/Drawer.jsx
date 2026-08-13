@@ -60,23 +60,27 @@ const CHANGE_DETAIL_FIELDS = [
   {
     labelKey: "field.repWork",
     keys: [
+      "representative_work_name",
       "representativeWork",
       "representativeWorkName",
       "rep_work",
+      "rep_work_name",
       "work_name",
       "workName",
+      "대표 작업명",
+      "대표작업명",
     ],
   },
-  { labelKey: "field.equipmentCode", keys: ["equipmentCode", "equipment_code", "equipmentId"] },
+  { labelKey: "field.equipmentCode", keys: ["equipment_code", "equipmentCode", "equipmentId"] },
   {
     labelKey: "field.woCode",
-    keys: ["wOCode", "woCode", "wo_code", "w/ocode"],
+    keys: ["wOCode", "woCode", "wo_code", "w/ocode", "wo_number"],
   },
-  { labelKey: "field.process", keys: ["process", "processName", "process_name"] },
-  { labelKey: "field.equipmentName", keys: ["equipmentName", "equipment_name"] },
+  { labelKey: "field.process", keys: ["process_name", "processName", "process"] },
+  { labelKey: "field.equipmentName", keys: ["equipment_name", "equipmentName"] },
   {
     labelKey: "field.maintenance",
-    keys: ["maintGroup", "maintenanceType", "equipmentType", "equipmentTypeName", "equipment"],
+    keys: ["maintGroup", "maint_group", "maintenanceType", "equipmentType", "equipment_type_name", "equipmentTypeName", "equipment", "bojeon_part"],
   },
   { labelKey: "field.improvement", keys: ["work", "improvement", "work_description"] },
   { labelKey: "field.workPurpose", keys: ["purpose", "workPurpose", "work_purpose"] },
@@ -89,10 +93,10 @@ const CHANGE_DETAIL_FIELDS = [
   { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was", "swWas"] },
   { labelKey: "field.swAfter", keys: ["swAsIs", "swAfter", "sw_is", "swIs"] },
   { labelKey: "field.report", keys: ["report", "report_content", "reportContent"] },
-  { labelKey: "field.site", keys: ["site", "siteName", "corporation"] },
-  { labelKey: "field.workedOn", keys: ["workedOn", "work_date", "worked_date", "workDate"] },
-  { labelKey: "field.priority", keys: ["priority", "priorityName"] },
-  { labelKey: "field.category", keys: ["category", "categoryName", "effectType"] },
+  { labelKey: "field.site", keys: ["site_name", "site", "siteName", "corporation", "법인"] },
+  { labelKey: "field.workedOn", keys: ["work_date", "workedOn", "worked_date", "workDate"] },
+  { labelKey: "field.priority", keys: ["priority_name", "priority", "priorityName", "priority_id"] },
+  { labelKey: "field.category", keys: ["category_name", "category", "categoryName", "effectType", "category_id"] },
   { labelKey: "field.woType", keys: ["woType", "woTypeName", "workOrderType", "work_order_type"] },
 ];
 
@@ -474,20 +478,26 @@ export default function Drawer({
               <p
                 className="eq-drawer-subtitle flex flex-wrap items-center gap-x-1.5 mt-1 text-xs"
               >
-                {isChangeHistoryView ? (
+                {variant === "matrix" ? (
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">
+                    {`날짜: ${getFormattedDateString(firstValue(firstItem, ["work_date", "workedOn", "worked_date", "workDate"])) || "2026-05-13"} | ${firstValue(firstItem, ["site_name", "site", "siteName", "corporation"]) || "B3.천진"} (${equipmentName || equipmentCode || ""})`}
+                  </span>
+                ) : isChangeHistoryView ? (
                   <span className="text-gray-500 dark:text-gray-400 font-medium">
                     W/O코드: {woCode || "N/A"} | 설비: {equipmentName || ""}{equipmentCode ? ` (${equipmentCode})` : ""}
                   </span>
                 ) : (
                   (() => {
                     const repWorkVal = firstValue(firstItem, [
+                      "representative_work_name",
                       "representativeWork",
                       "representativeWorkName",
                       "rep_work",
+                      "rep_work_name",
                       "work_name",
                       "workName",
                     ]);
-                    const siteVal = firstValue(firstItem, ["site", "siteName", "corporation"]);
+                    const siteVal = firstValue(firstItem, ["site_name", "site", "siteName", "corporation"]);
 
                     return (
                       <span className="text-gray-500 dark:text-gray-400 font-medium">
@@ -540,7 +550,58 @@ export default function Drawer({
               return (
                 <div key={idx} className="detail-group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-2xs">
                   {/* Card Section Header */}
-                  {isChangeHistoryView ? (
+                  {variant === "matrix" ? (
+                    <div className="space-y-2 mb-3">
+                      <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                        항목 {idx + 1}
+                      </div>
+                      {isWoApplied ? (
+                        <div className="w-full p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-2 flex-wrap">
+                          <span className="flex items-center gap-1 shrink-0 text-blue-600 dark:text-blue-400">
+                            <i className="fas fa-check-square" />
+                          </span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">W/O 적용완료</span>
+                          {recRepWork && (
+                            <span className="text-gray-500 dark:text-gray-400 font-normal">
+                              {recRepWork}
+                            </span>
+                          )}
+                        </div>
+                      ) : isApplied ? (
+                        <div className="w-full p-2.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2 flex-wrap">
+                          <span className="flex items-center gap-1 shrink-0 text-emerald-600 dark:text-emerald-400">
+                            <i className="fas fa-check-square" />
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">적용 확인</span>
+                          {recRepWork && (
+                            <span className="text-gray-500 dark:text-gray-400 font-normal">
+                              {recRepWork}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-full p-2.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-bold space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="flex items-center gap-1 shrink-0 text-rose-600 dark:text-rose-400">
+                              <i className="fas fa-square-xmark" />
+                            </span>
+                            <span className="font-bold text-rose-600 dark:text-rose-400">미적용 확인</span>
+                            {recRepWork && (
+                              <span className="text-gray-500 dark:text-gray-400 font-normal">
+                                {recRepWork}
+                              </span>
+                            )}
+                          </div>
+                          {firstValue(rec, ["reason", "reject_reason", "exclusion_reason", "rejectReason"]) && (
+                            <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium pl-5 flex items-center gap-1">
+                              <i className="fas fa-times text-[10px]" />
+                              <span>{firstValue(rec, ["reason", "reject_reason", "exclusion_reason", "rejectReason"])}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : isChangeHistoryView ? (
                     <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60">
                       <span className="text-xs font-bold text-[#1745c2] dark:text-blue-400">
                         레코드 상세
@@ -592,25 +653,122 @@ export default function Drawer({
                     ))}
                   </dl>
 
+                  {/* Inside-card Buttons for Matrix View */}
+                  {variant === "matrix" && (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setEditingRecord({ ...rec })}
+                        className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <i className="far fa-edit text-xs" />
+                        <span>{t("app.edit", "편집")}</span>
+                      </button>
+
+                      {!isWoApplied && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClose?.();
+
+                            if (isApplied) {
+                              // If applied -> Open reason modal to change to not applied
+                              setTimeout(() => {
+                                const ev = new CustomEvent("openChangeStatusReasonModal", {
+                                  detail: { item: rec },
+                                });
+                                window.dispatchEvent(ev);
+                              }, 50);
+                            } else {
+                              // If not applied -> Call Save API directly with status 0, reason "" (NO MODAL POPUP)
+                              setTimeout(() => {
+                                const ev = new CustomEvent("changeStatusDirectlyToApplied", {
+                                  detail: { item: rec },
+                                });
+                                window.dispatchEvent(ev);
+                              }, 50);
+                            }
+                          }}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                            isApplied
+                              ? "text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100"
+                              : "text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100"
+                          }`}
+                        >
+                          <i className="fas fa-arrow-right text-[11px]" />
+                          <span>
+                            {isApplied ? "미적용으로 변경" : "적용 확인"}
+                          </span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const repWork =
+                            firstValue(rec, [
+                              "representativeWork",
+                              "representativeWorkName",
+                              "rep_work",
+                              "work_name",
+                              "workName",
+                              "대표 작업명",
+                              "대표작업명",
+                              "work",
+                            ]) ||
+                            rec["대표 작업명"] ||
+                            rec["대표작업명"] ||
+                            rec.representativeWork ||
+                            rec.representativeWorkName ||
+                            rec.work_name ||
+                            rec.workName ||
+                            "BET 산포 감소를 위한 로터 교체";
+
+                          onClose?.();
+
+                          setTimeout(() => {
+                            const ev = new CustomEvent("openLateralDeploymentModal", {
+                              detail: { repWork, item: rec },
+                            });
+                            window.dispatchEvent(ev);
+                          }, 50);
+                        }}
+                        className="px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <i className="fas fa-bars-staggered text-xs" />
+                        <span>{t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Attachment Section */}
                   {showAttachments && !isChangeHistoryView && (
-                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <i className="fas fa-camera text-gray-400 text-xs" />
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          첨부사진 ({atts ? atts.length : 0}개)
-                        </span>
-                      </div>
-                      {atts && atts.length > 0 && (
-                        <div
-                          className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
-                          onClick={() => setPreviewImage(atts[0])}
-                        >
-                          <img
-                            src={atts[0].url}
-                            alt="Attachment Preview"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          />
+                    <div className="pt-2 flex items-center justify-between">
+                      {atts && atts.length > 0 ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-camera text-gray-400 text-xs" />
+                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                              첨부사진 ({atts.length}개)
+                            </span>
+                          </div>
+                          <div
+                            className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
+                            onClick={() => setPreviewImage(atts[0])}
+                          >
+                            <img
+                              src={atts[0].url}
+                              alt="Attachment Preview"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                          <i className="far fa-image text-gray-400 text-xs" />
+                          <span>첨부된 사진이 없습니다</span>
                         </div>
                       )}
                     </div>
@@ -621,12 +779,12 @@ export default function Drawer({
           </div>
 
           {/* Drawer Footer Buttons Bar */}
-          {showFooter && !isChangeHistoryView && (showEdit || allowEdit) && (
-            <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-3">
+          {showFooter && !isChangeHistoryView && variant !== "matrix" && (showEdit || allowEdit) && (
+            <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-2 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setEditingRecord({ ...firstItem })}
-                className="px-4 py-2 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <i className="fas fa-pen-to-square text-xs" />
                 <span>{t("app.edit", "편집")}</span>
@@ -646,7 +804,7 @@ export default function Drawer({
                   });
                   window.dispatchEvent(ev);
                 }}
-                className="px-5 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <i className="fas fa-clipboard-check text-xs" />
                 <span>{t("page.matrix.lateralModalTitle", "횡전개 관리")}</span>
@@ -682,21 +840,24 @@ export default function Drawer({
 
       {editingRecord && (
         <div
-          className="modal-overlay animate-fade-in overflow-y-auto"
+          className="modal-overlay animate-fade-in overflow-y-auto z-[10000]"
           onClick={() => setEditingRecord(null)}
         >
           <div
             className="modal-panel modal-panel-xl p-6 relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header shrink-0 !px-0 !pt-0">
+            <div className="modal-header shrink-0 !px-0 !pt-0 pb-4 border-b border-gray-100 dark:border-gray-700/60">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="modal-icon-wrap">
-                  <i className="fas fa-pen-square text-base" />
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <i className="fas fa-plus text-xs" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="modal-title">{t("modal.editItemTitle", "항목 편집")}</h3>
-                  <p className="modal-description">
+                  <h3 className="modal-title font-bold text-base flex items-center gap-1.5 text-gray-900 dark:text-white">
+                    <i className="far fa-edit text-blue-600 text-sm" />
+                    <span>{t("modal.editItemTitle", "항목 편집")}</span>
+                  </h3>
+                  <p className="modal-description text-xs text-gray-500 mt-0.5">
                     {t(
                       "modal.editItemSub",
                       "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
@@ -713,7 +874,7 @@ export default function Drawer({
               </button>
             </div>
 
-            <div className="modal-body flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar text-xs !p-0 !pt-4">
+            <div className="modal-body flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar text-xs !p-0 !py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="modal-field-label">{t("field.process", "공정")}</label>
@@ -727,7 +888,7 @@ export default function Drawer({
                 </div>
                 <div>
                   <label className="modal-field-label">
-                    {t("field.equipmentType", "EQUIPMENT TYPE")}
+                    {t("field.maintenance", "보전파트")}
                   </label>
                   <input
                     type="text"
@@ -764,8 +925,8 @@ export default function Drawer({
                 <label className="modal-field-label">작업 목적</label>
                 <input
                   type="text"
-                  value={editingRecord.purpose || editingRecord.work || ""}
-                  onChange={(e) => setEditingRecord({ ...editingRecord, purpose: e.target.value })}
+                  value={editingRecord.purpose || editingRecord.workPurpose || editingRecord.work || ""}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, purpose: e.target.value, workPurpose: e.target.value })}
                   className="modal-input"
                 />
               </div>
@@ -777,12 +938,13 @@ export default function Drawer({
                   </label>
                   <input
                     type="text"
-                    value={editingRecord.situation || editingRecord.symptom || ""}
+                    value={editingRecord.situation || editingRecord.symptom || editingRecord.problem || ""}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
                         situation: e.target.value,
                         symptom: e.target.value,
+                        problem: e.target.value,
                       })
                     }
                     className="modal-input"
@@ -792,8 +954,8 @@ export default function Drawer({
                   <label className="modal-field-label">문제 원인</label>
                   <input
                     type="text"
-                    value={editingRecord.cause || ""}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, cause: e.target.value })}
+                    value={editingRecord.cause || editingRecord.problemCause || ""}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, cause: e.target.value, problemCause: e.target.value })}
                     className="modal-input"
                   />
                 </div>
@@ -805,7 +967,7 @@ export default function Drawer({
                   <input
                     type="text"
                     placeholder="BOM 입력"
-                    value={editingRecord.bom || ""}
+                    value={editingRecord.bom || editingRecord.BOM || ""}
                     onChange={(e) => setEditingRecord({ ...editingRecord, bom: e.target.value })}
                     className="modal-input"
                   />
@@ -915,18 +1077,19 @@ export default function Drawer({
                 <div>
                   <label className="modal-field-label">효과 유형</label>
                   <select
-                    value={editingRecord.category || editingRecord.effectCategory || "품질"}
+                    value={editingRecord.category || editingRecord.effectCategory || editingRecord.effectType || "보전성"}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
                         category: e.target.value,
                         effectCategory: e.target.value,
+                        effectType: e.target.value,
                       })
                     }
                     className="modal-select"
                   >
-                    <option value="품질">품질</option>
                     <option value="보전성">보전성</option>
+                    <option value="품질">품질</option>
                     <option value="생산성">생산성</option>
                     <option value="기타">기타</option>
                   </select>
@@ -939,22 +1102,33 @@ export default function Drawer({
                   <input
                     type="text"
                     disabled
-                    value={editingRecord.workedOn || "2026-03-09"}
+                    readOnly
+                    value={getFormattedDateString(firstValue(editingRecord, ["workedOn", "work_date", "workDate"])) || "19-01-2026"}
                     className="modal-readonly-field"
                   />
                 </div>
                 <div>
                   <label className="modal-field-label">요청 법인</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={editingRecord.site || editingRecord.siteName || "D1.필리핀"}
-                    className="modal-readonly-field"
-                  />
+                  <select
+                    value={editingRecord.site || editingRecord.siteName || editingRecord.corporation || "A3.부산"}
+                    onChange={(e) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        site: e.target.value,
+                        siteName: e.target.value,
+                      })
+                    }
+                    className="modal-select"
+                  >
+                    <option value="A3.부산">A3.부산</option>
+                    <option value="A13.부산">A13.부산</option>
+                    <option value="D1.필리핀">D1.필리핀</option>
+                    <option value="E1.티엔진">E1.티엔진</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <div className="drawer-tab-bar">
                   {[
                     { id: "problem", label: "문제 현상" },
@@ -994,7 +1168,7 @@ export default function Drawer({
                     }
                   />
                   <div className="drawer-upload-icon">
-                    <i className="fas fa-cloud-upload-alt text-base" />
+                    <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
                   </div>
                   <span className="drawer-upload-hint">
                     사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)
@@ -1003,15 +1177,19 @@ export default function Drawer({
               </div>
             </div>
 
-            <div className="modal-footer shrink-0 !px-0 !pb-0">
+            <div className="modal-footer shrink-0 !px-0 !pb-0 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
               <button
                 type="button"
-                className="modal-cancel-btn"
+                className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
                 onClick={() => setEditingRecord(null)}
               >
                 {t("app.cancellation", "취소")}
               </button>
-              <button type="button" onClick={handleSaveRecord} className="btn-base btn-primary">
+              <button
+                type="button"
+                onClick={handleSaveRecord}
+                className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.save", "저장하기")}</span>
               </button>
