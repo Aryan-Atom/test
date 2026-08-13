@@ -3068,7 +3068,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     (row) => {
       const remapped = remapRowKeys(row, excelToJsonKey);
       const clean = {
-        id: Number(remapped.id ?? row.id ?? 0) || 0,
+        id: 0,
         site: String(remapped.site ?? row.site ?? "").trim(),
         process: String(remapped.process ?? row.process ?? "").trim(),
         maintGroup: String(
@@ -3565,13 +3565,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const maxId = changedRecords.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
       let nextId = maxId + 1;
 
-      // Remap excel column names → json keys and assign unique IDs
+      // Remap excel column names → json keys and set id to 0
       const remappedRows = updatedRows.map((row) => {
         const remapped = remapRowKeys(row, excelToJsonKey, validKeys);
         const clean = buildCleanRow({ ...row, ...remapped });
-        if (!clean.id || clean.id === 0) {
-          clean.id = nextId++;
-        }
+        clean.id = 0;
         return clean;
       });
 
@@ -4409,7 +4407,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   onChange={handleProcessChange}
                   style={{ width: "120px", marginTop: 0 }}
                 >
-                  <option value="">{t("app.all")}</option>
+                  <option value="">{t("app.choose", "Choose")}</option>
                   {processList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.processName}
@@ -4433,7 +4431,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                   disabled={!selectedProcessId}
                   style={{ width: "130px", marginTop: 0 }}
                 >
-                  <option value="">{t("app.all")}</option>
+                  <option value="">{t("app.choose", "Choose")}</option>
                   {equipmentTypeList.map((item) => (
                     <option key={item.id} value={item.id}>
                       {getEquipmentTypeLabel(item)}

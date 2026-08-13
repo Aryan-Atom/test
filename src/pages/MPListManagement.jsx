@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+// Get changes to list of list number how much is the cost seeing this one like randomly something some doubts under equipment applied just names process ID equipment this one last tomorrow no four hundred this mean can you not actually that word is it's a mix of where is this thing will try to insert you put debugger in insert change you should learn I can backend oh you asked me very good the VOC field is required that you didn't pass VOC field VOC field is there VOC data oh you are using the same so you are updating F ten master data update is successful master data should be inserted master data work done something they have done some code validate use duplicate is false this duplicate is false so it should be inserted completely so update validate then it will go to APO method from update insert same name only right payload. This is the payload. I'll keep it Control C. inserting zero, you're sending back it's not inserted. You're sending me zero. Zero is the number of. Count right? Why is it not inserted? I'll share the payload. the JSON B whatever is zero that I'll share It was working fine. check what is it that you don't but it is not modified no see it was working ID equipment type ID rep site ID site ID changed even this guy check no safe before update can you have that backup before modification was working you give me the backup I will try that don't work this much this is the old SP right whatever because today morning when we tested for update it was working yeah don't go let's see this thing is gone this thing got inserted right So they are to edit modeling. You have some open English. It should always set once if you. have this session response This is like from I got it. to modify it gave me a USB. Should I try this? You want this, yeah, you can. check same no I mean same thing you just have to same ID, but you use because it is getting this one spike if you want to login and we will take some wood should be zero we are sending ID one and ID two change ID initially you insert right it should be zero right ID equal to initially we were inserting import is one IDS two that error response or something Number I am checking. ID is there. ID is not. ID one again but response should be zero no updated successfully but I think that whatever XM they are passing and giving there already ID's are there even if it is new record whenever new EXL passing is coming know that you check the payload so that it should be different so you can by default when it is a CO can only make it import time only you can make it you are directly passing I'm guessing from ID is being passed you are mapping to JSON mapping to JSON key but then because every time an input can be zero update running two we won't understand yeah same small we have to send ID zero considering process site has a relationship with process equipment type also has a relationship with process yeah based on process site should process site and equipment type position based on process why site is related to process is load according to process initially priority category all the independent then representative depends upon process site equipment type priority category combination of all these we have a separate mapping table now right because in that representative work we have a right downs the position we selected so it is the same no now we have a separate mapping table for upper right so in one place we will save only representative work name and identiple mappings we are saving so there it is handled that flows correctly right now that maintenance group is there everywhere now if we change it will fail so once that that has to be removed everywhere also we have to update accordimport React, { useMemo, useState, useEffect, useCallback } from "react";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
 import { useToast } from "../components/ToastContext.jsx";
@@ -325,8 +325,6 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const [compareV1, setCompareV1] = useState(null);
   const [compareV2, setCompareV2] = useState(null);
 
-
-
   // Edit modal states
   const [editingVersion, setEditingVersion] = useState(null);
   const [editEquipmentIds, setEditEquipmentIds] = useState([]);
@@ -378,7 +376,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       if (Array.isArray(v.rows) && v.rows.length > 0) {
         rawList = v.rows;
       } else if (v.changedDataJson) {
-        rawList = parseChangedDataJson(v.changedDataJson, v.appliedCount || 0, v.excludedCount || 0);
+        rawList = parseChangedDataJson(
+          v.changedDataJson,
+          v.appliedCount || 0,
+          v.excludedCount || 0,
+        );
       } else if (Array.isArray(v.changeDataList) && v.changeDataList.length > 0) {
         rawList = v.changeDataList;
       }
@@ -420,8 +422,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               const mappedItems = apiData.items.map((item) => ({
                 ...item,
                 id: item.changeDataHistoryId || item.changeHistoryId || item.id || 0,
-                changeDataHistoryId: item.changeDataHistoryId || item.changeHistoryId || item.id || 0,
-                representativeWork: item.workName || item.repWorkName || item.representativeWork || "",
+                changeDataHistoryId:
+                  item.changeDataHistoryId || item.changeHistoryId || item.id || 0,
+                representativeWork:
+                  item.workName || item.repWorkName || item.representativeWork || "",
                 workName: item.workName || item.repWorkName || "",
                 purpose: item.purpose || "",
                 hwWas: item.hwWas || "",
@@ -521,8 +525,6 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [apiVersionList, setApiVersionList] = useState([]);
-
-
 
   const fetchMPVersion = useCallback((procId = 0, eqTypeId = 0) => {
     if (isStaticDataMode) return;
@@ -667,7 +669,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     filteredRows.forEach((row, idx) => {
       if (row.version) {
         const rawRows = row.changedDataJson || row.rows || [];
-        const parsedRows = parseChangedDataJson(rawRows, row.appliedCount || 0, row.excludedCount || 0);
+        const parsedRows = parseChangedDataJson(
+          rawRows,
+          row.appliedCount || 0,
+          row.excludedCount || 0,
+        );
         const applicableRows = parsedRows.filter((r) => r.isApplicable !== false);
         const notApplicableRows = parsedRows.filter((r) => r.isApplicable === false);
 
@@ -742,7 +748,11 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           const appliedCountVal =
             item.appliedCount ?? item.applicableCount ?? item.applied_count ?? 0;
           const excludedCountVal =
-            item.notAppliedCount ?? item.excludedCount ?? item.nonApplicableCount ?? item.excluded_count ?? 0;
+            item.notAppliedCount ??
+            item.excludedCount ??
+            item.nonApplicableCount ??
+            item.excluded_count ??
+            0;
 
           let rawRows = [];
           if (Array.isArray(item.changeDataList) && item.changeDataList.length > 0) {
@@ -770,8 +780,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           const regAt =
             formatApiDate(item.createdOn || item.registeredAt || item.createdAt) ||
             (item.registeredAt ?? "2026-08-07 07:41:25");
-          const editAt =
-            formatApiDate(item.modifiedOn || item.editedAt || item.updatedAt) || regAt;
+          const editAt = formatApiDate(item.modifiedOn || item.editedAt || item.updatedAt) || regAt;
 
           const regBy =
             item.createdBy !== undefined && item.createdBy !== null && item.createdBy !== 0
@@ -786,7 +795,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             item.facilityId ??
             (item.equipmentCount !== undefined && item.equipmentCount !== null
               ? item.equipmentCount
-              : item.equipmentId ?? 0);
+              : (item.equipmentId ?? 0));
 
           return {
             id: versionIdVal,
@@ -942,10 +951,14 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
     const finalRows = comparedRows.length > 0 ? comparedRows : sampleCompareRows;
 
-    const v1Applied = compareV1.appliedCount ?? rows1.filter((r) => r.isApplicable !== false).length;
-    const v1Excluded = compareV1.excludedCount ?? rows1.filter((r) => r.isApplicable === false).length;
-    const v2Applied = compareV2.appliedCount ?? rows2.filter((r) => r.isApplicable !== false).length;
-    const v2Excluded = compareV2.excludedCount ?? rows2.filter((r) => r.isApplicable === false).length;
+    const v1Applied =
+      compareV1.appliedCount ?? rows1.filter((r) => r.isApplicable !== false).length;
+    const v1Excluded =
+      compareV1.excludedCount ?? rows1.filter((r) => r.isApplicable === false).length;
+    const v2Applied =
+      compareV2.appliedCount ?? rows2.filter((r) => r.isApplicable !== false).length;
+    const v2Excluded =
+      compareV2.excludedCount ?? rows2.filter((r) => r.isApplicable === false).length;
 
     return {
       v1Version: compareV1.version || "v1",
@@ -1125,7 +1138,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     <input
                       type="checkbox"
                       checked={(() => {
-                        const top2Keys = displayVersionRows.slice(0, 2).map((v) => String(v.id || v.version));
+                        const top2Keys = displayVersionRows
+                          .slice(0, 2)
+                          .map((v) => String(v.id || v.version));
                         return (
                           top2Keys.length > 0 &&
                           top2Keys.every((k) => selectedRowIds.has(k)) &&
@@ -1136,17 +1151,35 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                   </th>
-                  <th className="px-4 py-3.5 w-24">{t("page.mpManagement.headerVersion", "VERSION")}</th>
+                  <th className="px-4 py-3.5 w-24">
+                    {t("page.mpManagement.headerVersion", "VERSION")}
+                  </th>
                   <th className="px-4 py-3.5">{t("page.mpManagement.headerPeriod", "PERIOD")}</th>
-                  <th className="px-4 py-3.5 text-center">{t("page.mpManagement.headerApplication", "APPLICATION")}</th>
-                  <th className="px-4 py-3.5 text-center">{t("page.mpManagement.headerNotApplied", "NOT APPLIED")}</th>
-                  <th className="px-4 py-3.5 text-center">{t("page.mpManagement.headerFacilityId", "FACILITY ID")}</th>
-                  <th className="px-4 py-3.5 text-center">{t("page.mpManagement.headerConsultation", "CONSULTATION")}</th>
-                  <th className="px-4 py-3.5">{t("page.mpManagement.headerRegistrant", "REGISTRANT")}</th>
-                  <th className="px-4 py-3.5">{t("page.mpManagement.headerRegistrationDate", "REGISTRATION DATE AND TIME")}</th>
+                  <th className="px-4 py-3.5 text-center">
+                    {t("page.mpManagement.headerApplication", "APPLICATION")}
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    {t("page.mpManagement.headerNotApplied", "NOT APPLIED")}
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    {t("page.mpManagement.headerFacilityId", "FACILITY ID")}
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    {t("page.mpManagement.headerConsultation", "CONSULTATION")}
+                  </th>
+                  <th className="px-4 py-3.5">
+                    {t("page.mpManagement.headerRegistrant", "REGISTRANT")}
+                  </th>
+                  <th className="px-4 py-3.5">
+                    {t("page.mpManagement.headerRegistrationDate", "REGISTRATION DATE AND TIME")}
+                  </th>
                   <th className="px-4 py-3.5">{t("page.mpManagement.headerEditor", "EDITOR")}</th>
-                  <th className="px-4 py-3.5">{t("page.mpManagement.headerEditingDate", "EDITING DATE AND TIME")}</th>
-                  <th className="px-4 py-3.5 w-24 text-center">{t("page.mpManagement.headerActions", "ACTIONS")}</th>
+                  <th className="px-4 py-3.5">
+                    {t("page.mpManagement.headerEditingDate", "EDITING DATE AND TIME")}
+                  </th>
+                  <th className="px-4 py-3.5 w-24 text-center">
+                    {t("page.mpManagement.headerActions", "ACTIONS")}
+                  </th>
                 </tr>
               </thead>
               <tbody className="font-medium">
@@ -1169,428 +1202,541 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   </tr>
                 ) : (
                   displayVersionRows.map((v) => {
-                  const rowId = String(v.id || v.version);
-                  const isExpanded = expandedRowIds.has(rowId);
-                  const isChecked = selectedRowIds.has(rowId);
+                    const rowId = String(v.id || v.version);
+                    const isExpanded = expandedRowIds.has(rowId);
+                    const isChecked = selectedRowIds.has(rowId);
 
-                  return (
-                    <React.Fragment key={rowId}>
-                      <tr
-                        onClick={() => toggleExpandRow(rowId)}
-                        className={`transition-colors cursor-pointer select-none ${isExpanded ? "bg-surface-brand" : ""}`}
-                      >
-                        <td
-                          className="px-4 py-3.5 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleSelectRow(rowId)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-1.5 cursor-pointer">
-                            <span className="badge badge-primary">{v.version}</span>
-                            <i
-                              className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-[10px] text-gray-400`}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5 text-text-default font-semibold">{v.period}</td>
-                        <td className="px-4 py-3.5 text-center">
-                          <span className="badge badge-success">{v.appliedCount} cases</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-center">
-                          <span className="badge badge-danger">{v.excludedCount} cases</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-center text-text-default">
-                          {v.facilityId ?? 9}
-                        </td>
-                        <td className="px-4 py-3.5 text-center text-gray-400">
-                          {v.consultation || "—"}
-                        </td>
-                        <td className="px-4 py-3.5 text-text-default">
-                          {v.registeredBy || "admin"}
-                        </td>
-                        <td className="px-4 py-3.5 text-text-subtle">{v.registeredAt}</td>
-                        <td className="px-4 py-3.5 text-text-default">{v.editedBy || "admin"}</td>
-                        <td className="px-4 py-3.5 text-text-subtle">{v.editedAt}</td>
-                        <td
-                          className="px-4 py-3.5 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-center gap-2.5">
-                            <button
-                              type="button"
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1 cursor-pointer transition-colors"
-                              title={t("app.copy", "복사")}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyVersion(v);
-                              }}
-                            >
-                              <i className="fas fa-copy text-xs" />
-                            </button>
-                            <button
-                              type="button"
-                              className="text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 p-1 cursor-pointer transition-colors"
-                              title={t("app.edit", "편집")}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditModal(v);
-                              }}
-                            >
-                              <i className="fas fa-pen text-xs" />
-                            </button>
-                            <button
-                              type="button"
-                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 cursor-pointer transition-colors"
-                              title={t("app.delete", "삭제")}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRowToDelete(v);
-                              }}
-                            >
-                              <i className="fas fa-trash-alt text-xs" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Accordion Expanded Detail Row */}
-                      {isExpanded && (
+                    return (
+                      <React.Fragment key={rowId}>
                         <tr
-                          className="expanded-detail-row bg-surface-strong"
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseEnter={(e) => e.stopPropagation()}
-                          onMouseOver={(e) => e.stopPropagation()}
+                          onClick={() => toggleExpandRow(rowId)}
+                          className={`transition-colors cursor-pointer select-none ${isExpanded ? "bg-surface-brand" : ""}`}
                         >
                           <td
-                            colSpan={12}
-                            className="px-6 py-4"
+                            className="px-4 py-3.5 text-center"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="space-y-6">
-                              {/* Section 1: Applicable Items */}
-                              <div>
-                                <div className="flex items-center gap-2 mb-2.5">
-                                  <i className="fas fa-check-circle text-emerald-500 text-xs" />
-                                  <span className="text-xs font-bold text-text-default">
-                                    {t("page.mpManagement.applicableItemsTitle", "Applicable Items")} ({v.appliedCount ?? 0} {t("page.mpManagement.itemsSuffix", "items")})
-                                  </span>
-                                </div>
-                                <div className="mgmt-surface rounded-xl overflow-hidden shadow-2xs">
-                                  <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                                    <table
-                                      className="mgmt-table mgmt-nested-table w-full text-left text-xs"
-                                      style={{ borderCollapse: "separate", borderSpacing: 0 }}
-                                    >
-                                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
-                                        <tr>
-                                          <th className="px-3 py-2 w-10 text-center">#</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerRepWork", "REPRESENTATIVE WORK NAME")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerPurpose", "PURPOSE OF THE WORK")}</th>
-                                          <th className="px-3 py-2">
-                                            {t("page.mpManagement.headerHwBefore", "BEFORE CHANGING THE HARDWARE")}
-                                          </th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerHwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerSwBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerSwAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                                          <th className="px-3 py-2 text-center">{t("page.mpManagement.headerImportance", "IMPORTANCE")}</th>
-                                          <th className="px-3 py-2 text-center">{t("page.mpManagement.headerEffectType", "TYPES OF EFFECT")}</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="font-normal text-text-subtle">
-                                        {(Array.isArray(v.rows)
-                                          ? v.rows.filter((r) => r.isApplicable !== false)
-                                          : []
-                                        ).map((item, idx) => {
-                                          const repWorkVal =
-                                            getRowValue(
-                                              item,
-                                              "representativeWork",
-                                              "representative_work_name",
-                                              "repWork",
-                                            ) || "—";
-                                          const purposeVal = getRowValue(item, "purpose", "work") || "—";
-                                          const hwBeforeVal = getRowValue(item, "hwAsWas", "hwBefore") || "—";
-                                          const hwAfterVal = getRowValue(item, "hwAsIs", "hwAfter") || "—";
-                                          const swBeforeVal = getRowValue(item, "swAsWas", "swBefore") || "—";
-                                          const swAfterVal = getRowValue(item, "swAsIs", "swAfter") || "—";
-                                          const priorityVal =
-                                            getRowValue(item, "priority", "priorityName") || "—";
-                                          const categoryVal =
-                                            getRowValue(item, "category", "categoryName") || "—";
-
-                                          return (
-                                            <tr
-                                              key={`app-${item.changeHistoryId || item.id || idx}`}
-                                              className="transition-colors border-b border-border-base/50"
-                                            >
-                                              <td className="px-3 py-2 text-center text-text-subtlest font-medium">
-                                                {idx + 1}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 font-semibold text-text-default max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={repWorkVal}
-                                              >
-                                                {repWorkVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={purposeVal}
-                                              >
-                                                {purposeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={hwBeforeVal}
-                                              >
-                                                {hwBeforeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={hwAfterVal}
-                                              >
-                                                {hwAfterVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={swBeforeVal}
-                                              >
-                                                {swBeforeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={swAfterVal}
-                                              >
-                                                {swAfterVal}
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                <span
-                                                  className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
-                                                    priorityVal === "중요" || priorityVal === "Important"
-                                                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                                      : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
-                                                  }`}
-                                                  title={priorityVal}
-                                                >
-                                                  {priorityVal}
-                                                </span>
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                <span
-                                                  className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
-                                                  title={categoryVal}
-                                                >
-                                                  {categoryVal}
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Section 2: Not Applicable Items */}
-                              <div>
-                                <div className="flex items-center gap-2 mb-2.5">
-                                  <i className="fas fa-times-circle text-red-500 text-xs" />
-                                  <span className="text-xs font-bold text-text-default">
-                                    {t("page.mpManagement.notApplicableItemsTitle", "Not Applicable Items")} ({v.excludedCount ?? 0} {t("page.mpManagement.itemsSuffix", "items")})
-                                  </span>
-                                </div>
-                                <div className="mgmt-surface border border-red-200 rounded-xl overflow-hidden shadow-2xs">
-                                  <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                                    <table
-                                      className="mgmt-table mgmt-not-applied-table w-full text-left text-xs"
-                                      style={{ borderCollapse: "separate", borderSpacing: 0 }}
-                                    >
-                                      <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
-                                        <tr>
-                                          <th className="px-3 py-2 w-10 text-center">#</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerRepWork", "REPRESENTATIVE WORK NAME")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerPurpose", "PURPOSE OF THE WORK")}</th>
-                                          <th className="px-3 py-2">
-                                            {t("page.mpManagement.headerHwBefore", "BEFORE CHANGING THE HARDWARE")}
-                                          </th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerHwAfter", "AFTER CHANGING THE HARDWARE")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerSwBefore", "BEFORE SOFTWARE CHANGE")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerSwAfter", "AFTER THE SOFTWARE CHANGE")}</th>
-                                          <th className="px-3 py-2 text-center">{t("page.mpManagement.headerImportance", "IMPORTANCE")}</th>
-                                          <th className="px-3 py-2 text-center">{t("page.mpManagement.headerEffectType", "TYPES OF EFFECT")}</th>
-                                          <th className="px-3 py-2">{t("page.mpManagement.headerReasoning", "REASONING")}</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="font-normal text-text-subtle">
-                                        {(Array.isArray(v.rows)
-                                          ? v.rows.filter((r) => r.isApplicable === false)
-                                          : []
-                                        ).map((item, idx) => {
-                                          const repWorkVal =
-                                            getRowValue(
-                                              item,
-                                              "representativeWork",
-                                              "representative_work_name",
-                                              "repWork",
-                                            ) || "—";
-                                          const purposeVal = getRowValue(item, "purpose", "work") || "—";
-                                          const hwBeforeVal = getRowValue(item, "hwAsWas", "hwBefore") || "—";
-                                          const hwAfterVal = getRowValue(item, "hwAsIs", "hwAfter") || "—";
-                                          const swBeforeVal = getRowValue(item, "swAsWas", "swBefore") || "—";
-                                          const swAfterVal = getRowValue(item, "swAsIs", "swAfter") || "—";
-                                          const priorityVal =
-                                            getRowValue(item, "priority", "priorityName") || "—";
-                                          const categoryVal =
-                                            getRowValue(item, "category", "categoryName") || "—";
-                                          const reasonVal =
-                                            getRowValue(item, "reason", "reasoning", "nonImplReason") || "";
-
-                                          return (
-                                            <tr
-                                              key={`not-${item.changeHistoryId || item.id || idx}`}
-                                              className="transition-colors border-b border-border-base/50"
-                                            >
-                                              <td className="px-3 py-2 text-center text-text-subtlest font-medium">
-                                                {idx + 1}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 font-semibold text-text-default max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={repWorkVal}
-                                              >
-                                                {repWorkVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={purposeVal}
-                                              >
-                                                {purposeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={hwBeforeVal}
-                                              >
-                                                {hwBeforeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={hwAfterVal}
-                                              >
-                                                {hwAfterVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={swBeforeVal}
-                                              >
-                                                {swBeforeVal}
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
-                                                title={swAfterVal}
-                                              >
-                                                {swAfterVal}
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                <span
-                                                  className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
-                                                    priorityVal === "중요" || priorityVal === "Important"
-                                                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                                      : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
-                                                  }`}
-                                                  title={priorityVal}
-                                                >
-                                                  {priorityVal}
-                                                </span>
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                <span
-                                                  className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
-                                                  title={categoryVal}
-                                                >
-                                                  {categoryVal}
-                                                </span>
-                                              </td>
-                                              <td
-                                                className="px-3 py-2 max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-red-500"
-                                                title={reasonVal || "—"}
-                                              >
-                                                {reasonVal || "—"}
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Section 3: Row Metadata Summary Footer */}
-                              <div className="pt-4 border-t border-border-base text-xs space-y-2">
-                                {/* Line 1: Equipment ID */}
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-text-default flex items-center gap-1.5">
-                                    <i className="fas fa-microchip text-gray-500 text-xs" />
-                                    {t("field.equipmentId", "설비ID")}
-                                  </span>
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    {Array.isArray(v.equipmentIds) && v.equipmentIds.length > 0 ? (
-                                      v.equipmentIds.map((eqId, i) => (
-                                        <span
-                                          key={i}
-                                          className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                        >
-                                          {eqId}
-                                        </span>
-                                      ))
-                                    ) : v.facilityId ? (
-                                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                                        {String(v.facilityId)}
-                                      </span>
-                                    ) : (
-                                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                                        A0912004
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Line 2: Registrant & Editor Info */}
-                                <div className="flex flex-wrap items-center gap-6 text-xs text-text-subtle">
-                                  <span className="flex items-center gap-1.5">
-                                    <i className="fas fa-user-plus text-gray-500 text-[11px]" />
-                                    <span className="font-medium text-text-subtle">
-                                      {t("page.mpManagement.registeredByLabel", "등록")}:
-                                    </span>
-                                    <span className="font-medium text-text-default">
-                                      {v.registeredBy || "admin"}
-                                    </span>
-                                    <span className="text-text-subtle">{v.registeredAt || "2026-08-11 23:48:50"}</span>
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <i className="fas fa-user-edit text-gray-500 text-[11px]" />
-                                    <span className="font-medium text-text-subtle">
-                                      {t("page.mpManagement.editedByLabel", "편집")}:
-                                    </span>
-                                    <span className="font-medium text-text-default">
-                                      {v.editedBy || "admin"}
-                                    </span>
-                                    <span className="text-text-subtle">{v.editedAt || "2026-08-12 12:17:12"}</span>
-                                  </span>
-                                </div>
-                              </div>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleSelectRow(rowId)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5 cursor-pointer">
+                              <span className="badge badge-primary">{v.version}</span>
+                              <i
+                                className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-[10px] text-gray-400`}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-text-default font-semibold">
+                            {v.period}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className="badge badge-success">{v.appliedCount} cases</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className="badge badge-danger">{v.excludedCount} cases</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-text-default">
+                            {v.facilityId ?? 9}
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-gray-400">
+                            {v.consultation || "—"}
+                          </td>
+                          <td className="px-4 py-3.5 text-text-default">
+                            {v.registeredBy || "admin"}
+                          </td>
+                          <td className="px-4 py-3.5 text-text-subtle">{v.registeredAt}</td>
+                          <td className="px-4 py-3.5 text-text-default">{v.editedBy || "admin"}</td>
+                          <td className="px-4 py-3.5 text-text-subtle">{v.editedAt}</td>
+                          <td
+                            className="px-4 py-3.5 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-center gap-2.5">
+                              <button
+                                type="button"
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1 cursor-pointer transition-colors"
+                                title={t("app.copy", "복사")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyVersion(v);
+                                }}
+                              >
+                                <i className="fas fa-copy text-xs" />
+                              </button>
+                              <button
+                                type="button"
+                                className="text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 p-1 cursor-pointer transition-colors"
+                                title={t("app.edit", "편집")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(v);
+                                }}
+                              >
+                                <i className="fas fa-pen text-xs" />
+                              </button>
+                              <button
+                                type="button"
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 cursor-pointer transition-colors"
+                                title={t("app.delete", "삭제")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRowToDelete(v);
+                                }}
+                              >
+                                <i className="fas fa-trash-alt text-xs" />
+                              </button>
                             </div>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                }))}
+
+                        {/* Accordion Expanded Detail Row */}
+                        {isExpanded && (
+                          <tr
+                            className="expanded-detail-row bg-surface-strong"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseEnter={(e) => e.stopPropagation()}
+                            onMouseOver={(e) => e.stopPropagation()}
+                          >
+                            <td
+                              colSpan={12}
+                              className="px-6 py-4"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="space-y-6">
+                                {/* Section 1: Applicable Items */}
+                                <div>
+                                  <div className="flex items-center gap-2 mb-2.5">
+                                    <i className="fas fa-check-circle text-emerald-500 text-xs" />
+                                    <span className="text-xs font-bold text-text-default">
+                                      {t(
+                                        "page.mpManagement.applicableItemsTitle",
+                                        "Applicable Items",
+                                      )}{" "}
+                                      ({v.appliedCount ?? 0}{" "}
+                                      {t("page.mpManagement.itemsSuffix", "items")})
+                                    </span>
+                                  </div>
+                                  <div className="mgmt-surface rounded-xl overflow-hidden shadow-2xs">
+                                    <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                      <table
+                                        className="mgmt-table mgmt-nested-table w-full text-left text-xs"
+                                        style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                                      >
+                                        <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
+                                          <tr>
+                                            <th className="px-3 py-2 w-10 text-center">#</th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerRepWork",
+                                                "REPRESENTATIVE WORK NAME",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerPurpose",
+                                                "PURPOSE OF THE WORK",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerHwBefore",
+                                                "BEFORE CHANGING THE HARDWARE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerHwAfter",
+                                                "AFTER CHANGING THE HARDWARE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerSwBefore",
+                                                "BEFORE SOFTWARE CHANGE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerSwAfter",
+                                                "AFTER THE SOFTWARE CHANGE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2 text-center">
+                                              {t(
+                                                "page.mpManagement.headerImportance",
+                                                "IMPORTANCE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2 text-center">
+                                              {t(
+                                                "page.mpManagement.headerEffectType",
+                                                "TYPES OF EFFECT",
+                                              )}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="font-normal text-text-subtle">
+                                          {(Array.isArray(v.rows)
+                                            ? v.rows.filter((r) => r.isApplicable !== false)
+                                            : []
+                                          ).map((item, idx) => {
+                                            const repWorkVal =
+                                              getRowValue(
+                                                item,
+                                                "representativeWork",
+                                                "representative_work_name",
+                                                "repWork",
+                                              ) || "—";
+                                            const purposeVal =
+                                              getRowValue(item, "purpose", "work") || "—";
+                                            const hwBeforeVal =
+                                              getRowValue(item, "hwAsWas", "hwBefore") || "—";
+                                            const hwAfterVal =
+                                              getRowValue(item, "hwAsIs", "hwAfter") || "—";
+                                            const swBeforeVal =
+                                              getRowValue(item, "swAsWas", "swBefore") || "—";
+                                            const swAfterVal =
+                                              getRowValue(item, "swAsIs", "swAfter") || "—";
+                                            const priorityVal =
+                                              getRowValue(item, "priority", "priorityName") || "—";
+                                            const categoryVal =
+                                              getRowValue(item, "category", "categoryName") || "—";
+
+                                            return (
+                                              <tr
+                                                key={`app-${item.changeHistoryId || item.id || idx}`}
+                                                className="transition-colors border-b border-border-base/50"
+                                              >
+                                                <td className="px-3 py-2 text-center text-text-subtlest font-medium">
+                                                  {idx + 1}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 font-semibold text-text-default max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={repWorkVal}
+                                                >
+                                                  {repWorkVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={purposeVal}
+                                                >
+                                                  {purposeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={hwBeforeVal}
+                                                >
+                                                  {hwBeforeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={hwAfterVal}
+                                                >
+                                                  {hwAfterVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={swBeforeVal}
+                                                >
+                                                  {swBeforeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={swAfterVal}
+                                                >
+                                                  {swAfterVal}
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <span
+                                                    className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
+                                                      priorityVal === "중요" ||
+                                                      priorityVal === "Important"
+                                                        ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                                        : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
+                                                    }`}
+                                                    title={priorityVal}
+                                                  >
+                                                    {priorityVal}
+                                                  </span>
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <span
+                                                    className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
+                                                    title={categoryVal}
+                                                  >
+                                                    {categoryVal}
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Section 2: Not Applicable Items */}
+                                <div>
+                                  <div className="flex items-center gap-2 mb-2.5">
+                                    <i className="fas fa-times-circle text-red-500 text-xs" />
+                                    <span className="text-xs font-bold text-text-default">
+                                      {t(
+                                        "page.mpManagement.notApplicableItemsTitle",
+                                        "Not Applicable Items",
+                                      )}{" "}
+                                      ({v.excludedCount ?? 0}{" "}
+                                      {t("page.mpManagement.itemsSuffix", "items")})
+                                    </span>
+                                  </div>
+                                  <div className="mgmt-surface border border-red-200 rounded-xl overflow-hidden shadow-2xs">
+                                    <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                      <table
+                                        className="mgmt-table mgmt-not-applied-table w-full text-left text-xs"
+                                        style={{ borderCollapse: "separate", borderSpacing: 0 }}
+                                      >
+                                        <thead className="sticky top-0 uppercase text-[9px] font-bold tracking-wider z-20 shadow-2xs">
+                                          <tr>
+                                            <th className="px-3 py-2 w-10 text-center">#</th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerRepWork",
+                                                "REPRESENTATIVE WORK NAME",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerPurpose",
+                                                "PURPOSE OF THE WORK",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerHwBefore",
+                                                "BEFORE CHANGING THE HARDWARE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerHwAfter",
+                                                "AFTER CHANGING THE HARDWARE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerSwBefore",
+                                                "BEFORE SOFTWARE CHANGE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t(
+                                                "page.mpManagement.headerSwAfter",
+                                                "AFTER THE SOFTWARE CHANGE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2 text-center">
+                                              {t(
+                                                "page.mpManagement.headerImportance",
+                                                "IMPORTANCE",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2 text-center">
+                                              {t(
+                                                "page.mpManagement.headerEffectType",
+                                                "TYPES OF EFFECT",
+                                              )}
+                                            </th>
+                                            <th className="px-3 py-2">
+                                              {t("page.mpManagement.headerReasoning", "REASONING")}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="font-normal text-text-subtle">
+                                          {(Array.isArray(v.rows)
+                                            ? v.rows.filter((r) => r.isApplicable === false)
+                                            : []
+                                          ).map((item, idx) => {
+                                            const repWorkVal =
+                                              getRowValue(
+                                                item,
+                                                "representativeWork",
+                                                "representative_work_name",
+                                                "repWork",
+                                              ) || "—";
+                                            const purposeVal =
+                                              getRowValue(item, "purpose", "work") || "—";
+                                            const hwBeforeVal =
+                                              getRowValue(item, "hwAsWas", "hwBefore") || "—";
+                                            const hwAfterVal =
+                                              getRowValue(item, "hwAsIs", "hwAfter") || "—";
+                                            const swBeforeVal =
+                                              getRowValue(item, "swAsWas", "swBefore") || "—";
+                                            const swAfterVal =
+                                              getRowValue(item, "swAsIs", "swAfter") || "—";
+                                            const priorityVal =
+                                              getRowValue(item, "priority", "priorityName") || "—";
+                                            const categoryVal =
+                                              getRowValue(item, "category", "categoryName") || "—";
+                                            const reasonVal =
+                                              getRowValue(
+                                                item,
+                                                "reason",
+                                                "reasoning",
+                                                "nonImplReason",
+                                              ) || "";
+
+                                            return (
+                                              <tr
+                                                key={`not-${item.changeHistoryId || item.id || idx}`}
+                                                className="transition-colors border-b border-border-base/50"
+                                              >
+                                                <td className="px-3 py-2 text-center text-text-subtlest font-medium">
+                                                  {idx + 1}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 font-semibold text-text-default max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={repWorkVal}
+                                                >
+                                                  {repWorkVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={purposeVal}
+                                                >
+                                                  {purposeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={hwBeforeVal}
+                                                >
+                                                  {hwBeforeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[220px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={hwAfterVal}
+                                                >
+                                                  {hwAfterVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={swBeforeVal}
+                                                >
+                                                  {swBeforeVal}
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[180px] truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                                                  title={swAfterVal}
+                                                >
+                                                  {swAfterVal}
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <span
+                                                    className={`px-2.5 py-0.5 text-xs font-semibold rounded-full inline-block ${
+                                                      priorityVal === "중요" ||
+                                                      priorityVal === "Important"
+                                                        ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                                        : "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
+                                                    }`}
+                                                    title={priorityVal}
+                                                  >
+                                                    {priorityVal}
+                                                  </span>
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <span
+                                                    className="px-2.5 py-0.5 text-xs font-medium rounded-full inline-block bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs"
+                                                    title={categoryVal}
+                                                  >
+                                                    {categoryVal}
+                                                  </span>
+                                                </td>
+                                                <td
+                                                  className="px-3 py-2 max-w-[200px] truncate overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-red-500"
+                                                  title={reasonVal || "—"}
+                                                >
+                                                  {reasonVal || "—"}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Section 3: Row Metadata Summary Footer */}
+                                <div className="pt-4 border-t border-border-base text-xs space-y-2">
+                                  {/* Line 1: Equipment ID */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-text-default flex items-center gap-1.5">
+                                      <i className="fas fa-microchip text-gray-500 text-xs" />
+                                      {t("field.equipmentId", "설비ID")}
+                                    </span>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {Array.isArray(v.equipmentIds) &&
+                                      v.equipmentIds.length > 0 ? (
+                                        v.equipmentIds.map((eqId, i) => (
+                                          <span
+                                            key={i}
+                                            className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                          >
+                                            {eqId}
+                                          </span>
+                                        ))
+                                      ) : v.facilityId ? (
+                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                                          {String(v.facilityId)}
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                                          A0912004
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Line 2: Registrant & Editor Info */}
+                                  <div className="flex flex-wrap items-center gap-6 text-xs text-text-subtle">
+                                    <span className="flex items-center gap-1.5">
+                                      <i className="fas fa-user-plus text-gray-500 text-[11px]" />
+                                      <span className="font-medium text-text-subtle">
+                                        {t("page.mpManagement.registeredByLabel", "등록")}:
+                                      </span>
+                                      <span className="font-medium text-text-default">
+                                        {v.registeredBy || "admin"}
+                                      </span>
+                                      <span className="text-text-subtle">
+                                        {v.registeredAt || "2026-08-11 23:48:50"}
+                                      </span>
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                      <i className="fas fa-user-edit text-gray-500 text-[11px]" />
+                                      <span className="font-medium text-text-subtle">
+                                        {t("page.mpManagement.editedByLabel", "편집")}:
+                                      </span>
+                                      <span className="font-medium text-text-default">
+                                        {v.editedBy || "admin"}
+                                      </span>
+                                      <span className="text-text-subtle">
+                                        {v.editedAt || "2026-08-12 12:17:12"}
+                                      </span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -1760,15 +1906,31 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   >
                     <thead className="sticky top-0 bg-gray-50/90 dark:bg-gray-700/80 text-gray-400 dark:text-gray-300 uppercase text-[10px] font-bold tracking-wider z-10 border-b border-border-base">
                       <tr>
-                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerRepWork", "REPRESENTATIVE WORK NAME")}</th>
-                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerPurpose", "PURPOSE OF THE WORK")}</th>
-                        <th className="px-3 py-3 font-bold">{t("field.situation", "PROBLEM PHENOMENON")}</th>
-                        <th className="px-3 py-3 font-bold">{t("field.cause", "CAUSE OF THE ISSUE")}</th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("page.mpManagement.headerRepWork", "REPRESENTATIVE WORK NAME")}
+                        </th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("page.mpManagement.headerPurpose", "PURPOSE OF THE WORK")}
+                        </th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("field.situation", "PROBLEM PHENOMENON")}
+                        </th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("field.cause", "CAUSE OF THE ISSUE")}
+                        </th>
                         <th className="px-3 py-3 font-bold">BOM</th>
-                        <th className="px-3 py-3 font-bold">{t("field.materialName", "MATERIAL NAME")}</th>
-                        <th className="px-3 py-3 font-bold">{t("page.mpManagement.headerHwBefore", "BEFORE CHANGING HARDWARE")}</th>
-                        <th className="px-3 py-3 font-bold text-center">{t("page.mpManagement.headerImportance", "IMPORTANCE")}</th>
-                        <th className="px-3 py-3 font-bold text-center">{t("page.mpManagement.headerEffectType", "EFFECT")}</th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("field.materialName", "MATERIAL NAME")}
+                        </th>
+                        <th className="px-3 py-3 font-bold">
+                          {t("page.mpManagement.headerHwBefore", "BEFORE CHANGING HARDWARE")}
+                        </th>
+                        <th className="px-3 py-3 font-bold text-center">
+                          {t("page.mpManagement.headerImportance", "IMPORTANCE")}
+                        </th>
+                        <th className="px-3 py-3 font-bold text-center">
+                          {t("page.mpManagement.headerEffectType", "EFFECT")}
+                        </th>
                         <th className="px-3 py-3 font-bold text-center uppercase">
                           {dynamicCompareData.v1Version}
                         </th>
@@ -1814,7 +1976,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                               }`}
                             >
-                              {row.v1Status === "Applied" ? t("page.mp.applied", "Applied") : t("page.mp.notApplied", "Not applied")}
+                              {row.v1Status === "Applied"
+                                ? t("page.mp.applied", "Applied")
+                                : t("page.mp.notApplied", "Not applied")}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
@@ -1825,7 +1989,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                                   : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                               }`}
                             >
-                              {row.v2Status === "Applied" ? t("page.mp.applied", "Applied") : t("page.mp.notApplied", "Not applied")}
+                              {row.v2Status === "Applied"
+                                ? t("page.mp.applied", "Applied")
+                                : t("page.mp.notApplied", "Not applied")}
                             </span>
                           </td>
                         </tr>
@@ -1873,7 +2039,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     <span className="badge badge-primary">{editingVersion.version || "v1"}</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
-                    {processList.find((p) => p.id === selectedProcessId)?.processName || "02.배치"} - {maintenanceList.find((m) => m.id === selectedMaintenanceId)?.equipmentTypeName || "0202. Nano Mill"}
+                    {processList.find((p) => p.id === selectedProcessId)?.processName || "02.배치"}{" "}
+                    -{" "}
+                    {maintenanceList.find((m) => m.id === selectedMaintenanceId)
+                      ?.equipmentTypeName || "0202. Nano Mill"}
                   </p>
                 </div>
               </div>
@@ -1948,7 +2117,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 </h4>
                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
                   <div className="w-full md:w-44 shrink-0">
-                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">Date</label>
+                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
+                      Date
+                    </label>
                     <input
                       type="date"
                       value={newConsultDate}
@@ -1957,7 +2128,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     />
                   </div>
                   <div className="w-full md:flex-1 min-w-[200px]">
-                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">Title</label>
+                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
+                      Title
+                    </label>
                     <input
                       type="text"
                       placeholder="Consultation Title"
@@ -2086,7 +2259,15 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[150px] truncate">
-                              {getRowValue(row, "workName", "repWorkName", "representativeWork", "equipmentName", "repWork", "work") || "—"}
+                              {getRowValue(
+                                row,
+                                "workName",
+                                "repWorkName",
+                                "representativeWork",
+                                "equipmentName",
+                                "repWork",
+                                "work",
+                              ) || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[140px] truncate">
                               {getRowValue(row, "purpose", "work") || "—"}
@@ -2104,10 +2285,14 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {renderPriorityBadge(getRowValue(row, "priority", "priorityName", "importance"))}
+                              {renderPriorityBadge(
+                                getRowValue(row, "priority", "priorityName", "importance"),
+                              )}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {renderCategoryBadge(getRowValue(row, "category", "categoryName", "effect"))}
+                              {renderCategoryBadge(
+                                getRowValue(row, "category", "categoryName", "effect"),
+                              )}
                             </td>
                             <td className="px-3 py-2 text-center">
                               <button
@@ -2189,7 +2374,15 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {idx + 1}
                             </td>
                             <td className="px-3 py-2 font-semibold text-text-default max-w-[130px] truncate">
-                              {getRowValue(row, "workName", "repWorkName", "representativeWork", "equipmentName", "repWork", "work") || "—"}
+                              {getRowValue(
+                                row,
+                                "workName",
+                                "repWorkName",
+                                "representativeWork",
+                                "equipmentName",
+                                "repWork",
+                                "work",
+                              ) || "—"}
                             </td>
                             <td className="px-3 py-2 max-w-[120px] truncate">
                               {getRowValue(row, "purpose", "work") || "—"}
@@ -2207,20 +2400,28 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                               {getRowValue(row, "swIs", "swAsIs", "swAfter") || "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {renderPriorityBadge(getRowValue(row, "priority", "priorityName", "importance"))}
+                              {renderPriorityBadge(
+                                getRowValue(row, "priority", "priorityName", "importance"),
+                              )}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {renderCategoryBadge(getRowValue(row, "category", "categoryName", "effect"))}
+                              {renderCategoryBadge(
+                                getRowValue(row, "category", "categoryName", "effect"),
+                              )}
                             </td>
                             <td className="px-3 py-2">
                               <textarea
                                 rows={2}
-                                value={getRowValue(row, "reason", "reasoning", "nonImplReason") || ""}
+                                value={
+                                  getRowValue(row, "reason", "reasoning", "nonImplReason") || ""
+                                }
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setEditNotApplicableRows(
                                     editNotApplicableRows.map((r, i) =>
-                                      i === idx ? { ...r, reasoning: val, reason: val, nonImplReason: val } : r,
+                                      i === idx
+                                        ? { ...r, reasoning: val, reason: val, nonImplReason: val }
+                                        : r,
                                     ),
                                   );
                                 }}
@@ -2299,24 +2500,12 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 uppercase text-[9px] font-bold text-gray-500 tracking-wider z-20 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-3 py-2.5 w-8 text-center">#</th>
-                        <th className="px-3 py-2.5">
-                          {t("field.repWork", "대표 작업명")}
-                        </th>
-                        <th className="px-3 py-2.5">
-                          {t("field.purpose", "작업 목적")}
-                        </th>
-                        <th className="px-3 py-2.5">
-                          {t("field.hwBefore", "HW 변경 전")}
-                        </th>
-                        <th className="px-3 py-2.5">
-                          {t("field.hwAfter", "HW 변경 후")}
-                        </th>
-                        <th className="px-3 py-2.5">
-                          {t("field.swBefore", "SW 변경 전")}
-                        </th>
-                        <th className="px-3 py-2.5">
-                          {t("field.swAfter", "SW 변경 후")}
-                        </th>
+                        <th className="px-3 py-2.5">{t("field.repWork", "대표 작업명")}</th>
+                        <th className="px-3 py-2.5">{t("field.purpose", "작업 목적")}</th>
+                        <th className="px-3 py-2.5">{t("field.hwBefore", "HW 변경 전")}</th>
+                        <th className="px-3 py-2.5">{t("field.hwAfter", "HW 변경 후")}</th>
+                        <th className="px-3 py-2.5">{t("field.swBefore", "SW 변경 전")}</th>
+                        <th className="px-3 py-2.5">{t("field.swAfter", "SW 변경 후")}</th>
                         <th className="px-3 py-2.5 w-20 text-center">
                           {t("field.priority", "중요도")}
                         </th>

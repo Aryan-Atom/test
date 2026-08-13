@@ -495,10 +495,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   // Filters State
   const [selectedProcess, setSelectedProcess] = useState(() => {
-    return sessionStorage.getItem("eq_selected_process_name") || "전체";
+    return sessionStorage.getItem("eq_selected_process_name") || "";
   });
   const [selectedMaintenance, setSelectedMaintenance] = useState(() => {
-    return sessionStorage.getItem("eq_selected_maint_name") || "전체";
+    return sessionStorage.getItem("eq_selected_maint_name") || "";
   });
   const [selectedSite, setSelectedSite] = useState("전체");
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
@@ -1889,7 +1889,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               onChange={handleProcessChange}
               style={{ width: "110px" }}
             >
-              <option value="전체">{t("app.all", "전체")}</option>
+              <option value="">{t("app.choose", "Choose")}</option>
               {processOptions.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -1907,10 +1907,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               className="input-base"
               value={selectedMaintenance}
               onChange={handleMaintenanceChange}
-              disabled={selectedProcess === "전체"}
+              disabled={!selectedProcess || selectedProcess === "전체" || selectedProcess === "Choose"}
               style={{ width: "130px" }}
             >
-              <option value="전체">{t("app.all", "전체")}</option>
+              <option value="">{t("app.choose", "Choose")}</option>
               {maintenanceOptions.map((m) => (
                 <option key={m} value={m}>
                   {m}

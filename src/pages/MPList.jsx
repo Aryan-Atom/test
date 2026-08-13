@@ -965,24 +965,37 @@ export default function MPList({
           setFilterPayload(payload);
           setFilterError(null);
 
-          const loadedRecords = [];
-          if (Array.isArray(payload?.changedDataJson)) {
-            payload.changedDataJson.forEach((item) => {
-              try {
-                if (item.content) {
-                  const parsed =
-                    typeof item.content === "string" ? JSON.parse(item.content) : item.content;
-                  if (Array.isArray(parsed)) {
-                    loadedRecords.push(...parsed.map((r) => ({ ...r, _sourceId: item.id })));
+          const hasProcess =
+            selectedProcessId !== null &&
+            selectedProcessId !== undefined &&
+            Number(selectedProcessId) > 0;
+          const hasEqType =
+            selectedEquipmentTypeId !== null &&
+            selectedEquipmentTypeId !== undefined &&
+            Number(selectedEquipmentTypeId) > 0;
+
+          if (hasProcess && hasEqType) {
+            const loadedRecords = [];
+            if (Array.isArray(payload?.changedDataJson)) {
+              payload.changedDataJson.forEach((item) => {
+                try {
+                  if (item.content) {
+                    const parsed =
+                      typeof item.content === "string" ? JSON.parse(item.content) : item.content;
+                    if (Array.isArray(parsed)) {
+                      loadedRecords.push(...parsed.map((r) => ({ ...r, _sourceId: item.id })));
+                    }
                   }
+                } catch (e) {
+                  console.warn("[MPList] Failed to parse changedDataJson content:", e);
                 }
-              } catch (e) {
-                console.warn("[MPList] Failed to parse changedDataJson content:", e);
-              }
-            });
-            loadedRecords.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+              });
+              loadedRecords.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+            }
+            setAllRecords(loadedRecords);
+          } else {
+            setAllRecords([]);
           }
-          setAllRecords(loadedRecords);
           if (payload?.changedDataJson?.[0]) {
             setChangedDataId(payload.changedDataJson[0].id ?? 0);
           }
@@ -2495,7 +2508,7 @@ export default function MPList({
                 onChange={handleProcessChange}
                 style={{ width: "110px" }}
               >
-                <option value="">{t("app.all", "전체")}</option>
+                <option value="">{t("app.choose", "Choose")}</option>
                 {processList.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.processName}
@@ -2526,7 +2539,7 @@ export default function MPList({
                 }}
                 style={{ width: "160px" }}
               >
-                <option value="">{t("app.all", "All")}</option>
+                <option value="">{t("app.choose", "Choose")}</option>
                 {equipmentTypeList.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.equipmentTypeName}
