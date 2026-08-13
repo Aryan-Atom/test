@@ -164,16 +164,15 @@ function SearchableSelect({
         >
           {/* Search Input */}
           <div className="relative mb-2">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
             <input
               type="text"
               autoFocus
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t("matrix.searchRepWork", "작업명 검색...")}
-              className="w-full rounded-xl input-base pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full rounded-xl input-base pl-3 pr-8 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
-            {searchTerm && (
+            {searchTerm ? (
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
@@ -181,6 +180,8 @@ function SearchableSelect({
               >
                 <i className="fas fa-times" />
               </button>
+            ) : (
+              <i className="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none" />
             )}
           </div>
 
@@ -493,8 +494,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [loading, setLoading] = useState(true);
 
   // Filters State
-  const [selectedProcess, setSelectedProcess] = useState("전체");
-  const [selectedMaintenance, setSelectedMaintenance] = useState("전체");
+  const [selectedProcess, setSelectedProcess] = useState(() => {
+    return sessionStorage.getItem("eq_selected_process_name") || "전체";
+  });
+  const [selectedMaintenance, setSelectedMaintenance] = useState(() => {
+    return sessionStorage.getItem("eq_selected_maint_name") || "전체";
+  });
   const [selectedSite, setSelectedSite] = useState("전체");
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
@@ -1000,6 +1005,38 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   }, [getFilterData]);
 
   useEffect(() => {
+    if (!filterData) return;
+    const savedProcId = Number(sessionStorage.getItem("eq_selected_process_id") || 0);
+    const savedMaintId = Number(sessionStorage.getItem("eq_selected_maint_id") || 0);
+
+    if (savedProcId > 0 && Array.isArray(filterData.process)) {
+      const matchP = filterData.process.find((p) => Number(p.id ?? p.processId) === savedProcId);
+      if (matchP && matchP.processName) {
+        setSelectedProcess(matchP.processName);
+        sessionStorage.setItem("eq_selected_process_name", matchP.processName);
+      }
+    }
+
+    if (savedMaintId > 0) {
+      const eqTypes = filterData.eqTypes ?? filterData.maintenance ?? [];
+      const matchM = eqTypes.find(
+        (m) => Number(m.id ?? m.equipmentTypeId ?? m.maintenanceGroupId) === savedMaintId,
+      );
+      if (matchM) {
+        const name =
+          matchM.equipmentTypeName ||
+          matchM.eqTypeName ||
+          matchM.maintenanceGroupName ||
+          matchM.name;
+        if (name) {
+          setSelectedMaintenance(name);
+          sessionStorage.setItem("eq_selected_maint_name", name);
+        }
+      }
+    }
+  }, [filterData]);
+
+  useEffect(() => {
     const isProcessSelected =
       selectedProcess &&
       selectedProcess !== "전체" &&
@@ -1133,11 +1170,41 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     setSelectedMaintenance("전체");
     setSelectedSite("전체");
     setSelectedRepWork("전체");
+
+    if (proc && proc !== "전체" && proc !== "All") {
+      sessionStorage.setItem("eq_selected_process_name", proc);
+      if (Array.isArray(filterData?.process)) {
+        const match = filterData.process.find((p) => p.processName === proc);
+        if (match) sessionStorage.setItem("eq_selected_process_id", String(match.id ?? match.processId));
+      }
+    } else {
+      sessionStorage.removeItem("eq_selected_process_name");
+      sessionStorage.removeItem("eq_selected_process_id");
+    }
+    sessionStorage.removeItem("eq_selected_maint_name");
+    sessionStorage.removeItem("eq_selected_maint_id");
   };
 
   const handleMaintenanceChange = (e) => {
     const part = e.target.value;
     setSelectedMaintenance(part);
+
+    if (part && part !== "전체" && part !== "All") {
+      sessionStorage.setItem("eq_selected_maint_name", part);
+      const eqTypes = filterData?.eqTypes ?? filterData?.maintenance ?? [];
+      const match = eqTypes.find(
+        (m) => (m.equipmentTypeName || m.eqTypeName || m.maintenanceGroupName || m.name) === part,
+      );
+      if (match) {
+        sessionStorage.setItem(
+          "eq_selected_maint_id",
+          String(match.id ?? match.equipmentTypeId ?? match.maintenanceGroupId),
+        );
+      }
+    } else {
+      sessionStorage.removeItem("eq_selected_maint_name");
+      sessionStorage.removeItem("eq_selected_maint_id");
+    }
 
     if (part === "전체") {
       setSelectedSite("전체");
@@ -2172,7 +2239,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              const targetItem = Array.isArray(matched) && matched.length > 0 ? matched[0] : matched;
+                              const targetItem = matched.length > 1 ? matched : (matched.length === 1 ? matched[0] : matched);
                               setDrawerItem(targetItem);
                             }}
                             className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10 hover:shadow-md"
@@ -2205,10 +2272,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                       title={String(val || "")}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        // Show drawer with single representative work item
-                                        const targetItem = representativeWorkItems && representativeWorkItems.length > 0
-                                          ? representativeWorkItems[0]
-                                          : (Array.isArray(matched) && matched.length > 0 ? matched[0] : matched);
+                                        // If pill matches multiple items, pass array; if single item, pass single item
+                                        const targetItem = representativeWorkItems && representativeWorkItems.length > 1
+                                          ? representativeWorkItems
+                                          : (representativeWorkItems && representativeWorkItems.length === 1
+                                              ? representativeWorkItems[0]
+                                              : (matched.length > 1 ? matched : matched[0]));
                                         setDrawerItem(targetItem);
                                       }}
                                       className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}

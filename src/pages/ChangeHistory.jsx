@@ -58,11 +58,27 @@ function remapRowKeys(row, excelToJsonKey, validKeys = null) {
   return Object.entries(row).reduce((acc, [key, value]) => {
     const trimmedKey = key.trim();
     const mappedKey = excelToJsonKey[trimmedKey] ?? trimmedKey;
+    const lowerMapped = mappedKey.toLowerCase();
+    const lowerTrimmed = trimmedKey.toLowerCase();
     if (
       !validKeys ||
-      validKeys.has(trimmedKey.toLowerCase()) ||
-      validKeys.has(mappedKey.toLowerCase()) ||
-      mappedKey === "id"
+      validKeys.has(lowerTrimmed) ||
+      validKeys.has(lowerMapped) ||
+      mappedKey === "id" ||
+      lowerMapped === "wotype" ||
+      lowerMapped === "wotypeid" ||
+      lowerTrimmed === "wotype" ||
+      lowerTrimmed === "wo type" ||
+      lowerTrimmed === "wo_type" ||
+      lowerTrimmed === "wotypeid" ||
+      lowerTrimmed === "wo유형" ||
+      lowerMapped === "sparepart" ||
+      lowerMapped === "spare_part" ||
+      lowerTrimmed === "sparepart" ||
+      lowerTrimmed === "spare part" ||
+      lowerTrimmed === "spare_part" ||
+      lowerTrimmed === "자재명" ||
+      lowerTrimmed === "자재 명"
     ) {
       acc[mappedKey] = value;
     }
@@ -2499,8 +2515,14 @@ function RowEditModal({
 
 export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
   const { t, language } = useI18n();
-  const [selectedProcessId, setSelectedProcessId] = useState(null);
-  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
+  const [selectedProcessId, setSelectedProcessId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_process_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
+  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_maint_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
   const [selectedColumnIds, setSelectedColumnIds] = useState([]);
   const [filter, setFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -2667,13 +2689,28 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
 
   const handleProcessChange = (e) => {
     const val = e.target.value;
-    setSelectedProcessId(val === "" ? null : Number(val));
+    const valNum = val === "" ? null : Number(val);
+    setSelectedProcessId(valNum);
     setSelectedMaintenanceId(null);
+    if (valNum) {
+      sessionStorage.setItem("eq_selected_process_id", String(valNum));
+    } else {
+      sessionStorage.removeItem("eq_selected_process_id");
+    }
+    sessionStorage.removeItem("eq_selected_maint_id");
+    sessionStorage.removeItem("eq_selected_maint_name");
   };
 
   const handleMaintenanceChange = (e) => {
     const val = e.target.value;
-    setSelectedMaintenanceId(val === "" ? null : Number(val));
+    const valNum = val === "" ? null : Number(val);
+    setSelectedMaintenanceId(valNum);
+    if (valNum) {
+      sessionStorage.setItem("eq_selected_maint_id", String(valNum));
+    } else {
+      sessionStorage.removeItem("eq_selected_maint_id");
+      sessionStorage.removeItem("eq_selected_maint_name");
+    }
   };
 
   // ── Column helpers ────────────────────────────────────────────────────────
@@ -2710,20 +2747,27 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "representativework",
       "priority",
       "category",
-      "eqType",
+      "eqtype",
       "eq type",
-      "equipmentType",
+      "equipmenttype",
       "equipment type",
       "equipment_type",
+      "wotype",
+      "wotypeid",
+      "wo type",
+      "wo_type",
+      "wo유형",
+      "w/o유형",
+      "w/o 유형",
       // Excel names
       "site",
       "process",
       "equipment",
       "equipment_code",
       "equipment_name",
-      "eqType",
+      "eqtype",
       "eq type",
-      "equipmentType",
+      "equipmenttype",
       "equipment type",
       "equipment_type",
       "wo_code",
@@ -2742,10 +2786,27 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "rep_work",
       "priority",
       "category",
+      "wotype",
+      "wotypeid",
+      "wo_type",
+      "wo type",
+      "wo유형",
     ]);
 
     if (!changeDataColumns || changeDataColumns.length === 0) return null;
-    const keys = new Set();
+    const keys = new Set([
+      "wotype",
+      "wotypeid",
+      "wo type",
+      "wo_type",
+      "wo유형",
+      "sparepart",
+      "spare_part",
+      "spare part",
+      "sparePart",
+      "자재명",
+      "자재 명",
+    ]);
     changeDataColumns.forEach((c) => {
       const excelName = c.excelColumnName?.trim().toLowerCase();
       const jsonKey = c.jsonKey?.trim().toLowerCase();
@@ -3053,8 +3114,18 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           remapped.sparePart ??
             remapped["spare part"] ??
             remapped.sparepart ??
+            remapped.spare_part ??
+            remapped.sparePartName ??
+            remapped["자재명"] ??
+            remapped["자재 명"] ??
             row.sparePart ??
             row.Sparepart ??
+            row.sparepart ??
+            row.spare_part ??
+            row.sparePartName ??
+            row["spare part"] ??
+            row["자재명"] ??
+            row["자재 명"] ??
             "",
         ).trim(),
         workedOn: String(
@@ -3124,8 +3195,34 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         ).trim(),
         priority: String(remapped.priority ?? row.priority ?? "").trim(),
         category: String(remapped.category ?? row.category ?? "").trim(),
-        woType: String(remapped.woType ?? remapped.wotype ?? row.woType ?? row.Wotype ?? "").trim(),
-        woTypeId: Number(remapped.woTypeId ?? row.woTypeId ?? 0) || 0,
+        woType: String(
+          remapped.woType ??
+            remapped.wotype ??
+            remapped.Wotype ??
+            remapped["wo type"] ??
+            remapped["wo_type"] ??
+            remapped["WO유형"] ??
+            remapped["WO 유형"] ??
+            remapped["w/o유형"] ??
+            row.woType ??
+            row.Wotype ??
+            row.wotype ??
+            row["wo type"] ??
+            row["wo_type"] ??
+            row["WO유형"] ??
+            row["WO 유형"] ??
+            row["w/o유형"] ??
+            "",
+        ).trim(),
+        woTypeId: Number(
+          remapped.woTypeId ??
+            remapped.wotypeId ??
+            remapped.wotypeid ??
+            row.woTypeId ??
+            row.wotypeId ??
+            row.wotypeid ??
+            0,
+        ) || 0,
         eqType: String(
           remapped.eqType ??
             remapped["equipment type"] ??
@@ -3471,7 +3568,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       // Remap excel column names → json keys and assign unique IDs
       const remappedRows = updatedRows.map((row) => {
         const remapped = remapRowKeys(row, excelToJsonKey, validKeys);
-        const clean = buildCleanRow(remapped);
+        const clean = buildCleanRow({ ...row, ...remapped });
         if (!clean.id || clean.id === 0) {
           clean.id = nextId++;
         }
@@ -3693,13 +3790,32 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               swasis: ["sw as is", "swasis", "sw_as_is"],
               hwaswas: ["hw as was", "hwaswas", "hw_as_was"],
               swaswas: ["sw as was", "swaswas", "sw_as_was"],
-              sparepart: ["sparepart", "spare part", "spare_part"],
+              sparepart: [
+                "sparepart",
+                "spare part",
+                "spare_part",
+                "sparepartname",
+                "sparepart_name",
+                "sparepart",
+                "자재명",
+                "자재 명",
+              ],
+              sparepartname: [
+                "sparepart",
+                "spare part",
+                "spare_part",
+                "sparepartname",
+                "sparepart_name",
+                "sparepart",
+                "자재명",
+                "자재 명",
+              ],
             };
 
             // Normalize row keys to match excelColumnName exactly (case-insensitive & alias fallback)
             const rawRows = Array.isArray(res?.rows) ? res.rows : [];
             const normalizedRows = rawRows.map((row) => {
-              const cleanRow = {};
+              const cleanRow = { ...row };
               changeDataColumns.forEach((col) => {
                 if (col.excelColumnName) {
                   const excelName = col.excelColumnName?.trim().toLowerCase();
@@ -3725,7 +3841,33 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 }
               });
 
-              // Explicit fallbacks for equipment type and Wotype returned by Excel Upload API
+              // Explicit fallbacks for sparePart, equipment type, Wotype, workedOn
+              const sparePartVal =
+                row["sparePart"] ||
+                row["spare_part"] ||
+                row["spare part"] ||
+                row["sparepart"] ||
+                row["Sparepart"] ||
+                row["sparePartName"] ||
+                row["자재명"] ||
+                row["자재 명"] ||
+                cleanRow.sparePart ||
+                cleanRow.sparepart ||
+                cleanRow["spare part"] ||
+                cleanRow["자재명"];
+
+              if (
+                sparePartVal !== undefined &&
+                sparePartVal !== null &&
+                String(sparePartVal).trim() !== ""
+              ) {
+                const sVal = String(sparePartVal).trim();
+                cleanRow.sparePart = sVal;
+                cleanRow.sparepart = sVal;
+                cleanRow["spare part"] = sVal;
+                cleanRow["자재명"] = sVal;
+              }
+
               const eqTypeVal =
                 row["equipment type"] ||
                 row["equipmentType"] ||

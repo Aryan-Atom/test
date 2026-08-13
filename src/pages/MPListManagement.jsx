@@ -482,7 +482,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     return (filterPayload?.process ?? []).filter((p) => p.isChangedData !== false);
   }, [filterPayload]);
 
-  const [selectedProcessId, setSelectedProcessId] = useState(null);
+  const [selectedProcessId, setSelectedProcessId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_process_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
 
   const maintenanceList = useMemo(() => {
     const eqTypes = filterPayload?.eqTypes;
@@ -498,7 +501,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     return all.filter((m) => Number(m.processId) === Number(selectedProcessId));
   }, [filterPayload, selectedProcessId]);
 
-  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(null);
+  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_maint_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
 
   // Reset maintenance selection when process changes (do not auto-select)
   useEffect(() => {
@@ -1032,8 +1038,16 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               value={selectedProcessId ?? ""}
               onChange={(event) => {
                 const val = event.target.value;
-                setSelectedProcessId(val === "" ? null : Number(val));
+                const valNum = val === "" ? null : Number(val);
+                setSelectedProcessId(valNum);
                 setSelectedMaintenanceId(null);
+                if (valNum) {
+                  sessionStorage.setItem("eq_selected_process_id", String(valNum));
+                } else {
+                  sessionStorage.removeItem("eq_selected_process_id");
+                }
+                sessionStorage.removeItem("eq_selected_maint_id");
+                sessionStorage.removeItem("eq_selected_maint_name");
               }}
             >
               <option value="">{t("app.choose", "Choose")}</option>
@@ -1055,7 +1069,14 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               value={selectedMaintenanceId ?? ""}
               onChange={(event) => {
                 const val = event.target.value;
-                setSelectedMaintenanceId(val === "" ? null : Number(val));
+                const valNum = val === "" ? null : Number(val);
+                setSelectedMaintenanceId(valNum);
+                if (valNum) {
+                  sessionStorage.setItem("eq_selected_maint_id", String(valNum));
+                } else {
+                  sessionStorage.removeItem("eq_selected_maint_id");
+                  sessionStorage.removeItem("eq_selected_maint_name");
+                }
               }}
               disabled={selectedProcessId === null}
             >

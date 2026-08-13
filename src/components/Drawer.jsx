@@ -743,19 +743,17 @@ export default function Drawer({
                     </div>
                   )}
 
-                  {/* Attachment Section */}
-                  {showAttachments && !isChangeHistoryView && (
-                    <div className="pt-2 flex items-center justify-between">
+                  {/* Attachment & Edit Section for ChangeHistory / MPList View */}
+                  {isChangeHistoryView ? (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between gap-2 flex-wrap">
                       {atts && atts.length > 0 ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <i className="fas fa-camera text-gray-400 text-xs" />
-                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                              첨부사진 ({atts.length}개)
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <i className="fas fa-camera text-gray-400 text-xs" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                            첨부사진 ({atts.length}개)
+                          </span>
                           <div
-                            className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
+                            className="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 ml-1"
                             onClick={() => setPreviewImage(atts[0])}
                           >
                             <img
@@ -764,14 +762,61 @@ export default function Drawer({
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             />
                           </div>
-                        </>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
                           <i className="far fa-image text-gray-400 text-xs" />
                           <span>첨부된 사진이 없습니다</span>
                         </div>
                       )}
+
+                      {/* Edit button ONLY shown for MP List view */}
+                      {variant === "mpList" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const ev = new CustomEvent("openEditRecordFromDrawer", {
+                              detail: { item: rec },
+                            });
+                            window.dispatchEvent(ev);
+                          }}
+                          className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
+                        >
+                          <i className="far fa-edit text-xs" />
+                          <span>{t("app.edit", "편집")}</span>
+                        </button>
+                      )}
                     </div>
+                  ) : (
+                    showAttachments && (
+                      <div className="pt-2 flex items-center justify-between">
+                        {atts && atts.length > 0 ? (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-camera text-gray-400 text-xs" />
+                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                첨부사진 ({atts.length}개)
+                              </span>
+                            </div>
+                            <div
+                              className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
+                              onClick={() => setPreviewImage(atts[0])}
+                            >
+                              <img
+                                src={atts[0].url}
+                                alt="Attachment Preview"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                            <i className="far fa-image text-gray-400 text-xs" />
+                            <span>첨부된 사진이 없습니다</span>
+                          </div>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
               );

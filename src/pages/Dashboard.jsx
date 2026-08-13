@@ -417,7 +417,17 @@ export default function Dashboard() {
           </main>
         </div>
       </div>
-      <Drawer item={drawerItem} onClose={() => setDrawerItem(null)} />
+      <Drawer
+        item={drawerItem}
+        onClose={() => setDrawerItem(null)}
+        variant={
+          activePage === "matrix"
+            ? "matrix"
+            : activePage === "mx-mplist"
+              ? "mpList"
+              : "changeHistory"
+        }
+      />
     </div>
   );
 }

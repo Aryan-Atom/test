@@ -81,16 +81,15 @@ function SearchableSelect({
         >
           {/* Search Input */}
           <div className="relative mb-2">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
             <input
               type="text"
               autoFocus
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t("matrix.searchRepWork", "Search rep work...")}
-              className="w-full rounded-xl input-base pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full rounded-xl input-base pl-3 pr-8 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
-            {searchTerm && (
+            {searchTerm ? (
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
@@ -98,6 +97,8 @@ function SearchableSelect({
               >
                 <i className="fas fa-times" />
               </button>
+            ) : (
+              <i className="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none" />
             )}
           </div>
 
@@ -346,26 +347,26 @@ function FilterToast({ isVisible, status, message, autoClose, onClose }) {
 // Constants — columns shown in the table
 // ─────────────────────────────────────────────────────────────────────────────
 const TABLE_COLUMNS = [
-  "report",
+  "site",
   "representativeWork",
   "work",
   "situation",
   "cause",
+  "bom",
+  "sparePart",
   "hwAsWas",
   "hwAsIs",
   "swAsWas",
   "swAsIs",
-  "bom",
-  "sparePart",
-  "wOCode",
+  "priority",
+  "category",
   "workedOn",
-  "createdBy",
-  "createdAt",
+  "photos",
 ];
 
 const COLUMN_LABELS = {
-  report: "보고서",
-  representativeWork: "대표작업명",
+  site: "법인",
+  representativeWork: "대표 작업명",
   work: "작업 목적",
   situation: "문제 현상",
   cause: "문제 원인",
@@ -375,14 +376,18 @@ const COLUMN_LABELS = {
   hwAsIs: "HW 변경 후",
   swAsWas: "SW 변경 전",
   swAsIs: "SW 변경 후",
-  wOCode: "W/O코드",
+  priority: "중요도",
+  category: "효과 유형",
   workedOn: "작업완료일",
+  photos: "사진",
+  report: "보고서",
+  wOCode: "W/O코드",
   createdBy: "생성자",
   createdAt: "생성일",
 };
 
 const COLUMN_LABEL_KEYS = {
-  report: "field.report",
+  site: "field.site",
   representativeWork: "field.repWork",
   work: "field.work",
   situation: "field.situation",
@@ -393,8 +398,12 @@ const COLUMN_LABEL_KEYS = {
   hwAsIs: "field.hwAfter",
   swAsWas: "field.swBefore",
   swAsIs: "field.swAfter",
-  wOCode: "field.woCode",
+  priority: "field.priority",
+  category: "field.category",
   workedOn: "field.workedOn",
+  photos: "field.photos",
+  report: "field.report",
+  wOCode: "field.woCode",
   createdBy: "field.createdBy",
   createdAt: "field.createdAt",
 };
@@ -429,6 +438,9 @@ const EMPTY_ROW = {
 // Key mapping helper
 function getColValue(row, col) {
   if (!row) return "";
+  if (col === "site") {
+    return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
+  }
   if (col === "representativeWork") {
     return (
       row.representative_work_name ??
@@ -660,8 +672,14 @@ export default function MPList({
   const [notApplicableRows, setNotApplicableRows] = useState([]);
 
   // ── Filter state ──────────────────────────────────────────────────────────
-  const [selectedProcessId, setSelectedProcessId] = useState(null);
-  const [selectedEquipmentTypeId, setSelectedEquipmentTypeId] = useState(null);
+  const [selectedProcessId, setSelectedProcessId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_process_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
+  const [selectedEquipmentTypeId, setSelectedEquipmentTypeId] = useState(() => {
+    const saved = sessionStorage.getItem("eq_selected_maint_id");
+    return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
+  });
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [selectedWoType, setSelectedWoType] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
@@ -747,6 +765,8 @@ export default function MPList({
   const [editingRowLocalId, setEditingRowLocalId] = useState(null);
   const [modalError, setModalError] = useState("");
   const [errors, setErrors] = useState({});
+  const [modalAttachments, setModalAttachments] = useState([]);
+  const [activeModalTab, setActiveModalTab] = useState("problem");
 
   // ── Unsaved edits tracking ────────────────────────────────────────────────
   const [isDirty, setIsDirty] = useState(false);
@@ -867,9 +887,17 @@ export default function MPList({
   // ── Cascade reset handlers ────────────────────────────────────────────────
   const handleProcessChange = (e) => {
     const val = e.target.value;
-    setSelectedProcessId(val === "" ? null : Number(val));
+    const valNum = val === "" ? null : Number(val);
+    setSelectedProcessId(valNum);
     setSelectedEquipmentTypeId(null);
     setSelectedSiteId(null);
+    if (valNum) {
+      sessionStorage.setItem("eq_selected_process_id", String(valNum));
+    } else {
+      sessionStorage.removeItem("eq_selected_process_id");
+    }
+    sessionStorage.removeItem("eq_selected_maint_id");
+    sessionStorage.removeItem("eq_selected_maint_name");
   };
 
   const handleResetDates = () => {
@@ -1399,38 +1427,87 @@ export default function MPList({
     );
   };
 
-  // ── Edit row on double click ───────────────────────────────────────────────
+  // ── Edit row on click / double click ──────────────────────────────────────────
   const handleRowDoubleClick = (row) => {
-    const woCode = getColValue(row, "wOCode");
-    if (!woCode || woCode === "—" || woCode === "") {
-      setNewRow({
-        representativeWork: getColValue(row, "representativeWork"),
-        work: getColValue(row, "work"),
-        report: getColValue(row, "report"),
-        situation: getColValue(row, "situation"),
-        cause: getColValue(row, "cause"),
-        bom: row.bom ?? "",
-        sparePart: row.sparePart ?? row["자재명"] ?? "",
-        hwAsWas: getColValue(row, "hwAsWas"),
-        hwAsIs: getColValue(row, "hwAsIs"),
-        swAsWas: getColValue(row, "swAsWas"),
-        swAsIs: getColValue(row, "swAsIs"),
-        priority: getColValue(row, "priority") || "일반",
-        category: getColValue(row, "category") || "기타",
-        wOCode: getColValue(row, "wOCode") || "",
-        workedOn: getColValue(row, "workedOn") || "",
-        equipmentCode: row.equipmentCode ?? "-",
-        equipmentName: row.equipmentName ?? " Common",
-        process: getColValue(row, "process"),
-        maintGroup: getColValue(row, "maintGroup"),
-        site: getColValue(row, "site"),
-      });
-      setEditingRowLocalId(row._localId || row.id || "temp");
-      setModalError("");
-      setErrors({});
-      setShowModal(true);
-    }
+    if (!row) return;
+    setNewRow({
+      representativeWork: getColValue(row, "representativeWork"),
+      work: getColValue(row, "work"),
+      report: getColValue(row, "report"),
+      situation: getColValue(row, "situation"),
+      cause: getColValue(row, "cause"),
+      bom: row.bom ?? "",
+      sparePart: row.sparePart ?? row["자재명"] ?? "",
+      hwAsWas: getColValue(row, "hwAsWas"),
+      hwAsIs: getColValue(row, "hwAsIs"),
+      swAsWas: getColValue(row, "swAsWas"),
+      swAsIs: getColValue(row, "swAsIs"),
+      priority: getColValue(row, "priority") || "일반",
+      category: getColValue(row, "category") || "기타",
+      wOCode: getColValue(row, "wOCode") || "",
+      workedOn: getColValue(row, "workedOn") || "2026-06-26",
+      equipmentCode: row.equipmentCode ?? row.equipment_code ?? "-",
+      equipmentName: row.equipmentName ?? row.equipment_name ?? " Common",
+      process: getColValue(row, "process") || "02.배치",
+      maintGroup: getColValue(row, "maintGroup") || "0202. Nano Mill",
+      site: getColValue(row, "site") || "A3.부산",
+    });
+    const atts =
+      row.attachments ||
+      row.photos ||
+      (row.samplePhoto
+        ? [{ id: "sample-1", name: "sample.jpg", url: row.samplePhoto, category: "기타" }]
+        : []);
+    setModalAttachments(Array.isArray(atts) ? atts : []);
+    setActiveModalTab("problem");
+    setEditingRowLocalId(row._localId || row.id || "temp");
+    setModalError("");
+    setErrors({});
+    setShowModal(true);
   };
+
+  const handleFileUploadInModal = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const activeTabLabel =
+      activeModalTab === "problem"
+        ? "문제 현상"
+        : activeModalTab === "after"
+          ? "개선 후"
+          : activeModalTab === "equipment"
+            ? "설비 참고"
+            : "기타";
+
+    files.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64Str = evt.target.result;
+        const newAtt = {
+          id: `modal-att-${Date.now()}-${i}`,
+          name: file.name,
+          url: base64Str,
+          fileContent: base64Str,
+          category: activeTabLabel,
+        };
+        setModalAttachments((prev) => [...prev, newAtt]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveModalAttachment = (attId) => {
+    setModalAttachments((prev) => prev.filter((a) => a.id !== attId));
+  };
+
+  useEffect(() => {
+    const handleDrawerEdit = (e) => {
+      const row = e.detail?.item;
+      if (row) handleRowDoubleClick(row);
+    };
+    window.addEventListener("openEditRecordFromDrawer", handleDrawerEdit);
+    return () => window.removeEventListener("openEditRecordFromDrawer", handleDrawerEdit);
+  }, [handleRowDoubleClick]);
 
   // ── Modal submit: Add or Edit row ─────────────────────────────────────────
   const handleModalAdd = () => {
@@ -1477,6 +1554,9 @@ export default function MPList({
               priority: newRow.priority,
               category: newRow.category,
               workedOn: newRow.workedOn,
+              attachments: modalAttachments,
+              photos: modalAttachments,
+              photoCount: modalAttachments.length,
             };
           }
           return r;
@@ -1651,7 +1731,7 @@ export default function MPList({
       representativeWork: r.representativeWork || "",
       priority: r.priority || "일반",
       category: r.category || "기타",
-      woType: r.woType || "",
+      woType: r.woType || r.Wotype || r.wotype || r["wo type"] || r["wo_type"] || r["WO유형"] || r["WO 유형"] || r["w/o유형"] || "",
       woTypeId: 0,
       eqType: r.maintGroup || "",
       eqTypeId: 0,
@@ -2434,9 +2514,16 @@ export default function MPList({
               <select
                 className="input-base"
                 value={selectedEquipmentTypeId ?? ""}
-                onChange={(e) =>
-                  setSelectedEquipmentTypeId(e.target.value === "" ? null : Number(e.target.value))
-                }
+                onChange={(e) => {
+                  const valNum = e.target.value === "" ? null : Number(e.target.value);
+                  setSelectedEquipmentTypeId(valNum);
+                  if (valNum) {
+                    sessionStorage.setItem("eq_selected_maint_id", String(valNum));
+                  } else {
+                    sessionStorage.removeItem("eq_selected_maint_id");
+                    sessionStorage.removeItem("eq_selected_maint_name");
+                  }
+                }}
                 style={{ width: "160px" }}
               >
                 <option value="">{t("app.all", "All")}</option>
@@ -2879,12 +2966,15 @@ export default function MPList({
         maxWidth="1024px"
         title={
           editingRowLocalId !== null
-            ? t("page.mp.modalEditTitle", "MP List 행 수정")
+            ? t("page.mp.modalEditTitle", "항목 편집")
             : t("page.mp.modalTitle", "Add MP List Row")
         }
         description={
           editingRowLocalId !== null
-            ? t("page.mp.modalEditDesc", "항목 정보를 수정합니다.")
+            ? t(
+                "page.mp.modalEditDesc",
+                "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
+              )
             : t(
                 "page.mp.modalDesc",
                 "Add new items. The W/O code is automatically emptied and separated from system data.",
@@ -2897,18 +2987,33 @@ export default function MPList({
         }}
         titleIcon={
           <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            <i className={`fas ${editingRowLocalId !== null ? "fa-edit" : "fa-plus"}`} />
+            <i className={`fas ${editingRowLocalId !== null ? "fa-pen-to-square" : "fa-plus"}`} />
           </span>
         }
         footer={
-          <button
-            type="button"
-            className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-semibold py-3 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm w-[60%] sm:w-[220px]"
-            onClick={handleModalAdd}
-          >
-            <i className="fas fa-check text-xs" />
-            {editingRowLocalId !== null ? t("app.edit", "수정하기") : t("page.mp.addButton", "Add")}
-          </button>
+          <div className="flex items-center justify-between w-full pt-2">
+            <button
+              type="button"
+              className="px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              onClick={() => {
+                setShowModal(false);
+                setEditingRowLocalId(null);
+                setErrors({});
+              }}
+            >
+              {t("app.cancel", "취소")}
+            </button>
+            <button
+              type="button"
+              className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold py-2.5 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+              onClick={handleModalAdd}
+            >
+              <i className="fas fa-check text-xs" />
+              {editingRowLocalId !== null
+                ? t("app.save", "저장하기")
+                : t("page.mp.addButton", "Add")}
+            </button>
+          </div>
         }
       >
         <div className="space-y-3.5">
@@ -3256,9 +3361,95 @@ export default function MPList({
             </div>
           </div>
 
-          <p className="text-xs text-gray-400 font-medium pt-3 border-t border-gray-100 dark:border-gray-800 mt-2">
-            {t("page.mp.attachNotice", "You can attach photos after saving the item")}
-          </p>
+          {/* Photo Attachments & Category Tabs */}
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 mt-3 space-y-2">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2 overflow-x-auto">
+              {[
+                { id: "problem", label: "문제 현상" },
+                { id: "after", label: "개선 후" },
+                { id: "equipment", label: "설비 참고" },
+                { id: "others", label: "기타" },
+              ].map((tab) => {
+                const tabCount = modalAttachments.filter((a) => a.category === tab.label).length;
+                const isActive = activeModalTab === tab.id;
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveModalTab(tab.id)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                      isActive
+                        ? "bg-blue-50 dark:bg-blue-900/40 text-[#1745c2] dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800"
+                        : "text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    {tab.label} {tabCount}장
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Dropzone & Preview */}
+            <div className="space-y-2">
+              <label className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col items-center justify-center gap-1 hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer bg-gray-50/50 dark:bg-gray-800/40">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUploadInModal}
+                />
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                  <i className="fas fa-plus text-blue-600 text-xs" />
+                  <span>사진 파일 선택 / 파일 드래그 & 드롭</span>
+                </div>
+              </label>
+
+              {/* Thumbnails of current category */}
+              {(() => {
+                const activeLabel =
+                  activeModalTab === "problem"
+                    ? "문제 현상"
+                    : activeModalTab === "after"
+                      ? "개선 후"
+                      : activeModalTab === "equipment"
+                        ? "설비 참고"
+                        : "기타";
+                const catAtts = modalAttachments.filter((a) => a.category === activeLabel);
+
+                if (catAtts.length === 0) return null;
+
+                return (
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {catAtts.map((att) => (
+                      <div
+                        key={att.id}
+                        className="relative group rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden h-20 bg-gray-100"
+                      >
+                        <img
+                          src={att.url}
+                          alt={att.name || "Attachment"}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveModalAttachment(att.id)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] opacity-90 hover:opacity-100 cursor-pointer"
+                          title="삭제"
+                        >
+                          <i className="fas fa-times" />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
+                          {att.name || "사진"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       </Modal>
 
