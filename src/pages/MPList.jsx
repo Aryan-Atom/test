@@ -1464,6 +1464,8 @@ export default function MPList({
       process: getColValue(row, "process") || "02.배치",
       maintGroup: getColValue(row, "maintGroup") || "0202. Nano Mill",
       site: getColValue(row, "site") || "A3.부산",
+      is_voc: row.is_voc ?? row.isVoc ?? row.isVOC ?? true,
+      isVoc: row.is_voc ?? row.isVoc ?? row.isVOC ?? true,
     });
     const atts =
       row.attachments ||
@@ -1642,9 +1644,17 @@ export default function MPList({
       createdBy: newRow.createdBy || getUserInfo()?.name || "Chirati Harish",
     };
 
+    const isVocVal = isEditMode
+      ? (newRow.is_voc !== undefined
+          ? Boolean(newRow.is_voc)
+          : newRow.isVoc !== undefined
+            ? Boolean(newRow.isVoc)
+            : true)
+      : true;
+
     const payload = {
       vocData: [vocItem],
-      isVoc: true,
+      isVoc: isVocVal,
     };
 
     setOperationStatus({
