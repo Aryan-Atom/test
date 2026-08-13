@@ -1522,7 +1522,7 @@ export default function MPList({
     return () => window.removeEventListener("openEditRecordFromDrawer", handleDrawerEdit);
   }, [handleRowDoubleClick]);
 
-  // ── Modal submit: Add or Edit row ─────────────────────────────────────────
+  // ── Modal submit: Add or Edit row via SaveVoc API ───────────────────────────
   const handleModalAdd = () => {
     const fieldsToValidate = ["representativeWork", "situation"];
     const nextErrors = {};
@@ -1537,6 +1537,8 @@ export default function MPList({
       return;
     }
 
+    const isEditMode = editingRowLocalId !== null;
+
     const selProcess = processList.find((p) => p.id === selectedProcessId);
     const selSite = (filterPayload?.site ?? []).find((s) => s.id === selectedSiteId);
 
@@ -1544,156 +1546,235 @@ export default function MPList({
     const maintName = newRow.maintGroup ?? "";
     const siteName = selSite?.siteName ?? newRow.site ?? "";
 
-    if (editingRowLocalId !== null) {
-      // Edit Mode
-      setAllRecords((prev) => {
-        return prev.map((r) => {
-          const isMatch =
-            r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
-          if (isMatch) {
-            return {
-              ...r,
-              representativeWork: newRow.representativeWork,
-              work: newRow.work,
-              report: newRow.report,
-              situation: newRow.situation,
-              cause: newRow.cause,
-              bom: newRow.bom,
-              sparePart: newRow.sparePart,
-              hwAsWas: newRow.hwAsWas,
-              hwAsIs: newRow.hwAsIs,
-              swAsWas: newRow.swAsWas,
-              swAsIs: newRow.swAsIs,
-              priority: newRow.priority,
-              category: newRow.category,
-              workedOn: newRow.workedOn,
-              attachments: modalAttachments,
-              photos: modalAttachments,
-              photoCount: modalAttachments.length,
-            };
-          }
-          return r;
-        });
-      });
+    const priorityIdVal =
+      newRow.priorityId ??
+      (newRow.priority === "중요" || newRow.priority === "Important" ? 2 : 1);
+
+    const categoryObj = (categoryList || []).find(
+      (c) =>
+        c.name === newRow.category ||
+        c.categoryName === newRow.category ||
+        c.displayName === newRow.category,
+    );
+    const categoryIdVal = newRow.categoryId ?? (categoryObj?.id || categoryObj?.categoryId || 1);
+
+    const procObj = (processList || []).find(
+      (p) => p.id === selectedProcessId || p.processName === newRow.process,
+    );
+    const processIdVal = newRow.processId
+      ? Number(newRow.processId)
+      : procObj?.id
+        ? Number(procObj.id)
+        : selectedProcessId
+          ? Number(selectedProcessId)
+          : 1;
+
+    const eqTypeObj = (equipmentTypeList || []).find(
+      (e) =>
+        e.id === selectedEquipmentTypeId ||
+        e.equipmentTypeName === newRow.maintGroup ||
+        e.equipmentTypeName === newRow.eqType,
+    );
+    const equipmentTypeIdVal =
+      newRow.equipmentTypeId || newRow.eqTypeId
+        ? Number(newRow.equipmentTypeId || newRow.eqTypeId)
+        : eqTypeObj?.id
+          ? Number(eqTypeObj.id)
+          : selectedEquipmentTypeId
+            ? Number(selectedEquipmentTypeId)
+            : 107;
+
+    const siteObj = (siteList || []).find(
+      (s) => s.id === selectedSiteId || s.siteName === newRow.site,
+    );
+    const siteIdVal = newRow.siteId
+      ? Number(newRow.siteId)
+      : siteObj?.id
+        ? Number(siteObj.id)
+        : selectedSiteId
+          ? Number(selectedSiteId)
+          : 1;
+
+    const formatValidDateIso = (rawDate) => {
+      if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
+        return new Date().toISOString();
+      }
+      const p = new Date(rawDate);
+      if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
+        return new Date().toISOString();
+      }
+      return p.toISOString();
+    };
+
+    const rowIdVal = isEditMode
+      ? Number(newRow.id || editingRowLocalId) || 0
+      : 0;
+
+    const vocItem = {
+      id: rowIdVal,
+      repWorkId: Number(newRow.repWorkId ?? newRow.rep_work_id ?? 0) || 0,
+      reportContent: newRow.reportContent || newRow.report || "",
+      workName: newRow.representativeWork || newRow.workName || newRow.work_name || "",
+      purpose: newRow.purpose || newRow.workPurpose || newRow.work || "",
+      situation: newRow.situation || newRow.problemSymptom || "",
+      cause: newRow.cause || newRow.problemCause || "",
+      hwWas: newRow.hwAsWas || newRow.hw_was || newRow.hwBefore || "",
+      hwIs: newRow.hwAsIs || newRow.hw_is || newRow.hwAfter || "",
+      swWas: newRow.swAsWas || newRow.sw_was || newRow.swBefore || "",
+      swIs: newRow.swAsIs || newRow.sw_is || newRow.swAfter || "",
+      bom: newRow.bom || "",
+      sparePart: newRow.sparePart || newRow.spare_part || newRow.materialList || "",
+      equipmentCode: newRow.equipmentCode || newRow.equipment_code || "-",
+      equipmentName: newRow.equipmentName || newRow.equipment_name || " Common",
+      woCode: newRow.woCode || newRow.wOCode || newRow.wo_code || "",
+      workDate: formatValidDateIso(newRow.workedOn || newRow.workDate || newRow.work_date),
+      categoryName: newRow.category || newRow.categoryName || "category 1",
+      priorityName: newRow.priority || newRow.priorityName || "priority 1",
+      priorityId: priorityIdVal,
+      categoryId: categoryIdVal,
+      processName: newRow.process || procName || "P1",
+      siteName: newRow.site || siteName || "site 1",
+      maintenanceGroupName: newRow.maintGroup || newRow.equipmentTypeName || maintName || "EQ type 1",
+      equipmentTypeName: newRow.maintGroup || newRow.equipmentTypeName || maintName || "EQ type 1",
+      processId: processIdVal,
+      siteId: siteIdVal,
+      equipmentTypeId: equipmentTypeIdVal,
+      createdBy: newRow.createdBy || getUserInfo()?.name || "Chirati Harish",
+    };
+
+    const payload = {
+      vocData: [vocItem],
+      isVoc: false,
+    };
+
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.saving", "저장 중입니다..."),
+      autoClose: false,
+    });
+
+    if (isStaticDataMode) {
+      if (isEditMode) {
+        setAllRecords((prev) =>
+          prev.map((r) => {
+            const isMatch =
+              r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+            if (isMatch) {
+              return {
+                ...r,
+                ...newRow,
+                attachments: modalAttachments,
+                photos: modalAttachments,
+                photoCount: modalAttachments.length,
+              };
+            }
+            return r;
+          }),
+        );
+      } else {
+        const enrichedRow = {
+          ...newRow,
+          id: Date.now(),
+          _localId: Date.now(),
+          process: procName,
+          maintGroup: maintName,
+          site: siteName,
+          attachments: modalAttachments,
+          photos: modalAttachments,
+          photoCount: modalAttachments.length,
+        };
+        setAllRecords((prev) => [enrichedRow, ...prev]);
+      }
       setOperationStatus({
         isVisible: true,
         status: "success",
-        message: t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다."),
+        message: isEditMode
+          ? t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다.")
+          : t("toast.saveSuccess", "저장 성공했습니다."),
         autoClose: true,
       });
       setNewRow(EMPTY_ROW);
       setEditingRowLocalId(null);
       setShowModal(false);
       setIsDirty(true);
-    } else {
-      // Validation check before Add VoC
-      if (
-        !newRow.representativeWork?.trim() &&
-        !newRow.situation?.trim() &&
-        !newRow.problemSymptom?.trim()
-      ) {
-        setModalError(t("mp.validationRequired", "대표 작업명 또는 문제 현상을 입력해 주세요."));
+      return;
+    }
+
+    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+      const isDuplicate =
+        status === 409 ||
+        responseData?.statusCode === 409 ||
+        responseData?.data?.[0]?.is_duplicate === true ||
+        (typeof responseData?.message === "string" &&
+          responseData.message.toLowerCase().includes("duplicate"));
+
+      if (isDuplicate) {
+        const dupMsg =
+          responseData?.message ||
+          t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
+
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: dupMsg,
+          autoClose: true,
+        });
+        setModalError(dupMsg);
         return;
       }
-      setModalError("");
 
-      // Add VoC Mode via API
-      const priorityIdVal =
-        newRow.priorityId ??
-        (newRow.priority === "중요" || newRow.priority === "Important" ? 2 : 1);
-
-      const categoryObj = (categoryList || []).find(
-        (c) =>
-          c.name === newRow.category ||
-          c.categoryName === newRow.category ||
-          c.displayName === newRow.category,
-      );
-      const categoryIdVal = newRow.categoryId ?? (categoryObj?.id || categoryObj?.categoryId || 1);
-
-      const equipmentTypeIdVal = selectedEquipmentTypeId ? Number(selectedEquipmentTypeId) : 72;
-
-      const vocItem = {
-        id: 0,
-        repWorkId: 0,
-        reportContent: newRow.reportContent || newRow.report || "",
-        workName: newRow.representativeWork || "",
-        purpose: newRow.purpose || newRow.workPurpose || newRow.work || "",
-        situation: newRow.situation || newRow.problemSymptom || "",
-        cause: newRow.cause || newRow.problemCause || "",
-        hwWas: newRow.hwAsWas || newRow.hwBefore || "",
-        hwIs: newRow.hwAsIs || newRow.hwAfter || "",
-        swWas: newRow.swAsWas || newRow.swBefore || "",
-        swIs: newRow.swAsIs || newRow.swAfter || "",
-        bom: newRow.bom || "",
-        sparePart: newRow.sparePart || newRow.materialList || "",
-        equipmentCode: newRow.equipmentCode || "-",
-        equipmentName: newRow.equipmentName || " Common",
-        woCode: newRow.woCode || newRow.wOCode || "",
-        workDate: newRow.workedOn
-          ? new Date(newRow.workedOn).toISOString()
-          : new Date().toISOString(),
-        categoryName: newRow.category || "생산성",
-        priorityName: newRow.priority || "일반",
-        priorityId: priorityIdVal,
-        categoryId: categoryIdVal,
-        processName: procName || "03.성형",
-        siteName: siteName || "A1.수원",
-        maintenanceGroupName: maintName || "0303. R2 Coater (450)",
-        equipmentTypeName: maintName || "0303. R2 Coater (450)",
-        processId: selectedProcessId ? Number(selectedProcessId) : 1,
-        siteId: selectedSiteId ? Number(selectedSiteId) : 1,
-        equipmentTypeId: equipmentTypeIdVal,
-        createdBy: getUserInfo()?.name || "Chirati Harish",
-      };
-
-      const payload = {
-        vocData: [vocItem],
-        isVoc: true,
-      };
-
-      setOperationStatus({
-        isVisible: true,
-        status: "loading",
-        message: t("toast.saving", "저장 중입니다..."),
-        autoClose: false,
-      });
-
-      APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-        const isDuplicate =
-          status === 409 ||
-          responseData?.statusCode === 409 ||
-          responseData?.data?.[0]?.is_duplicate === true ||
-          (typeof responseData?.message === "string" &&
-            responseData.message.toLowerCase().includes("duplicate"));
-
-        if (isDuplicate) {
-          const dupMsg =
-            responseData?.message ||
-            t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
-
-          setOperationStatus({
-            isVisible: true,
-            status: "error",
-            message: dupMsg,
-            autoClose: true,
-          });
-          setModalError(dupMsg);
-          return;
+      if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+        if (isEditMode) {
+          setAllRecords((prev) =>
+            prev.map((r) => {
+              const isMatch =
+                r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+              if (isMatch) {
+                return {
+                  ...r,
+                  ...newRow,
+                  attachments: modalAttachments,
+                  photos: modalAttachments,
+                  photoCount: modalAttachments.length,
+                };
+              }
+              return r;
+            }),
+          );
         }
-
-        if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: t("toast.saveSuccess", "저장 성공했습니다."),
-            autoClose: true,
-          });
-          setNewRow(EMPTY_ROW);
-          setEditingRowLocalId(null);
-          setShowModal(false);
-          fetchMPList();
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: isEditMode
+            ? t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다.")
+            : t("toast.saveSuccess", "저장 성공했습니다."),
+          autoClose: true,
+        });
+        setNewRow(EMPTY_ROW);
+        setEditingRowLocalId(null);
+        setShowModal(false);
+        fetchMPList();
+      } else {
+        console.error("SaveVoc API response:", status, responseData);
+        if (isEditMode) {
+          setAllRecords((prev) =>
+            prev.map((r) => {
+              const isMatch =
+                r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+              if (isMatch) {
+                return {
+                  ...r,
+                  ...newRow,
+                  attachments: modalAttachments,
+                  photos: modalAttachments,
+                  photoCount: modalAttachments.length,
+                };
+              }
+              return r;
+            }),
+          );
         } else {
-          console.error("SaveVoc API response:", status, responseData);
           const enrichedRow = {
             ...newRow,
             id: responseData?.data?.[0]?.id || Date.now(),
@@ -1702,20 +1783,25 @@ export default function MPList({
             process: procName,
             maintGroup: maintName,
             site: siteName,
+            attachments: modalAttachments,
+            photos: modalAttachments,
+            photoCount: modalAttachments.length,
           };
           setAllRecords((prev) => [enrichedRow, ...prev]);
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: t("toast.saveSuccess", "저장 성공했습니다."),
-            autoClose: true,
-          });
-          setNewRow(EMPTY_ROW);
-          setEditingRowLocalId(null);
-          setShowModal(false);
         }
-      });
-    }
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: isEditMode
+            ? t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다.")
+            : t("toast.saveSuccess", "저장 성공했습니다."),
+          autoClose: true,
+        });
+        setNewRow(EMPTY_ROW);
+        setEditingRowLocalId(null);
+        setShowModal(false);
+      }
+    });
   };
 
   const handleConfirmBatchAdd = useCallback(() => {

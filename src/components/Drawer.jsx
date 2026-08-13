@@ -327,7 +327,8 @@ export default function Drawer({
   const equipmentName = firstValue(firstItem, ["equipmentName", "equipment_name"]);
   const equipmentCode = firstValue(firstItem, ["equipmentCode", "equipment_code"]);
 
-  const isChangeHistoryView = variant === "changeHistory" || (!showEdit && !showFooter);
+  const isChangeHistoryView =
+    variant === "changeHistory" || variant === "mpList" || (!showEdit && !showFooter);
 
   const getAttachments = (rec, idx = 0) => {
     const recKey = rec.id || rec.changeHistoryId || rec.wOCode || rec.woCode || `rec-${idx}`;

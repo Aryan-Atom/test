@@ -421,7 +421,7 @@ export default function Dashboard() {
         item={drawerItem}
         onClose={() => setDrawerItem(null)}
         variant={
-          activePage === "matrix"
+          activePage === "mx-matrix" || activePage === "matrix"
             ? "matrix"
             : activePage === "mx-mplist"
               ? "mpList"
