@@ -1511,6 +1511,126 @@ export function UploadPreviewModal({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+function getTableRowValue(row, col) {
+  if (!row) return "";
+  const keyStr = String(col || "").trim();
+  const lowerKey = keyStr.toLowerCase();
+
+  if (
+    lowerKey === "sparepart" ||
+    lowerKey === "spare_part" ||
+    lowerKey === "spare part" ||
+    lowerKey === "sparepartname" ||
+    keyStr === "자재명" ||
+    keyStr === "자재목록" ||
+    keyStr === "예비 부품" ||
+    keyStr === "예비부품" ||
+    lowerKey === "materiallist"
+  ) {
+    return (
+      row.sparePart ??
+      row.Sparepart ??
+      row.sparepart ??
+      row.spare_part ??
+      row.sparePartName ??
+      row["spare part"] ??
+      row["자재목록"] ??
+      row["자재명"] ??
+      row["자재 명"] ??
+      row["예비 부품"] ??
+      row["예비부품"] ??
+      row.materialList ??
+      ""
+    );
+  }
+
+  if (
+    lowerKey === "workedon" ||
+    lowerKey === "workeddate" ||
+    lowerKey === "workdate" ||
+    keyStr === "작업완료일" ||
+    keyStr === "작업일자"
+  ) {
+    return (
+      row.workedOn ??
+      row.workedDate ??
+      row.worked_date ??
+      row.workDate ??
+      row.work_date ??
+      row["작업완료일"] ??
+      row["작업일자"] ??
+      ""
+    );
+  }
+
+  if (lowerKey === "wocode" || keyStr === "wOCode" || keyStr === "W/O코드") {
+    return row.wOCode ?? row.woCode ?? row.wo_code ?? row["W/O코드"] ?? "";
+  }
+
+  if (
+    lowerKey === "wotype" ||
+    lowerKey === "wotypeid" ||
+    keyStr === "W/O타입" ||
+    keyStr === "WO유형"
+  ) {
+    return (
+      row.woType ??
+      row.Wotype ??
+      row.wo_type ??
+      row.woTypeName ??
+      row["W/O타입"] ??
+      row["WO유형"] ??
+      ""
+    );
+  }
+
+  if (
+    lowerKey === "maintgroup" ||
+    lowerKey === "eqtype" ||
+    lowerKey === "equipmenttype" ||
+    keyStr === "보전파트"
+  ) {
+    return (
+      row.equipment_type_name ??
+      row.equipmentTypeName ??
+      row.maintGroup ??
+      row.eqType ??
+      row["보전파트"] ??
+      ""
+    );
+  }
+
+  if (
+    lowerKey === "representativework" ||
+    lowerKey === "rep_work" ||
+    keyStr === "대표작업명" ||
+    keyStr === "대표 작업명"
+  ) {
+    return (
+      row.representative_work_name ??
+      row.representativeWorkName ??
+      row.representativeWork ??
+      row.work_name ??
+      row.workName ??
+      row["대표작업명"] ??
+      row["대표 작업명"] ??
+      ""
+    );
+  }
+
+  if (row[col] !== undefined && row[col] !== null && row[col] !== "") {
+    return row[col];
+  }
+
+  const foundKey = Object.keys(row).find((k) => k.toLowerCase() === lowerKey);
+  if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+    return row[foundKey];
+  }
+
+  return "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EditableRow — inline editable row in the main table
 // ─────────────────────────────────────────────────────────────────────────────
 function EditableRow({
@@ -1675,7 +1795,7 @@ function EditableRow({
                 color: "#111",
                 outline: "none",
               }}
-              value={draft[col] ?? ""}
+              value={draft[col] ?? getTableRowValue(draft, col) ?? ""}
               onChange={(e) => setDraft((prev) => ({ ...prev, [col]: e.target.value }))}
               onClick={(e) => e.stopPropagation()}
             />
@@ -1685,31 +1805,14 @@ function EditableRow({
             key={col}
             className="px-4 py-3 text-text-subtle whitespace-nowrap"
             style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
-            title={String(
-              col === "workedOn"
-                ? (row.workedOn ??
-                    row.workedDate ??
-                    row.worked_date ??
-                    row.workDate ??
-                    row.work_date ??
-                    "")
-                : (row[col] ?? ""),
-            )}
+            title={String(getTableRowValue(row, col))}
           >
             {(() => {
-              const rawVal =
-                col === "workedOn"
-                  ? (row.workedOn ??
-                    row.workedDate ??
-                    row.worked_date ??
-                    row.workDate ??
-                    row.work_date ??
-                    row[col])
-                  : row[col];
+              const rawVal = getTableRowValue(row, col);
               if (rawVal == null || rawVal === "" || rawVal === "null" || rawVal === "undefined") {
                 return "—";
               }
-              if (col === "workedOn") {
+              if (col === "workedOn" || col === "workedDate" || col === "workDate") {
                 const valStr = String(rawVal).trim();
                 if (valStr.includes("T")) return valStr.split("T")[0];
                 if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
@@ -2804,8 +2907,12 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "spare_part",
       "spare part",
       "sparePart",
+      "Sparepart",
       "자재명",
       "자재 명",
+      "자재목록",
+      "예비 부품",
+      "예비부품",
     ]);
     changeDataColumns.forEach((c) => {
       const excelName = c.excelColumnName?.trim().toLowerCase();
@@ -2832,7 +2939,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       ["woCode", "wOCode", "W/O코드"],
       ["report", "Report내용"],
       ["bom", "BOM"],
-      ["sparePart", "자재명"],
+      ["sparePart", "Sparepart", "sparepart", "spare_part", "자재명", "자재목록", "예비 부품", "예비부품"],
       ["workedOn", "작업완료일"],
       ["improvement", "개선 작업"],
       ["work", "작업목적"],
@@ -3251,6 +3358,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       }
       if (!clean.maintGroup && clean.eqType) {
         clean.maintGroup = clean.eqType;
+      }
+      if (clean.woType) {
+        clean.Wotype = clean.woType;
+        clean.wo_type = clean.woType;
+        clean.woTypeName = clean.woType;
       }
 
       return clean;

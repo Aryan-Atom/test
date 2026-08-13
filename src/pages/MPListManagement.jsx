@@ -926,7 +926,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       const problem = getRowValue(ref, "situation", "report", "problem") || "—";
       const cause = getRowValue(ref, "cause") || "—";
       const bom = getRowValue(ref, "bom", "BOM") || "—";
-      const materialName = getRowValue(ref, "sparePart", "materialName", "material") || "—";
+      const materialName = getRowValue(ref, "sparePart", "Sparepart", "sparepart", "spare_part", "sparePartName", "materialName", "materialList", "자재목록", "자재명", "자재 명", "예비 부품", "예비부품") || "—";
       const hwBefore = getRowValue(ref, "hwAsWas", "hwBefore") || "—";
       const importance = getRowValue(ref, "priority", "priorityName") || "일반";
       const effect = getRowValue(ref, "category", "categoryName") || "보전성";

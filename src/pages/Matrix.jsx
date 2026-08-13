@@ -481,7 +481,32 @@ function getColValue(row, col) {
   if (col === "equipmentName") {
     return row.equipment_name ?? row.equipmentName ?? row["설비명"] ?? "";
   }
-  return row[col] ?? "";
+  if (
+    col === "sparePart" ||
+    col === "spare_part" ||
+    col === "sparepart" ||
+    col === "Sparepart" ||
+    col === "자재명" ||
+    col === "자재목록" ||
+    col === "예비 부품" ||
+    col === "예비부품"
+  ) {
+    return (
+      row.sparePart ??
+      row.spare_part ??
+      row.sparepart ??
+      row.Sparepart ??
+      row.sparePartName ??
+      row["자재목록"] ??
+      row["자재명"] ??
+      row["자재 명"] ??
+      row["예비 부품"] ??
+      row["예비부품"] ??
+      row.materialList ??
+      ""
+    );
+  }
+  return row[col] ?? row.sparePart ?? row.spare_part ?? row["자재명"] ?? row["자재목록"] ?? "";
 }
 
 export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {

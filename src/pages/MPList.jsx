@@ -438,55 +438,92 @@ const EMPTY_ROW = {
 // Key mapping helper
 function getColValue(row, col) {
   if (!row) return "";
-  if (col === "site") {
+  if (col === "site" || col === "법인" || col === "siteName") {
     return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
-  if (col === "representativeWork") {
+  if (
+    col === "representativeWork" ||
+    col === "대표작업명" ||
+    col === "대표 작업명" ||
+    col === "representativeWorkName" ||
+    col === "workName"
+  ) {
     return (
       row.representative_work_name ??
       row.representativeWorkName ??
       row.representativeWork ??
       row.work_name ??
       row.workName ??
+      row.work ??
       row["대표작업명"] ??
       row["대표 작업명"] ??
       ""
     );
   }
-  if (col === "work") {
-    return row.purpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+  if (
+    col === "work" ||
+    col === "작업 목적" ||
+    col === "작업목적" ||
+    col === "purpose" ||
+    col === "workPurpose"
+  ) {
+    return row.purpose ?? row.workPurpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
   }
-  if (col === "situation") {
-    return row.situation ?? row["문제 현상"] ?? "";
+  if (col === "situation" || col === "문제 현상" || col === "문제현상") {
+    return row.situation ?? row.problemSymptom ?? row["문제 현상"] ?? row["문제현상"] ?? "";
   }
-  if (col === "cause") {
-    return row.cause ?? row["문제 원인"] ?? "";
+  if (col === "cause" || col === "문제 원인" || col === "문제원인") {
+    return row.cause ?? row.problemCause ?? row["문제 원인"] ?? row["문제원인"] ?? "";
   }
-  if (col === "report") {
-    return row.report_content ?? row.report ?? row["보고서"] ?? "";
+  if (col === "report" || col === "Report내용" || col === "보고서") {
+    return row.report_content ?? row.reportContent ?? row.report ?? row["Report내용"] ?? row["보고서"] ?? "";
   }
-  if (col === "bom") {
-    return row.bom ?? row["BOM"] ?? "";
+  if (col === "bom" || col === "BOM") {
+    return row.bom ?? row.BOM ?? row["BOM"] ?? "";
   }
-  if (col === "sparePart") {
-    return row.sparePart ?? row["자재명"] ?? "";
+  if (
+    col === "sparePart" ||
+    col === "spare_part" ||
+    col === "sparepart" ||
+    col === "Sparepart" ||
+    col === "sparePartName" ||
+    col === "자재명" ||
+    col === "자재목록" ||
+    col === "예비 부품" ||
+    col === "예비부품" ||
+    col === "materialList"
+  ) {
+    return (
+      row.sparePart ??
+      row.spare_part ??
+      row.sparepart ??
+      row.Sparepart ??
+      row.sparePartName ??
+      row["자재목록"] ??
+      row["자재명"] ??
+      row["자재 명"] ??
+      row["예비 부품"] ??
+      row["예비부품"] ??
+      row.materialList ??
+      ""
+    );
   }
-  if (col === "hwAsWas") {
-    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
+  if (col === "hwAsWas" || col === "hwBefore" || col === "HW 변경 전" || col === "HW변경전") {
+    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? row["HW변경전"] ?? "";
   }
-  if (col === "hwAsIs") {
-    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
+  if (col === "hwAsIs" || col === "hwAfter" || col === "HW 변경 후" || col === "HW변경후") {
+    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? row["HW변경후"] ?? "";
   }
-  if (col === "swAsWas") {
-    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
+  if (col === "swAsWas" || col === "swBefore" || col === "SW 변경 전" || col === "SW변경전") {
+    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? row["SW변경전"] ?? "";
   }
-  if (col === "swAsIs") {
-    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
+  if (col === "swAsIs" || col === "swAfter" || col === "SW 변경 후" || col === "SW변경후") {
+    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? row["SW변경후"] ?? "";
   }
-  if (col === "priority") {
-    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
+  if (col === "priority" || col === "중요도" || col === "우선순위") {
+    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? row["우선순위"] ?? "";
   }
-  if (col === "category") {
+  if (col === "category" || col === "효과 유형" || col === "효과유형" || col === "구분") {
     return (
       row.category_name ??
       row.categoryName ??
@@ -495,11 +532,12 @@ function getColValue(row, col) {
       row.effectType ??
       row["효과 유형"] ??
       row["효과유형"] ??
+      row["구분"] ??
       ""
     );
   }
-  if (col === "wOCode") {
-    return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
+  if (col === "wOCode" || col === "woCode" || col === "W/O코드" || col === "작업지시서 코드") {
+    return row.wOCode ?? row.woCode ?? row.wo_code ?? row["W/O코드"] ?? row["작업지시서 코드"] ?? "";
   }
   if (col === "workedOn") {
     return (

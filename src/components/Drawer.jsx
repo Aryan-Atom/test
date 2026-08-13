@@ -87,7 +87,7 @@ const CHANGE_DETAIL_FIELDS = [
   { labelKey: "field.situation", keys: ["situation", "problem", "problemSymptom"] },
   { labelKey: "field.cause", keys: ["cause", "problemCause"] },
   { labelKey: "field.bom", keys: ["bom", "BOM"] },
-  { labelKey: "field.sparePart", keys: ["sparePart", "sparepart", "spare_part", "materialName"] },
+  { labelKey: "field.sparePart", keys: ["sparePart", "Sparepart", "sparepart", "spare_part", "sparePartName", "materialName", "materialList", "자재목록", "자재명", "자재 명", "예비 부품", "예비부품"] },
   { labelKey: "field.hwBefore", keys: ["hwAsWas", "hwBefore", "hw_was", "hwWas"] },
   { labelKey: "field.hwAfter", keys: ["hwAsIs", "hwAfter", "hw_is", "hwIs"] },
   { labelKey: "field.swBefore", keys: ["swAsWas", "swBefore", "sw_was", "swWas"] },
@@ -97,7 +97,7 @@ const CHANGE_DETAIL_FIELDS = [
   { labelKey: "field.workedOn", keys: ["work_date", "workedOn", "worked_date", "workDate"] },
   { labelKey: "field.priority", keys: ["priority_name", "priority", "priorityName", "priority_id"] },
   { labelKey: "field.category", keys: ["category_name", "category", "categoryName", "effectType", "category_id"] },
-  { labelKey: "field.woType", keys: ["woType", "woTypeName", "workOrderType", "work_order_type"] },
+  { labelKey: "field.woType", keys: ["woType", "Wotype", "wo_type", "woTypeName", "wo_type_name", "workOrderType", "work_order_type", "workordertype", "W/O타입", "WO타입", "W/O유형", "WO유형", "w/o유형"] },
 ];
 
 const SPEC_DETAIL_FIELDS = [
