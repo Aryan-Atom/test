@@ -889,9 +889,10 @@ export default function MPList({
     return (filterPayload?.priority || []).length > 0
       ? filterPayload.priority
       : [
-          { id: 1, priorityName: "일반" },
+          { id: 1, priorityName: "필수" },
           { id: 2, priorityName: "중요" },
-          { id: 3, priorityName: "정보 없음" },
+          { id: 3, priorityName: "일반" },
+          { id: 4, priorityName: "제외" },
         ];
   }, [filterPayload]);
 

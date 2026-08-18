@@ -3,7 +3,7 @@ import { APIcallGet, APIcallPost } from "../axios/apiCall";
 import { pocEndPoints } from "../axios/endPoints";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
-import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle } from "../utils/matrixCellStyle.js";
+import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle, normalizePriority, getPriorityRank } from "../utils/matrixCellStyle.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { useToast } from "../components/ToastContext.jsx";
 import Drawer from "../components/Drawer.jsx";
@@ -394,12 +394,35 @@ function firstValue(obj, keys) {
   return "";
 }
 
+function isWoTypeMatching(itemWoType, selectedWoTypes) {
+  if (!selectedWoTypes || selectedWoTypes.length === 0) return true;
+  if (!itemWoType) return true;
+  const normItem = String(itemWoType).trim().toUpperCase();
+  return selectedWoTypes.some((selected) => {
+    const normSel = String(selected).trim().toUpperCase();
+    if (normItem === normSel) return true;
+    if (normItem.startsWith("CM") && normSel.startsWith("CM")) return true;
+    if (normItem.startsWith("BM") && normSel.startsWith("BM")) return true;
+    if (normItem.startsWith("PM") && normSel.startsWith("PM")) return true;
+    if (normItem.startsWith("ETC") && normSel.startsWith("ETC")) return true;
+    return false;
+  });
+}
+
 function getColValue(row, col) {
   if (!row) return "";
   if (col === "representativeWork") {
     return (
       row.representative_work_name ??
+      row.representativeWorkName ??
       row.representativeWork ??
+      row.representative_work ??
+      row.rep_work_name ??
+      row.rep_work ??
+      row.repWorkName ??
+      row.repWork ??
+      row.work_name ??
+      row.workName ??
       row["대표작업명"] ??
       row["대표 작업명"] ??
       ""
@@ -445,6 +468,22 @@ function getColValue(row, col) {
       ""
     );
   }
+  if (col === "woType") {
+    return (
+      row.woType ??
+      row.wo_type ??
+      row.wotype ??
+      row.Wotype ??
+      row.work_order_type_name ??
+      row.workOrderTypeName ??
+      row.woTypeName ??
+      row["wo type"] ??
+      row["WO유형"] ??
+      row["WO 유형"] ??
+      row["w/o유형"] ??
+      ""
+    );
+  }
   if (col === "wOCode") {
     return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
@@ -481,35 +520,75 @@ function getColValue(row, col) {
   if (col === "equipmentName") {
     return row.equipment_name ?? row.equipmentName ?? row["설비명"] ?? "";
   }
-  if (
-    col === "sparePart" ||
-    col === "spare_part" ||
-    col === "sparepart" ||
-    col === "Sparepart" ||
-    col === "자재명" ||
-    col === "자재목록" ||
-    col === "예비 부품" ||
-    col === "예비부품"
-  ) {
-    return (
-      row.sparePart ??
-      row.spare_part ??
-      row.sparepart ??
-      row.Sparepart ??
-      row.sparePartName ??
-      row["자재목록"] ??
-      row["자재명"] ??
-      row["자재 명"] ??
-      row["예비 부품"] ??
-      row["예비부품"] ??
-      row.materialList ??
-      ""
-    );
-  }
-  return row[col] ?? row.sparePart ?? row.spare_part ?? row["자재명"] ?? row["자재목록"] ?? "";
+  return row[col] ?? "";
 }
 
-export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
+// ── Matrix detail API helpers ──────────────────────────────────────────
+const matrixDetailMap = {
+  change_history_id: "id",
+  report_content: "report",
+  work_order_type_name: "woType",
+  equipment_code: "equipmentCode",
+  equipment_name: "equipmentName",
+  rep_work_id: "repWorkId",
+  work_name: "representativeWork",
+  purpose: "purpose",
+  situation: "situation",
+  cause: "cause",
+  hw_was: "hwAsWas",
+  hw_is: "hwAsIs",
+  sw_was: "swAsWas",
+  sw_is: "swAsIs",
+  category_name: "category",
+  priority_name: "priority",
+  process_name: "process",
+  work_date: "workedOn",
+  equipment_type_name: "maintGroup",
+  site_name: "site",
+  maintenance_group_name: "maintGroup",
+  bom: "bom",
+  spare_part: "sparePart",
+  wo_code: "wOCode",
+  work: "work",
+  created_by: "createdBy",
+  updated_by: "modifiedBy",
+  created_at: "createdAt",
+  updated_at: "modifiedAt",
+  work_order_type_id: "woTypeId",
+  equipment_id: "equipmentId",
+  category_id: "categoryId",
+  priority_id: "priorityId",
+  process_id: "processId",
+  site_id: "siteId",
+  equipment_type_id: "equipmentTypeId",
+};
+
+function parseMatrixDetailResponse(responseData) {
+  const payload = responseData?.data ?? responseData;
+  if (!payload || typeof payload !== "object") return null;
+  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (payload.matrixData && typeof payload.matrixData === "object") {
+    return payload.matrixData;
+  }
+  if (payload.changeData && typeof payload.changeData === "object") {
+    return payload.changeData;
+  }
+  return payload;
+}
+
+function mapMatrixDetailToRow(detail) {
+  if (!detail || typeof detail !== "object") return {};
+  const mapped = {};
+  for (const [key, value] of Object.entries(detail)) {
+    const mappedKey = matrixDetailMap[key] ?? key;
+    if (value !== null && value !== undefined) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped;
+}
+
+export default function Matrix({ data, onOpenDetail, onUpload, searchText, isActive }) {
   const { t } = useI18n();
   const toastCtx = useToast();
   const pushToast = toastCtx?.pushToast || ((msg) => console.log(msg));
@@ -517,6 +596,296 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [mode, setMode] = useState("date");
   const [filterData, setFilterData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // ── Edit Modal State (for Drawer edit button) ──────────────────────────
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRowData, setEditRowData] = useState({});
+  const [editRowId, setEditRowId] = useState(null);
+  const [editErrors, setEditErrors] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
+
+  // ── Drawer: fetch full detail from GetMatrixData API ──────────────────
+  const handleOpenDrawer = useCallback((item) => {
+    // If array, pass directly (Drawer handles arrays)
+    if (Array.isArray(item)) {
+      setDrawerItem(item);
+      return;
+    }
+    // Single item — extract change_history_id
+    const rowId = Number(
+      firstValue(item, [
+        "change_history_id",
+        "changeHistoryId",
+        "id",
+        "rep_work_id",
+        "repWorkId",
+      ]) || 0,
+    );
+    if (!rowId || rowId <= 0 || isStaticDataMode) {
+      setDrawerItem(item);
+      return;
+    }
+    // Show immediately with basic data, then fetch full detail
+    setDrawerItem(item);
+    APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+      if (status === 200 && responseData) {
+        const detail = parseMatrixDetailResponse(responseData);
+        if (detail) {
+          const mapped = mapMatrixDetailToRow(detail);
+          const merged = { ...item, ...mapped };
+          setDrawerItem(merged);
+        }
+      }
+    });
+  }, []);
+
+  // ── Edit from Drawer: populate modal with row data ──────────────────────
+  const populateEditModal = useCallback((row) => {
+    if (!row) return;
+    setEditRowData({
+      representativeWork: getColValue(row, "representativeWork"),
+      work: getColValue(row, "work"),
+      purpose: getColValue(row, "purpose") || getColValue(row, "work"),
+      report: getColValue(row, "report"),
+      situation: getColValue(row, "situation"),
+      cause: getColValue(row, "cause"),
+      bom: row.bom ?? "",
+      sparePart: row.sparePart ?? row["자재명"] ?? "",
+      hwAsWas: getColValue(row, "hwAsWas"),
+      hwAsIs: getColValue(row, "hwAsIs"),
+      swAsWas: getColValue(row, "swAsWas"),
+      swAsIs: getColValue(row, "swAsIs"),
+      priority: getColValue(row, "priority") || "일반",
+      category: getColValue(row, "category") || "기타",
+      wOCode: getColValue(row, "wOCode") || "",
+      woType: getColValue(row, "woType") || "",
+      workedOn: (() => {
+        const raw = getColValue(row, "workedOn");
+        if (!raw) return "";
+        const s = String(raw);
+        if (!isNaN(Number(s)) && Number(s) > 0) {
+          const d = new Date(new Date(1899, 11, 30).getTime() + Number(s) * 86400000);
+          return d.toISOString().slice(0, 10);
+        }
+        return s.slice(0, 10);
+      })(),
+      equipmentCode: row.equipmentCode ?? row.equipment_code ?? "-",
+      equipmentName: row.equipmentName ?? row.equipment_name ?? " Common",
+      process: getColValue(row, "process") || "",
+      maintGroup: getColValue(row, "maintGroup") || "",
+      site: getColValue(row, "site") || "",
+      // IDs from API response
+      id: Number(row.id) || 0,
+      repWorkId: Number(row.repWorkId ?? row.rep_work_id ?? 0) || 0,
+      repMappingId: Number(row.repWorkId ?? row.rep_work_id ?? row.repMappingId ?? 0) || 0,
+      workOrderId: Number(row.workOrderId ?? row.work_order_type_id ?? row.woTypeId ?? 0) || 0,
+      equipmentId: Number(row.equipmentId ?? row.equipment_id ?? 0) || 0,
+      processId: Number(row.processId ?? row.process_id ?? 0) || 0,
+      siteId: Number(row.siteId ?? row.site_id ?? 0) || 0,
+      equipmentTypeId:
+        Number(row.equipmentTypeId ?? row.equipment_type_id ?? row.eqTypeId ?? 0) || 0,
+      categoryId: Number(row.categoryId ?? row.category_id ?? 0) || 0,
+      priorityId: Number(row.priorityId ?? row.priority_id ?? 0) || 0,
+      maintenanceGroupId: Number(row.maintenanceGroupId ?? row.maintenance_group_id ?? 0) || 0,
+      createdBy: row.createdBy ?? row.created_by ?? "Chirati Harish",
+    });
+    setEditRowId(row._localId || row.id || "temp");
+    setEditErrors({});
+    setShowEditModal(true);
+  }, []);
+
+  // ── Edit from Drawer: fetch detail via GetMatrixData API, then open modal ──
+  const handleEditFromDrawer = useCallback(
+    (rowOrEvent) => {
+      // Handle both direct row calls and CustomEvent (from Drawer)
+      const row = rowOrEvent?.detail?.item ?? rowOrEvent;
+      if (!row) return;
+
+      const rowId = Number(row?.id || row?.changeHistoryId || row?.change_history_id || 0);
+
+      // Static data mode or no valid ID → use row data directly
+      if (isStaticDataMode || !rowId || rowId <= 0) {
+        populateEditModal(row);
+        return;
+      }
+
+      // Fetch detail from GetMatrixData API, then populate modal
+      setEditLoading(true);
+      pushToast(t("toast.loadingDetail", "Loading details..."), "info");
+
+      APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+        setEditLoading(false);
+        if (status === 200 && responseData) {
+          const detail = parseMatrixDetailResponse(responseData);
+          const mapped = detail ? mapMatrixDetailToRow(detail) : null;
+          const merged = mapped ? { ...row, ...mapped } : row;
+          populateEditModal(merged);
+        } else {
+          console.warn("[Matrix] GetMatrixData for edit failed:", status, responseData);
+          populateEditModal(row);
+        }
+      });
+    },
+    [populateEditModal, pushToast, t],
+  );
+
+  // ── Edit Modal: Save via SaveVoc API ─────────────────────────────────────
+  const handleEditModalSave = useCallback(() => {
+    // Validate required fields
+    const fieldsToValidate = ["representativeWork", "situation"];
+    const nextErrors = {};
+    fieldsToValidate.forEach((key) => {
+      const val = editRowData[key];
+      if (!val || !String(val).trim()) {
+        nextErrors[key] = t("page.mp.requiredFieldError", "필수 입력 항목입니다.");
+      }
+    });
+    setEditErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    const isEditMode = editRowId !== null;
+
+    const formatValidDateIso = (rawDate) => {
+      if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
+        return new Date().toISOString();
+      }
+      const p = new Date(rawDate);
+      if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
+        return new Date().toISOString();
+      }
+      return p.toISOString();
+    };
+
+    const rowIdVal = isEditMode ? Number(editRowData.id || editRowId) || 0 : 0;
+
+    const priorityIdVal =
+      editRowData.priorityId ??
+      (editRowData.priority === "중요" || editRowData.priority === "Important" ? 2 : 1);
+
+    // Find category ID from filterData
+    const categoryObj = (filterData?.category ?? []).find(
+      (c) => c.categoryName === editRowData.category || c.name === editRowData.category,
+    );
+    const categoryIdVal =
+      editRowData.categoryId ?? (categoryObj?.id || categoryObj?.categoryId || 1);
+
+    // Find process ID from filterData
+    const procObj = (filterData?.process ?? []).find((p) => p.processName === editRowData.process);
+    const processIdVal = editRowData.processId
+      ? Number(editRowData.processId)
+      : procObj?.id
+        ? Number(procObj.id)
+        : 1;
+
+    // Find equipment type ID from filterData
+    const eqTypeObj = (filterData?.eqTypes ?? filterData?.maintenance ?? []).find(
+      (e) =>
+        e.equipmentTypeName === editRowData.maintGroup || e.eqTypeName === editRowData.maintGroup,
+    );
+    const equipmentTypeIdVal = editRowData.equipmentTypeId
+      ? Number(editRowData.equipmentTypeId)
+      : eqTypeObj?.id
+        ? Number(eqTypeObj.id)
+        : 107;
+
+    // Find site ID from filterData
+    const siteObj = (filterData?.site ?? []).find((s) => s.siteName === editRowData.site);
+    const siteIdVal = editRowData.siteId
+      ? Number(editRowData.siteId)
+      : siteObj?.id
+        ? Number(siteObj.id)
+        : 1;
+
+    const vocItem = {
+      id: rowIdVal,
+      repWorkId: Number(editRowData.repWorkId ?? editRowData.rep_work_id ?? 0) || 0,
+      repMappingId:
+        Number(editRowData.repWorkId ?? editRowData.rep_work_id ?? editRowData.repMappingId ?? 0) ||
+        0,
+      workOrderId:
+        Number(
+          editRowData.workOrderId ?? editRowData.work_order_type_id ?? editRowData.woTypeId ?? 0,
+        ) || 0,
+      equipmentId: Number(editRowData.equipmentId ?? editRowData.equipment_id ?? 0) || 0,
+      reportContent: editRowData.reportContent || editRowData.report || "",
+      workName:
+        editRowData.representativeWork || editRowData.workName || editRowData.work_name || "",
+      purpose: editRowData.purpose || editRowData.workPurpose || editRowData.work || "",
+      situation: editRowData.situation || "",
+      cause: editRowData.cause || "",
+      hwWas: editRowData.hwAsWas || editRowData.hw_was || "",
+      hwIs: editRowData.hwAsIs || editRowData.hw_is || "",
+      swWas: editRowData.swAsWas || editRowData.sw_was || "",
+      swIs: editRowData.swAsIs || editRowData.sw_is || "",
+      bom: editRowData.bom || "",
+      sparePart: editRowData.sparePart || "",
+      equipmentCode: editRowData.equipmentCode || editRowData.equipment_code || "-",
+      equipmentName: editRowData.equipmentName || editRowData.equipment_name || " Common",
+      woCode: editRowData.woCode || editRowData.wOCode || editRowData.wo_code || "",
+      workDate: formatValidDateIso(
+        editRowData.workedOn || editRowData.workDate || editRowData.work_date,
+      ),
+      categoryName: editRowData.category || editRowData.categoryName || "category 1",
+      priorityName: editRowData.priority || editRowData.priorityName || "priority 1",
+      priorityId: priorityIdVal,
+      categoryId: categoryIdVal,
+      processName: editRowData.process || "P1",
+      siteName: editRowData.site || "site 1",
+      maintenanceGroupName: editRowData.maintGroup || editRowData.equipmentTypeName || "EQ type 1",
+      equipmentTypeName: editRowData.maintGroup || editRowData.equipmentTypeName || "EQ type 1",
+      processId: processIdVal,
+      siteId: siteIdVal,
+      equipmentTypeId: equipmentTypeIdVal,
+      createdBy: editRowData.createdBy || "Chirati Harish",
+    };
+
+    const payload = {
+      vocData: [vocItem],
+      isVoc: false,
+    };
+
+    pushToast(t("toast.saving", "저장 중입니다..."), "info");
+
+    if (isStaticDataMode) {
+      pushToast(t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다."), "success");
+      setEditRowData({});
+      setEditRowId(null);
+      setShowEditModal(false);
+      return;
+    }
+
+    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+      const isDuplicate =
+        status === 409 ||
+        responseData?.statusCode === 409 ||
+        responseData?.data?.[0]?.is_duplicate === true ||
+        (typeof responseData?.message === "string" &&
+          responseData.message.toLowerCase().includes("duplicate"));
+
+      if (isDuplicate) {
+        const dupMsg =
+          responseData?.message ||
+          t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
+        pushToast(dupMsg, "error");
+        return;
+      }
+
+      if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+        pushToast(t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다."), "success");
+        setEditRowData({});
+        setEditRowId(null);
+        setShowEditModal(false);
+        // Refresh matrix data
+        fetchMatrixData?.();
+      } else {
+        console.error("SaveVoc API response:", status, responseData);
+        pushToast(
+          responseData?.message || t("toast.rowSaveError", "저장에 실패했습니다."),
+          "error",
+        );
+      }
+    });
+  }, [editRowData, editRowId, filterData, t, pushToast]);
 
   // Filters State
   const [selectedProcess, setSelectedProcess] = useState(() => {
@@ -562,7 +931,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
   const [newCategory, setNewCategory] = useState("");
   const [replacing, setReplacing] = useState(false);
   const [clickedRecord, setClickedRecord] = useState(null);
-
   // Lateral Deployment Modal State (횡전개 관리 모달)
   const [showApplyStatusModal, setShowApplyStatusModal] = useState(false);
   const [asRepWork, setAsRepWork] = useState("");
@@ -675,7 +1043,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
   useEffect(() => {
     const handleCustomOpen = (e) => {
-      const repWorkName = (e.detail && e.detail.repWork) ? e.detail.repWork : "BET 산포 감소를 위한 로터 교체";
+      const repWorkName =
+        e.detail && e.detail.repWork ? e.detail.repWork : "BET 산포 감소를 위한 로터 교체";
       openApplyStatusModal(repWorkName);
     };
 
@@ -704,16 +1073,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         const targetRec = e.detail.item;
         const itemCode = getColValue(targetRec, "equipmentCode");
 
-        const repoWorkId = Number(
-          firstValue(targetRec, [
-            "rep_work_id",
-            "repo_Work_Id",
-            "repoWorkId",
-            "repWorkId",
-            "representativeWorkId",
-            "id",
-          ]) || asRepoWorkId || 1,
-        ) || 1;
+        const repoWorkId =
+          Number(
+            firstValue(targetRec, [
+              "rep_work_id",
+              "repo_Work_Id",
+              "repoWorkId",
+              "repWorkId",
+              "representativeWorkId",
+              "id",
+            ]) ||
+              asRepoWorkId ||
+              1,
+          ) || 1;
 
         const rawEqVal = firstValue(targetRec, [
           "equipment_id",
@@ -756,7 +1128,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               fetch("http://localhost:5248/api/MatrixInquiry/Save", {
                 method: "POST",
                 headers: {
-                  "Accept": "*/*",
+                  Accept: "*/*",
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify(payload),
@@ -782,14 +1154,16 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     window.addEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
     window.addEventListener("changeStatusDirectly", handleDirectStatusChange);
     window.addEventListener("changeStatusDirectlyToApplied", handleDirectToApplied);
+    window.addEventListener("openEditRecordFromDrawer", handleEditFromDrawer);
 
     return () => {
       window.removeEventListener("openLateralDeploymentModal", handleCustomOpen);
       window.removeEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
       window.removeEventListener("changeStatusDirectly", handleDirectStatusChange);
       window.removeEventListener("changeStatusDirectlyToApplied", handleDirectToApplied);
+      window.removeEventListener("openEditRecordFromDrawer", handleEditFromDrawer);
     };
-  }, [openApplyStatusModal, pushToast, t]);
+  }, [openApplyStatusModal, pushToast, t, handleEditFromDrawer]);
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({
@@ -1029,6 +1403,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     getFilterData();
   }, [getFilterData]);
 
+  // Re-fetch master data when page becomes active
+  const prevIsActiveRef = useRef(false);
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      prevIsActiveRef.current = true;
+      getFilterData();
+    }
+    if (!isActive) {
+      prevIsActiveRef.current = false;
+    }
+  }, [isActive, getFilterData]);
+
   useEffect(() => {
     if (!filterData) return;
     const savedProcId = Number(sessionStorage.getItem("eq_selected_process_id") || 0);
@@ -1166,9 +1552,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       ...new Set((filterData?.priority ?? []).map((p) => p.priorityName).filter(Boolean)),
     ];
     if (rawList.length === 0) {
-      return ["중요", "일반"];
+      return ["필수", "중요", "일반", "제외"];
     }
-    return rawList;
+    return [...new Set([...rawList, "필수", "중요", "일반", "제외"])];
   }, [filterData]);
 
   const categoryOptions = useMemo(() => {
@@ -1207,7 +1593,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       sessionStorage.setItem("eq_selected_process_name", proc);
       if (Array.isArray(filterData?.process)) {
         const match = filterData.process.find((p) => p.processName === proc);
-        if (match) sessionStorage.setItem("eq_selected_process_id", String(match.id ?? match.processId));
+        if (match)
+          sessionStorage.setItem("eq_selected_process_id", String(match.id ?? match.processId));
       }
     } else {
       sessionStorage.removeItem("eq_selected_process_name");
@@ -1311,7 +1698,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
       if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) return false;
 
       const itemWoType = getColValue(item, "woType");
-      if (selectedWoTypes.length > 0 && !selectedWoTypes.includes(itemWoType)) return false;
+      if (selectedWoTypes.length > 0 && !isWoTypeMatching(itemWoType, selectedWoTypes)) return false;
 
       const dateStr = getFormattedDateString(getColValue(item, "workedOn"));
       if (dateStr) {
@@ -1391,7 +1778,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
     return { columns, equipmentRows };
   }, [filtered, mode]);
-
   // Task Mode completion rates
   const { colCompletion } = useMemo(() => {
     if (filtered.length === 0 || mode !== "task") return { colCompletion: {} };
@@ -1494,55 +1880,147 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     setShowReplaceModal(true);
   };
 
+  // ── Cell status resolver (Task Name Mode) ─────────────────────────────────
+  // Priority Precedence: Required ("필수") > Important ("중요") > Normal ("일반") > Excluded ("제외")
+  //   1) 필수 (Required): background: var(--primary-soft), color: var(--primary), font-weight: 700, font-size: .6875rem
+  //   2) 중요 (Important): color: var(--primary), font-size: .6875rem
+  //   3) 일반 (Normal): Existing apply_status logic (Applied=green bold, Rejected=gray bg, WO=date display)
+  //   4) 제외 (Excluded): color: var(--text-muted), font-size: .6875rem
   const getSingleCellStatusInfo = useCallback(
     (matchedRecords) => {
       if (!matchedRecords || matchedRecords.length === 0) {
-        return null;
-      }
-
-      // Priority 1: Check if any record is "w/o applied"
-      const woRecord = matchedRecords.find((item) => {
-        const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
-        )
-          .toLowerCase()
-          .trim();
-        return s === "w/o applied" || s === "wo_applied" || s === "wo applied" || s.includes("w/o");
-      });
-
-      if (woRecord) {
-        const workDateRaw =
-          woRecord.work_date || woRecord.workDate || woRecord.workedOn || woRecord.work_Date || "";
-        const formattedDate = getFormattedDateString(workDateRaw);
         return {
-          type: "wo_applied",
-          label: formattedDate || "2026-05-13",
-          className: "text-blue-600 dark:text-blue-400 font-semibold text-xs",
+          type: "add_new",
+          label: "+",
+          className:
+            "w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-500 font-bold text-sm",
         };
       }
 
-      // Priority 2: Check if any record is "applied"
-      const appliedRecord = matchedRecords.find((item) => {
+      let highestItem = matchedRecords[0];
+      let highestRank = getPriorityRank(getColValue(highestItem, "priority"));
+
+      for (let i = 1; i < matchedRecords.length; i++) {
+        const r = getPriorityRank(getColValue(matchedRecords[i], "priority"));
+        if (r < highestRank) {
+          highestRank = r;
+          highestItem = matchedRecords[i];
+        }
+      }
+
+      const highestPriorityNorm = normalizePriority(getColValue(highestItem, "priority"));
+
+      // 1. 필수 (Required): background: var(--primary-soft), color: var(--primary), font-weight: 700, font-size: .6875rem
+      if (highestPriorityNorm === "필수") {
+        const woRecord = matchedRecords.find((item) => {
+          const s = String(item.status ?? item.apply_status ?? "").toLowerCase().trim();
+          return s === "w/o applied" || s === "wo_applied" || s.includes("w/o");
+        });
+        const dateStr = woRecord ? getFormattedDateString(getColValue(woRecord, "workedOn")) : "";
+
+        return {
+          type: "priority_required",
+          label: dateStr || t("priority.required", "필수"),
+          style: {
+            backgroundColor: "var(--primary-soft, #ebf3ff)",
+            color: "var(--primary, #2563eb)",
+            fontWeight: 700,
+            fontSize: ".6875rem",
+          },
+          className:
+            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
+        };
+      }
+
+      // 2. 중요 (Important): color: var(--primary), font-size: .6875rem
+      if (highestPriorityNorm === "중요") {
+        const woRecord = matchedRecords.find((item) => {
+          const s = String(item.status ?? item.apply_status ?? "").toLowerCase().trim();
+          return s === "w/o applied" || s === "wo_applied" || s.includes("w/o");
+        });
+        const dateStr = woRecord ? getFormattedDateString(getColValue(woRecord, "workedOn")) : "";
+
+        return {
+          type: "priority_important",
+          label: dateStr || t("priority.important", "중요"),
+          style: {
+            backgroundColor: "transparent",
+            color: "var(--primary, #2563eb)",
+            fontSize: ".6875rem",
+          },
+          className:
+            "w-full max-w-[125px] text-center px-2 py-1 text-xs font-normal text-[#2563eb] dark:text-blue-400",
+        };
+      }
+
+      // 3. 제외 (Excluded): color: var(--text-muted), font-size: .6875rem (when all matched records are excluded)
+      if (
+        highestPriorityNorm === "제외" &&
+        matchedRecords.every(
+          (r) => normalizePriority(getColValue(r, "priority")) === "제외",
+        )
+      ) {
+        return {
+          type: "priority_excluded",
+          label: t("priority.excluded", "제외"),
+          style: {
+            backgroundColor: "transparent",
+            color: "var(--text-muted, #94a3b8)",
+            fontSize: ".6875rem",
+          },
+          className:
+            "w-full max-w-[125px] text-center px-2 py-1 text-xs font-normal text-gray-400 dark:text-gray-500",
+        };
+      }
+
+      // 4. 일반 (Normal) -> Existing apply_status logic
+      const validRecords = matchedRecords.filter((item) => {
+        const s = item.status ?? item.apply_status ?? item.effectiveStatus ?? item.rawStatus;
+        return (
+          s !== null &&
+          s !== undefined &&
+          String(s).trim() !== "" &&
+          String(s).trim() !== "null" &&
+          String(s).trim() !== "undefined"
+        );
+      });
+
+      if (validRecords.length === 0) {
+        return {
+          type: "add_new",
+          label: "+",
+          className:
+            "w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-500 font-bold text-sm",
+        };
+      }
+
+      const appliedRecord = validRecords.find((item) => {
         const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
+          item.status ?? item.apply_status ?? item.effectiveStatus ?? item.rawStatus ?? "",
         )
           .toLowerCase()
           .trim();
-        return s === "applied" || s === "1" || s === "0";
+        return (
+          s === "applied" ||
+          s === "applied_confirmed" ||
+          s === "적용확인" ||
+          s === "적용 확인" ||
+          s === "0"
+        );
       });
 
       if (appliedRecord) {
         return {
           type: "applied",
           label: t("page.matrix.appliedConfirmed", "적용 확인"),
-          className: "text-emerald-600 dark:text-emerald-400 font-bold text-xs",
+          className:
+            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 shadow-2xs",
         };
       }
 
-      // Priority 3: Check if any record is "notApplied" / "rejected"
-      const notAppliedRecord = matchedRecords.find((item) => {
+      const notAppliedRecord = validRecords.find((item) => {
         const s = String(
-          item.status || item.apply_status || item.effectiveStatus || item.rawStatus || "",
+          item.status ?? item.apply_status ?? item.effectiveStatus ?? item.rawStatus ?? "",
         )
           .toLowerCase()
           .trim();
@@ -1551,6 +2029,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
           s === "not_applied" ||
           s === "not applied" ||
           s === "rejected" ||
+          s === "미적용확인" ||
+          s === "미적용 확인" ||
+          s === "1" ||
           s === "2"
         );
       });
@@ -1559,14 +2040,49 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         return {
           type: "notApplied",
           label: t("page.matrix.notAppliedConfirmed", "미적용 확인"),
-          className: "text-gray-400 dark:text-gray-500 font-medium text-xs",
+          className:
+            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs",
+        };
+      }
+
+      const woRecord = validRecords.find((item) => {
+        const s = String(
+          item.status ?? item.apply_status ?? item.effectiveStatus ?? item.rawStatus ?? "",
+        )
+          .toLowerCase()
+          .trim();
+        return (
+          s === "w/o applied" ||
+          s === "wo_applied" ||
+          s === "w/o_applied" ||
+          s === "wo applied" ||
+          s.includes("w/o") ||
+          s.includes("wo_applied")
+        );
+      });
+
+      if (woRecord) {
+        const workDateRaw =
+          woRecord.work_date ||
+          woRecord.workDate ||
+          woRecord.workedOn ||
+          woRecord.workedDate ||
+          woRecord.work_Date ||
+          "";
+        const formattedDate = getFormattedDateString(workDateRaw);
+        return {
+          type: "wo_applied",
+          label: formattedDate || "w/o applied",
+          className:
+            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
         };
       }
 
       return {
-        type: "unconfirmed",
-        label: t("page.matrix.beforeConfirmation", "미확인"),
-        className: "text-gray-400 dark:text-gray-500 font-medium text-xs",
+        type: "add_new",
+        label: "+",
+        className:
+          "w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-500 font-bold text-sm",
       };
     },
     [t],
@@ -1596,6 +2112,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
         const stagedStatus = asStaging[eqCode];
         let effectiveStatus = stagedStatus;
 
+        // NOTE: numeric status codes follow the save contract:
+        //   0 = applied, 1 = not applied / rejected (2 kept as legacy fallback)
         if (!effectiveStatus) {
           if (
             rawStatusStr === "w/o applied" ||
@@ -1603,12 +2121,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
             rawStatusStr === "wo applied"
           ) {
             effectiveStatus = "wo_applied";
-          } else if (rawStatusStr === "applied" || rawStatusStr === "1") {
+          } else if (rawStatusStr === "applied" || rawStatusStr === "0") {
             effectiveStatus = "applied";
           } else if (
             rawStatusStr === "not_applied" ||
             rawStatusStr === "not applied" ||
             rawStatusStr === "rejected" ||
+            rawStatusStr === "1" ||
             rawStatusStr === "2"
           ) {
             effectiveStatus = "rejected";
@@ -1771,6 +2290,41 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
     });
 
     if (isStaticDataMode) {
+      setAllRecords((prev) => {
+        const next = [...prev];
+        Object.entries(asStaging).forEach(([eqCode, statusStr]) => {
+          const matchEq = equipmentRows.find((e) => e.equipmentCode === eqCode);
+          const eqName = matchEq?.equipmentName || "";
+          const site = matchEq?.site || "A1.수원";
+
+          const existingIdx = next.findIndex(
+            (r) =>
+              (getColValue(r, "equipmentCode") === eqCode || getColValue(r, "equipmentName") === eqName) &&
+              getColValue(r, "representativeWork") === asRepWork
+          );
+
+          if (existingIdx >= 0) {
+            next[existingIdx] = {
+              ...next[existingIdx],
+              status: statusStr,
+              apply_status: statusStr,
+            };
+          } else {
+            next.push({
+              change_history_id: Date.now(),
+              site_name: site,
+              equipment_code: eqCode,
+              equipment_name: eqName,
+              representative_work_name: asRepWork,
+              status: statusStr,
+              apply_status: statusStr,
+              work_date: new Date().toISOString(),
+            });
+          }
+        });
+        return next;
+      });
+
       pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
       setShowApplyStatusModal(false);
       setAsStaging({});
@@ -1939,7 +2493,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               className="input-base"
               value={selectedMaintenance}
               onChange={handleMaintenanceChange}
-              disabled={!selectedProcess || selectedProcess === "전체" || selectedProcess === "Choose"}
+              disabled={
+                !selectedProcess || selectedProcess === "전체" || selectedProcess === "Choose"
+              }
               style={{ width: "130px" }}
             >
               <option value="">{t("app.choose", "Choose")}</option>
@@ -2231,23 +2787,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       });
 
                       if (matched.length === 0) {
-                        if (mode === "task") {
-                          return (
-                            <td key={col} className="px-3 py-2 align-middle text-center">
-                              <div className="flex items-center justify-center min-h-[36px]">
-                                <button
-                                  type="button"
-                                  className="w-full max-w-[115px] h-[30px] rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 flex items-center justify-center text-xs transition-all cursor-pointer"
-                                  onClick={() => openApplyStatusModal(col)}
-                                  title={t("page.matrix.lateralModalTitle", "횡전개 관리")}
-                                >
-                                  <i className="fas fa-plus text-xs" />
-                                </button>
-                              </div>
-                            </td>
-                          );
-                        }
-                        return <td key={col} className="px-4 py-3" />;
+                        return <td key={col} className="px-3 py-2 align-middle text-center" />;
                       }
 
                       const displayValues = [
@@ -2271,8 +2811,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              const targetItem = matched.length > 1 ? matched : (matched.length === 1 ? matched[0] : matched);
-                              setDrawerItem(targetItem);
+                              const targetItem =
+                                matched.length > 1
+                                  ? matched
+                                  : matched.length === 1
+                                    ? matched[0]
+                                    : matched;
+                              handleOpenDrawer(targetItem);
                             }}
                             className="matrix-cell p-1 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center relative group transition-all duration-200 hover:scale-[1.04] hover:z-10 hover:shadow-md"
                             style={{
@@ -2305,12 +2850,17 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         // If pill matches multiple items, pass array; if single item, pass single item
-                                        const targetItem = representativeWorkItems && representativeWorkItems.length > 1
-                                          ? representativeWorkItems
-                                          : (representativeWorkItems && representativeWorkItems.length === 1
+                                        const targetItem =
+                                          representativeWorkItems &&
+                                          representativeWorkItems.length > 1
+                                            ? representativeWorkItems
+                                            : representativeWorkItems &&
+                                                representativeWorkItems.length === 1
                                               ? representativeWorkItems[0]
-                                              : (matched.length > 1 ? matched : matched[0]));
-                                        setDrawerItem(targetItem);
+                                              : matched.length > 1
+                                                ? matched
+                                                : matched[0];
+                                        handleOpenDrawer(targetItem);
                                       }}
                                       className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
                                       style={{
@@ -2328,7 +2878,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                                     title={displayValues.slice(3).join(", ")}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setDrawerItem(matched);
+                                      handleOpenDrawer(matched);
                                     }}
                                     className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                   >
@@ -2338,22 +2888,54 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                               </div>
                             ) : (
                               (() => {
-                                const info = getSingleCellStatusInfo(matched);
-                                if (!info) return null;
+                                const dates = matched
+                                  .map((d) => getFormattedDateString(getColValue(d, "workedOn")))
+                                  .filter(Boolean)
+                                  .sort((a, b) => b.localeCompare(a));
+                                const latestDate =
+                                  dates[0] ||
+                                  getFormattedDateString(getColValue(matched[0], "workedOn")) ||
+                                  "";
+                                const totalCount = matched.length;
+                                const cellLabel =
+                                  totalCount > 1 ? `${latestDate} +${totalCount - 1}건` : latestDate;
+
+                                const hasImportantPriority = matched.some((d) => {
+                                  const pri = getColValue(d, "priority");
+                                  const norm = normalizePriority(pri);
+                                  return (
+                                    norm === "중요" ||
+                                    norm === "필수" ||
+                                    String(pri).includes("중요") ||
+                                    String(pri).toLowerCase().includes("important")
+                                  );
+                                });
+
+                                const style = hasImportantPriority
+                                  ? {
+                                      backgroundColor: "#fee2e2",
+                                      color: "#dc2626",
+                                      borderColor: "#fca5a5",
+                                    }
+                                  : {
+                                      backgroundColor: "transparent",
+                                      color: "inherit",
+                                    };
+
+                                const className = hasImportantPriority
+                                  ? "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-red-100 text-red-600 border border-red-200 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105"
+                                  : "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-medium text-text-default transition-all duration-150 cursor-pointer hover:scale-105";
 
                                 return (
                                   <div
-                                    className="w-full flex items-center justify-center"
+                                    className="w-full flex items-center justify-center min-h-[36px]"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setDrawerItem(matched);
+                                      handleOpenDrawer(matched);
                                     }}
                                   >
-                                    <div
-                                      title={info.label}
-                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${info.className}`}
-                                    >
-                                      {info.label}
+                                    <div title={cellLabel} className={className} style={style}>
+                                      {cellLabel}
                                     </div>
                                   </div>
                                 );
@@ -2530,8 +3112,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                       onChange={(e) => setNewPriority(e.target.value)}
                     >
                       <option value="">{t("page.matrix.noChange", "No changes")}</option>
-                      <option value="중요">{t("priority.high", "High")}</option>
-                      <option value="일반">{t("priority.normal", "Normal")}</option>
+                      <option value="필수">{t("priority.required", "필수")}</option>
+                      <option value="중요">{t("priority.important", "중요")}</option>
+                      <option value="일반">{t("priority.normal", "일반")}</option>
+                      <option value="제외">{t("priority.excluded", "제외")}</option>
                     </select>
                   </div>
 
@@ -2582,7 +3166,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
 
       {/* ── Lateral Deployment Management Modal (횡전개 관리 모달) ── */}
       {showApplyStatusModal && (
-        <div className="modal-overlay z-[10000] animate-fade-in" onClick={() => setShowApplyStatusModal(false)}>
+        <div
+          className="modal-overlay z-[10000] animate-fade-in"
+          onClick={() => setShowApplyStatusModal(false)}
+        >
           <div
             className="modal-panel modal-panel-lg w-full flex flex-col max-h-[90vh] bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up"
             onClick={(e) => e.stopPropagation()}
@@ -2735,7 +3322,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                           if (!isWoTab) handleToggleSelectEq(item.equipmentCode);
                         }}
                         className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border transition-all ${
-                          isWoTab ? "cursor-default border-gray-200 dark:border-gray-700" : "cursor-pointer"
+                          isWoTab
+                            ? "cursor-default border-gray-200 dark:border-gray-700"
+                            : "cursor-pointer"
                         } ${
                           isChecked
                             ? "border-blue-500 ring-1 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-900/20"
@@ -2966,17 +3555,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                   const targetRec = activeReasonItem || drawerItem || {};
 
                   // Dynamically resolve repo_Work_Id
-                  const repoWorkId = Number(
-                    firstValue(targetRec, [
-                      "repo_Work_Id",
-                      "repoWorkId",
-                      "repWorkId",
-                      "representativeWorkId",
-                      "repo_work_id",
-                      "rep_work_id",
-                      "id",
-                    ]) || asRepoWorkId || 1,
-                  ) || 1;
+                  const repoWorkId =
+                    Number(
+                      firstValue(targetRec, [
+                        "repo_Work_Id",
+                        "repoWorkId",
+                        "repWorkId",
+                        "representativeWorkId",
+                        "repo_work_id",
+                        "rep_work_id",
+                        "id",
+                      ]) ||
+                        asRepoWorkId ||
+                        1,
+                    ) || 1;
 
                   // Dynamically resolve equipment_Id
                   const rawEqVal = firstValue(targetRec, [
@@ -3023,7 +3615,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
                         fetch("http://localhost:5248/api/MatrixInquiry/Save", {
                           method: "POST",
                           headers: {
-                            "Accept": "*/*",
+                            Accept: "*/*",
                             "Content-Type": "application/json",
                           },
                           body: JSON.stringify(payload),
@@ -3069,6 +3661,404 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText }) {
               >
                 <i className="fas fa-check text-xs" />
                 <span>{t("app.confirm", "확인")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Modal (from Drawer edit button) ── */}
+      {showEditModal && (
+        <div
+          className="modal-overlay animate-fade-in overflow-y-auto z-[10000]"
+          onClick={() => {
+            setShowEditModal(false);
+            setEditRowId(null);
+            setEditErrors({});
+          }}
+        >
+          <div
+            className="modal-panel modal-panel-xl p-6 relative my-8 max-h-[90vh] flex flex-col animate-scale-up w-full"
+            style={{ maxWidth: "1024px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="modal-header shrink-0 !px-0 !pt-0 pb-4 border-b border-gray-100 dark:border-gray-700/60">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <i className="fas fa-pen-to-square text-xs" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="modal-title font-bold text-base flex items-center gap-1.5 text-gray-900 dark:text-white">
+                    <i className="far fa-edit text-blue-600 text-sm" />
+                    <span>{t("modal.editItemTitle", "항목 편집")}</span>
+                  </h3>
+                  <p className="modal-description text-xs text-gray-500 mt-0.5">
+                    {t("page.mp.modalEditDesc", "VoC 항목을 편집합니다.")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn shrink-0"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditRowId(null);
+                  setEditErrors({});
+                }}
+              >
+                <i className="fas fa-times text-xs" />
+              </button>
+            </div>
+
+            {/* Loading overlay */}
+            {editLoading && (
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl">
+                <div className="flex flex-col items-center gap-3">
+                  <i className="fas fa-spinner fa-spin text-3xl text-[#1745c2]" />
+                  <p className="text-sm font-semibold text-[#1745c2]">
+                    {t("toast.loadingDetail", "Loading details...")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Body */}
+            <div className="modal-body flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar text-xs !p-0 !py-4">
+              {/* Row 1: Process & Maintenance (read-only) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.process", "공정")}
+                  </label>
+                  <input
+                    type="text"
+                    disabled
+                    readOnly
+                    value={editRowData.process || editRowData.processName || ""}
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.equipmentType", "보전파트")}
+                  </label>
+                  <input
+                    type="text"
+                    disabled
+                    readOnly
+                    value={editRowData.maintGroup || editRowData.equipmentTypeName || ""}
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Representative Work Name * */}
+              <div>
+                <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                  {t("field.repWork", "대표 작업명")} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  value={editRowData.representativeWork || ""}
+                  onChange={(e) =>
+                    setEditRowData({ ...editRowData, representativeWork: e.target.value })
+                  }
+                  placeholder={t("placeholder.representativeWorkInput", "Enter the main job name")}
+                  style={{
+                    borderColor: editErrors.representativeWork
+                      ? "var(--color-text-danger, #dc2626)"
+                      : undefined,
+                    borderWidth: editErrors.representativeWork ? "1.5px" : undefined,
+                  }}
+                />
+                {editErrors.representativeWork && (
+                  <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                    <i className="fas fa-exclamation-circle mr-1" />
+                    {editErrors.representativeWork}
+                  </span>
+                )}
+              </div>
+
+              {/* Row 3: Purpose of the Work */}
+              <div>
+                <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                  {t("field.work", "작업 목적")}
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  value={editRowData.work || editRowData.purpose || ""}
+                  onChange={(e) =>
+                    setEditRowData({
+                      ...editRowData,
+                      work: e.target.value,
+                      purpose: e.target.value,
+                    })
+                  }
+                  placeholder={t("placeholder.workPurposeInput", "Enter the purpose of the work")}
+                />
+              </div>
+
+              {/* Row 4: Problem phenomenon * and Cause */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.situation", "문제 현상")} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.situation || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, situation: e.target.value })}
+                    placeholder={t("placeholder.situationInput", "Problem Phenomenon Input")}
+                    style={{
+                      borderColor: editErrors.situation
+                        ? "var(--color-text-danger, #dc2626)"
+                        : undefined,
+                      borderWidth: editErrors.situation ? "1.5px" : undefined,
+                    }}
+                  />
+                  {editErrors.situation && (
+                    <span className="mt-1 block text-[11px] font-semibold text-red-500 animate-fade-in">
+                      <i className="fas fa-exclamation-circle mr-1" />
+                      {editErrors.situation}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.cause", "문제 원인")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.cause || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, cause: e.target.value })}
+                    placeholder={t("placeholder.causeInput", "Enter the cause of the problem")}
+                  />
+                </div>
+              </div>
+
+              {/* Row 5: BOM and Material Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.bom", "BOM")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.bom || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, bom: e.target.value })}
+                    placeholder={t("placeholder.bomInput", "BOM Entry")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.sparePart", "자재명")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.sparePart || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, sparePart: e.target.value })}
+                    placeholder={t("placeholder.sparePartInput", "Enter material name")}
+                  />
+                </div>
+              </div>
+
+              {/* Row 6: HW Before & After */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.hwBefore", "HW 변경 전")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.hwAsWas || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, hwAsWas: e.target.value })}
+                    placeholder={t("placeholder.hwBefore", "Before changing the hardware")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.hwAfter", "HW 변경 후")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.hwAsIs || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, hwAsIs: e.target.value })}
+                    placeholder={t("placeholder.hwAfter", "After changing the hardware")}
+                  />
+                </div>
+              </div>
+
+              {/* Row 7: SW Before & After */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.swBefore", "SW 변경 전")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.swAsWas || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, swAsWas: e.target.value })}
+                    placeholder={t("placeholder.swBefore", "Before Software Change")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.swAfter", "SW 변경 후")}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.swAsIs || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, swAsIs: e.target.value })}
+                    placeholder={t("placeholder.swAfter", "After the software change")}
+                  />
+                </div>
+              </div>
+
+              {/* Row 8: Priority and Category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.priority", "중요도")}
+                  </label>
+                  <select
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                    value={editRowData.priority || "일반"}
+                    onChange={(e) => {
+                      const pName = e.target.value;
+                      const pObj = (filterData?.priority ?? []).find(
+                        (p) => p.priorityName === pName,
+                      );
+                      setEditRowData((prev) => ({
+                        ...prev,
+                        priority: pName,
+                        priorityId: pObj?.id ?? prev.priorityId ?? 1,
+                      }));
+                    }}
+                  >
+                    {(filterData?.priority ?? []).length > 0
+                      ? (filterData?.priority ?? []).map((p) => (
+                          <option key={p.id} value={p.priorityName}>
+                            {p.priorityName}
+                          </option>
+                        ))
+                      : [
+                          { id: 1, priorityName: "필수" },
+                          { id: 2, priorityName: "중요" },
+                          { id: 3, priorityName: "일반" },
+                          { id: 4, priorityName: "제외" },
+                        ].map((p) => (
+                          <option key={p.id} value={p.priorityName}>
+                            {p.priorityName}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.category", "효과 유형")}
+                  </label>
+                  <select
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                    value={editRowData.category || "기타"}
+                    onChange={(e) => {
+                      const cName = e.target.value;
+                      const cObj = (filterData?.category ?? []).find(
+                        (c) => c.categoryName === cName,
+                      );
+                      setEditRowData((prev) => ({
+                        ...prev,
+                        category: cName,
+                        categoryId: cObj?.id ?? prev.categoryId ?? 1,
+                      }));
+                    }}
+                  >
+                    {(filterData?.category ?? []).length > 0
+                      ? (filterData?.category ?? []).map((c) => (
+                          <option key={c.id} value={c.categoryName}>
+                            {c.categoryName}
+                          </option>
+                        ))
+                      : ["생산성", "품질", "보전성", "기타"].map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 9: Work Completion Date and Site */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.workedOn", "작업완료일")}
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={editRowData.workedOn || ""}
+                    onChange={(e) => setEditRowData({ ...editRowData, workedOn: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-subtle mb-1 block">
+                    {t("field.site", "요청 법인")}
+                  </label>
+                  <select
+                    className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                    value={editRowData.site || ""}
+                    onChange={(e) => {
+                      const sName = e.target.value;
+                      const sObj = (filterData?.site ?? []).find((s) => s.siteName === sName);
+                      setEditRowData((prev) => ({
+                        ...prev,
+                        site: sName,
+                        siteId: sObj?.id ?? prev.siteId ?? 1,
+                      }));
+                    }}
+                  >
+                    <option value="">{t("site.selection", "Selection")}</option>
+                    {(filterData?.site ?? []).map((s) => (
+                      <option key={s.id} value={s.siteName}>
+                        {s.siteName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer shrink-0 !px-0 !pb-0 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <button
+                type="button"
+                className="px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditRowId(null);
+                  setEditErrors({});
+                }}
+              >
+                {t("app.cancel", "취소")}
+              </button>
+              <button
+                type="button"
+                className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold py-2.5 px-8 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+                onClick={handleEditModalSave}
+              >
+                <i className="fas fa-check text-xs" />
+                {t("app.save", "저장하기")}
               </button>
             </div>
           </div>
