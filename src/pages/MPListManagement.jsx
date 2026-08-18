@@ -1,11 +1,16 @@
-// Get changes to list of list number how much is the cost seeing this one like randomly something some doubts under equipment applied just names process ID equipment this one last tomorrow no four hundred this mean can you not actually that word is it's a mix of where is this thing will try to insert you put debugger in insert change you should learn I can backend oh you asked me very good the VOC field is required that you didn't pass VOC field VOC field is there VOC data oh you are using the same so you are updating F ten master data update is successful master data should be inserted master data work done something they have done some code validate use duplicate is false this duplicate is false so it should be inserted completely so update validate then it will go to APO method from update insert same name only right payload. This is the payload. I'll keep it Control C. inserting zero, you're sending back it's not inserted. You're sending me zero. Zero is the number of. Count right? Why is it not inserted? I'll share the payload. the JSON B whatever is zero that I'll share It was working fine. check what is it that you don't but it is not modified no see it was working ID equipment type ID rep site ID site ID changed even this guy check no safe before update can you have that backup before modification was working you give me the backup I will try that don't work this much this is the old SP right whatever because today morning when we tested for update it was working yeah don't go let's see this thing is gone this thing got inserted right So they are to edit modeling. You have some open English. It should always set once if you. have this session response This is like from I got it. to modify it gave me a USB. Should I try this? You want this, yeah, you can. check same no I mean same thing you just have to same ID, but you use because it is getting this one spike if you want to login and we will take some wood should be zero we are sending ID one and ID two change ID initially you insert right it should be zero right ID equal to initially we were inserting import is one IDS two that error response or something Number I am checking. ID is there. ID is not. ID one again but response should be zero no updated successfully but I think that whatever XM they are passing and giving there already ID's are there even if it is new record whenever new EXL passing is coming know that you check the payload so that it should be different so you can by default when it is a CO can only make it import time only you can make it you are directly passing I'm guessing from ID is being passed you are mapping to JSON mapping to JSON key but then because every time an input can be zero update running two we won't understand yeah same small we have to send ID zero considering process site has a relationship with process equipment type also has a relationship with process yeah based on process site should process site and equipment type position based on process why site is related to process is load according to process initially priority category all the independent then representative depends upon process site equipment type priority category combination of all these we have a separate mapping table now right because in that representative work we have a right downs the position we selected so it is the same no now we have a separate mapping table for upper right so in one place we will save only representative work name and identiple mappings we are saving so there it is handled that flows correctly right now that maintenance group is there everywhere now if we change it will fail so once that that has to be removed everywhere also we have to update accordimport React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import Modal from "../components/Modal.jsx";
 import { useI18n } from "../i18n.jsx";
 import { useToast } from "../components/ToastContext.jsx";
-import { mpManagementStaticData, sampleCompareRows } from "./static-data/MPListManagementData.js";
+import {
+  mpManagementStaticData,
+  sampleCompareRows,
+  sampleChangeMatrixEquipmentData,
+} from "./static-data/MPListManagementData.js";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { APIcallGet, APIcallPost, APIcallDelete } from "../axios/apiCall.js";
 import { pocEndPoints } from "../axios/endPoints.js";
+import { getUserInfo } from "../utils/cookieUtils.js";
 
 function formatApiDate(dateStr) {
   if (!dateStr || typeof dateStr !== "string" || dateStr.startsWith("0001-01-01")) {
@@ -284,7 +289,7 @@ const renderCategoryBadge = (val) => {
   );
 };
 
-export default function MPListManagement({ data = [], searchText = "" }) {
+export default function MPListManagement({ data = [], searchText = "", isActive }) {
   const { t } = useI18n();
   const { pushToast } = useToast() || {};
 
@@ -333,6 +338,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const [newConsultDate, setNewConsultDate] = useState("2026-07-27");
   const [newConsultTitle, setNewConsultTitle] = useState("");
   const [newConsultAttendees, setNewConsultAttendees] = useState("");
+  const [editingConsultIndex, setEditingConsultIndex] = useState(null);
+  const [consultError, setConsultError] = useState("");
   const [editApplicableRows, setEditApplicableRows] = useState([]);
   const [editNotApplicableRows, setEditNotApplicableRows] = useState([]);
   const [editAdditionalItems, setEditAdditionalItems] = useState([]);
@@ -340,25 +347,191 @@ export default function MPListManagement({ data = [], searchText = "" }) {
   const [additionalStartDate, setAdditionalStartDate] = useState("2026-08-11");
   const [additionalEndDate, setAdditionalEndDate] = useState("2026-08-12");
 
+  // Equipment ID search box states
+  const [changeMatrixEquipment, setChangeMatrixEquipment] = useState([]);
+  const [isEquipDropdownOpen, setIsEquipDropdownOpen] = useState(false);
+  const [initialModalEquipIds, setInitialModalEquipIds] = useState([]);
+  const equipDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (equipDropdownRef.current && !equipDropdownRef.current.contains(event.target)) {
+        setIsEquipDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchChangeMatrixEquipment = useCallback(() => {
+    if (isStaticDataMode) {
+      setChangeMatrixEquipment(sampleChangeMatrixEquipmentData || []);
+      return;
+    }
+
+    const payload = {
+      processId: 0,
+      equipmentId: 0,
+      siteId: 0,
+      categoryId: 0,
+      priorityId: 0,
+      workOrderId: 0,
+      fromDate: null,
+      toDate: null,
+    };
+
+    APIcallPost(pocEndPoints.GET_CHANGE_MATRIX, payload, {}, (responseData, status) => {
+      if (status >= 200 && status < 300 && responseData) {
+        const raw = responseData?.data ?? responseData;
+        const list = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
+        if (list.length > 0) {
+          setChangeMatrixEquipment(list);
+          return;
+        }
+      }
+      APIcallGet(pocEndPoints.GET_CHANGE_MATRIX, {}, (getData, getStatus) => {
+        if (getStatus >= 200 && getStatus < 300 && getData) {
+          const raw = getData?.data ?? getData;
+          const list = Array.isArray(raw) ? raw : (raw?.matrixData ?? raw?.data ?? []);
+          if (list.length > 0) {
+            setChangeMatrixEquipment(list);
+            return;
+          }
+        }
+        setChangeMatrixEquipment(sampleChangeMatrixEquipmentData || []);
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchChangeMatrixEquipment();
+  }, [fetchChangeMatrixEquipment]);
+
+  const uniqueEquipmentOptions = useMemo(() => {
+    const currentVersionId = Number(
+      editingVersion?.id || editingVersion?.versionId || editingVersion?.version_id || 0,
+    );
+    const map = new Map();
+    (changeMatrixEquipment || []).forEach((item) => {
+      const eqId =
+        item.equipment_id ??
+        item.equipmentId ??
+        item.change_history_id ??
+        item.changeHistoryId ??
+        item.id;
+      const code = item.equipment_code || item.equipmentCode || item.code || String(eqId || "");
+      const versionId = Number(item.version_id ?? item.versionId ?? 0);
+      const isInitialMatch =
+        initialModalEquipIds.includes(String(eqId)) || initialModalEquipIds.includes(String(code));
+
+      const isActive =
+        versionId === 0 ||
+        (currentVersionId > 0 && versionId === currentVersionId) ||
+        isInitialMatch;
+
+      if (code && !map.has(code)) {
+        map.set(code, {
+          id: eqId || code,
+          code,
+          name: item.equipment_name || item.equipmentName || "",
+          site: item.site_name || item.siteName || "",
+          versionId,
+          isActive,
+        });
+      }
+    });
+    if (map.size === 0) {
+      (sampleChangeMatrixEquipmentData || []).forEach((item) => {
+        const eqId = item.equipment_id ?? item.change_history_id;
+        const code = item.equipment_code;
+        const versionId = Number(item.version_id ?? item.versionId ?? 0);
+        const isInitialMatch =
+          initialModalEquipIds.includes(String(eqId)) ||
+          initialModalEquipIds.includes(String(code));
+
+        const isActive =
+          versionId === 0 ||
+          (currentVersionId > 0 && versionId === currentVersionId) ||
+          isInitialMatch;
+
+        if (code && !map.has(code)) {
+          map.set(code, {
+            id: eqId || code,
+            code,
+            name: item.equipment_name || "",
+            site: item.site_name || "",
+            versionId,
+            isActive,
+          });
+        }
+      });
+    }
+    return Array.from(map.values());
+  }, [changeMatrixEquipment, editingVersion, initialModalEquipIds]);
+
+  const filteredEquipmentOptions = useMemo(() => {
+    const query = newEquipIdInput.trim().toLowerCase();
+    if (!query) return uniqueEquipmentOptions;
+    return uniqueEquipmentOptions.filter(
+      (opt) =>
+        opt.code.toLowerCase().includes(query) ||
+        opt.name.toLowerCase().includes(query) ||
+        opt.site.toLowerCase().includes(query),
+    );
+  }, [uniqueEquipmentOptions, newEquipIdInput]);
+
   // Deletion modal state
   const [deletedRowIds, setDeletedRowIds] = useState(new Set());
   const [rowToDelete, setRowToDelete] = useState(null);
 
   const openEditModal = (v) => {
     setEditingVersion(v);
-    const versionId = Number(v.id || v.mpVersionId || v.versionId || 0);
+    const versionId = Number(v.id || 0);
 
+    fetchChangeMatrixEquipment();
     setNewEquipIdInput("");
+    setIsEquipDropdownOpen(false);
     setNewConsultTitle("");
     setNewConsultAttendees("");
+    setEditingConsultIndex(null);
+    setConsultError("");
     setAdditionalSearchText("");
     setEditAdditionalItems([]);
 
-    let initialEquipIds =
-      Array.isArray(v.equipmentIds) && v.equipmentIds.length > 0 && v.equipmentIds[0] !== "—"
-        ? v.equipmentIds
-        : [];
-    setEditEquipmentIds(initialEquipIds);
+    let initialEquipIds = [];
+    if (Array.isArray(v.equipment_ids) && v.equipment_ids.length > 0) {
+      initialEquipIds = v.equipment_ids;
+    } else if (Array.isArray(v.equipment_id) && v.equipment_id.length > 0) {
+      initialEquipIds = v.equipment_id;
+    } else if (
+      Array.isArray(v.equipmentIds) &&
+      v.equipmentIds.length > 0 &&
+      v.equipmentIds[0] !== "—"
+    ) {
+      initialEquipIds = v.equipmentIds;
+    } else if (v.equipment_id !== undefined && v.equipment_id !== null) {
+      initialEquipIds = [v.equipment_id];
+    } else if (v.equipmentId !== undefined && v.equipmentId !== null) {
+      initialEquipIds = [v.equipmentId];
+    } else if (v.facilityId) {
+      initialEquipIds = [v.facilityId];
+    }
+
+    const mappedInitialTags = initialEquipIds.map((idOrCode) => {
+      const str = String(idOrCode).trim();
+      const matched = uniqueEquipmentOptions.find(
+        (opt) => String(opt.id) === str || opt.code === str,
+      );
+      return matched ? matched.code : str;
+    });
+
+    const initialIdAndCodeSet = new Set([
+      ...initialEquipIds.map((id) => String(id)),
+      ...mappedInitialTags,
+    ]);
+
+    setEditEquipmentIds(mappedInitialTags);
+    setInitialModalEquipIds(Array.from(initialIdAndCodeSet));
     setEditConsultations([]);
 
     let appRows = [];
@@ -404,8 +577,41 @@ export default function MPListManagement({ data = [], searchText = "" }) {
           const apiData = responseData?.data || responseData;
 
           if (apiData) {
+            let hasEquipmentIdProp = false;
+            let rawEquipIds = [];
+
             if (Array.isArray(apiData.equipmentIds)) {
-              setEditEquipmentIds(apiData.equipmentIds.map((id) => String(id)));
+              hasEquipmentIdProp = true;
+              rawEquipIds = apiData.equipmentIds;
+            } else if (Array.isArray(apiData.equipment_ids)) {
+              hasEquipmentIdProp = true;
+              rawEquipIds = apiData.equipment_ids;
+            } else if (Array.isArray(apiData.equipment_id)) {
+              hasEquipmentIdProp = true;
+              rawEquipIds = apiData.equipment_id;
+            } else if (apiData.equipment_id !== undefined && apiData.equipment_id !== null) {
+              hasEquipmentIdProp = true;
+              rawEquipIds = [apiData.equipment_id];
+            } else if (apiData.equipmentId !== undefined && apiData.equipmentId !== null) {
+              hasEquipmentIdProp = true;
+              rawEquipIds = [apiData.equipmentId];
+            }
+
+            if (hasEquipmentIdProp) {
+              const displayTags = rawEquipIds
+                .map((idOrCode) => {
+                  const str = String(idOrCode).trim();
+                  const matched = uniqueEquipmentOptions.find(
+                    (opt) => String(opt.id) === str || opt.code === str,
+                  );
+                  return matched ? matched.code : str;
+                })
+                .filter(Boolean);
+
+              const fetchedSet = new Set([...rawEquipIds.map((id) => String(id)), ...displayTags]);
+
+              setInitialModalEquipIds(Array.from(fetchedSet));
+              setEditEquipmentIds(displayTags);
             }
 
             if (Array.isArray(apiData.actionItems)) {
@@ -471,7 +677,10 @@ export default function MPListManagement({ data = [], searchText = "" }) {
 
   const [filterPayload, setFilterPayload] = useState(null);
 
-  useEffect(() => {
+  // Track previous isActive to detect page activation
+  const prevIsActiveRef = useRef(false);
+
+  const fetchMasterData = useCallback(() => {
     if (!isStaticDataMode) {
       APIcallGet(`${pocEndPoints?.GET_FILTER_DATA}`, {}, (responseData, status) => {
         if (status === 200 && responseData) {
@@ -480,6 +689,21 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       });
     }
   }, []);
+
+  useEffect(() => {
+    fetchMasterData();
+  }, [fetchMasterData]);
+
+  // Re-fetch master data when page becomes active
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      prevIsActiveRef.current = true;
+      fetchMasterData();
+    }
+    if (!isActive) {
+      prevIsActiveRef.current = false;
+    }
+  }, [isActive, fetchMasterData]);
 
   // ── ID-based cascade filter (same as MPList.jsx) ──────────────────────────
   const processList = useMemo(() => {
@@ -591,6 +815,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         processId: procId,
         equipmentTypeId: eqTypeId,
         changeDataList,
+        createdBy: getUserInfo()?.name,
       };
 
       if (isStaticDataMode) {
@@ -676,7 +901,6 @@ export default function MPListManagement({ data = [], searchText = "" }) {
         );
         const applicableRows = parsedRows.filter((r) => r.isApplicable !== false);
         const notApplicableRows = parsedRows.filter((r) => r.isApplicable === false);
-
         versions.push({
           id: row.id || idx,
           versionId: row.versionId || row.id || idx,
@@ -744,7 +968,8 @@ export default function MPListManagement({ data = [], searchText = "" }) {
     if (apiVersionList.length > 0) {
       rowsToDisplay = apiVersionList
         .map((item, idx) => {
-          const versionIdVal = item.versionId ?? item.id ?? item.mpVersionId ?? idx + 1;
+          const versionId = item.versionId ?? idx + 1;
+          const Id = item.id ?? idx + 1;
           const appliedCountVal =
             item.appliedCount ?? item.applicableCount ?? item.applied_count ?? 0;
           const excludedCountVal =
@@ -798,9 +1023,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
               : (item.equipmentId ?? 0));
 
           return {
-            id: versionIdVal,
-            versionId: versionIdVal,
-            version: item.versionName || item.version || `v${versionIdVal}`,
+            id: Id,
+            versionId: versionId,
+            version: `v${versionId}`,
             period: periodStr,
             appliedCount: item.appliedCount ?? applicableRows.length,
             excludedCount: item.notAppliedCount ?? item.excludedCount ?? notApplicableRows.length,
@@ -926,7 +1151,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
       const problem = getRowValue(ref, "situation", "report", "problem") || "—";
       const cause = getRowValue(ref, "cause") || "—";
       const bom = getRowValue(ref, "bom", "BOM") || "—";
-      const materialName = getRowValue(ref, "sparePart", "Sparepart", "sparepart", "spare_part", "sparePartName", "materialName", "materialList", "자재목록", "자재명", "자재 명", "예비 부품", "예비부품") || "—";
+      const materialName = getRowValue(ref, "sparePart", "materialName", "material") || "—";
       const hwBefore = getRowValue(ref, "hwAsWas", "hwBefore") || "—";
       const importance = getRowValue(ref, "priority", "priorityName") || "일반";
       const effect = getRowValue(ref, "category", "categoryName") || "보전성";
@@ -1202,7 +1427,7 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   </tr>
                 ) : (
                   displayVersionRows.map((v) => {
-                    const rowId = String(v.id || v.version);
+                    const rowId = String(v.id);
                     const isExpanded = expandedRowIds.has(rowId);
                     const isChecked = selectedRowIds.has(rowId);
 
@@ -2056,153 +2281,374 @@ export default function MPListManagement({ data = [], searchText = "" }) {
             </div>
 
             <div className="modal-body flex-1 overflow-y-auto space-y-6 custom-scrollbar">
-              {/* Section 1: Equipment ID Tags & Add */}
-              <div>
+              {/* Section 1: Equipment ID Tags & Search Box */}
+              <div ref={equipDropdownRef} className="relative">
                 <label className="modal-field-label">
                   {t("field.equipmentId", "Equipment ID")}
                 </label>
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {editEquipmentIds.map((tag, idx) => (
-                    <span
-                      key={`tag-${idx}`}
-                      className="badge badge-primary inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"
-                    >
-                      <span>{tag}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditEquipmentIds(editEquipmentIds.filter((_, i) => i !== idx))
-                        }
-                        className="w-3.5 h-3.5 rounded-full hover:bg-brand-10 flex items-center justify-center text-[10px] cursor-pointer transition-colors"
+                {editEquipmentIds.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {editEquipmentIds.map((tag, idx) => (
+                      <span
+                        key={`tag-${idx}`}
+                        className="badge badge-primary inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"
                       >
-                        <i className="fas fa-times" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 max-w-xs">
-                  <input
-                    type="text"
-                    placeholder={t("page.mp.addFacilityId", "Facility ID added")}
-                    value={newEquipIdInput}
-                    onChange={(e) => setNewEquipIdInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newEquipIdInput.trim()) {
-                        e.preventDefault();
-                        setEditEquipmentIds([...editEquipmentIds, newEquipIdInput.trim()]);
-                        setNewEquipIdInput("");
-                      }
-                    }}
-                    className="modal-input text-xs flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (newEquipIdInput.trim()) {
-                        setEditEquipmentIds([...editEquipmentIds, newEquipIdInput.trim()]);
-                        setNewEquipIdInput("");
-                      }
-                    }}
-                    className="btn-base btn-secondary !w-8 !h-8 !p-0 flex items-center justify-center shrink-0"
-                  >
-                    <i className="fas fa-plus text-xs" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Section 2: Additional Consultation */}
-              <div className="modal-section">
-                <h4 className="modal-field-label mb-3">
-                  {t("page.mp.additionalConsultation", "Additional Consultation")}
-                </h4>
-                <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
-                  <div className="w-full md:w-44 shrink-0">
-                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
-                      Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newConsultDate}
-                      onChange={(e) => setNewConsultDate(e.target.value)}
-                      className="modal-input text-xs w-full"
-                    />
-                  </div>
-                  <div className="w-full md:flex-1 min-w-[200px]">
-                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Consultation Title"
-                      value={newConsultTitle}
-                      onChange={(e) => setNewConsultTitle(e.target.value)}
-                      className="modal-input text-xs w-full"
-                    />
-                  </div>
-                  <div className="w-full md:flex-1 min-w-[240px]">
-                    <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap">
-                      Attendees (comma separation)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Hong Gil-dong, Yi Sun-sin"
-                      value={newConsultAttendees}
-                      onChange={(e) => setNewConsultAttendees(e.target.value)}
-                      className="modal-input text-xs w-full"
-                    />
-                  </div>
-                  <div className="shrink-0 pb-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (newConsultTitle.trim()) {
-                          setEditConsultations([
-                            ...editConsultations,
-                            {
-                              date: newConsultDate,
-                              title: newConsultTitle.trim(),
-                              attendees: newConsultAttendees.trim(),
-                            },
-                          ]);
-                          setNewConsultTitle("");
-                          setNewConsultAttendees("");
-                        }
-                      }}
-                      className="btn-base btn-secondary !w-9 !h-9 !p-0 flex items-center justify-center shrink-0"
-                    >
-                      <i className="fas fa-plus text-xs" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Consultation List */}
-                {editConsultations.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {editConsultations.map((c, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-border-base bg-surface-default text-xs"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-brand-60">{c.date}</span>
-                          <span className="font-semibold text-text-default">{c.title}</span>
-                          <span className="text-text-subtlest">
-                            ({c.attendees || "No attendees"})
-                          </span>
-                        </div>
+                        <span>{tag}</span>
                         <button
                           type="button"
                           onClick={() =>
-                            setEditConsultations(editConsultations.filter((_, idx) => idx !== i))
+                            setEditEquipmentIds(editEquipmentIds.filter((_, i) => i !== idx))
                           }
-                          className="text-text-subtlest hover:text-red-500 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded-full hover:bg-brand-10 flex items-center justify-center text-[10px] cursor-pointer transition-colors"
                         >
-                          <i className="fas fa-times text-xs" />
+                          <i className="fas fa-times" />
                         </button>
-                      </div>
+                      </span>
                     ))}
                   </div>
                 )}
+                <div className="relative max-w-sm">
+                  <div className="relative w-full">
+                    <input
+                      type="text"
+                      placeholder={t("page.mp.addFacilityId", "Facility ID added")}
+                      value={newEquipIdInput}
+                      onFocus={() => setIsEquipDropdownOpen(true)}
+                      onChange={(e) => {
+                        setNewEquipIdInput(e.target.value);
+                        setIsEquipDropdownOpen(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newEquipIdInput.trim()) {
+                          e.preventDefault();
+                          const codeToAdd = newEquipIdInput.trim();
+                          const matchedOpt = uniqueEquipmentOptions.find(
+                            (o) => o.code === codeToAdd,
+                          );
+                          if (!matchedOpt || matchedOpt.isActive) {
+                            if (!editEquipmentIds.includes(codeToAdd)) {
+                              setEditEquipmentIds([...editEquipmentIds, codeToAdd]);
+                            }
+                            setNewEquipIdInput("");
+                            setIsEquipDropdownOpen(false);
+                          }
+                        }
+                      }}
+                      className="modal-input text-xs w-full pr-8"
+                    />
+                    {newEquipIdInput ? (
+                      <button
+                        type="button"
+                        onClick={() => setNewEquipIdInput("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                      >
+                        <i className="fas fa-times" />
+                      </button>
+                    ) : (
+                      <i className="fas fa-search absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Search Options Dropdown */}
+                  {isEquipDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1 z-50 w-full rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-xl p-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+                      {filteredEquipmentOptions.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                          {t("app.noResults", "No equipment found")}
+                        </div>
+                      ) : (
+                        filteredEquipmentOptions.map((opt) => {
+                          const isAlreadyAdded = editEquipmentIds.includes(opt.code);
+                          const isDisabled = isAlreadyAdded || !opt.isActive;
+                          return (
+                            <button
+                              key={opt.code}
+                              type="button"
+                              onClick={() => {
+                                if (!isDisabled) {
+                                  setEditEquipmentIds([...editEquipmentIds, opt.code]);
+                                }
+                                setNewEquipIdInput("");
+                                setIsEquipDropdownOpen(false);
+                              }}
+                              disabled={isDisabled}
+                              className={`w-full flex flex-col text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                                isDisabled
+                                  ? "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50"
+                                  : "hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-gray-800 dark:text-gray-100">
+                                  {opt.code}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  {opt.site && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-medium">
+                                      {opt.site}
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                      isAlreadyAdded
+                                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                                        : opt.isActive
+                                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                                    }`}
+                                  >
+                                    {isAlreadyAdded
+                                      ? "Added"
+                                      : opt.isActive
+                                        ? "Available"
+                                        : "Inactive"}
+                                  </span>
+                                </div>
+                              </div>
+                              {opt.name && (
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                  {opt.name}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Consultation History List */}
+              <div>
+                <h4 className="modal-field-label !mb-3 font-bold text-slate-800 dark:text-slate-200">
+                  {t("page.mp.consultationHistory", "협의 이력")}
+                  {editConsultations.length > 0 && (
+                    <span className="ml-1.5 text-xs text-slate-400 font-normal">
+                      ({editConsultations.length})
+                    </span>
+                  )}
+                </h4>
+                {editConsultations.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {editConsultations.map((c, i) => {
+                      const isEditing = editingConsultIndex === i;
+                      return (
+                        <div
+                          key={i}
+                          className={`p-3.5 rounded-xl border transition-all bg-white dark:bg-slate-800/90 shadow-2xs ${
+                            isEditing
+                              ? "border-blue-500 bg-blue-50/60 dark:bg-blue-900/30 dark:border-blue-500 ring-2 ring-blue-500/20"
+                              : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            {/* Left Area: 2 Columns matching form inputs below */}
+                            <div className="flex flex-1 flex-wrap md:flex-nowrap gap-3 items-start min-w-0">
+                              {/* Column 1: Date (Row 1: Date only, Row 2: empty) */}
+                              <div className="w-full md:w-44 shrink-0 flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                                  <i className="far fa-calendar-alt text-blue-600 dark:text-blue-400 text-xs shrink-0" />
+                                  <span>{c.date ? c.date.split("T")[0] : ""}</span>
+                                </div>
+                                <div className="h-4"></div>
+                              </div>
+
+                              {/* Column 2: Title & Attendees (Row 1: Title/Content, Row 2: Person Info) */}
+                              <div className="w-full md:flex-1 min-w-0 flex flex-col gap-1">
+                                {/* Row 1: Title / Content */}
+                                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                                  {c.title}
+                                </div>
+                                {/* Row 2: Person Info / Attendees */}
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+                                  <i className="far fa-user text-slate-400 text-[11px] shrink-0" />
+                                  <span className="truncate">{c.attendees || "-"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right Actions Column: Edit & Delete buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                              <button
+                                type="button"
+                                title="수정"
+                                onClick={() => {
+                                  setEditingConsultIndex(i);
+                                  setNewConsultDate(c.date ? c.date.split("T")[0] : "2026-07-27");
+                                  setNewConsultTitle(c.title || "");
+                                  setNewConsultAttendees(c.attendees || "");
+                                  setConsultError("");
+                                }}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors border shadow-2xs ${
+                                  isEditing
+                                    ? "bg-blue-600 text-white border-blue-600"
+                                    : "bg-white dark:bg-slate-700/80 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 cursor-pointer"
+                                }`}
+                              >
+                                <i className="fas fa-pen text-[11px]" />
+                              </button>
+                              <button
+                                type="button"
+                                title="삭제"
+                                onClick={() => {
+                                  setEditConsultations(
+                                    editConsultations.filter((_, idx) => idx !== i),
+                                  );
+                                  if (editingConsultIndex === i) {
+                                    setEditingConsultIndex(null);
+                                    setNewConsultTitle("");
+                                    setNewConsultAttendees("");
+                                    setConsultError("");
+                                  }
+                                }}
+                                className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700/80 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/30 flex items-center justify-center text-xs cursor-pointer transition-colors shadow-2xs"
+                              >
+                                <i className="far fa-trash-alt text-[11px]" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 text-xs text-slate-400 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
+                    {t("page.mp.noConsultationHistory", "등록된 협의 이력이 없습니다.")}
+                  </div>
+                )}
+              </div>
+              {/* Section 2: Consultation Container Card (matching Image 2) */}
+              <div className="bg-[#f8fafc] dark:bg-slate-800/40 p-5 md:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-5 shadow-2xs">
+                {/* Additional Consultation Add/Edit Inputs */}
+                <div>
+                  <h4 className="modal-field-label !mb-2.5 font-bold text-slate-800 dark:text-slate-200">
+                    {t("page.mp.additionalConsultation", "협의 추가")}
+                  </h4>
+                  <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                    <div className="w-full md:w-44 shrink-0">
+                      <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                        날짜
+                      </label>
+                      <input
+                        type="date"
+                        value={newConsultDate}
+                        onChange={(e) => setNewConsultDate(e.target.value)}
+                        className="modal-input text-xs w-full bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <div className="w-full md:flex-1 min-w-[200px]">
+                      <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                        제목 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="제목 입력"
+                        value={newConsultTitle}
+                        onChange={(e) => {
+                          setNewConsultTitle(e.target.value);
+                          setConsultError("");
+                        }}
+                        className={`modal-input text-xs w-full bg-white dark:bg-slate-800 ${
+                          consultError && !newConsultTitle.trim()
+                            ? "!border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
+                      />
+                    </div>
+                    <div className="w-full md:flex-1 min-w-[240px]">
+                      <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                        참석자 (콤마 구분) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="참석자 입력"
+                        value={newConsultAttendees}
+                        onChange={(e) => {
+                          setNewConsultAttendees(e.target.value);
+                          setConsultError("");
+                        }}
+                        className={`modal-input text-xs w-full bg-white dark:bg-slate-800 ${
+                          consultError && !newConsultAttendees.trim()
+                            ? "!border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
+                      />
+                    </div>
+                    <div className="shrink-0 pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const titleTrimmed = newConsultTitle.trim();
+                          const attendeesTrimmed = newConsultAttendees.trim();
+
+                          if (!titleTrimmed || !attendeesTrimmed) {
+                            setConsultError(
+                              t("msg.fillRequiredFields", "제목과 참석자를 모두 입력해 주세요."),
+                            );
+                            pushToast(
+                              t("msg.fillRequiredFields", "제목과 참석자를 모두 입력해 주세요."),
+                              "error",
+                            );
+                            return;
+                          }
+
+                          setConsultError("");
+
+                          if (editingConsultIndex !== null && editingConsultIndex >= 0) {
+                            const updated = [...editConsultations];
+                            updated[editingConsultIndex] = {
+                              date: newConsultDate,
+                              title: titleTrimmed,
+                              attendees: attendeesTrimmed,
+                            };
+                            setEditConsultations(updated);
+                            setEditingConsultIndex(null);
+                            pushToast(
+                              t("msg.consultationUpdated", "협의 항목이 수정되었습니다."),
+                              "success",
+                            );
+                          } else {
+                            setEditConsultations([
+                              ...editConsultations,
+                              {
+                                date: newConsultDate,
+                                title: titleTrimmed,
+                                attendees: attendeesTrimmed,
+                              },
+                            ]);
+                            pushToast(
+                              t("msg.consultationAdded", "협의 항목이 추가되었습니다."),
+                              "success",
+                            );
+                          }
+
+                          setNewConsultTitle("");
+                          setNewConsultAttendees("");
+                        }}
+                        className={`!w-9 !h-9 !p-0 flex items-center justify-center shrink-0 rounded-lg shadow-2xs font-semibold transition-colors cursor-pointer ${
+                          editingConsultIndex !== null
+                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                            : "btn-base btn-secondary"
+                        }`}
+                        title={editingConsultIndex !== null ? "수정 완료" : "추가"}
+                      >
+                        {editingConsultIndex !== null ? (
+                          <i className="fas fa-check text-xs text-white" />
+                        ) : (
+                          <i className="fas fa-plus text-xs" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {consultError && (
+                    <p className="text-xs text-red-500 dark:text-red-400 font-medium mt-2 flex items-center gap-1">
+                      <i className="fas fa-exclamation-circle text-xs" />
+                      <span>{consultError}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Section 3: Applicable Items */}
@@ -2566,6 +3012,27 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                 onClick={() => {
                   if (!editingVersion) return;
 
+                  // Warning if user typed consultation info into Title or Attendees but did not click + or ✓ button
+                  const hasDraftConsultTitle = Boolean(newConsultTitle.trim());
+                  const hasDraftConsultAttendees = Boolean(newConsultAttendees.trim());
+
+                  if (hasDraftConsultTitle || hasDraftConsultAttendees) {
+                    setConsultError(
+                      t(
+                        "msg.unaddedConsultationWarning",
+                        "입력 중인 협의 항목이 있습니다. '+' 또는 '✓' 버튼을 눌러 추가/수정한 후 저장해 주세요.",
+                      ),
+                    );
+                    pushToast(
+                      t(
+                        "msg.unaddedConsultationWarning",
+                        "입력 중인 협의 항목이 있습니다. '+' 또는 '✓' 버튼을 눌러 추가/수정한 후 저장해 주세요.",
+                      ),
+                      "warning",
+                    );
+                    return;
+                  }
+
                   // Mandatory reason validation for Not Applicable items
                   const emptyReasonItem = editNotApplicableRows.find(
                     (r) => !String(r.reason || r.reasoning || r.nonImplReason || "").trim(),
@@ -2599,9 +3066,23 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                     })),
                   ];
 
-                  const equipmentIds = editEquipmentIds
-                    .map((id) => Number(id) || 0)
-                    .filter((id) => id > 0);
+                  const mappedEquipmentIds = editEquipmentIds
+                    .map((tag) => {
+                      const codeStr = String(tag).trim();
+                      const opt = uniqueEquipmentOptions.find(
+                        (o) => o.code === codeStr || String(o.id) === codeStr,
+                      );
+                      if (opt && opt.id !== undefined && opt.id !== null) {
+                        const numId = Number(opt.id);
+                        return !isNaN(numId) && numId > 0 ? numId : opt.id;
+                      }
+                      const num = Number(codeStr);
+                      return !isNaN(num) && num > 0 ? num : codeStr;
+                    })
+                    .filter(Boolean);
+
+                  const primaryEquipmentId =
+                    mappedEquipmentIds.length > 0 ? mappedEquipmentIds[0] : 0;
 
                   const actionItems = editConsultations.map((c) => ({
                     date: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
@@ -2612,8 +3093,9 @@ export default function MPListManagement({ data = [], searchText = "" }) {
                   const reqPayload = {
                     versionId,
                     changeDataList,
-                    equipmentIds,
+                    equipmentIds: mappedEquipmentIds,
                     actionItems,
+                    modifiedBy: getUserInfo()?.name,
                   };
 
                   if (isStaticDataMode) {

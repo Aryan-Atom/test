@@ -1152,6 +1152,7 @@ export default function MPList({
 
   useEffect(() => {
     if (!filterPayload) return;
+    if (isStaticDataMode) return;
     const hasProcess =
       selectedProcessId !== null &&
       selectedProcessId !== undefined &&
@@ -1174,6 +1175,7 @@ export default function MPList({
   ]);
 
   const isProcessAndEquipSelected = useMemo(() => {
+    if (isStaticDataMode) return true;
     return (
       selectedProcessId !== null &&
       selectedProcessId !== undefined &&
@@ -1186,7 +1188,7 @@ export default function MPList({
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId) {
+    if (!selectedProcessId && !isStaticDataMode) {
       return [];
     }
     const selProcessName = processList.find((p) => p.id === selectedProcessId)?.processName;
@@ -1199,6 +1201,7 @@ export default function MPList({
       const itemProc = getColValue(item, "process");
       const itemProcId = item.process_id ?? item.processId ?? null;
       const matchProc =
+        isStaticDataMode ||
         !selectedProcessId ||
         itemProc === selProcessName ||
         Number(itemProcId) === Number(selectedProcessId);
@@ -1206,6 +1209,7 @@ export default function MPList({
       const itemEqType = getColValue(item, "maintGroup");
       const itemEqTypeId = item.equipment_type_id ?? item.equipmentTypeId ?? null;
       const matchEqType =
+        isStaticDataMode ||
         !selectedEquipmentTypeId ||
         itemEqType === selEqTypeName ||
         Number(itemEqTypeId) === Number(selectedEquipmentTypeId);
