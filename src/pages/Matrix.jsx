@@ -394,19 +394,17 @@ function firstValue(obj, keys) {
   return "";
 }
 
-function isWoTypeMatching(itemWoType, selectedWoTypes) {
-  if (!selectedWoTypes || selectedWoTypes.length === 0) return true;
+function isWoTypeMatching(itemWoType, selectedWoType) {
+  if (!selectedWoType || selectedWoType === "전체" || selectedWoType === "All") return true;
   if (!itemWoType) return true;
   const normItem = String(itemWoType).trim().toUpperCase();
-  return selectedWoTypes.some((selected) => {
-    const normSel = String(selected).trim().toUpperCase();
-    if (normItem === normSel) return true;
-    if (normItem.startsWith("CM") && normSel.startsWith("CM")) return true;
-    if (normItem.startsWith("BM") && normSel.startsWith("BM")) return true;
-    if (normItem.startsWith("PM") && normSel.startsWith("PM")) return true;
-    if (normItem.startsWith("ETC") && normSel.startsWith("ETC")) return true;
-    return false;
-  });
+  const normSel = String(selectedWoType).trim().toUpperCase();
+  if (normItem === normSel) return true;
+  if (normItem.startsWith("CM") && normSel.startsWith("CM")) return true;
+  if (normItem.startsWith("BM") && normSel.startsWith("BM")) return true;
+  if (normItem.startsWith("PM") && normSel.startsWith("PM")) return true;
+  if (normItem.startsWith("ETC") && normSel.startsWith("ETC")) return true;
+  return false;
 }
 
 function getColValue(row, col) {
@@ -901,7 +899,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedWoTypes, setSelectedWoTypes] = useState([]);
+  const [selectedWoType, setSelectedWoType] = useState("전체");
   const [startDate, setStartDate] = useState(() => {
     if (isLoadTableDataOnload) return null;
     const d = new Date();
@@ -1344,6 +1342,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
     let workOrderId = 0;
     if (
+      selectedWoType &&
+      selectedWoType !== "전체" &&
+      selectedWoType !== "All" &&
+      Array.isArray(filterData?.woTypes)
+    ) {
+      const match = filterData.woTypes.find((w) => {
+        const name = w.workOrderTypeName || w.woTypeName || w.name || w.woType;
+        return name === selectedWoType;
+      });
+      if (match && match.id !== undefined && match.id !== null) {
+        workOrderId = Number(match.id) || 0;
+      }
+    } else if (
       selectedRepWork &&
       selectedRepWork !== "전체" &&
       selectedRepWork !== "All" &&
@@ -1397,6 +1408,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     selectedCategories,
     selectedPriorities,
     selectedRepWork,
+    selectedWoType,
     startDate,
     endDate,
     filterData,
@@ -1522,7 +1534,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     const combined = [...new Set([...raw, ...allowed])];
     return combined.sort();
   }, [allRecords, selectedProcess, filterData]);
-
   const siteOptions = useMemo(() => {
     const raw = [
       ...new Set(
@@ -1545,44 +1556,42 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     return combined.sort();
   }, [allRecords, selectedProcess, selectedMaintenance, filterData]);
 
+  const woTypeOptions = useMemo(() => {
+    if (filterData && Array.isArray(filterData.woTypes)) {
+      const apiTypes = filterData.woTypes
+        .map((w) => w.workOrderTypeName || w.woTypeName || w.name || w.woType)
+        .filter(Boolean);
+      return ["전체", ...new Set(apiTypes)];
+    }
+    return ["전체"];
+  }, [filterData]);
+
   const repWorkOptions = useMemo(() => {
     const reps = filterData?.representations ?? [];
     return [...new Set(reps.map((r) => r.representativeWorkName).filter(Boolean))].sort();
   }, [filterData]);
 
   const priorityOptions = useMemo(() => {
-    const rawList = [
-      ...new Set((filterData?.priority ?? []).map((p) => p.priorityName).filter(Boolean)),
-    ];
-    if (rawList.length === 0) {
-      return ["필수", "중요", "일반", "제외"];
+    if (filterData && Array.isArray(filterData.priority)) {
+      return [
+        ...new Set(
+          filterData.priority.map((p) => p.priorityName || p.name).filter(Boolean),
+        ),
+      ];
     }
-    return [...new Set([...rawList, "필수", "중요", "일반", "제외"])];
+    return [];
   }, [filterData]);
 
   const categoryOptions = useMemo(() => {
-    const rawList = [
-      ...new Set((filterData?.category ?? []).map((c) => c.categoryName).filter(Boolean)),
-    ];
-    if (rawList.length === 0) {
-      return ["생산성", "품질", "보전성", "기타"];
+    if (filterData && Array.isArray(filterData.category)) {
+      return [
+        ...new Set(
+          filterData.category.map((c) => c.categoryName || c.name).filter(Boolean),
+        ),
+      ];
     }
-    return rawList;
+    return [];
   }, [filterData]);
-
-  const woTypeOptions = useMemo(() => {
-    const rawFromApi = (filterData?.woTypes ?? [])
-      .map((w) => w.woTypeName || w.name || w.woType)
-      .filter(Boolean);
-    const rawFromRecords = [
-      ...new Set(allRecords.map((r) => getColValue(r, "woType")).filter(Boolean)),
-    ];
-    const combined = [...new Set([...rawFromApi, ...rawFromRecords])];
-    if (combined.length === 0) {
-      return ["CM(개량)", "BM(고장)", "PM(예방)", "ETC(기타)"];
-    }
-    return combined;
-  }, [filterData, allRecords]);
 
   // Cascade Option Handlers
   const handleProcessChange = (e) => {
@@ -1608,49 +1617,41 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   };
 
   const handleMaintenanceChange = (e) => {
-    const part = e.target.value;
-    setSelectedMaintenance(part);
+    const maint = e.target.value;
+    setSelectedMaintenance(maint);
+    setSelectedSite("전체");
+    setSelectedRepWork("전체");
 
-    if (part && part !== "전체" && part !== "All") {
-      sessionStorage.setItem("eq_selected_maint_name", part);
-      const eqTypes = filterData?.eqTypes ?? filterData?.maintenance ?? [];
-      const match = eqTypes.find(
-        (m) => (m.equipmentTypeName || m.eqTypeName || m.maintenanceGroupName || m.name) === part,
+    if (maint && maint !== "전체" && maint !== "All") {
+      sessionStorage.setItem("eq_selected_maint_name", maint);
+      const eqList = filterData?.eqTypes ?? filterData?.maintenance ?? [];
+      const match = eqList.find(
+        (m) =>
+          m.equipmentTypeName === maint ||
+          m.eqTypeName === maint ||
+          m.maintenanceGroupName === maint ||
+          m.name === maint,
       );
-      if (match) {
-        sessionStorage.setItem(
-          "eq_selected_maint_id",
-          String(match.id ?? match.equipmentTypeId ?? match.maintenanceGroupId),
-        );
-      }
+      if (match)
+        sessionStorage.setItem("eq_selected_maint_id", String(match.id ?? match.equipmentTypeId));
     } else {
       sessionStorage.removeItem("eq_selected_maint_name");
       sessionStorage.removeItem("eq_selected_maint_id");
     }
+  };
 
-    if (part === "전체") {
-      setSelectedSite("전체");
-      setSelectedRepWork("전체");
-    } else {
-      const sites = [
-        ...new Set(
-          allRecords
-            .filter(
-              (r) =>
-                (selectedProcess === "전체" || getColValue(r, "process") === selectedProcess) &&
-                getColValue(r, "maintGroup") === part,
-            )
-            .map((r) => getColValue(r, "site"))
-            .filter(Boolean),
-        ),
-      ].sort();
-      if (sites.length === 1) {
-        setSelectedSite(sites[0]);
-      } else {
-        setSelectedSite("전체");
-      }
-      setSelectedRepWork("전체");
-    }
+  const resetFilters = () => {
+    setSelectedProcess("전체");
+    setSelectedMaintenance("전체");
+    setSelectedSite("전체");
+    setSelectedRepWork("전체");
+    setSelectedPriorities([]);
+    setSelectedCategories([]);
+    setSelectedWoType(woTypeOptions[0] || "");
+    setStartDate(null);
+    setEndDate(null);
+    setSearchText("");
+    sessionStorage.clear();
   };
 
   const handleSiteChange = (e) => {
@@ -1674,7 +1675,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       selectedRepWork !== "전체" ||
       selectedPriorities.length > 0 ||
       selectedCategories.length > 0 ||
-      selectedWoTypes.length > 0 ||
+      Boolean(selectedWoType) ||
       Boolean(startDate) ||
       Boolean(endDate);
 
@@ -1701,7 +1702,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) return false;
 
       const itemWoType = getColValue(item, "woType");
-      if (selectedWoTypes.length > 0 && !isWoTypeMatching(itemWoType, selectedWoTypes)) return false;
+      if (selectedWoType && !isWoTypeMatching(itemWoType, selectedWoType)) return false;
 
       const dateStr = getFormattedDateString(getColValue(item, "workedOn"));
       if (dateStr) {
@@ -1729,7 +1730,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     selectedRepWork,
     selectedPriorities,
     selectedCategories,
-    selectedWoTypes,
+    selectedWoType,
     startDate,
     endDate,
     searchText,
@@ -2591,13 +2592,21 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
               {t("field.woType", "WO유형")}
             </label>
-            <MultiSelect
-              options={woTypeOptions.map((w) => ({ label: w, value: w }))}
-              selectedValues={selectedWoTypes}
-              onChange={setSelectedWoTypes}
-              t={t}
-              minWidth="104px"
-            />
+            <select
+              value={selectedWoType}
+              onChange={(e) => setSelectedWoType(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer min-w-[104px]"
+            >
+              {woTypeOptions.length === 0 ? (
+                <option value="">{t("common.noData", "데이터 없음")}</option>
+              ) : (
+                woTypeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           {/* 기간 */}
@@ -2771,7 +2780,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{eq.equipmentCode}</span>
                         {Boolean(eq.versionId && Number(eq.versionId) !== 0) && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700/60">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700/80 shadow-2xs">
                             Ver.{eq.versionId}
                           </span>
                         )}

@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Modal from "../components/Modal.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
-import { APIcallGet, APIcallPost, APIcallDelete } from "../axios/apiCall.js";
+import { APIcallGet, APIcallPost, APIcallPostFile, APIcallDelete } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -747,8 +747,23 @@ export default function MPList({
   });
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [selectedWoType, setSelectedWoType] = useState("");
+  const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+
+  useEffect(() => {
+    APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
+      if (status !== 200 || !responseData) return;
+      if (Array.isArray(responseData) && responseData.length > 0) {
+        setChangeDataColumns(responseData);
+        return;
+      }
+      if (Array.isArray(responseData?.data) && responseData.data.length > 0) {
+        setChangeDataColumns(responseData.data);
+        return;
+      }
+    });
+  }, []);
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
@@ -868,9 +883,20 @@ export default function MPList({
 
   const woTypeOptions = useMemo(() => {
     return (filterPayload?.woTypes ?? filterPayload?.WoTypes ?? [])
-      .map((w) => w.workOrderTypeName)
+      .map((w) => w.workOrderTypeName || w.name || w.woTypeName)
       .filter(Boolean);
   }, [filterPayload]);
+
+  // Auto-select 1st WO Type option by default if data is available
+  useEffect(() => {
+    if (woTypeOptions && woTypeOptions.length > 0) {
+      if (!selectedWoType || !woTypeOptions.includes(selectedWoType)) {
+        setSelectedWoType(woTypeOptions[0]);
+      }
+    } else {
+      setSelectedWoType("");
+    }
+  }, [woTypeOptions]);
 
   const priorityOptions = useMemo(() => {
     const rawList = [
@@ -1115,6 +1141,26 @@ export default function MPList({
       return res.length > 0 ? res : [0];
     };
 
+    let workOrderIdVal = 0;
+    if (
+      selectedWoType &&
+      selectedWoType !== "전체" &&
+      selectedWoType !== "All" &&
+      Array.isArray(filterPayload?.woTypes)
+    ) {
+      const match = filterPayload.woTypes.find(
+        (w) => (w.workOrderTypeName || w.name || w.woTypeName) === selectedWoType,
+      );
+      if (match && match.id !== undefined && match.id !== null) {
+        workOrderIdVal = Number(match.id) || 0;
+      }
+    } else if (Array.isArray(filterPayload?.woTypes) && filterPayload.woTypes.length > 0) {
+      const firstItem = filterPayload.woTypes[0];
+      if (firstItem && firstItem.id !== undefined && firstItem.id !== null) {
+        workOrderIdVal = Number(firstItem.id) || 0;
+      }
+    }
+
     const reqBody = {
       processId:
         selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
@@ -1123,7 +1169,8 @@ export default function MPList({
           ? Number(selectedEquipmentTypeId)
           : 0,
       siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
-      workOrderType: selectedWoType || 0,
+      workOrderType: workOrderIdVal,
+      workOrderId: workOrderIdVal,
       priority: sanitizeArrayOfNums(selectedPriorities),
       effectType: sanitizeArrayOfNums(selectedCategories),
       fromDate: dateFrom ? dateFrom : null,
@@ -1985,7 +2032,8 @@ export default function MPList({
       maintenanceId: 0,
       equipmentId: 0,
       createdBy: getUserInfo()?.name || "admin",
-      is_voc: false,
+      is_voc: true,
+      isVoc: true,
     }));
 
     const payload = {
@@ -2575,27 +2623,79 @@ export default function MPList({
               type="file"
               accept=".csv,.xlsx,.xls"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                e.target.value = "";
                 setBatchModalError("");
                 if (file.size > 5 * 1024 * 1024) {
-                  setBatchModalError(t("mp.fileSizeLimit", "Up to 5MB, supports only CSV format"));
+                  setBatchModalError(t("mp.fileSizeLimit", "Up to 5MB, supports only CSV/Excel format"));
                   return;
                 }
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                  try {
-                    const bstr = evt.target.result;
-                    const wb = XLSX.read(bstr, { type: "binary" });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const rawData = XLSX.utils.sheet_to_json(ws);
-                    if (rawData && rawData.length > 0) {
+                setBatchSaving(true);
+
+                const uploadExcelFile = async (uploadFile, callback) => {
+                  let filterColumns = "";
+                  if (changeDataColumns && changeDataColumns.length > 0) {
+                    filterColumns = [...changeDataColumns]
+                      .filter((c) => c.isActive !== false)
+                      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+                      .map((c) => (c.excelColumnName || "").replace(/\r?\n/g, "").trim())
+                      .filter(Boolean)
+                      .join(",");
+                  }
+                  if (!filterColumns) {
+                    filterColumns =
+                      "site,Process,Eqcode,Eqname,W/Ocode,report content,BOM,Sparepart,worked date,work description,purpose,situation,cause,HW as was,HW as is,SW as was,SW as is,rep_work,priority,category,equipment type,Wotype";
+                  }
+
+                  const url = `${pocEndPoints?.UPLOAD_EXCEL || "api/Excel/Upload"}?FilterColumns=${encodeURIComponent(
+                    filterColumns,
+                  )}&SheetName=sheet1`;
+
+                  const formData = new FormData();
+                  formData.append("UploadedBy", getUserInfo()?.name || "");
+                  formData.append("File", uploadFile);
+
+                  await APIcallPostFile(url, formData, {}, callback);
+                };
+
+                try {
+                  await uploadExcelFile(file, (res, statusCode) => {
+                    setBatchSaving(false);
+                    const rawRows = Array.isArray(res?.rows)
+                      ? res.rows
+                      : Array.isArray(res?.data?.rows)
+                        ? res.data.rows
+                        : Array.isArray(res?.data)
+                          ? res.data
+                          : [];
+
+                    const parseRowData = (rows) => {
                       const selProcess = processList.find((p) => p.id === selectedProcessId);
                       const procName = selProcess?.processName || "03.성형";
 
-                      const newItems = rawData.map((row, idx) => ({
+                      const getVal = (row, ...keys) => {
+                        for (const k of keys) {
+                          if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
+                            return String(row[k]).trim();
+                          }
+                          const foundKey = Object.keys(row).find(
+                            (rk) => rk.trim().toLowerCase() === k.trim().toLowerCase(),
+                          );
+                          if (
+                            foundKey &&
+                            row[foundKey] !== undefined &&
+                            row[foundKey] !== null &&
+                            String(row[foundKey]).trim() !== ""
+                          ) {
+                            return String(row[foundKey]).trim();
+                          }
+                        }
+                        return "";
+                      };
+
+                      return rows.map((row, idx) => ({
                         ...EMPTY_ROW,
                         id: 0,
                         _localId: `imported-${Date.now()}-${idx}`,
@@ -2603,53 +2703,66 @@ export default function MPList({
                         is_voc: true,
                         isVoc: true,
                         is_user: true,
-                        process: procName,
-                        maintGroup: "",
-                        site: row["Corporation"] || row["법인"] || row["site"] || "A3.부산",
-                        representativeWork:
-                          row["Main Work Name"] ||
-                          row["대표작업명"] ||
-                          row["대표 작업명"] ||
-                          row["representativeWork"] ||
-                          "",
-                        work:
-                          row["Purpose"] ||
-                          row["작업목적"] ||
-                          row["작업 목적"] ||
-                          row["purpose"] ||
-                          "",
-                        situation: row["Symptom"] || row["문제현상"] || row["symptom"] || "",
-                        cause: row["Cause"] || row["문제원인"] || row["cause"] || "",
-                        bom: row["BOM"] || row["bom"] || "",
-                        sparePart: row["Material"] || row["자재명"] || row["sparePart"] || "",
-                        hwAsWas: row["HW변경전"] || row["HW 변경 전"] || row["hwBefore"] || "",
-                        hwAsIs: row["HW변경후"] || row["HW 변경 후"] || row["hwAfter"] || "",
-                        swAsWas: row["SW변경전"] || row["SW 변경 전"] || row["swBefore"] || "",
-                        swAsIs: row["SW변경후"] || row["SW 변경 후"] || row["swAfter"] || "",
-                        workedOn:
-                          row["Work Completion Date"] ||
-                          row["작업완료일"] ||
-                          row["workedOn"] ||
-                          new Date().toISOString().slice(0, 10),
-                        priority: row["Importance"] || row["중요도"] || row["priority"] || "일반",
-                        category:
-                          row["Effect Type"] ||
-                          row["효과유형"] ||
-                          row["효과 유형"] ||
-                          row["category"] ||
-                          "기타",
+                        equipmentCode: getVal(row, "Eqcode", "eqcode", "equipmentCode", "equipment_code", "설비코드"),
+                        woCode: getVal(row, "W/Ocode", "wocode", "woCode", "wo_code", "W/O 코드"),
+                        process: getVal(row, "Process", "process", "공정") || procName,
+                        equipmentName: getVal(row, "Eqname", "eqname", "equipmentName", "equipment_name", "설비명"),
+                        maintGroup: getVal(row, "equipment type", "equipmentType", "eqType", "maintGroup", "보전Part", "보전파트"),
+                        reportContent: getVal(row, "report content", "reportContent", "report", "레포트 내용"),
+                        site: getVal(row, "site", "siteName", "Corporation", "법인") || "A1.수원",
+                        workedOn: getVal(row, "worked date", "workedDate", "workDate", "workedOn", "작업완료일") || new Date().toISOString().slice(0, 10),
+                        work: getVal(row, "work description", "workDescription", "work", "작업내용"),
+                        purpose: getVal(row, "purpose", "작업목적"),
+                        situation: getVal(row, "situation", "문제현상"),
+                        cause: getVal(row, "cause", "문제원인"),
+                        hwAsWas: getVal(row, "HW as was", "hwAsWas", "hwBefore", "HW변경전"),
+                        hwAsIs: getVal(row, "HW as is", "hwAsIs", "hwAfter", "HW변경후"),
+                        swAsWas: getVal(row, "SW as was", "swAsWas", "swBefore", "SW변경전"),
+                        swAsIs: getVal(row, "SW as is", "swAsIs", "swAfter", "SW변경후"),
+                        priority: getVal(row, "priority", "중요도") || "일반",
+                        category: getVal(row, "category", "효과유형") || "보전성",
+                        representativeWork: getVal(row, "rep_work", "representativeWork", "repWork", "대표작업명"),
+                        bom: getVal(row, "BOM", "bom"),
+                        sparePart: getVal(row, "Sparepart", "sparePart", "자재명"),
+                        woType: getVal(row, "Wotype", "woType", "wotype", "WO유형") || "CM(개량)",
                       }));
+                    };
+
+                    if (statusCode === 200 && rawRows.length > 0) {
+                      const newItems = parseRowData(rawRows);
                       setBatchParsedRows(newItems);
+                      setBatchDuplicateFlags([]);
+                      setBatchFilter("all");
+                    } else {
+                      // Client-side fallback if API returns empty
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        try {
+                          const bstr = evt.target.result;
+                          const wb = XLSX.read(bstr, { type: "binary" });
+                          const wsname = wb.SheetNames[0];
+                          const ws = wb.Sheets[wsname];
+                          const clientRows = XLSX.utils.sheet_to_json(ws);
+                          if (clientRows && clientRows.length > 0) {
+                            const newItems = parseRowData(clientRows);
+                            setBatchParsedRows(newItems);
+                            setBatchDuplicateFlags([]);
+                            setBatchFilter("all");
+                          } else {
+                            setBatchModalError(t("mp.importError", "No valid rows found in file."));
+                          }
+                        } catch (err) {
+                          setBatchModalError(t("mp.importError", "Error parsing file."));
+                        }
+                      };
+                      reader.readAsBinaryString(file);
                     }
-                  } catch (err) {
-                    console.error("Batch import error:", err);
-                    setBatchModalError(
-                      t("mp.importError", "CSV 파일을 읽는 도중 오류가 발생했습니다."),
-                    );
-                  }
-                };
-                reader.readAsBinaryString(file);
-                e.target.value = "";
+                  });
+                } catch (err) {
+                  console.error("Batch import upload error:", err);
+                  setBatchSaving(false);
+                  setBatchModalError(t("mp.importError", "Error uploading file."));
+                }
               }}
             />
 
@@ -2815,12 +2928,15 @@ export default function MPList({
                 onChange={(e) => setSelectedWoType(e.target.value)}
                 style={{ width: "160px" }}
               >
-                <option value="전체">{t("app.all", "All")}</option>
-                {woTypeOptions.map((name, idx) => (
-                  <option key={idx} value={name}>
-                    {name}
-                  </option>
-                ))}
+                {woTypeOptions.length === 0 ? (
+                  <option value="">{t("common.noData", "데이터 없음")}</option>
+                ) : (
+                  woTypeOptions.map((name, idx) => (
+                    <option key={idx} value={name}>
+                      {name}
+                    </option>
+                  ))
+                )}
               </select>
             )}
           </div>
@@ -3755,7 +3871,7 @@ export default function MPList({
                   <p className="text-[11px] text-text-subtlest mt-0.5 leading-relaxed">
                     {t(
                       "page.mp.downloadFormDesc",
-                      "Required columns: Process, Maintenance Part, Main Work Name, Work Completion Date, Importance, Effect Type, Corporation",
+                      "Required columns: Eqcode, W/Ocode, Process, Eqname, equipment type, report content, site, worked date, work description, purpose, situation, cause, HW as was, HW as is, SW as was, SW as is, priority, category, rep_work, BOM, Sparepart, Wotype",
                     )}
                   </p>
                 </div>
@@ -3763,34 +3879,96 @@ export default function MPList({
               <button
                 type="button"
                 onClick={() => {
-                  const headers = [
-                    "Process",
-                    "Maintenance Part",
-                    "Main Work Name",
-                    "Work Completion Date",
-                    "Importance",
-                    "Effect Type",
-                    "Corporation",
+                  const dynamicCols =
+                    changeDataColumns && changeDataColumns.length > 0
+                      ? [...changeDataColumns]
+                          .filter((c) => c.isActive !== false)
+                          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+                          .map((c) => (c.excelColumnName || c.jsonKey || "").replace(/\r?\n/g, "").trim())
+                          .filter(Boolean)
+                      : [];
+
+                  const headers =
+                    dynamicCols.length > 0
+                      ? dynamicCols
+                      : [
+                          "Eqcode",
+                          "W/Ocode",
+                          "Process",
+                          "Eqname",
+                          "equipment type",
+                          "report content",
+                          "site",
+                          "worked date",
+                          "work description",
+                          "purpose",
+                          "situation",
+                          "cause",
+                          "HW as was",
+                          "HW as is",
+                          "SW as was",
+                          "SW as is",
+                          "priority",
+                          "category",
+                          "rep_work",
+                          "BOM",
+                          "Sparepart",
+                          "Wotype",
+                        ];
+                  const sampleData = [
+                    {
+                      "Eqcode": "H0303001",
+                      "W/Ocode": "W004512547",
+                      "Process": "03.성형",
+                      "Eqname": "Coater(3R2)_450___C1HH-R2-01",
+                      "equipment type": "0303. R2 Coater (450)",
+                      "report content": "형광등 노후로 인한  led type 변경",
+                      "site": "A1.수원",
+                      "worked date": "2019-04-24",
+                      "work description": "형광등을 LED 타입으로 교체",
+                      "purpose": "형광등 노후에 따른 교체 및 조명 효율 향상",
+                      "situation": "기존 형광등의 노후화",
+                      "cause": "형광등 수명 종료 및 노후",
+                      "HW as was": "형광등(기존 조명)",
+                      "HW as is": "LED 조명(LED 타입)",
+                      "SW as was": "정보 없음",
+                      "SW as is": "정보 없음",
+                      "priority": "일반",
+                      "category": "보전성",
+                      "rep_work": "형광등 LED 교체",
+                      "BOM": "",
+                      "Sparepart": "",
+                      "Wotype": "CM(개량)",
+                    },
+                    {
+                      "Eqcode": "H0306001",
+                      "W/Ocode": "W005509731",
+                      "Process": "03.성형",
+                      "Eqname": "R203-R2 Coater-4세대",
+                      "equipment type": "0303. R2 Coater (450)",
+                      "report content": "성형기 상반기 가스 검출기 검교정 진행\n레포트 결과 정리 및 이상부분 확인",
+                      "site": "A3.부산",
+                      "worked date": "2020-06-03",
+                      "work description": "성형기 가스 검출기 검교정 진행",
+                      "purpose": "가스 검출기의 정확도 유지 및 검교정 결과 보고서 작성, 이상 부분 확인",
+                      "situation": "정보 없음",
+                      "cause": "정보 없음",
+                      "HW as was": "정보 없음",
+                      "HW as is": "정보 없음",
+                      "SW as was": "정보 없음",
+                      "SW as is": "정보 없음",
+                      "priority": "일반",
+                      "category": "품질",
+                      "rep_work": "성형기 가스 검출기 검교정",
+                      "BOM": "",
+                      "Sparepart": "",
+                      "Wotype": "BM(고장)",
+                    },
                   ];
-                  const sampleRow = [
-                    "03.성형",
-                    "0307. UT Coater",
-                    "3기어 펌프 교체",
-                    "2024-07-30",
-                    "상",
-                    "품질",
-                    "A1. Seoul",
-                  ];
-                  const csvContent =
-                    "data:text/csv;charset=utf-8,\uFEFF" +
-                    [headers.join(","), sampleRow.join(",")].join("\n");
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement("a");
-                  link.setAttribute("href", encodedUri);
-                  link.setAttribute("download", "voc_import_template.csv");
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+                  const workbook = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(workbook, worksheet, "VOC_Template");
+                  XLSX.writeFile(workbook, "voc_import_template.xlsx");
                 }}
                 className="bg-surface-default border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
               >
@@ -3915,36 +4093,25 @@ export default function MPList({
                     <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[10px] font-bold uppercase">
                       <tr>
                         <th className="px-2.5 py-2 w-8 text-center">#</th>
-                        <th className="px-2.5 py-2">
-                          {t("field.repWork", "REPRESENTATIVE WORK NAME")}
-                        </th>
-                        <th className="px-2.5 py-2">{t("field.purpose", "PURPOSE OF THE WORK")}</th>
-                        <th className="px-2.5 py-2">
-                          {t("field.hwBefore", "BEFORE CHANGING THE HARDWARE")}
-                        </th>
-                        <th className="px-2.5 py-2">
-                          {t("field.hwAfter", "AFTER CHANGING THE HARDWARE")}
-                        </th>
-                        <th className="px-2.5 py-2">
-                          {t("field.swBefore", "BEFORE SOFTWARE CHANGE")}
-                        </th>
-                        <th className="px-2.5 py-2">
-                          {t("field.swAfter", "AFTER THE SOFTWARE CHANGE")}
-                        </th>
-                        <th className="px-2.5 py-2 text-center">
-                          {t("field.priority", "IMPORTANCE")}
-                        </th>
-                        <th className="px-2.5 py-2 text-center">{t("field.category", "EFFECT")}</th>
-                        <th className="px-2.5 py-2 text-center">
-                          {t("field.workedOn", "WORK DATE")}
-                        </th>
+                        <th className="px-2.5 py-2">EQ CODE</th>
+                        <th className="px-2.5 py-2">W/O CODE</th>
+                        <th className="px-2.5 py-2">PROCESS</th>
+                        <th className="px-2.5 py-2">EQ NAME</th>
+                        <th className="px-2.5 py-2">EQUIPMENT TYPE</th>
+                        <th className="px-2.5 py-2">REPRESENTATIVE WORK</th>
+                        <th className="px-2.5 py-2">REPORT CONTENT</th>
+                        <th className="px-2.5 py-2">SITE</th>
+                        <th className="px-2.5 py-2 text-center">WORKED DATE</th>
+                        <th className="px-2.5 py-2 text-center">IMPORTANCE</th>
+                        <th className="px-2.5 py-2 text-center">EFFECT</th>
+                        <th className="px-2.5 py-2 text-center">WO TYPE</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {batchFilteredRows.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={13}
                             className="px-4 py-6 text-center text-gray-400 font-medium text-xs"
                           >
                             {batchFilter === "duplicate"
@@ -3976,28 +4143,37 @@ export default function MPList({
                                   />
                                 )}
                               </td>
-                              <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate">
+                              <td className="px-2.5 py-1.5 font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                                {r.equipmentCode || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 font-medium whitespace-nowrap">
+                                {r.woCode || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 whitespace-nowrap">
+                                {r.process || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[120px] truncate" title={r.equipmentName}>
+                                {r.equipmentName || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 max-w-[120px] truncate" title={r.maintGroup}>
+                                {r.maintGroup || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate" title={r.representativeWork}>
                                 {r.representativeWork || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[120px] truncate">
-                                {r.work || "—"}
+                              <td className="px-2.5 py-1.5 max-w-[150px] truncate" title={r.reportContent}>
+                                {r.reportContent || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
-                                {r.hwAsWas || "—"}
+                              <td className="px-2.5 py-1.5 whitespace-nowrap">
+                                {r.site || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
-                                {r.hwAsIs || "—"}
-                              </td>
-                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
-                                {r.swAsWas || "—"}
-                              </td>
-                              <td className="px-2.5 py-1.5 max-w-[100px] truncate">
-                                {r.swAsIs || "—"}
-                              </td>
-                              <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
-                              <td className="px-2.5 py-1.5 text-center">{r.category || "기타"}</td>
                               <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                                 {r.workedOn || "—"}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
+                              <td className="px-2.5 py-1.5 text-center">{r.category || "보전성"}</td>
+                              <td className="px-2.5 py-1.5 text-center font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                                {r.woType || "CM(개량)"}
                               </td>
                             </tr>
                           );

@@ -3839,7 +3839,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     }
 
     const filterColumns = changeDataColumns
-      .map((item) => item.excelColumnName)
+      .filter((item) => item.isActive !== false)
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .map((item) => (item.excelColumnName || "").replace(/\r?\n/g, "").trim())
       .filter(Boolean)
       .join(",");
 
@@ -3868,8 +3870,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             // Always show all active columns from changeDataColumns in sequence order
             const orderedCols = [...changeDataColumns]
               .filter((c) => c.isActive !== false)
-              .sort((a, b) => a.sequence - b.sequence)
-              .map((c) => c.excelColumnName)
+              .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+              .map((c) => (c.excelColumnName || "").replace(/\r?\n/g, "").trim())
               .filter(Boolean);
 
             const KEY_ALIASES = {
