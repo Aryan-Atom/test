@@ -899,7 +899,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   const [selectedRepWork, setSelectedRepWork] = useState("전체");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedWoType, setSelectedWoType] = useState("전체");
+  const [selectedWoType, setSelectedWoType] = useState("");
   const [startDate, setStartDate] = useState(() => {
     if (isLoadTableDataOnload) return null;
     const d = new Date();
@@ -1561,10 +1561,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       const apiTypes = filterData.woTypes
         .map((w) => w.workOrderTypeName || w.woTypeName || w.name || w.woType)
         .filter(Boolean);
-      return ["전체", ...new Set(apiTypes)];
+      return [...new Set(apiTypes)];
     }
-    return ["전체"];
+    return [];
   }, [filterData]);
+
+  useEffect(() => {
+    if (woTypeOptions && woTypeOptions.length > 0) {
+      if (!selectedWoType || !woTypeOptions.includes(selectedWoType)) {
+        setSelectedWoType(woTypeOptions[0]);
+      }
+    } else {
+      setSelectedWoType("");
+    }
+  }, [woTypeOptions]);
 
   const repWorkOptions = useMemo(() => {
     const reps = filterData?.representations ?? [];
@@ -2726,7 +2736,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         <th
                           key={col}
                           className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
-                          style={{ width: "160px", minWidth: "160px", position: "sticky", top: 0 }}
+                          style={{ width: "160px", minWidth: "160px", maxWidth: "160px", position: "sticky", top: 0 }}
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{col}</span>
@@ -2738,10 +2748,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       return (
                         <th
                           key={col}
-                          className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
+                          className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
                           style={{
-                            width: "200px",
-                            minWidth: "200px",
+                            width: "180px",
+                            minWidth: "180px",
+                            maxWidth: "180px",
                             whiteSpace: "normal",
                             position: "sticky",
                             top: 0,
@@ -2812,7 +2823,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       });
 
                       if (matched.length === 0) {
-                        return <td key={col} className="px-3 py-2 align-middle text-center" />;
+                        return (
+                          <td
+                            key={col}
+                            className="px-3 py-2 align-middle text-center"
+                            style={{
+                              width: mode === "date" ? "160px" : "180px",
+                              minWidth: mode === "date" ? "160px" : "180px",
+                              maxWidth: mode === "date" ? "160px" : "180px",
+                            }}
+                          >
+                            <span className="text-gray-300 dark:text-gray-600 font-light text-xs">+</span>
+                          </td>
+                        );
                       }
 
                       const displayValues = [
@@ -2832,7 +2855,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       );
 
                       return (
-                        <td key={col} className="px-3 py-2 align-middle">
+                        <td
+                          key={col}
+                          className="px-3 py-2 align-middle"
+                          style={{
+                            width: mode === "date" ? "160px" : "180px",
+                            minWidth: mode === "date" ? "160px" : "180px",
+                            maxWidth: mode === "date" ? "160px" : "180px",
+                          }}
+                        >
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2887,7 +2918,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                                 : matched[0];
                                         handleOpenDrawer(targetItem);
                                       }}
-                                      className={`w-full max-w-[125px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
+                                      className={`w-full max-w-[140px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
                                       style={{
                                         backgroundColor: itemStyle.backgroundColor || "#f1f5f9",
                                         color: itemStyle.color || "var(--text-default)",
@@ -2905,7 +2936,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                       e.stopPropagation();
                                       handleOpenDrawer(matched);
                                     }}
-                                    className="w-full max-w-[125px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                    className="w-full max-w-[140px] text-center px-2 py-0.5 rounded-[6px] text-[11px] font-bold bg-gray-200/90 dark:bg-gray-700/90 text-gray-600 dark:text-gray-300 border border-gray-300/70 dark:border-gray-600/70 shadow-2xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                   >
                                     {t("page.matrix.andMore", `그 외 ${displayValues.length - 3}`)}
                                   </div>
@@ -2936,20 +2967,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                   );
                                 });
 
-                                const style = hasImportantPriority
-                                  ? {
-                                      backgroundColor: "#fee2e2",
-                                      color: "#dc2626",
-                                      borderColor: "#fca5a5",
-                                    }
-                                  : {
-                                      backgroundColor: "transparent",
-                                      color: "inherit",
-                                    };
-
                                 const className = hasImportantPriority
-                                  ? "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-red-100 text-red-600 border border-red-200 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105"
-                                  : "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-medium text-text-default transition-all duration-150 cursor-pointer hover:scale-105";
+                                  ? "w-full max-w-[140px] text-center px-3 py-1.5 rounded-lg text-xs font-bold bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]"
+                                  : "w-full max-w-[140px] text-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ebf3fe] dark:bg-blue-950/60 text-[#2563eb] dark:text-blue-400 border border-blue-200/80 dark:border-blue-700/80 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]";
 
                                 return (
                                   <div
@@ -2959,7 +2979,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                       handleOpenDrawer(matched);
                                     }}
                                   >
-                                    <div title={cellLabel} className={className} style={style}>
+                                    <div title={cellLabel} className={className}>
                                       {cellLabel}
                                     </div>
                                   </div>

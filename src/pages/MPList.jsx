@@ -436,70 +436,112 @@ const EMPTY_ROW = {
 };
 
 // Key mapping helper
-function getColValue(row, col) {
+function getColValue(row, col, context = {}) {
   if (!row) return "";
+  const { siteList = [], processList = [], equipmentTypeList = [], filterPayload = {} } = context;
+
   if (col === "site") {
-    return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
+    const val = row.site_name ?? row.siteName ?? row.site ?? row["법인"];
+    if (val) return val;
+    const sId = row.site_id ?? row.siteId;
+    if (sId && Array.isArray(siteList)) {
+      const found = siteList.find((s) => Number(s.id) === Number(sId));
+      if (found) return found.siteName || found.name || "";
+    }
+    return "";
   }
   if (col === "representativeWork") {
     return (
+      row.work_name ??
+      row.workName ??
       row.representative_work_name ??
       row.representativeWorkName ??
       row.representativeWork ??
-      row.work_name ??
-      row.workName ??
       row["대표작업명"] ??
       row["대표 작업명"] ??
       ""
     );
   }
   if (col === "work") {
-    return row.purpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+    return (
+      row.work ??
+      row.purpose ??
+      row.work_name ??
+      row.workName ??
+      row["작업 내용"] ??
+      row["작업내용"] ??
+      row["작업 목적"] ??
+      row["작업목적"] ??
+      ""
+    );
   }
   if (col === "situation") {
-    return row.situation ?? row["문제 현상"] ?? "";
+    return row.situation ?? row["문제 현상"] ?? row["문제현상"] ?? "";
   }
   if (col === "cause") {
-    return row.cause ?? row["문제 원인"] ?? "";
+    return row.cause ?? row["문제 원인"] ?? row["문제원인"] ?? "";
   }
   if (col === "report") {
-    return row.report_content ?? row.report ?? row["보고서"] ?? "";
+    return row.report_content ?? row.reportContent ?? row.report ?? row["보고서"] ?? "";
   }
   if (col === "bom") {
     return row.bom ?? row["BOM"] ?? "";
   }
   if (col === "sparePart") {
-    return row.sparePart ?? row["자재명"] ?? "";
+    return row.sparePart ?? row.spare_part ?? row["자재명"] ?? "";
   }
   if (col === "hwAsWas") {
-    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
+    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? row["HW변경전"] ?? "";
   }
   if (col === "hwAsIs") {
-    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
+    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? row["HW변경후"] ?? "";
   }
   if (col === "swAsWas") {
-    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
+    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? row["SW변경전"] ?? "";
   }
   if (col === "swAsIs") {
-    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
+    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? row["SW변경후"] ?? "";
   }
   if (col === "priority") {
-    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
+    const val = row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"];
+    if (val) return val;
+    const priId = row.priority_id ?? row.priorityId;
+    if (priId && filterPayload && Array.isArray(filterPayload.priority)) {
+      const found = filterPayload.priority.find((p) => Number(p.id) === Number(priId));
+      if (found) return found.priorityName || found.name || "일반";
+    }
+    return "일반";
   }
   if (col === "category") {
-    return (
+    const val =
       row.category_name ??
       row.categoryName ??
       row.category ??
       row.effect_type ??
       row.effectType ??
       row["효과 유형"] ??
-      row["효과유형"] ??
-      ""
-    );
+      row["효과유형"];
+    if (val) return val;
+    const catId = row.category_id ?? row.categoryId;
+    if (catId && filterPayload && Array.isArray(filterPayload.category)) {
+      const found = filterPayload.category.find((c) => Number(c.id) === Number(catId));
+      if (found) return found.categoryName || found.name || "보전성";
+    }
+    return "보전성";
   }
   if (col === "wOCode") {
-    return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
+    return row.wOCode ?? row.woCode ?? row.w_o_code ?? row.wo_code ?? row["W/O코드"] ?? "";
+  }
+  if (col === "woType") {
+    const val =
+      row.work_order_type_name ?? row.woTypeName ?? row.woType ?? row.wotype ?? row["WO유형"];
+    if (val) return val;
+    const woId = row.work_order_id ?? row.work_order_type_id ?? row.workOrderTypeId;
+    if (woId && filterPayload && Array.isArray(filterPayload.woTypes)) {
+      const found = filterPayload.woTypes.find((w) => Number(w.id) === Number(woId));
+      if (found) return found.workOrderTypeName || found.woTypeName || found.name || "";
+    }
+    return "";
   }
   if (col === "workedOn") {
     return (
@@ -507,17 +549,29 @@ function getColValue(row, col) {
     );
   }
   if (col === "process") {
-    return row.process_name ?? row.processName ?? row.process ?? row["공정"] ?? "";
+    const val = row.process_name ?? row.processName ?? row.process ?? row["공정"];
+    if (val) return val;
+    const pId = row.process_id ?? row.processId;
+    if (pId && Array.isArray(processList)) {
+      const found = processList.find((p) => Number(p.id) === Number(pId));
+      if (found) return found.processName || found.name || "";
+    }
+    return "";
   }
   if (col === "maintGroup") {
-    return (
+    const val =
       row.equipment_type_name ??
       row.equipmentTypeName ??
       row.maintGroup ??
       row["보전파트"] ??
-      row.equipment ??
-      ""
-    );
+      row.equipment;
+    if (val) return val;
+    const eId = row.equipment_type_id ?? row.equipmentTypeId ?? row.equipment_id ?? row.equipmentId;
+    if (eId && Array.isArray(equipmentTypeList)) {
+      const found = equipmentTypeList.find((e) => Number(e.id) === Number(eId));
+      if (found) return found.equipmentTypeName || found.name || "";
+    }
+    return "";
   }
   if (col === "createdBy") {
     return row.created_by ?? row.createdBy ?? row["생성자"] ?? "";
@@ -1169,7 +1223,6 @@ export default function MPList({
           ? Number(selectedEquipmentTypeId)
           : 0,
       siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
-      workOrderType: workOrderIdVal,
       workOrderId: workOrderIdVal,
       priority: sanitizeArrayOfNums(selectedPriorities),
       effectType: sanitizeArrayOfNums(selectedCategories),
@@ -1276,35 +1329,52 @@ export default function MPList({
     const selSiteName = siteList.find((s) => s.id === selectedSiteId)?.siteName;
     let preFiltered = allRecords.filter((item) => {
       // Match by name OR by ID — API may return either process_name or process_id
-      const itemProc = getColValue(item, "process");
+      const itemProc = getColValue(item, "process", { processList });
       const itemProcId = item.process_id ?? item.processId ?? null;
       const matchProc =
         !selectedProcessId ||
         itemProc === selProcessName ||
-        Number(itemProcId) === Number(selectedProcessId);
+        (itemProcId !== null && Number(itemProcId) === Number(selectedProcessId)) ||
+        !itemProcId;
 
-      const itemEqType = getColValue(item, "maintGroup");
+      const itemEqType = getColValue(item, "maintGroup", { equipmentTypeList });
       const itemEqTypeId = item.equipment_type_id ?? item.equipmentTypeId ?? null;
       const matchEqType =
         !selectedEquipmentTypeId ||
         itemEqType === selEqTypeName ||
-        Number(itemEqTypeId) === Number(selectedEquipmentTypeId);
+        (itemEqTypeId !== null && Number(itemEqTypeId) === Number(selectedEquipmentTypeId)) ||
+        !itemEqTypeId;
 
-      const itemSite = getColValue(item, "site");
+      const itemSite = getColValue(item, "site", { siteList });
       const itemSiteId = item.site_id ?? item.siteId ?? null;
       const matchSite =
         !selectedSiteId ||
         itemSite === selSiteName ||
-        Number(itemSiteId) === Number(selectedSiteId);
+        (itemSiteId !== null && Number(itemSiteId) === Number(selectedSiteId)) ||
+        !itemSiteId;
 
-      const itemWoType = getColValue(item, "woType");
+      const itemWoType = getColValue(item, "woType", { filterPayload });
+      const itemWoId =
+        item.work_order_id ?? item.work_order_type_id ?? item.workOrderTypeId ?? null;
+      let selWoId = 0;
+      if (selectedWoType && Array.isArray(filterPayload?.woTypes)) {
+        const found = filterPayload.woTypes.find(
+          (w) => (w.workOrderTypeName || w.name || w.woTypeName) === selectedWoType,
+        );
+        if (found) selWoId = Number(found.id);
+      }
       const matchWoType =
-        selectedWoType === "전체" || !selectedWoType || itemWoType === selectedWoType;
+        selectedWoType === "전체" ||
+        !selectedWoType ||
+        itemWoType === selectedWoType ||
+        (selWoId > 0 && itemWoId !== null && Number(itemWoId) === selWoId) ||
+        !itemWoId ||
+        Number(itemWoId) === 0;
 
-      const itemPriority = getColValue(item, "priority");
+      const itemPriority = getColValue(item, "priority", { filterPayload });
       const matchPri = selectedPriorities.length === 0 || selectedPriorities.includes(itemPriority);
 
-      const itemCategory = getColValue(item, "category");
+      const itemCategory = getColValue(item, "category", { filterPayload });
       const matchCat = selectedCategories.length === 0 || selectedCategories.includes(itemCategory);
 
       let matchDate = true;
@@ -1313,8 +1383,6 @@ export default function MPList({
         if (dateStr) {
           if (dateFrom && dateStr < dateFrom) matchDate = false;
           if (dateTo && dateStr > dateTo) matchDate = false;
-        } else {
-          matchDate = false;
         }
       }
 
@@ -2629,7 +2697,9 @@ export default function MPList({
                 e.target.value = "";
                 setBatchModalError("");
                 if (file.size > 5 * 1024 * 1024) {
-                  setBatchModalError(t("mp.fileSizeLimit", "Up to 5MB, supports only CSV/Excel format"));
+                  setBatchModalError(
+                    t("mp.fileSizeLimit", "Up to 5MB, supports only CSV/Excel format"),
+                  );
                   return;
                 }
                 setBatchSaving(true);
@@ -2677,7 +2747,11 @@ export default function MPList({
 
                       const getVal = (row, ...keys) => {
                         for (const k of keys) {
-                          if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
+                          if (
+                            row[k] !== undefined &&
+                            row[k] !== null &&
+                            String(row[k]).trim() !== ""
+                          ) {
                             return String(row[k]).trim();
                           }
                           const foundKey = Object.keys(row).find(
@@ -2703,15 +2777,57 @@ export default function MPList({
                         is_voc: true,
                         isVoc: true,
                         is_user: true,
-                        equipmentCode: getVal(row, "Eqcode", "eqcode", "equipmentCode", "equipment_code", "설비코드"),
+                        equipmentCode: getVal(
+                          row,
+                          "Eqcode",
+                          "eqcode",
+                          "equipmentCode",
+                          "equipment_code",
+                          "설비코드",
+                        ),
                         woCode: getVal(row, "W/Ocode", "wocode", "woCode", "wo_code", "W/O 코드"),
                         process: getVal(row, "Process", "process", "공정") || procName,
-                        equipmentName: getVal(row, "Eqname", "eqname", "equipmentName", "equipment_name", "설비명"),
-                        maintGroup: getVal(row, "equipment type", "equipmentType", "eqType", "maintGroup", "보전Part", "보전파트"),
-                        reportContent: getVal(row, "report content", "reportContent", "report", "레포트 내용"),
+                        equipmentName: getVal(
+                          row,
+                          "Eqname",
+                          "eqname",
+                          "equipmentName",
+                          "equipment_name",
+                          "설비명",
+                        ),
+                        maintGroup: getVal(
+                          row,
+                          "equipment type",
+                          "equipmentType",
+                          "eqType",
+                          "maintGroup",
+                          "보전Part",
+                          "보전파트",
+                        ),
+                        reportContent: getVal(
+                          row,
+                          "report content",
+                          "reportContent",
+                          "report",
+                          "레포트 내용",
+                        ),
                         site: getVal(row, "site", "siteName", "Corporation", "법인") || "A1.수원",
-                        workedOn: getVal(row, "worked date", "workedDate", "workDate", "workedOn", "작업완료일") || new Date().toISOString().slice(0, 10),
-                        work: getVal(row, "work description", "workDescription", "work", "작업내용"),
+                        workedOn:
+                          getVal(
+                            row,
+                            "worked date",
+                            "workedDate",
+                            "workDate",
+                            "workedOn",
+                            "작업완료일",
+                          ) || new Date().toISOString().slice(0, 10),
+                        work: getVal(
+                          row,
+                          "work description",
+                          "workDescription",
+                          "work",
+                          "작업내용",
+                        ),
                         purpose: getVal(row, "purpose", "작업목적"),
                         situation: getVal(row, "situation", "문제현상"),
                         cause: getVal(row, "cause", "문제원인"),
@@ -2721,7 +2837,13 @@ export default function MPList({
                         swAsIs: getVal(row, "SW as is", "swAsIs", "swAfter", "SW변경후"),
                         priority: getVal(row, "priority", "중요도") || "일반",
                         category: getVal(row, "category", "효과유형") || "보전성",
-                        representativeWork: getVal(row, "rep_work", "representativeWork", "repWork", "대표작업명"),
+                        representativeWork: getVal(
+                          row,
+                          "rep_work",
+                          "representativeWork",
+                          "repWork",
+                          "대표작업명",
+                        ),
                         bom: getVal(row, "BOM", "bom"),
                         sparePart: getVal(row, "Sparepart", "sparePart", "자재명"),
                         woType: getVal(row, "Wotype", "woType", "wotype", "WO유형") || "CM(개량)",
@@ -3884,7 +4006,9 @@ export default function MPList({
                       ? [...changeDataColumns]
                           .filter((c) => c.isActive !== false)
                           .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-                          .map((c) => (c.excelColumnName || c.jsonKey || "").replace(/\r?\n/g, "").trim())
+                          .map((c) =>
+                            (c.excelColumnName || c.jsonKey || "").replace(/\r?\n/g, "").trim(),
+                          )
                           .filter(Boolean)
                       : [];
 
@@ -3917,52 +4041,54 @@ export default function MPList({
                         ];
                   const sampleData = [
                     {
-                      "Eqcode": "H0303001",
+                      Eqcode: "H0303001",
                       "W/Ocode": "W004512547",
-                      "Process": "03.성형",
-                      "Eqname": "Coater(3R2)_450___C1HH-R2-01",
+                      Process: "03.성형",
+                      Eqname: "Coater(3R2)_450___C1HH-R2-01",
                       "equipment type": "0303. R2 Coater (450)",
                       "report content": "형광등 노후로 인한  led type 변경",
-                      "site": "A1.수원",
+                      site: "A1.수원",
                       "worked date": "2019-04-24",
                       "work description": "형광등을 LED 타입으로 교체",
-                      "purpose": "형광등 노후에 따른 교체 및 조명 효율 향상",
-                      "situation": "기존 형광등의 노후화",
-                      "cause": "형광등 수명 종료 및 노후",
+                      purpose: "형광등 노후에 따른 교체 및 조명 효율 향상",
+                      situation: "기존 형광등의 노후화",
+                      cause: "형광등 수명 종료 및 노후",
                       "HW as was": "형광등(기존 조명)",
                       "HW as is": "LED 조명(LED 타입)",
                       "SW as was": "정보 없음",
                       "SW as is": "정보 없음",
-                      "priority": "일반",
-                      "category": "보전성",
-                      "rep_work": "형광등 LED 교체",
-                      "BOM": "",
-                      "Sparepart": "",
-                      "Wotype": "CM(개량)",
+                      priority: "일반",
+                      category: "보전성",
+                      rep_work: "형광등 LED 교체",
+                      BOM: "",
+                      Sparepart: "",
+                      Wotype: "CM(개량)",
                     },
                     {
-                      "Eqcode": "H0306001",
+                      Eqcode: "H0306001",
                       "W/Ocode": "W005509731",
-                      "Process": "03.성형",
-                      "Eqname": "R203-R2 Coater-4세대",
+                      Process: "03.성형",
+                      Eqname: "R203-R2 Coater-4세대",
                       "equipment type": "0303. R2 Coater (450)",
-                      "report content": "성형기 상반기 가스 검출기 검교정 진행\n레포트 결과 정리 및 이상부분 확인",
-                      "site": "A3.부산",
+                      "report content":
+                        "성형기 상반기 가스 검출기 검교정 진행\n레포트 결과 정리 및 이상부분 확인",
+                      site: "A3.부산",
                       "worked date": "2020-06-03",
                       "work description": "성형기 가스 검출기 검교정 진행",
-                      "purpose": "가스 검출기의 정확도 유지 및 검교정 결과 보고서 작성, 이상 부분 확인",
-                      "situation": "정보 없음",
-                      "cause": "정보 없음",
+                      purpose:
+                        "가스 검출기의 정확도 유지 및 검교정 결과 보고서 작성, 이상 부분 확인",
+                      situation: "정보 없음",
+                      cause: "정보 없음",
                       "HW as was": "정보 없음",
                       "HW as is": "정보 없음",
                       "SW as was": "정보 없음",
                       "SW as is": "정보 없음",
-                      "priority": "일반",
-                      "category": "품질",
-                      "rep_work": "성형기 가스 검출기 검교정",
-                      "BOM": "",
-                      "Sparepart": "",
-                      "Wotype": "BM(고장)",
+                      priority: "일반",
+                      category: "품질",
+                      rep_work: "성형기 가스 검출기 검교정",
+                      BOM: "",
+                      Sparepart: "",
+                      Wotype: "BM(고장)",
                     },
                   ];
                   const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
@@ -4152,26 +4278,38 @@ export default function MPList({
                               <td className="px-2.5 py-1.5 whitespace-nowrap">
                                 {r.process || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[120px] truncate" title={r.equipmentName}>
+                              <td
+                                className="px-2.5 py-1.5 max-w-[120px] truncate"
+                                title={r.equipmentName}
+                              >
                                 {r.equipmentName || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[120px] truncate" title={r.maintGroup}>
+                              <td
+                                className="px-2.5 py-1.5 max-w-[120px] truncate"
+                                title={r.maintGroup}
+                              >
                                 {r.maintGroup || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate" title={r.representativeWork}>
+                              <td
+                                className="px-2.5 py-1.5 font-semibold max-w-[120px] truncate"
+                                title={r.representativeWork}
+                              >
                                 {r.representativeWork || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 max-w-[150px] truncate" title={r.reportContent}>
+                              <td
+                                className="px-2.5 py-1.5 max-w-[150px] truncate"
+                                title={r.reportContent}
+                              >
                                 {r.reportContent || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 whitespace-nowrap">
-                                {r.site || "—"}
-                              </td>
+                              <td className="px-2.5 py-1.5 whitespace-nowrap">{r.site || "—"}</td>
                               <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                                 {r.workedOn || "—"}
                               </td>
                               <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
-                              <td className="px-2.5 py-1.5 text-center">{r.category || "보전성"}</td>
+                              <td className="px-2.5 py-1.5 text-center">
+                                {r.category || "보전성"}
+                              </td>
                               <td className="px-2.5 py-1.5 text-center font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                 {r.woType || "CM(개량)"}
                               </td>
