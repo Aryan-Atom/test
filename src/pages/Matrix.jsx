@@ -520,6 +520,9 @@ function getColValue(row, col) {
   if (col === "equipmentName") {
     return row.equipment_name ?? row.equipmentName ?? row["설비명"] ?? "";
   }
+  if (col === "versionId") {
+    return row.version_id ?? row.versionId ?? row.version_tag ?? 0;
+  }
   return row[col] ?? "";
 }
 
@@ -1742,9 +1745,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       const site = getColValue(item, "site") || getColValue(item, "법인") || "A1. Seoul";
       const scode = getColValue(item, "equipmentCode");
       const sname = getColValue(item, "equipmentName");
+      const verId = Number(getColValue(item, "versionId") || item.version_id || item.versionId || 0);
       const k = site + "|" + scode + "|" + sname;
       if (!eqMap.has(k)) {
-        eqMap.set(k, { site, equipmentCode: scode, equipmentName: sname });
+        eqMap.set(k, { site, equipmentCode: scode, equipmentName: sname, versionId: verId });
+      } else {
+        const existing = eqMap.get(k);
+        if ((!existing.versionId || existing.versionId === 0) && verId > 0) {
+          existing.versionId = verId;
+        }
       }
     });
     const equipmentRows = [...eqMap.values()].sort((a, b) =>
@@ -2759,7 +2768,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"
                       style={{ position: "sticky", left: "100px" }}
                     >
-                      {eq.equipmentCode}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{eq.equipmentCode}</span>
+                        {Boolean(eq.versionId && Number(eq.versionId) !== 0) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700/60">
+                            Ver.{eq.versionId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td
                       className="sticky z-20 bg-surface-default px-4 py-3 font-semibold text-text-default group-hover:bg-fill-active transition-colors"

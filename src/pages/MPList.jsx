@@ -438,92 +438,55 @@ const EMPTY_ROW = {
 // Key mapping helper
 function getColValue(row, col) {
   if (!row) return "";
-  if (col === "site" || col === "법인" || col === "siteName") {
+  if (col === "site") {
     return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
-  if (
-    col === "representativeWork" ||
-    col === "대표작업명" ||
-    col === "대표 작업명" ||
-    col === "representativeWorkName" ||
-    col === "workName"
-  ) {
+  if (col === "representativeWork") {
     return (
       row.representative_work_name ??
       row.representativeWorkName ??
       row.representativeWork ??
       row.work_name ??
       row.workName ??
-      row.work ??
       row["대표작업명"] ??
       row["대표 작업명"] ??
       ""
     );
   }
-  if (
-    col === "work" ||
-    col === "작업 목적" ||
-    col === "작업목적" ||
-    col === "purpose" ||
-    col === "workPurpose"
-  ) {
-    return row.purpose ?? row.workPurpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+  if (col === "work") {
+    return row.purpose ?? row.work ?? row.workName ?? row["작업 목적"] ?? row["작업목적"] ?? "";
   }
-  if (col === "situation" || col === "문제 현상" || col === "문제현상") {
-    return row.situation ?? row.problemSymptom ?? row["문제 현상"] ?? row["문제현상"] ?? "";
+  if (col === "situation") {
+    return row.situation ?? row["문제 현상"] ?? "";
   }
-  if (col === "cause" || col === "문제 원인" || col === "문제원인") {
-    return row.cause ?? row.problemCause ?? row["문제 원인"] ?? row["문제원인"] ?? "";
+  if (col === "cause") {
+    return row.cause ?? row["문제 원인"] ?? "";
   }
-  if (col === "report" || col === "Report내용" || col === "보고서") {
-    return row.report_content ?? row.reportContent ?? row.report ?? row["Report내용"] ?? row["보고서"] ?? "";
+  if (col === "report") {
+    return row.report_content ?? row.report ?? row["보고서"] ?? "";
   }
-  if (col === "bom" || col === "BOM") {
-    return row.bom ?? row.BOM ?? row["BOM"] ?? "";
+  if (col === "bom") {
+    return row.bom ?? row["BOM"] ?? "";
   }
-  if (
-    col === "sparePart" ||
-    col === "spare_part" ||
-    col === "sparepart" ||
-    col === "Sparepart" ||
-    col === "sparePartName" ||
-    col === "자재명" ||
-    col === "자재목록" ||
-    col === "예비 부품" ||
-    col === "예비부품" ||
-    col === "materialList"
-  ) {
-    return (
-      row.sparePart ??
-      row.spare_part ??
-      row.sparepart ??
-      row.Sparepart ??
-      row.sparePartName ??
-      row["자재목록"] ??
-      row["자재명"] ??
-      row["자재 명"] ??
-      row["예비 부품"] ??
-      row["예비부품"] ??
-      row.materialList ??
-      ""
-    );
+  if (col === "sparePart") {
+    return row.sparePart ?? row["자재명"] ?? "";
   }
-  if (col === "hwAsWas" || col === "hwBefore" || col === "HW 변경 전" || col === "HW변경전") {
-    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? row["HW변경전"] ?? "";
+  if (col === "hwAsWas") {
+    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
   }
-  if (col === "hwAsIs" || col === "hwAfter" || col === "HW 변경 후" || col === "HW변경후") {
-    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? row["HW변경후"] ?? "";
+  if (col === "hwAsIs") {
+    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
   }
-  if (col === "swAsWas" || col === "swBefore" || col === "SW 변경 전" || col === "SW변경전") {
-    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? row["SW변경전"] ?? "";
+  if (col === "swAsWas") {
+    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
   }
-  if (col === "swAsIs" || col === "swAfter" || col === "SW 변경 후" || col === "SW변경후") {
-    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? row["SW변경후"] ?? "";
+  if (col === "swAsIs") {
+    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
-  if (col === "priority" || col === "중요도" || col === "우선순위") {
-    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? row["우선순위"] ?? "";
+  if (col === "priority") {
+    return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
   }
-  if (col === "category" || col === "효과 유형" || col === "효과유형" || col === "구분") {
+  if (col === "category") {
     return (
       row.category_name ??
       row.categoryName ??
@@ -532,12 +495,11 @@ function getColValue(row, col) {
       row.effectType ??
       row["효과 유형"] ??
       row["효과유형"] ??
-      row["구분"] ??
       ""
     );
   }
-  if (col === "wOCode" || col === "woCode" || col === "W/O코드" || col === "작업지시서 코드") {
-    return row.wOCode ?? row.woCode ?? row.wo_code ?? row["W/O코드"] ?? row["작업지시서 코드"] ?? "";
+  if (col === "wOCode") {
+    return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
     return (
@@ -583,6 +545,70 @@ function rowKey(row, index) {
   return `${index}__${row.id ?? ""}__${row.equipmentCode ?? ""}__${getColValue(row, "representativeWork") || getColValue(row, "work")}`;
 }
 
+// ── Map GetMatrixData API response (snake_case) → row keys (camelCase) ──────────
+const matrixDetailMap = {
+  change_history_id: "id",
+  report_content: "report",
+  work_order_type_name: "woType",
+  equipment_code: "equipmentCode",
+  equipment_name: "equipmentName",
+  rep_work_id: "repWorkId",
+  work_name: "representativeWork",
+  purpose: "purpose",
+  situation: "situation",
+  cause: "cause",
+  hw_was: "hwAsWas",
+  hw_is: "hwAsIs",
+  sw_was: "swAsWas",
+  sw_is: "swAsIs",
+  category_name: "category",
+  priority_name: "priority",
+  process_name: "process",
+  work_date: "workedOn",
+  equipment_type_name: "maintGroup",
+  site_name: "site",
+  maintenance_group_name: "maintGroup",
+  bom: "bom",
+  spare_part: "sparePart",
+  wo_code: "wOCode",
+  work: "work",
+  created_by: "createdBy",
+  updated_by: "modifiedBy",
+  created_at: "createdAt",
+  updated_at: "modifiedAt",
+  work_order_type_id: "woTypeId",
+  equipment_id: "equipmentId",
+  category_id: "categoryId",
+  priority_id: "priorityId",
+  process_id: "processId",
+  site_id: "siteId",
+  equipment_type_id: "equipmentTypeId",
+};
+
+function parseMatrixDetailResponse(responseData) {
+  const payload = responseData?.data ?? responseData;
+  if (!payload || typeof payload !== "object") return null;
+  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (payload.matrixData && typeof payload.matrixData === "object") {
+    return payload.matrixData;
+  }
+  if (payload.changeData && typeof payload.changeData === "object") {
+    return payload.changeData;
+  }
+  return payload;
+}
+
+function mapMatrixDetailToRow(detail) {
+  if (!detail || typeof detail !== "object") return {};
+  const mapped = {};
+  for (const [key, value] of Object.entries(detail)) {
+    const mappedKey = matrixDetailMap[key] ?? key;
+    if (value !== null && value !== undefined) {
+      mapped[mappedKey] = value;
+    }
+  }
+  return mapped;
+}
 function isRowSelected(row, drawerItem) {
   if (!row || !drawerItem) return false;
 
@@ -696,6 +722,7 @@ export default function MPList({
   onOpenDetail,
   drawerItem,
   onUpload,
+  isActive,
 }) {
   const { t, language } = useI18n();
   const batchFileInputRef = useRef(null);
@@ -719,7 +746,7 @@ export default function MPList({
     return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
   });
   const [selectedSiteId, setSelectedSiteId] = useState(null);
-  const [selectedWoType, setSelectedWoType] = useState("전체");
+  const [selectedWoType, setSelectedWoType] = useState("");
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [dateFrom, setDateFrom] = useState(() => {
@@ -889,10 +916,9 @@ export default function MPList({
     return (filterPayload?.priority || []).length > 0
       ? filterPayload.priority
       : [
-          { id: 1, priorityName: "필수" },
+          { id: 1, priorityName: "일반" },
           { id: 2, priorityName: "중요" },
-          { id: 3, priorityName: "일반" },
-          { id: 4, priorityName: "제외" },
+          { id: 3, priorityName: "정보 없음" },
         ];
   }, [filterPayload]);
 
@@ -943,10 +969,6 @@ export default function MPList({
     setDateFrom("");
     setDateTo("");
   };
-
-  useEffect(() => {
-    setSelectedWoType("전체");
-  }, [selectedProcessId]);
 
   // ── Fetch filter options + changedDataJson rows ───────────────────────────
   const fetchData = useCallback(() => {
@@ -1101,7 +1123,7 @@ export default function MPList({
           ? Number(selectedEquipmentTypeId)
           : 0,
       siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
-      workOrderType: selectedWoType && selectedWoType !== "전체" ? selectedWoType : 0,
+      workOrderType: selectedWoType || 0,
       priority: sanitizeArrayOfNums(selectedPriorities),
       effectType: sanitizeArrayOfNums(selectedCategories),
       fromDate: dateFrom ? dateFrom : null,
@@ -1120,7 +1142,11 @@ export default function MPList({
           records = responseData.data.dataList;
         } else if (Array.isArray(responseData?.dataList)) {
           records = responseData.dataList;
-        } else if (Array.isArray(responseData) && responseData.length > 0 && !responseData[0]?.data) {
+        } else if (
+          Array.isArray(responseData) &&
+          responseData.length > 0 &&
+          !responseData[0]?.data
+        ) {
           records = responseData;
         } else if (Array.isArray(responseData?.data)) {
           records = responseData.data;
@@ -1150,9 +1176,20 @@ export default function MPList({
     fetchData();
   }, [fetchData]);
 
+  // Re-fetch master data when page becomes active
+  const prevIsActiveRef = useRef(false);
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      prevIsActiveRef.current = true;
+      fetchData();
+    }
+    if (!isActive) {
+      prevIsActiveRef.current = false;
+    }
+  }, [isActive, fetchData]);
+
   useEffect(() => {
     if (!filterPayload) return;
-    if (isStaticDataMode) return;
     const hasProcess =
       selectedProcessId !== null &&
       selectedProcessId !== undefined &&
@@ -1167,15 +1204,9 @@ export default function MPList({
     } else {
       setAllRecords([]);
     }
-  }, [
-    filterPayload,
-    fetchMPList,
-    selectedProcessId,
-    selectedEquipmentTypeId,
-  ]);
+  }, [filterPayload, fetchMPList, selectedProcessId, selectedEquipmentTypeId]);
 
   const isProcessAndEquipSelected = useMemo(() => {
-    if (isStaticDataMode) return true;
     return (
       selectedProcessId !== null &&
       selectedProcessId !== undefined &&
@@ -1188,7 +1219,7 @@ export default function MPList({
 
   // ── Filtered & Grouped rows ───────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!selectedProcessId && !isStaticDataMode) {
+    if (!selectedProcessId) {
       return [];
     }
     const selProcessName = processList.find((p) => p.id === selectedProcessId)?.processName;
@@ -1201,7 +1232,6 @@ export default function MPList({
       const itemProc = getColValue(item, "process");
       const itemProcId = item.process_id ?? item.processId ?? null;
       const matchProc =
-        isStaticDataMode ||
         !selectedProcessId ||
         itemProc === selProcessName ||
         Number(itemProcId) === Number(selectedProcessId);
@@ -1209,7 +1239,6 @@ export default function MPList({
       const itemEqType = getColValue(item, "maintGroup");
       const itemEqTypeId = item.equipment_type_id ?? item.equipmentTypeId ?? null;
       const matchEqType =
-        isStaticDataMode ||
         !selectedEquipmentTypeId ||
         itemEqType === selEqTypeName ||
         Number(itemEqTypeId) === Number(selectedEquipmentTypeId);
@@ -1447,44 +1476,39 @@ export default function MPList({
       autoClose: false,
     });
 
-    APIcallPost(
-      pocEndPoints.DELETE_CHANGE_DATA,
-      { ids: [rowId] },
-      {},
-      (responseData, status) => {
-        if (status === 200) {
-          setAllRecords((prev) =>
-            prev.filter((r) => {
-              if (row._localId && r._localId) return r._localId !== row._localId;
-              return r.id !== row.id;
-            }),
-          );
-          setOperationStatus({
-            isVisible: true,
-            status: "success",
-            message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
-            autoClose: true,
-          });
-          if (getFilterDataRef.current) {
-            getFilterDataRef.current();
-          } else {
-            fetchMPList();
-          }
+    APIcallPost(pocEndPoints.DELETE_CHANGE_DATA, { ids: [rowId] }, {}, (responseData, status) => {
+      if (status === 200) {
+        setAllRecords((prev) =>
+          prev.filter((r) => {
+            if (row._localId && r._localId) return r._localId !== row._localId;
+            return r.id !== row.id;
+          }),
+        );
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: t("toast.deleteSuccess", "행이 성공적으로 삭제되었습니다."),
+          autoClose: true,
+        });
+        if (getFilterDataRef.current) {
+          getFilterDataRef.current();
         } else {
-          console.error("DeleteChangeData failed:", status, responseData);
-          setOperationStatus({
-            isVisible: true,
-            status: "error",
-            message: t("toast.deleteError", "삭제에 실패했습니다."),
-            autoClose: true,
-          });
+          fetchMPList();
         }
-      },
-    );
+      } else {
+        console.error("DeleteChangeData failed:", status, responseData);
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.deleteError", "삭제에 실패했습니다."),
+          autoClose: true,
+        });
+      }
+    });
   };
 
   // ── Edit row on click / double click ──────────────────────────────────────────
-  const handleRowDoubleClick = (row) => {
+  const populateEditModal = (row) => {
     if (!row) return;
     setNewRow({
       representativeWork: getColValue(row, "representativeWork"),
@@ -1501,18 +1525,43 @@ export default function MPList({
       priority: getColValue(row, "priority") || "일반",
       category: getColValue(row, "category") || "기타",
       wOCode: getColValue(row, "wOCode") || "",
-      workedOn: getColValue(row, "workedOn") || "2026-06-26",
+      woType: getColValue(row, "woType") || "",
+      workedOn: (() => {
+        const raw = getColValue(row, "workedOn");
+        if (!raw) return "";
+        const s = String(raw);
+        // Handle Excel serial date numbers
+        if (!isNaN(Number(s)) && Number(s) > 0) {
+          const d = new Date(new Date(1899, 11, 30).getTime() + Number(s) * 86400000);
+          return d.toISOString().slice(0, 10);
+        }
+        // ISO datetime string → YYYY-MM-DD
+        return s.slice(0, 10);
+      })(),
       equipmentCode: row.equipmentCode ?? row.equipment_code ?? "-",
       equipmentName: row.equipmentName ?? row.equipment_name ?? " Common",
-      process: getColValue(row, "process") || "02.배치",
-      maintGroup: getColValue(row, "maintGroup") || "0202. Nano Mill",
-      site: getColValue(row, "site") || "A3.부산",
-      is_voc: row.is_voc ?? row.isVoc ?? row.isVOC ?? true,
-      isVoc: row.is_voc ?? row.isVoc ?? row.isVOC ?? true,
+      process: getColValue(row, "process") || "",
+      maintGroup: getColValue(row, "maintGroup") || "",
+      site: getColValue(row, "site") || "",
+      // IDs from API response
+      id: Number(row.id) || 0,
+      repWorkId: Number(row.repWorkId ?? row.rep_work_id ?? 0) || 0,
+      repMappingId: Number(row.repWorkId ?? row.rep_work_id ?? row.repMappingId ?? 0) || 0,
+      workOrderId: Number(row.workOrderId ?? row.work_order_type_id ?? row.woTypeId ?? 0) || 0,
+      equipmentId: Number(row.equipmentId ?? row.equipment_id ?? 0) || 0,
+      processId: Number(row.processId ?? row.process_id ?? 0) || 0,
+      siteId: Number(row.siteId ?? row.site_id ?? 0) || 0,
+      equipmentTypeId:
+        Number(row.equipmentTypeId ?? row.equipment_type_id ?? row.eqTypeId ?? 0) || 0,
+      categoryId: Number(row.categoryId ?? row.category_id ?? 0) || 0,
+      priorityId: Number(row.priorityId ?? row.priority_id ?? 0) || 0,
+      maintenanceGroupId: Number(row.maintenanceGroupId ?? row.maintenance_group_id ?? 0) || 0,
+      createdBy: row.createdBy ?? row.created_by ?? getUserInfo()?.name ?? "Chirati Harish",
     });
     const atts =
       row.attachments ||
       row.photos ||
+      row.images ||
       (row.samplePhoto
         ? [{ id: "sample-1", name: "sample.jpg", url: row.samplePhoto, category: "기타" }]
         : []);
@@ -1522,6 +1571,44 @@ export default function MPList({
     setModalError("");
     setErrors({});
     setShowModal(true);
+  };
+
+  const handleRowDoubleClick = (row) => {
+    if (!row) return;
+
+    const rowId = Number(row?.id || row?.changeHistoryId || row?.mpListId || 0);
+
+    // Static data mode or no valid ID → use row data directly
+    if (isStaticDataMode || !rowId || rowId <= 0) {
+      populateEditModal(row);
+      return;
+    }
+
+    // Fetch detail from GetMatrixData API, then populate modal
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.loadingDetail", "Loading details..."),
+      autoClose: false,
+    });
+
+    APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+      setOperationStatus({
+        isVisible: false,
+        status: "loading",
+        message: "",
+        autoClose: true,
+      });
+      if (status === 200 && responseData) {
+        const detail = parseMatrixDetailResponse(responseData);
+        const mapped = detail ? mapMatrixDetailToRow(detail) : null;
+        const merged = mapped ? { ...row, ...mapped } : row;
+        populateEditModal(merged);
+      } else {
+        console.warn("[MPList] GetMatrixData for edit failed:", status, responseData);
+        populateEditModal(row);
+      }
+    });
   };
 
   const handleFileUploadInModal = (e) => {
@@ -1592,8 +1679,7 @@ export default function MPList({
     const siteName = selSite?.siteName ?? newRow.site ?? "";
 
     const priorityIdVal =
-      newRow.priorityId ??
-      (newRow.priority === "중요" || newRow.priority === "Important" ? 2 : 1);
+      newRow.priorityId ?? (newRow.priority === "중요" || newRow.priority === "Important" ? 2 : 1);
 
     const categoryObj = (categoryList || []).find(
       (c) =>
@@ -1651,13 +1737,15 @@ export default function MPList({
       return p.toISOString();
     };
 
-    const rowIdVal = isEditMode
-      ? Number(newRow.id || editingRowLocalId) || 0
-      : 0;
+    const rowIdVal = isEditMode ? Number(newRow.id || editingRowLocalId) || 0 : 0;
 
     const vocItem = {
       id: rowIdVal,
       repWorkId: Number(newRow.repWorkId ?? newRow.rep_work_id ?? 0) || 0,
+      repMappingId: Number(newRow.repWorkId ?? newRow.rep_work_id ?? newRow.repMappingId ?? 0) || 0,
+      workOrderId:
+        Number(newRow.workOrderId ?? newRow.work_order_type_id ?? newRow.woTypeId ?? 0) || 0,
+      equipmentId: Number(newRow.equipmentId ?? newRow.equipment_id ?? 0) || 0,
       reportContent: newRow.reportContent || newRow.report || "",
       workName: newRow.representativeWork || newRow.workName || newRow.work_name || "",
       purpose: newRow.purpose || newRow.workPurpose || newRow.work || "",
@@ -1679,7 +1767,8 @@ export default function MPList({
       categoryId: categoryIdVal,
       processName: newRow.process || procName || "P1",
       siteName: newRow.site || siteName || "site 1",
-      maintenanceGroupName: newRow.maintGroup || newRow.equipmentTypeName || maintName || "EQ type 1",
+      maintenanceGroupName:
+        newRow.maintGroup || newRow.equipmentTypeName || maintName || "EQ type 1",
       equipmentTypeName: newRow.maintGroup || newRow.equipmentTypeName || maintName || "EQ type 1",
       processId: processIdVal,
       siteId: siteIdVal,
@@ -1687,17 +1776,9 @@ export default function MPList({
       createdBy: newRow.createdBy || getUserInfo()?.name || "Chirati Harish",
     };
 
-    const isVocVal = isEditMode
-      ? (newRow.is_voc !== undefined
-          ? Boolean(newRow.is_voc)
-          : newRow.isVoc !== undefined
-            ? Boolean(newRow.isVoc)
-            : true)
-      : true;
-
     const payload = {
       vocData: [vocItem],
-      isVoc: isVocVal,
+      isVoc: true,
     };
 
     setOperationStatus({
@@ -1883,7 +1964,16 @@ export default function MPList({
       representativeWork: r.representativeWork || "",
       priority: r.priority || "일반",
       category: r.category || "기타",
-      woType: r.woType || r.Wotype || r.wotype || r["wo type"] || r["wo_type"] || r["WO유형"] || r["WO 유형"] || r["w/o유형"] || "",
+      woType:
+        r.woType ||
+        r.Wotype ||
+        r.wotype ||
+        r["wo type"] ||
+        r["wo_type"] ||
+        r["WO유형"] ||
+        r["WO 유형"] ||
+        r["w/o유형"] ||
+        "",
       woTypeId: 0,
       eqType: r.maintGroup || "",
       eqTypeId: 0,
@@ -2020,6 +2110,7 @@ export default function MPList({
       processId: selectedProcessId ? Number(selectedProcessId) : 0,
       equipmentTypeId: selectedEquipmentTypeId ? Number(selectedEquipmentTypeId) : 0,
       changeDataList,
+      createdBy: getUserInfo()?.name,
     };
 
     if (isStaticDataMode) {
@@ -2246,9 +2337,9 @@ export default function MPList({
 
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         if (status === 200 && responseData) {
-          const raw = responseData?.data ?? responseData;
-          const detail = Array.isArray(raw) ? raw[0] : raw;
-          const merged = detail ? { ...row, ...detail } : row;
+          const detail = parseMatrixDetailResponse(responseData);
+          const mapped = detail ? mapMatrixDetailToRow(detail) : null;
+          const merged = mapped ? { ...row, ...mapped } : row;
           onOpenDetail(merged);
           setOperationStatus({
             isVisible: false,
@@ -3202,8 +3293,7 @@ export default function MPList({
           {/* Row 2: Representative Work Name * (Full width) with Saved Info Suggestions Popover */}
           <div className="relative">
             <label className="text-xs font-semibold text-text-subtle mb-1 block">
-              {t("field.repWork", "대표 작업명")}{" "}
-              <span className="text-red-500">*</span>
+              {t("field.repWork", "대표 작업명")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -3253,7 +3343,7 @@ export default function MPList({
                       onMouseDown={() => {
                         setField("representativeWork", suggestionName);
                         const repObj = (filterPayload?.representations || []).find(
-                          (r) => (r.representativeWorkName || r.workName) === suggestionName
+                          (r) => (r.representativeWorkName || r.workName) === suggestionName,
                         );
                         if (repObj) {
                           if (repObj.categoryId) {
@@ -3986,11 +4076,11 @@ export default function MPList({
                     {t("page.mp.storingModalTitle", "Storing MP List")}
                   </h3>
                   <p className="text-xs text-text-subtlest mt-0.5 font-medium">
-                    {processList.find((p) => Number(p.id) === Number(selectedProcessId))?.processName ||
-                      "02.배치"}
+                    {processList.find((p) => Number(p.id) === Number(selectedProcessId))
+                      ?.processName || "02.배치"}
                     {" · "}
-                    {equipmentTypeList.find((e) => Number(e.id) === Number(selectedEquipmentTypeId))?.equipmentTypeName ||
-                      "0202. Nano Mill"}
+                    {equipmentTypeList.find((e) => Number(e.id) === Number(selectedEquipmentTypeId))
+                      ?.equipmentTypeName || "0202. Nano Mill"}
                     {" · "}
                     {dateFrom || "2025-08-12"} ~ {dateTo || "2026-08-12"}
                     {" · "}
@@ -4325,12 +4415,7 @@ export default function MPList({
                     (r) => !r.nonImplReason || !r.nonImplReason.trim(),
                   );
                   if (invalidRow) {
-                    alert(
-                      t(
-                        "page.mp.reasonRequiredAlert",
-                        "미적용 항목의 사유를 입력해주세요.",
-                      ),
-                    );
+                    alert(t("page.mp.reasonRequiredAlert", "미적용 항목의 사유를 입력해주세요."));
                     return;
                   }
                   setShowSaveModal(false);
