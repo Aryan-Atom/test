@@ -219,6 +219,56 @@ function parseMatrixDetailResponse(responseData) {
   return payload;
 }
 
+// Map MatrixInquiryResponse snake_case fields to frontend camelCase fields
+const matrixResponseToRowMap = {
+  change_history_id: "id",
+  report_content: "report",
+  work_name: "representativeWork",
+  purpose: "purpose",
+  situation: "situation",
+  cause: "cause",
+  hw_was: "hwAsWas",
+  hw_is: "hwAsIs",
+  sw_was: "swAsWas",
+  sw_is: "swAsIs",
+  category_name: "category",
+  priority_name: "priority",
+  process_name: "process",
+  equipment_type_name: "maintGroup",
+  site_name: "site",
+  maintenance_group_name: "maintGroup",
+  bom: "bom",
+  spare_part: "sparePart",
+  wo_code: "wOCode",
+  work: "work",
+  created_by: "createdBy",
+  updated_by: "modifiedBy",
+  equipment_code: "equipmentCode",
+  equipment_name: "equipmentName",
+  work_date: "workedOn",
+  rep_work_id: "repWorkId",
+  category_id: "categoryId",
+  priority_id: "priorityId",
+  process_id: "processId",
+  site_id: "siteId",
+  equipment_type_id: "equipmentTypeId",
+  equipment_id: "equipmentId",
+  work_order_type_id: "woTypeId",
+  work_order_type_name: "woType",
+  created_at: "createdAt",
+  updated_at: "updatedAt",
+};
+
+function mapMatrixResponseToRow(detail) {
+  if (!detail) return null;
+  const mapped = {};
+  Object.entries(detail).forEach(([key, value]) => {
+    const mappedKey = matrixResponseToRowMap[key] ?? key;
+    mapped[mappedKey] = value;
+  });
+  return mapped;
+}
+
 function rowKey(row, index) {
   return `${index}__${row.id ?? ""}__${row.equipmentCode ?? ""}__${
     row.work ?? row.representativeWork ?? ""
@@ -2632,6 +2682,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [previewRows, setPreviewRows] = useState(null);
   const [previewColumns, setPreviewColumns] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [editModalLoading, setEditModalLoading] = useState(false);
+  const [editModalRow, setEditModalRow] = useState(null);
   const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [filterPayload, setFilterPayload] = useState(null);
   const [filterError, setFilterError] = useState(null);
@@ -2939,7 +2991,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       ["woCode", "wOCode", "W/O코드"],
       ["report", "Report내용"],
       ["bom", "BOM"],
-      ["sparePart", "Sparepart", "sparepart", "spare_part", "자재명", "자재목록", "예비 부품", "예비부품"],
+      [
+        "sparePart",
+        "Sparepart",
+        "sparepart",
+        "spare_part",
+        "자재명",
+        "자재목록",
+        "예비 부품",
+        "예비부품",
+      ],
       ["workedOn", "작업완료일"],
       ["improvement", "개선 작업"],
       ["work", "작업목적"],
@@ -3321,15 +3382,16 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             row["w/o유형"] ??
             "",
         ).trim(),
-        woTypeId: Number(
-          remapped.woTypeId ??
-            remapped.wotypeId ??
-            remapped.wotypeid ??
-            row.woTypeId ??
-            row.wotypeId ??
-            row.wotypeid ??
-            0,
-        ) || 0,
+        woTypeId:
+          Number(
+            remapped.woTypeId ??
+              remapped.wotypeId ??
+              remapped.wotypeid ??
+              row.woTypeId ??
+              row.wotypeId ??
+              row.wotypeid ??
+              0,
+          ) || 0,
         eqType: String(
           remapped.eqType ??
             remapped["equipment type"] ??
@@ -3368,6 +3430,55 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       return clean;
     },
     [excelToJsonKey],
+  );
+
+  // ── EDIT CLICK: Fetch row detail from GetMatrixData API ───────────────────
+  const handleEditClick = useCallback(
+    (index) => {
+      const row = filtered[index];
+      if (!row) return;
+
+      const rowId = Number(row.id);
+      if (!rowId || rowId <= 0 || isStaticDataMode) {
+        setEditingIndex(index);
+        return;
+      }
+
+      setEditModalLoading(true);
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: t("toast.loadingDetail", "Loading details..."),
+        autoClose: false,
+      });
+
+      APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
+        setEditModalLoading(false);
+        if (status === 200 && responseData) {
+          const detail = parseMatrixDetailResponse(responseData);
+          if (detail) {
+            const mapped = mapMatrixResponseToRow(detail);
+            const merged = { ...row, ...mapped };
+            setEditModalRow(merged);
+          } else {
+            setEditModalRow(row);
+          }
+          setEditingIndex(index);
+          setOperationStatus({ isVisible: false, status: "loading", message: "", autoClose: true });
+        } else {
+          console.warn("[ChangeHistory] GetMatrixData for edit failed:", status, responseData);
+          setEditModalRow(row);
+          setEditingIndex(index);
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: t("toast.detailLoadError", "Failed to load row details."),
+            autoClose: true,
+          });
+        }
+      });
+    },
+    [filtered, t],
   );
 
   // ── SAVE ROW ──────────────────────────────────────────────────────────────
@@ -3457,6 +3568,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const vocItem = {
         id: Number(mergedRow.id) || 0,
         repWorkId: Number(mergedRow.repWorkId ?? mergedRow.rep_work_id ?? 0) || 0,
+        repMappingId:
+          Number(mergedRow.repWorkId ?? mergedRow.rep_work_id ?? mergedRow.repMappingId ?? 0) || 0,
+        workOrderId:
+          Number(
+            mergedRow.woTypeId ?? mergedRow.work_order_type_id ?? mergedRow.workOrderId ?? 0,
+          ) || 0,
+        equipmentId: Number(mergedRow.equipmentId ?? mergedRow.equipment_id ?? 0) || 0,
         reportContent: mergedRow.reportContent || mergedRow.report || "",
         workName: mergedRow.representativeWork || mergedRow.workName || mergedRow.work_name || "",
         purpose: mergedRow.purpose || mergedRow.workPurpose || mergedRow.work || "",
@@ -3579,13 +3697,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         if (status === 200 && responseData) {
           const detail = parseMatrixDetailResponse(responseData);
-          const merged = detail ? { ...row, ...detail } : row;
-          const remapped = Object.entries(merged).reduce((acc, [key, value]) => {
-            const mappedKey = excelToJsonKey[key.trim()] ?? key;
-            acc[mappedKey] = value;
-            return acc;
-          }, {});
-          setDrawerItem(remapped);
+          const mappedDetail = detail ? mapMatrixResponseToRow(detail) : null;
+          const merged = mappedDetail ? { ...row, ...mappedDetail } : row;
+          setDrawerItem(merged);
           setOperationStatus({
             isVisible: false,
             status: "loading",
@@ -3870,8 +3984,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             // Always show all active columns from changeDataColumns in sequence order
             const orderedCols = [...changeDataColumns]
               .filter((c) => c.isActive !== false)
-              .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-              .map((c) => (c.excelColumnName || "").replace(/\r?\n/g, "").trim())
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((c) => c.excelColumnName)
               .filter(Boolean);
 
             const KEY_ALIASES = {
@@ -4688,7 +4802,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                         index={idxToUse}
                         columns={dynamicColumns}
                         isEditing={false}
-                        onStartEdit={setEditingIndex}
+                        onStartEdit={handleEditClick}
                         onSave={handleSaveRow}
                         onCancel={handleCancelEdit}
                         onOpenDetail={handleOpenDetail}
@@ -4729,7 +4843,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       />
 
       <RowEditModal
-        row={editingIndex !== null ? filtered[editingIndex] : null}
+        row={editingIndex !== null ? editModalRow || filtered[editingIndex] : null}
         index={editingIndex}
         columns={dynamicColumns}
         onSave={handleSaveRow}
