@@ -4,6 +4,7 @@ import { pocEndPoints } from "../axios/endPoints";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle, normalizePriority, getPriorityRank } from "../utils/matrixCellStyle.js";
+import { getPriorityLabel, getCategoryLabel } from "../utils/filterTranslationHelpers.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { useToast } from "../components/ToastContext.jsx";
 import Drawer from "../components/Drawer.jsx";
@@ -277,7 +278,8 @@ function MultiSelect({
   let displayText = placeholder || t("app.all", "전체");
   if (!isAllSelected) {
     if (selectedValues.length === 1) {
-      displayText = selectedValues[0];
+      const matchOpt = options.find((o) => o.value === selectedValues[0]);
+      displayText = matchOpt ? matchOpt.label : selectedValues[0];
     } else {
       displayText = `${selectedValues.length}${t("app.selectedCount", "개 선택")}`;
     }
@@ -1583,22 +1585,26 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
   const priorityOptions = useMemo(() => {
     if (filterData && Array.isArray(filterData.priority)) {
-      return [
-        ...new Set(
-          filterData.priority.map((p) => p.priorityName || p.name).filter(Boolean),
-        ),
-      ];
+      const list = filterData.priority
+        .map((p) => p.priorityName || p.priority_name || p.name || p.priority)
+        .filter(Boolean);
+      return [...new Set(list)];
+    }
+    if (isStaticDataMode) {
+      return ["필수", "중요", "일반", "제외"];
     }
     return [];
   }, [filterData]);
 
   const categoryOptions = useMemo(() => {
     if (filterData && Array.isArray(filterData.category)) {
-      return [
-        ...new Set(
-          filterData.category.map((c) => c.categoryName || c.name).filter(Boolean),
-        ),
-      ];
+      const list = filterData.category
+        .map((c) => c.categoryName || c.category_name || c.name || c.category)
+        .filter(Boolean);
+      return [...new Set(list)];
+    }
+    if (isStaticDataMode) {
+      return ["보전성", "품질", "생산성", "기타"];
     }
     return [];
   }, [filterData]);
@@ -1745,6 +1751,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     endDate,
     searchText,
   ]);
+
+  const isCmWoType = useMemo(() => {
+    if (!selectedWoType) return false;
+    const norm = String(selectedWoType).trim().toUpperCase();
+    return norm === "CM" || norm.startsWith("CM");
+  }, [selectedWoType]);
 
   // Determine X-axis headers (columns) and Y-axis rows (equipment)
   const { columns, equipmentRows } = useMemo(() => {
@@ -1913,7 +1925,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           type: "add_new",
           label: "+",
           className:
-            "w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-500 font-bold text-sm",
+            "w-full max-w-[125px] h-8 mx-auto flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400",
         };
       }
 
@@ -2006,11 +2018,28 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       });
 
       if (validRecords.length === 0) {
+        const dateRecord = matchedRecords.find((item) => {
+          const dt = getColValue(item, "workedOn") || item.work_date || item.workDate;
+          return Boolean(dt);
+        });
+        if (dateRecord) {
+          const dtStr = getFormattedDateString(
+            getColValue(dateRecord, "workedOn") || dateRecord.work_date || dateRecord.workDate,
+          );
+          if (dtStr) {
+            return {
+              type: "wo_applied",
+              label: dtStr,
+              className:
+                "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
+            };
+          }
+        }
         return {
           type: "add_new",
           label: "+",
           className:
-            "w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-500 font-bold text-sm",
+            "w-full max-w-[125px] h-8 mx-auto flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400",
         };
       }
 
@@ -2575,7 +2604,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               {t("field.priority", "중요도")} <span className="text-red-500">*</span>
             </label>
             <MultiSelect
-              options={priorityOptions.map((p) => ({ label: p, value: p }))}
+              options={priorityOptions.map((p) => ({ label: getPriorityLabel(p, t), value: p }))}
               selectedValues={selectedPriorities}
               onChange={setSelectedPriorities}
               t={t}
@@ -2589,7 +2618,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               {t("field.category", "효과유형")}
             </label>
             <MultiSelect
-              options={categoryOptions.map((c) => ({ label: c, value: c }))}
+              options={categoryOptions.map((c) => ({ label: getCategoryLabel(c, t), value: c }))}
               selectedValues={selectedCategories}
               onChange={setSelectedCategories}
               t={t}
@@ -2823,17 +2852,41 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       });
 
                       if (matched.length === 0) {
+                        if (mode !== "task" || !isCmWoType) {
+                          return (
+                            <td
+                              key={col}
+                              className="px-3 py-2 align-middle text-center"
+                              style={{
+                                width: mode === "date" ? "160px" : "180px",
+                                minWidth: mode === "date" ? "160px" : "180px",
+                                maxWidth: mode === "date" ? "160px" : "180px",
+                              }}
+                            />
+                          );
+                        }
+
                         return (
                           <td
                             key={col}
                             className="px-3 py-2 align-middle text-center"
                             style={{
-                              width: mode === "date" ? "160px" : "180px",
-                              minWidth: mode === "date" ? "160px" : "180px",
-                              maxWidth: mode === "date" ? "160px" : "180px",
+                              width: "180px",
+                              minWidth: "180px",
+                              maxWidth: "180px",
                             }}
                           >
-                            <span className="text-gray-300 dark:text-gray-600 font-light text-xs">+</span>
+                            <div
+                              className="w-full flex items-center justify-center min-h-[36px]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openApplyStatusModal(col);
+                              }}
+                            >
+                              <div className="w-full max-w-[125px] h-8 flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400">
+                                <i className="fas fa-plus text-[10px]" />
+                              </div>
+                            </div>
                           </td>
                         );
                       }
@@ -2920,9 +2973,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                       }}
                                       className={`w-full max-w-[140px] text-center px-2 py-1 rounded-[6px] text-xs font-semibold truncate overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-105 ${itemStyle.className}`}
                                       style={{
-                                        backgroundColor: itemStyle.backgroundColor || "#f1f5f9",
+                                        backgroundColor: itemStyle.backgroundColor || "transparent",
                                         color: itemStyle.color || "var(--text-default)",
                                         fontWeight: itemStyle.fontWeight || 600,
+                                        ...itemStyle.style,
                                       }}
                                     >
                                       {val}
@@ -2944,6 +2998,30 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               </div>
                             ) : (
                               (() => {
+                                if (isCmWoType) {
+                                  const statusInfo = getSingleCellStatusInfo(matched);
+
+                                  if (statusInfo && statusInfo.type !== "add_new") {
+                                    return (
+                                      <div
+                                        className="w-full flex items-center justify-center min-h-[36px]"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenDrawer(matched);
+                                        }}
+                                      >
+                                        <div
+                                          title={statusInfo.label}
+                                          className={`${statusInfo.className} transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]`}
+                                          style={statusInfo.style || {}}
+                                        >
+                                          {statusInfo.label}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                }
+
                                 const dates = matched
                                   .map((d) => getFormattedDateString(getColValue(d, "workedOn")))
                                   .filter(Boolean)
@@ -2979,8 +3057,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                       handleOpenDrawer(matched);
                                     }}
                                   >
-                                    <div title={cellLabel} className={className}>
-                                      {cellLabel}
+                                    <div title={cellLabel || "+"} className={className}>
+                                      {cellLabel || "+"}
                                     </div>
                                   </div>
                                 );

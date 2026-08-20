@@ -11,6 +11,7 @@ import SortableTh from "../components/SortableTh.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
+import { getPriorityLabel, getCategoryLabel } from "../utils/filterTranslationHelpers.js";
 
 // Reusable SearchableSelect Dropdown Component (single-select with search)
 function SearchableSelect({
@@ -953,32 +954,48 @@ export default function MPList({
   }, [woTypeOptions]);
 
   const priorityOptions = useMemo(() => {
-    const rawList = [
-      ...new Set((filterPayload?.priority ?? []).map((p) => p.priorityName).filter(Boolean)),
-    ];
-    if (rawList.length === 0) {
+    if (filterPayload && Array.isArray(filterPayload.priority)) {
+      const rawList = [
+        ...new Set(
+          filterPayload.priority
+            .map((p) => p.priorityName || p.priority_name || p.name || p.priority)
+            .filter(Boolean),
+        ),
+      ];
+      return rawList.map((p) => ({ label: getPriorityLabel(p, t), value: p }));
+    }
+    if (isStaticDataMode) {
       return [
-        { label: "중요", value: "중요" },
-        { label: "일반", value: "일반" },
+        { label: getPriorityLabel("필수", t), value: "필수" },
+        { label: getPriorityLabel("중요", t), value: "중요" },
+        { label: getPriorityLabel("일반", t), value: "일반" },
+        { label: getPriorityLabel("제외", t), value: "제외" },
       ];
     }
-    return rawList.map((p) => ({ label: p, value: p }));
-  }, [filterPayload]);
+    return [];
+  }, [filterPayload, t]);
 
   const categoryOptions = useMemo(() => {
-    const rawList = [
-      ...new Set((filterPayload?.category ?? []).map((c) => c.categoryName).filter(Boolean)),
-    ];
-    if (rawList.length === 0) {
+    if (filterPayload && Array.isArray(filterPayload.category)) {
+      const rawList = [
+        ...new Set(
+          filterPayload.category
+            .map((c) => c.categoryName || c.category_name || c.name || c.category)
+            .filter(Boolean),
+        ),
+      ];
+      return rawList.map((c) => ({ label: getCategoryLabel(c, t), value: c }));
+    }
+    if (isStaticDataMode) {
       return [
-        { label: "생산성", value: "생산성" },
-        { label: "품질", value: "품질" },
-        { label: "보전성", value: "보전성" },
-        { label: "기타", value: "기타" },
+        { label: getCategoryLabel("보전성", t), value: "보전성" },
+        { label: getCategoryLabel("품질", t), value: "품질" },
+        { label: getCategoryLabel("생산성", t), value: "생산성" },
+        { label: getCategoryLabel("기타", t), value: "기타" },
       ];
     }
-    return rawList.map((c) => ({ label: c, value: c }));
-  }, [filterPayload]);
+    return [];
+  }, [filterPayload, t]);
 
   const categoryList = useMemo(() => {
     return (filterPayload?.category || []).length > 0
@@ -1184,12 +1201,31 @@ export default function MPList({
       return;
     }
 
-    const sanitizeArrayOfNums = (arr) => {
+    const sanitizePrioritiesToIds = (arr) => {
       if (!Array.isArray(arr) || arr.length === 0) return [0];
       const res = arr
         .map((item) => {
-          const num = Number(item);
-          return isNaN(num) ? 0 : num;
+          if (typeof item === "number") return item;
+          if (!isNaN(Number(item)) && String(item).trim() !== "") return Number(item);
+          const match = (filterPayload?.priority || []).find(
+            (p) => (p.priorityName || p.priority_name || p.name || p.priority) === item,
+          );
+          return match && match.id !== undefined && match.id !== null ? Number(match.id) : 0;
+        })
+        .filter((val) => !isNaN(val));
+      return res.length > 0 ? res : [0];
+    };
+
+    const sanitizeCategoriesToIds = (arr) => {
+      if (!Array.isArray(arr) || arr.length === 0) return [0];
+      const res = arr
+        .map((item) => {
+          if (typeof item === "number") return item;
+          if (!isNaN(Number(item)) && String(item).trim() !== "") return Number(item);
+          const match = (filterPayload?.category || []).find(
+            (c) => (c.categoryName || c.category_name || c.name || c.category) === item,
+          );
+          return match && match.id !== undefined && match.id !== null ? Number(match.id) : 0;
         })
         .filter((val) => !isNaN(val));
       return res.length > 0 ? res : [0];
@@ -1224,8 +1260,8 @@ export default function MPList({
           : 0,
       siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
       workOrderId: workOrderIdVal,
-      priority: sanitizeArrayOfNums(selectedPriorities),
-      effectType: sanitizeArrayOfNums(selectedCategories),
+      priority: sanitizePrioritiesToIds(selectedPriorities),
+      effectType: sanitizeCategoriesToIds(selectedCategories),
       fromDate: dateFrom ? dateFrom : null,
       toDate: dateTo ? dateTo : null,
     };
