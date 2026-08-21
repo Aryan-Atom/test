@@ -80,7 +80,7 @@ const CHANGE_DETAIL_FIELDS = [
   { labelKey: "field.equipmentName", keys: ["equipment_name", "equipmentName"] },
   {
     labelKey: "field.maintenance",
-    keys: ["maintGroup", "maint_group", "maintenanceType", "equipmentType", "equipment_type_name", "equipmentTypeName", "equipment", "bojeon_part"],
+    keys: ["maintGroup", "maint_group", "maintenanceType", "equipmentType", "equipment_type_name", "equipmentTypeName", "maintenance_group_name", "equipment", "bojeon_part"],
   },
   { labelKey: "field.improvement", keys: ["work", "improvement", "work_description"] },
   { labelKey: "field.workPurpose", keys: ["purpose", "workPurpose", "work_purpose"] },
@@ -321,6 +321,7 @@ export default function Drawer({
   const woCode = firstValue(firstItem, [
     "wOCode",
     "woCode",
+    "wo_code",
     "workOrderTypeName",
     "work_order_type_name",
   ]);
@@ -338,19 +339,52 @@ export default function Drawer({
     if (rec.attachments && Array.isArray(rec.attachments) && rec.attachments.length > 0) {
       return rec.attachments;
     }
-    if (rec.imageData || rec.imageUrl || rec.imageName) {
-      const src = rec.imageData
-        ? rec.imageData.startsWith("data:")
-          ? rec.imageData
-          : `data:image/jpeg;base64,${rec.imageData}`
+    if (rec.images && Array.isArray(rec.images) && rec.images.length > 0) {
+      return rec.images.map((img, i) => {
+        const rawData = img.image_data || img.imageData || img.fileContent || img.file_content || "";
+        const src = rawData
+          ? rawData.startsWith("data:")
+            ? rawData
+            : `data:image/png;base64,${rawData}`
+          : img.url || img.imageUrl || "";
+        return {
+          id: img.id || `img-${idx}-${i}`,
+          name: img.image_name || img.imageName || img.filename || img.name || `image_${i + 1}.png`,
+          url: src,
+          category: img.category_name || img.categoryName || img.category || "기타",
+        };
+      });
+    }
+    if (rec.photos && Array.isArray(rec.photos) && rec.photos.length > 0) {
+      return rec.photos.map((img, i) => {
+        const rawData = img.fileContent || img.image_data || img.imageData || img.previewUrl || "";
+        const src = rawData
+          ? rawData.startsWith("data:")
+            ? rawData
+            : `data:image/png;base64,${rawData}`
+          : img.url || img.imageUrl || "";
+        return {
+          id: img.id || `photo-${idx}-${i}`,
+          name: img.filename || img.image_name || img.name || `photo_${i + 1}.png`,
+          url: src,
+          category: img.category || img.category_name || "기타",
+        };
+      });
+    }
+    if (rec.imageData || rec.imageUrl || rec.imageName || rec.image_data) {
+      const rawData = rec.imageData || rec.image_data || "";
+      const src = rawData
+        ? rawData.startsWith("data:")
+          ? rawData
+          : `data:image/png;base64,${rawData}`
         : rec.imageUrl;
       if (src) {
         return [
           {
             id: rec.imageId || `att-${idx}`,
-            name: rec.imageName || "attachment.jpg",
+            name: rec.imageName || rec.image_name || "attachment.jpg",
             url: src,
-            category: rec.imageCategoryName || "기타",
+            category: rec.imageCategoryName || rec.category_name || "기타",
           },
         ];
       }
@@ -748,20 +782,26 @@ export default function Drawer({
                   {isChangeHistoryView ? (
                     <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between gap-2 flex-wrap">
                       {atts && atts.length > 0 ? (
-                        <div className="flex items-center gap-2">
-                          <i className="fas fa-camera text-gray-400 text-xs" />
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <i className="fas fa-camera text-gray-400 text-xs shrink-0" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 shrink-0">
                             첨부사진 ({atts.length}개)
                           </span>
-                          <div
-                            className="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 ml-1"
-                            onClick={() => setPreviewImage(atts[0])}
-                          >
-                            <img
-                              src={atts[0].url}
-                              alt="Attachment Preview"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
+                          <div className="flex items-center gap-1.5 flex-wrap ml-1">
+                            {atts.map((att, aIdx) => (
+                              <div
+                                key={att.id || aIdx}
+                                className="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 relative"
+                                onClick={() => setPreviewImage(att)}
+                                title={`${att.name || "사진"}${att.category ? ` (${att.category})` : ""}`}
+                              >
+                                <img
+                                  src={att.url}
+                                  alt={att.name || "Attachment Preview"}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ) : (
@@ -792,24 +832,30 @@ export default function Drawer({
                     showAttachments && (
                       <div className="pt-2 flex items-center justify-between">
                         {atts && atts.length > 0 ? (
-                          <>
+                          <div className="flex items-center gap-2 flex-wrap w-full justify-between">
                             <div className="flex items-center gap-2">
                               <i className="fas fa-camera text-gray-400 text-xs" />
                               <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 첨부사진 ({atts.length}개)
                               </span>
                             </div>
-                            <div
-                              className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0"
-                              onClick={() => setPreviewImage(atts[0])}
-                            >
-                              <img
-                                src={atts[0].url}
-                                alt="Attachment Preview"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {atts.map((att, aIdx) => (
+                                <div
+                                  key={att.id || aIdx}
+                                  className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 relative"
+                                  onClick={() => setPreviewImage(att)}
+                                  title={`${att.name || "사진"}${att.category ? ` (${att.category})` : ""}`}
+                                >
+                                  <img
+                                    src={att.url}
+                                    alt={att.name || "Attachment Preview"}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                </div>
+                              ))}
                             </div>
-                          </>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
                             <i className="far fa-image text-gray-400 text-xs" />

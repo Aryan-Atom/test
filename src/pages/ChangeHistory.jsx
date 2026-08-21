@@ -209,7 +209,7 @@ function parseTotalCountFromResponse(responseData, payload, rowsLength, currentP
 function parseMatrixDetailResponse(responseData) {
   const payload = responseData?.data ?? responseData;
   if (!payload || typeof payload !== "object") return null;
-  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (Array.isArray(payload)) return payload;
   if (payload.matrixData && typeof payload.matrixData === "object") {
     return payload.matrixData;
   }
@@ -223,6 +223,7 @@ function parseMatrixDetailResponse(responseData) {
 const matrixResponseToRowMap = {
   change_history_id: "id",
   report_content: "report",
+  representative_work_name: "representativeWork",
   work_name: "representativeWork",
   purpose: "purpose",
   situation: "situation",
@@ -1997,6 +1998,11 @@ function RowEditModal({
     if (!file) return;
     setUploadError("");
 
+    if (file.type && !file.type.startsWith("image/")) {
+      setUploadError("Please select a valid image file (JPG, PNG, WEBP, GIF, etc.).");
+      return;
+    }
+
     // Max 5MB Validation
     if (file.size > 5 * 1024 * 1024) {
       setUploadError("Image size exceeds maximum limit of 5MB.");
@@ -2005,9 +2011,12 @@ function RowEditModal({
 
     const reader = new FileReader();
     reader.onload = (e) => {
+      const base64String = e.target.result || "";
       setPendingPhoto({
         file,
-        previewUrl: e.target.result,
+        previewUrl: base64String,
+        fileContent: base64String,
+        filename: file.name,
         name: file.name,
       });
       setShowCategoryModal(true);
@@ -2019,9 +2028,12 @@ function RowEditModal({
     if (!pendingPhoto) return;
     const newPhoto = {
       id: Date.now() + Math.random(),
+      filename: pendingPhoto.filename || pendingPhoto.name,
+      fileContent: pendingPhoto.fileContent || pendingPhoto.previewUrl || "",
       previewUrl: pendingPhoto.previewUrl,
       name: pendingPhoto.name,
       category: cat,
+      caption: pendingPhoto.filename || pendingPhoto.name,
       badge: "Additional Standby",
     };
     setDraft((prev) => ({
@@ -3565,6 +3577,8 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               ? Number(selectedMaintenanceId)
               : 78;
 
+      const woCodeVal = mergedRow.woCode || mergedRow.wOCode || mergedRow.wo_code || "";
+
       const vocItem = {
         id: Number(mergedRow.id) || 0,
         repWorkId: Number(mergedRow.repWorkId ?? mergedRow.rep_work_id ?? 0) || 0,
@@ -3588,7 +3602,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         sparePart: mergedRow.sparePart || mergedRow.spare_part || mergedRow.materialList || "",
         equipmentCode: mergedRow.equipmentCode || mergedRow.equipment_code || "-",
         equipmentName: mergedRow.equipmentName || mergedRow.equipment_name || " Common",
-        woCode: mergedRow.woCode || mergedRow.wOCode || mergedRow.wo_code || "",
+        woCode: woCodeVal,
+        wOCode: woCodeVal,
+        wo_code: woCodeVal,
         workDate: formatValidDateIso(
           mergedRow.workedOn || mergedRow.workDate || mergedRow.work_date,
         ),
@@ -3654,6 +3670,31 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
 
         if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+          const photosList = mergedRow.photos || draft?.photos || [];
+          if (pocEndPoints?.SAVE_IMAGE && photosList.length > 0) {
+            const historyIdVal = Number(
+              responseData?.data?.[0]?.id || responseData?.id || mergedRow.id || 0,
+            );
+            const saveImagePayload = {
+              historyId: historyIdVal,
+              images: photosList.map((photo, idx) => ({
+                filename: photo.filename || photo.name || `image_${idx + 1}.png`,
+                fileContent: photo.fileContent || photo.previewUrl || "",
+                category: photo.category || "Others",
+                caption: photo.caption || photo.filename || photo.name || "",
+                sortOrder: idx,
+              })),
+            };
+
+            APIcallPost(pocEndPoints.SAVE_IMAGE, saveImagePayload, {}, (imgRes, imgStatus) => {
+              if (imgStatus >= 200 && imgStatus < 300) {
+                console.log("[ChangeHistory] SaveImage API success:", imgRes);
+              } else {
+                console.error("[ChangeHistory] SaveImage API failed:", imgStatus, imgRes);
+              }
+            });
+          }
+
           setEditingIndex(null);
           setOperationStatus({
             isVisible: true,

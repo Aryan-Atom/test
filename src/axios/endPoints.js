@@ -28,6 +28,7 @@ const pocEndPoints = {
   GET_EQUIPMENT_STATUS: "api/MatrixInquiry/GetequipmentStatus",
   GET_EQUIPMENT_STATUS_COUNT: "api/MatrixInquiry/GetequipmentStatusCount",
   SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
+  SAVE_IMAGE: "api/MatrixInquiry/SaveImage",
 };
 
 const auth = {

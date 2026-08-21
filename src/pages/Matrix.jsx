@@ -3,7 +3,13 @@ import { APIcallGet, APIcallPost } from "../axios/apiCall";
 import { pocEndPoints } from "../axios/endPoints";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
-import { X_AXIS_MODE, getCellStyle, getDateModeItemStyle, normalizePriority, getPriorityRank } from "../utils/matrixCellStyle.js";
+import {
+  X_AXIS_MODE,
+  getCellStyle,
+  getDateModeItemStyle,
+  normalizePriority,
+  getPriorityRank,
+} from "../utils/matrixCellStyle.js";
 import { getPriorityLabel, getCategoryLabel } from "../utils/filterTranslationHelpers.js";
 import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
 import { useToast } from "../components/ToastContext.jsx";
@@ -428,8 +434,14 @@ function getColValue(row, col) {
       ""
     );
   }
+  if (col === "report") {
+    return row.report_content ?? row.report ?? row["보고서"] ?? "";
+  }
+  if (col === "change_history_id") {
+    return row.change_history_id ?? row.change_history_id ?? row["change_history_id"] ?? "";
+  }
   if (col === "work") {
-    return row.work ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+    return row.work ?? row.work_name ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
   }
   if (col === "situation") {
     return row.situation ?? row["문제 현상"] ?? "";
@@ -441,19 +453,19 @@ function getColValue(row, col) {
     return row.bom ?? row["BOM"] ?? "";
   }
   if (col === "sparePart") {
-    return row.sparePart ?? row["자재명"] ?? "";
+    return row.spare_part ?? row.sparePart ?? row["자재명"] ?? "";
   }
   if (col === "hwAsWas") {
-    return row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
+    return row.hw_was ?? row.hwAsWas ?? row.hwBefore ?? row["HW 변경 전"] ?? "";
   }
   if (col === "hwAsIs") {
-    return row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
+    return row.hw_is ?? row.hwAsIs ?? row.hwAfter ?? row["HW 변경 후"] ?? "";
   }
   if (col === "swAsWas") {
-    return row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
+    return row.sw_was ?? row.swAsWas ?? row.swBefore ?? row["SW 변경 전"] ?? "";
   }
   if (col === "swAsIs") {
-    return row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
+    return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? "";
   }
   if (col === "priority") {
     return row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"] ?? "";
@@ -485,7 +497,7 @@ function getColValue(row, col) {
     );
   }
   if (col === "wOCode") {
-    return row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
+    return row.wo_code ?? row.wOCode ?? row.woCode ?? row["W/O코드"] ?? "";
   }
   if (col === "workedOn") {
     return (
@@ -523,9 +535,16 @@ function getColValue(row, col) {
   if (col === "versionId") {
     return row.version_id ?? row.versionId ?? row.version_tag ?? 0;
   }
+  if (col === "createdBy") {
+    return row.created_by ?? row.createdBy ?? row["작성자"] ?? "";
+  }
+  if (col === "updatedBy") {
+    return row.updated_by ?? row.updatedBy ?? row["수정자"] ?? "";
+  }
   return row[col] ?? "";
 }
 
+// ── Matrix detail API helpers ──────────────────────────────────────────
 // ── Matrix detail API helpers ──────────────────────────────────────────
 const matrixDetailMap = {
   change_history_id: "id",
@@ -534,6 +553,7 @@ const matrixDetailMap = {
   equipment_code: "equipmentCode",
   equipment_name: "equipmentName",
   rep_work_id: "repWorkId",
+  representative_work_name: "representativeWork",
   work_name: "representativeWork",
   purpose: "purpose",
   situation: "situation",
@@ -553,6 +573,9 @@ const matrixDetailMap = {
   spare_part: "sparePart",
   wo_code: "wOCode",
   work: "work",
+  status: "status",
+  version_id: "versionId",
+  is_voc: "isVoc",
   created_by: "createdBy",
   updated_by: "modifiedBy",
   created_at: "createdAt",
@@ -569,7 +592,7 @@ const matrixDetailMap = {
 function parseMatrixDetailResponse(responseData) {
   const payload = responseData?.data ?? responseData;
   if (!payload || typeof payload !== "object") return null;
-  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (Array.isArray(payload)) return payload;
   if (payload.matrixData && typeof payload.matrixData === "object") {
     return payload.matrixData;
   }
@@ -581,10 +604,10 @@ function parseMatrixDetailResponse(responseData) {
 
 function mapMatrixDetailToRow(detail) {
   if (!detail || typeof detail !== "object") return {};
-  const mapped = {};
+  const mapped = { ...detail };
   for (const [key, value] of Object.entries(detail)) {
-    const mappedKey = matrixDetailMap[key] ?? key;
-    if (value !== null && value !== undefined) {
+    const mappedKey = matrixDetailMap[key];
+    if (mappedKey && value !== null && value !== undefined) {
       mapped[mappedKey] = value;
     }
   }
@@ -609,14 +632,11 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
   // ── Drawer: fetch full detail from GetMatrixData API ──────────────────
   const handleOpenDrawer = useCallback((item) => {
-    // If array, pass directly (Drawer handles arrays)
-    if (Array.isArray(item)) {
-      setDrawerItem(item);
-      return;
-    }
-    // Single item — extract change_history_id
+    setDrawerItem(item);
+
+    const firstObj = Array.isArray(item) ? item[0] : item;
     const rowId = Number(
-      firstValue(item, [
+      firstValue(firstObj, [
         "change_history_id",
         "changeHistoryId",
         "id",
@@ -624,19 +644,23 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         "repWorkId",
       ]) || 0,
     );
+
     if (!rowId || rowId <= 0 || isStaticDataMode) {
-      setDrawerItem(item);
       return;
     }
-    // Show immediately with basic data, then fetch full detail
-    setDrawerItem(item);
+
     APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
       if (status === 200 && responseData) {
         const detail = parseMatrixDetailResponse(responseData);
         if (detail) {
-          const mapped = mapMatrixDetailToRow(detail);
-          const merged = { ...item, ...mapped };
-          setDrawerItem(merged);
+          if (Array.isArray(detail)) {
+            const mappedList = detail.map((d) => mapMatrixDetailToRow(d));
+            setDrawerItem(mappedList);
+          } else {
+            const mapped = mapMatrixDetailToRow(detail);
+            const merged = { ...firstObj, ...mapped };
+            setDrawerItem(merged);
+          }
         }
       }
     });
@@ -937,6 +961,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   // Lateral Deployment Modal State (횡전개 관리 모달)
   const [showApplyStatusModal, setShowApplyStatusModal] = useState(false);
   const [asRepWork, setAsRepWork] = useState("");
+  const [rowDetails, setRowDetails] = useState("");
   const [asRepoWorkId, setAsRepoWorkId] = useState(0);
   const [apiEquipmentList, setApiEquipmentList] = useState([]);
   const [asActiveTab, setAsActiveTab] = useState("unconfirmed");
@@ -955,7 +980,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     hasFetched: false,
   });
   const openApplyStatusModal = useCallback(
-    (repWork) => {
+    (repWork, rowDetail) => {
+      debugger;
       const repWorkName =
         typeof repWork === "object"
           ? repWork.representativeWork || repWork.workName || ""
@@ -972,7 +998,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           repWorkId = match.rep_work_id ?? match.repWorkId ?? match.representativeWorkId ?? 0;
         }
       }
-
+      setRowDetails(rowDetail);
       setAsRepWork(repWorkName || repWork);
       setAsRepoWorkId(repWorkId);
       setAsActiveTab("unconfirmed");
@@ -1072,6 +1098,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     };
 
     const handleDirectToApplied = (e) => {
+      debugger;
       if (e.detail && e.detail.item) {
         const targetRec = e.detail.item;
         const itemCode = getColValue(targetRec, "equipmentCode");
@@ -1114,6 +1141,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               equipment_Id: equipmentId,
               status: 0,
               reason: "",
+              change_History_Id: Number(
+                firstValue(targetRec, ["change_history_id", "changeHistoryId", "id"]) || 0,
+              ),
             },
           ],
         };
@@ -1768,10 +1798,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       const site = getColValue(item, "site") || getColValue(item, "법인") || "A1. Seoul";
       const scode = getColValue(item, "equipmentCode");
       const sname = getColValue(item, "equipmentName");
-      const verId = Number(getColValue(item, "versionId") || item.version_id || item.versionId || 0);
+      const change_history_id = getColValue(item, "change_history_id");
+      const verId = Number(
+        getColValue(item, "versionId") || item.version_id || item.versionId || 0,
+      );
       const k = site + "|" + scode + "|" + sname;
       if (!eqMap.has(k)) {
-        eqMap.set(k, { site, equipmentCode: scode, equipmentName: sname, versionId: verId });
+        eqMap.set(k, {
+          site,
+          equipmentCode: scode,
+          equipmentName: sname,
+          versionId: verId,
+          change_history_id,
+        });
       } else {
         const existing = eqMap.get(k);
         if ((!existing.versionId || existing.versionId === 0) && verId > 0) {
@@ -1945,7 +1984,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       // 1. 필수 (Required): background: var(--primary-soft), color: var(--primary), font-weight: 700, font-size: .6875rem
       if (highestPriorityNorm === "필수") {
         const woRecord = matchedRecords.find((item) => {
-          const s = String(item.status ?? item.apply_status ?? "").toLowerCase().trim();
+          const s = String(item.status ?? item.apply_status ?? "")
+            .toLowerCase()
+            .trim();
           return s === "w/o applied" || s === "wo_applied" || s.includes("w/o");
         });
         const dateStr = woRecord ? getFormattedDateString(getColValue(woRecord, "workedOn")) : "";
@@ -1967,7 +2008,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       // 2. 중요 (Important): color: var(--primary), font-size: .6875rem
       if (highestPriorityNorm === "중요") {
         const woRecord = matchedRecords.find((item) => {
-          const s = String(item.status ?? item.apply_status ?? "").toLowerCase().trim();
+          const s = String(item.status ?? item.apply_status ?? "")
+            .toLowerCase()
+            .trim();
           return s === "w/o applied" || s === "wo_applied" || s.includes("w/o");
         });
         const dateStr = woRecord ? getFormattedDateString(getColValue(woRecord, "workedOn")) : "";
@@ -1988,9 +2031,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       // 3. 제외 (Excluded): color: var(--text-muted), font-size: .6875rem (when all matched records are excluded)
       if (
         highestPriorityNorm === "제외" &&
-        matchedRecords.every(
-          (r) => normalizePriority(getColValue(r, "priority")) === "제외",
-        )
+        matchedRecords.every((r) => normalizePriority(getColValue(r, "priority")) === "제외")
       ) {
         return {
           type: "priority_excluded",
@@ -2314,29 +2355,102 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       return;
     }
 
-    const dataPayload = Object.entries(asStaging).map(([eqCode, statusStr]) => {
-      const apiItem = (apiEquipmentList || []).find(
-        (e) => (e.equipment_code || e.equipmentCode) === eqCode,
-      );
-      const fallbackItem = equipmentRows.find((e) => e.equipmentCode === eqCode);
-      const eqId = Number(
-        apiItem?.equipment_id ||
-          apiItem?.equipmentId ||
-          fallbackItem?.id ||
-          fallbackItem?.equipmentId ||
-          0,
-      );
+    const dataPayload = Object.entries(asStaging)
+      .map(([eqCode, statusStr]) => {
+        const apiItem = (apiEquipmentList || []).find(
+          (e) => (e.equipment_code || e.equipmentCode) === eqCode,
+        );
+        const fallbackItem = equipmentRows.find((e) => e.equipmentCode === eqCode);
+        const matchedRecord = (allRecords || []).find(
+          (r) =>
+            (getColValue(r, "equipmentCode") === eqCode ||
+              getColValue(r, "equipmentName") ===
+                (apiItem?.equipment_name || fallbackItem?.equipmentName)) &&
+            getColValue(r, "representativeWork") === asRepWork,
+        );
 
-      const isApplied = statusStr === "applied";
-      const reasonVal = isApplied ? "" : asStagingReasons[eqCode] || rejectReasonText || "test";
+        const eqId = Number(
+          apiItem?.equipment_id ||
+            apiItem?.equipmentId ||
+            matchedRecord?.equipment_id ||
+            matchedRecord?.equipmentId ||
+            fallbackItem?.id ||
+            fallbackItem?.equipmentId ||
+            0,
+        );
 
-      return {
-        repo_Work_Id: asRepoWorkId || 1483,
-        equipment_Id: eqId,
-        status: isApplied ? 0 : 1,
-        reason: reasonVal,
-      };
-    });
+        // Determine original status to check if item was actually changed by the user
+        const origRawStatus = String(
+          apiItem?.status ??
+            apiItem?.apply_status ??
+            matchedRecord?.status ??
+            matchedRecord?.apply_status ??
+            "",
+        )
+          .toLowerCase()
+          .trim();
+
+        let origEffectiveStatus = "unconfirmed";
+        if (
+          origRawStatus === "w/o applied" ||
+          origRawStatus === "wo_applied" ||
+          origRawStatus === "wo applied"
+        ) {
+          origEffectiveStatus = "wo_applied";
+        } else if (origRawStatus === "applied" || origRawStatus === "0") {
+          origEffectiveStatus = "applied";
+        } else if (
+          origRawStatus === "not_applied" ||
+          origRawStatus === "not applied" ||
+          origRawStatus === "rejected" ||
+          origRawStatus === "1" ||
+          origRawStatus === "2"
+        ) {
+          origEffectiveStatus = "rejected";
+        }
+
+        // If status was not modified by the user from its original status, omit from save payload
+        if (statusStr === origEffectiveStatus) {
+          return null;
+        }
+
+        const isApplied = statusStr === "applied";
+        const reasonVal = isApplied ? "" : asStagingReasons[eqCode] || rejectReasonText || "";
+
+        const changeHistoryId = Number(
+          apiItem?.change_history_id ||
+            apiItem?.changeHistoryId ||
+            apiItem?.change_History_Id ||
+            matchedRecord?.change_history_id ||
+            matchedRecord?.changeHistoryId ||
+            matchedRecord?.id ||
+            fallbackItem?.change_history_id ||
+            fallbackItem?.changeHistoryId ||
+            fallbackItem?.id ||
+            0,
+        );
+
+        return {
+          repo_Work_Id:
+            asRepoWorkId ||
+            (matchedRecord
+              ? Number(matchedRecord.rep_work_id || matchedRecord.repWorkId || 0)
+              : 1483),
+          equipment_Id: eqId,
+          status: isApplied ? 0 : 1,
+          reason: reasonVal,
+          change_History_Id: changeHistoryId,
+        };
+      })
+      .filter(Boolean);
+
+    if (dataPayload.length === 0) {
+      pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
+      setShowApplyStatusModal(false);
+      setAsStaging({});
+      setAsSelectedEqCodes(new Set());
+      return;
+    }
 
     if (isStaticDataMode) {
       setAllRecords((prev) => {
@@ -2348,8 +2462,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
           const existingIdx = next.findIndex(
             (r) =>
-              (getColValue(r, "equipmentCode") === eqCode || getColValue(r, "equipmentName") === eqName) &&
-              getColValue(r, "representativeWork") === asRepWork
+              (getColValue(r, "equipmentCode") === eqCode ||
+                getColValue(r, "equipmentName") === eqName) &&
+              getColValue(r, "representativeWork") === asRepWork,
           );
 
           if (existingIdx >= 0) {
@@ -2765,7 +2880,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         <th
                           key={col}
                           className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
-                          style={{ width: "160px", minWidth: "160px", maxWidth: "160px", position: "sticky", top: 0 }}
+                          style={{
+                            width: "160px",
+                            minWidth: "160px",
+                            maxWidth: "160px",
+                            position: "sticky",
+                            top: 0,
+                          }}
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{col}</span>
@@ -2880,7 +3001,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               className="w-full flex items-center justify-center min-h-[36px]"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openApplyStatusModal(col);
+                                openApplyStatusModal(col, eq);
                               }}
                             >
                               <div className="w-full max-w-[125px] h-8 flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400">
@@ -3032,7 +3153,9 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                   "";
                                 const totalCount = matched.length;
                                 const cellLabel =
-                                  totalCount > 1 ? `${latestDate} +${totalCount - 1}건` : latestDate;
+                                  totalCount > 1
+                                    ? `${latestDate} +${totalCount - 1}건`
+                                    : latestDate;
 
                                 const hasImportantPriority = matched.some((d) => {
                                   const pri = getColValue(d, "priority");
@@ -3719,6 +3842,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         equipment_Id: equipmentId,
                         status: 1,
                         reason: rejectReasonText.trim(),
+                        change_History_Id: Number(
+                          firstValue(targetRec, ["change_history_id", "changeHistoryId", "id"]) ||
+                            0,
+                        ),
                       },
                     ],
                   };
