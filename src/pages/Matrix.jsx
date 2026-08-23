@@ -553,7 +553,6 @@ const matrixDetailMap = {
   equipment_code: "equipmentCode",
   equipment_name: "equipmentName",
   rep_work_id: "repWorkId",
-  change_history_id: "changeHistoryId",
   representative_work_name: "representativeWork",
   work_name: "representativeWork",
   purpose: "purpose",
@@ -2436,18 +2435,24 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           origEffectiveStatus = "rejected";
         }
 
-        // If status was not modified by the user from its original status, omit from save payload
-        if (statusStr === origEffectiveStatus) {
+        // If status was not modified by the user and no reason was provided, omit from save payload
+        if (
+          statusStr === origEffectiveStatus &&
+          !asStagingReasons[eqCode] &&
+          !rejectReasonText
+        ) {
           return null;
         }
 
         const isApplied = statusStr === "applied";
-        const reasonVal = isApplied ? "" : asStagingReasons[eqCode] || rejectReasonText || "";
+        const reasonVal = isApplied
+          ? ""
+          : asStagingReasons[eqCode] || rejectReasonText || "";
 
         const changeHistoryId = Number(
           apiItem?.change_history_id ||
             fallbackItem?.change_history_id ||
-            fallbackItem?.change_history_id,
+            0,
         );
 
         return {
@@ -2455,7 +2460,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             asRepoWorkId ||
             (matchedRecord
               ? Number(matchedRecord.rep_work_id || matchedRecord.repWorkId || 0)
-              : 1483),
+              : 1764),
           equipment_Id: eqId,
           status: isApplied ? 0 : 1,
           reason: reasonVal,
@@ -2468,6 +2473,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
       setShowApplyStatusModal(false);
       setAsStaging({});
+      setAsStagingReasons({});
+      setRejectReasonText("");
       setAsSelectedEqCodes(new Set());
       return;
     }
@@ -3819,6 +3826,25 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                     return;
                   }
 
+                  const reasonVal = rejectReasonText.trim();
+
+                  setAsStaging((prev) => {
+                    const next = { ...prev };
+                    asSelectedEqCodes.forEach((code) => {
+                      next[code] = "rejected";
+                    });
+                    return next;
+                  });
+
+                  setAsStagingReasons((prev) => {
+                    const next = { ...prev };
+                    asSelectedEqCodes.forEach((code) => {
+                      next[code] = reasonVal;
+                    });
+                    return next;
+                  });
+
+                  setAsSelectedEqCodes(new Set());
                   setShowReasonModal(false);
                 }}
                 className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
