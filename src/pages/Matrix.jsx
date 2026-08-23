@@ -49,13 +49,13 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
             >
               {t("field.equipmentName", "EQUIPMENT NAME")}
             </th>
-            {displayCols.map((col) => (
+            {displayCols.map((col, cIdx) => (
               <th
-                key={col}
+                key={col.repWorkId || col || cIdx}
                 className="sticky top-0 z-25 bg-surface-strong px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group"
                 style={{ width: "160px", position: "sticky", top: 0 }}
               >
-                {col}
+                {col.repWorkName || col}
               </th>
             ))}
           </tr>
@@ -87,7 +87,7 @@ function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
                   <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
                 </td>
                 {displayCols.map((col, cIdx) => (
-                  <td key={col} className="px-4 py-3">
+                  <td key={col.repWorkId || col || cIdx} className="px-4 py-3">
                     <div className="h-4 bg-gray-100 rounded animate-pulse w-16 mx-auto" />
                   </td>
                 ))}
@@ -553,6 +553,7 @@ const matrixDetailMap = {
   equipment_code: "equipmentCode",
   equipment_name: "equipmentName",
   rep_work_id: "repWorkId",
+  change_history_id: "changeHistoryId",
   representative_work_name: "representativeWork",
   work_name: "representativeWork",
   purpose: "purpose",
@@ -1054,6 +1055,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             : pocEndPoints.GET_EQUIPMENT_STATUS;
 
         APIcallGet(listUrl, {}, (responseData, status) => {
+          debugger;
           if (status === 200 && responseData) {
             const list = Array.isArray(responseData)
               ? responseData
@@ -1134,6 +1136,26 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         }
         if (!equipmentId) equipmentId = 1;
 
+        // Fallback: look up change_history_id from allRecords by matching equipmentCode
+        const recEqCode = getColValue(targetRec, "equipmentCode");
+        const recEqName = getColValue(targetRec, "equipmentName");
+        const matchedRec = (allRecords || []).find(
+          (r) =>
+            getColValue(r, "equipmentCode") === recEqCode ||
+            getColValue(r, "equipmentName") === recEqName,
+        );
+        const changeHistoryIdVal = Number(
+          firstValue(targetRec, ["change_history_id", "changeHistoryId", "change_History_Id"]) ||
+            (matchedRec
+              ? firstValue(matchedRec, [
+                  "change_history_id",
+                  "changeHistoryId",
+                  "change_History_Id",
+                ])
+              : "") ||
+            0,
+        );
+
         const payload = {
           data: [
             {
@@ -1141,9 +1163,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               equipment_Id: equipmentId,
               status: 0,
               reason: "",
-              change_History_Id: Number(
-                firstValue(targetRec, ["change_history_id", "changeHistoryId", "id"]) || 0,
-              ),
+              change_History_Id: changeHistoryIdVal,
             },
           ],
         };
@@ -1792,37 +1812,32 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   const { columns, equipmentRows } = useMemo(() => {
     if (filtered.length === 0) return { columns: [], equipmentRows: [] };
 
-    // Unique equipment mapping
-    const eqMap = new Map();
+    // Group rows by change_history_id (display equipment info from first record)
+    const histMap = new Map();
     filtered.forEach((item) => {
-      const site = getColValue(item, "site") || getColValue(item, "법인") || "A1. Seoul";
-      const scode = getColValue(item, "equipmentCode");
-      const sname = getColValue(item, "equipmentName");
-      const change_history_id = getColValue(item, "change_history_id");
-      const verId = Number(
-        getColValue(item, "versionId") || item.version_id || item.versionId || 0,
-      );
-      const k = site + "|" + scode + "|" + sname;
-      if (!eqMap.has(k)) {
-        eqMap.set(k, {
-          site,
-          equipmentCode: scode,
-          equipmentName: sname,
-          versionId: verId,
-          change_history_id,
+      const chId = getColValue(item, "change_history_id");
+      const chIdStr = String(chId ?? "");
+      if (chIdStr === "" || chIdStr === "0") return;
+      if (!histMap.has(chIdStr)) {
+        histMap.set(chIdStr, {
+          changeHistoryId: chId,
+          site: getColValue(item, "site") || getColValue(item, "site_name") || "",
+          equipmentCode: getColValue(item, "equipmentCode") || "",
+          equipmentName: getColValue(item, "equipmentName") || "",
+          versionId: Number(getColValue(item, "versionId") || item.version_id || 0),
         });
       } else {
-        const existing = eqMap.get(k);
-        if ((!existing.versionId || existing.versionId === 0) && verId > 0) {
-          existing.versionId = verId;
+        const existing = histMap.get(chIdStr);
+        if ((!existing.versionId || existing.versionId === 0) && (item.version_id || 0) > 0) {
+          existing.versionId = item.version_id;
         }
       }
     });
-    const equipmentRows = [...eqMap.values()].sort((a, b) =>
-      a.equipmentName.localeCompare(b.equipmentName),
+    const equipmentRows = [...histMap.values()].sort((a, b) =>
+      String(a.changeHistoryId).localeCompare(String(b.changeHistoryId)),
     );
 
-    // Columns (X axis values)
+    // Columns (X axis = rep_work_id for matching, display = representativeWork name)
     let columns = [];
     if (mode === "date") {
       columns = [
@@ -1831,20 +1846,29 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         ),
       ].sort();
     } else {
-      // Sort representative tasks by latest date in descending order
-      const repLatest = {};
+      // Build columns keyed by rep_work_id, carrying repWorkName for display
+      const repMap = {}; // repWorkId -> { repWorkName, latestDate }
       filtered.forEach((item) => {
-        const rep = getColValue(item, "representativeWork");
+        const repId = getColValue(item, "repWorkId") || item.rep_work_id || "";
+        const repIdStr = String(repId ?? "");
+        if (!repIdStr || repIdStr === "0") return;
+        const repName =
+          getColValue(item, "representativeWork") ||
+          item.representative_work_name ||
+          item.work_name ||
+          "";
         const dt = getFormattedDateString(getColValue(item, "workedOn"));
-        if (rep && dt) {
-          if (!repLatest[rep] || dt > repLatest[rep]) {
-            repLatest[rep] = dt;
-          }
+        if (!repMap[repIdStr] || (dt && dt > repMap[repIdStr].latestDate)) {
+          repMap[repIdStr] = {
+            repWorkId: repIdStr,
+            repWorkName: repName || repIdStr,
+            latestDate: dt || "",
+          };
         }
       });
-      columns = Object.entries(repLatest)
-        .sort((a, b) => b[1].localeCompare(a[1]))
-        .map((e) => e[0]);
+      columns = Object.values(repMap)
+        .sort((a, b) => b.latestDate.localeCompare(a.latestDate))
+        .map((c) => ({ repWorkId: c.repWorkId, repWorkName: c.repWorkName }));
     }
 
     return { columns, equipmentRows };
@@ -1856,17 +1880,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     const totalEqs = equipmentRows.length || 1;
     const colCompletion = {};
     columns.forEach((col) => {
+      const colKey = col.repWorkId || col;
       let count = 0;
       equipmentRows.forEach((eq) => {
-        const hasTask = filtered.some(
-          (d) =>
-            getColValue(d, "equipmentCode") === eq.equipmentCode &&
-            getColValue(d, "equipmentName") === eq.equipmentName &&
-            getColValue(d, "representativeWork") === col,
-        );
+        const hasTask = filtered.some((d) => {
+          const dChId = Number(d.change_history_id || d.changeHistoryId || 0);
+          const eqChId = Number(eq.changeHistoryId || 0);
+          if (dChId !== eqChId) return false;
+          const dRepId = Number(d.rep_work_id || d.repWorkId || 0);
+          const colRepId = Number(col.repWorkId || col || 0);
+          return dRepId === colRepId;
+        });
         if (hasTask) count++;
       });
-      colCompletion[col] = (count / totalEqs) * 100;
+      colCompletion[colKey] = (count / totalEqs) * 100;
     });
 
     return { colCompletion };
@@ -2419,15 +2446,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
         const changeHistoryId = Number(
           apiItem?.change_history_id ||
-            apiItem?.changeHistoryId ||
-            apiItem?.change_History_Id ||
-            matchedRecord?.change_history_id ||
-            matchedRecord?.changeHistoryId ||
-            matchedRecord?.id ||
             fallbackItem?.change_history_id ||
-            fallbackItem?.changeHistoryId ||
-            fallbackItem?.id ||
-            0,
+            fallbackItem?.change_history_id,
         );
 
         return {
@@ -2894,10 +2914,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         </th>
                       );
                     } else {
-                      const rate = colCompletion?.[col] ?? 0;
+                      const colKey = col.repWorkId || col;
+                      const colLabel = col.repWorkName || col;
+                      const rate = colCompletion?.[colKey] ?? 0;
                       return (
                         <th
-                          key={col}
+                          key={colKey}
                           className="sticky top-0 z-30 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-subtle relative group border-b border-border-base shadow-2xs"
                           style={{
                             width: "180px",
@@ -2910,7 +2932,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         >
                           <div className="flex flex-col items-center justify-center">
                             <div className="flex items-center justify-center gap-1">
-                              <span className="break-all">{col}</span>
+                              <span className="break-all">{colLabel}</span>
                             </div>
                             <span className="mt-1 text-[10px] font-normal normal-case text-text-subtle">
                               {rate.toFixed(1)}%
@@ -2925,7 +2947,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               <tbody>
                 {equipmentRows.map((eq, rowIdx) => (
                   <tr
-                    key={`${eq.site}-${eq.equipmentCode}-${rowIdx}`}
+                    key={`${eq.changeHistoryId}-${rowIdx}`}
                     className="group border-b border-border-base last:border-0 hover:bg-fill-active transition-colors"
                   >
                     <td
@@ -2954,29 +2976,28 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       {eq.equipmentName}
                     </td>
                     {columns.map((col) => {
+                      const colKey = col.repWorkId || col;
                       const matched = filtered.filter((d) => {
-                        const dEqCode = String(
-                          d.equipment_code ||
-                            d.equipmentCode ||
-                            d.equipmentId ||
-                            getColValue(d, "equipmentCode") ||
-                            "",
-                        ).trim();
-                        const eqCode = String(eq.equipmentCode || "").trim();
-                        if (dEqCode !== eqCode) return false;
-
                         if (mode === "date") {
-                          return getFormattedDateString(getColValue(d, "workedOn")) === col;
-                        } else {
-                          return getColValue(d, "representativeWork") === col;
+                          return (
+                            getFormattedDateString(getColValue(d, "workedOn")) === col &&
+                            String(d.equipment_code || d.equipmentCode || "") ===
+                              String(eq.equipmentCode || "")
+                          );
                         }
+                        const dChId = Number(d.change_history_id || d.changeHistoryId || 0);
+                        const eqChId = Number(eq.changeHistoryId || 0);
+                        if (dChId !== eqChId) return false;
+                        const dRepId = Number(d.rep_work_id || d.repWorkId || 0);
+                        const colRepId = Number(col.repWorkId || col || 0);
+                        return dRepId === colRepId;
                       });
 
                       if (matched.length === 0) {
                         if (mode !== "task" || !isCmWoType) {
                           return (
                             <td
-                              key={col}
+                              key={colKey}
                               className="px-3 py-2 align-middle text-center"
                               style={{
                                 width: mode === "date" ? "160px" : "180px",
@@ -2989,7 +3010,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
                         return (
                           <td
-                            key={col}
+                            key={colKey}
                             className="px-3 py-2 align-middle text-center"
                             style={{
                               width: "180px",
@@ -3001,7 +3022,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               className="w-full flex items-center justify-center min-h-[36px]"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openApplyStatusModal(col, eq);
+                                openApplyStatusModal(col.repWorkName || col, eq);
                               }}
                             >
                               <div className="w-full max-w-[125px] h-8 flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400">
@@ -3030,7 +3051,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
                       return (
                         <td
-                          key={col}
+                          key={colKey}
                           className="px-3 py-2 align-middle"
                           style={{
                             width: mode === "date" ? "160px" : "180px",
@@ -3192,7 +3213,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const firstTask = getColValue(matched[0], "representativeWork");
-                                openReplaceModal(firstTask, col, matched[0]);
+                                openReplaceModal(firstTask, col.repWorkName || col, matched[0]);
                               }}
                             >
                               <i className="fas fa-pen text-[8px]" />
@@ -3798,114 +3819,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                     return;
                   }
 
-                  const targetRec = activeReasonItem || drawerItem || {};
-
-                  // Dynamically resolve repo_Work_Id
-                  const repoWorkId =
-                    Number(
-                      firstValue(targetRec, [
-                        "repo_Work_Id",
-                        "repoWorkId",
-                        "repWorkId",
-                        "representativeWorkId",
-                        "repo_work_id",
-                        "rep_work_id",
-                        "id",
-                      ]) ||
-                        asRepoWorkId ||
-                        1,
-                    ) || 1;
-
-                  // Dynamically resolve equipment_Id
-                  const rawEqVal = firstValue(targetRec, [
-                    "equipment_Id",
-                    "equipmentId",
-                    "equipment_id",
-                    "equipmentCode",
-                    "equipment_code",
-                    "eqId",
-                    "eq_id",
-                    "id",
-                  ]);
-
-                  let equipmentId = Number(rawEqVal) || 0;
-                  if (!equipmentId && rawEqVal) {
-                    const digits = String(rawEqVal).replace(/\D/g, "");
-                    equipmentId = digits ? Number(digits) : 1;
-                  }
-                  if (!equipmentId) equipmentId = 1;
-
-                  const payload = {
-                    data: [
-                      {
-                        repo_Work_Id: repoWorkId,
-                        equipment_Id: equipmentId,
-                        status: 1,
-                        reason: rejectReasonText.trim(),
-                        change_History_Id: Number(
-                          firstValue(targetRec, ["change_history_id", "changeHistoryId", "id"]) ||
-                            0,
-                        ),
-                      },
-                    ],
-                  };
-
-                  // Call Save API: http://localhost:5248/api/MatrixInquiry/Save
-                  APIcallPost(
-                    pocEndPoints.SAVE_MATRIX_INQUIRY || "api/MatrixInquiry/Save",
-                    payload,
-                    {},
-                    (responseData, status) => {
-                      if (status >= 200 && status < 300) {
-                        pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
-                        setShowReasonModal(false);
-                        setRejectReasonText("");
-                        fetchMatrixData?.();
-                      } else {
-                        fetch("http://localhost:5248/api/MatrixInquiry/Save", {
-                          method: "POST",
-                          headers: {
-                            Accept: "*/*",
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify(payload),
-                        })
-                          .then((res) => {
-                            if (res.ok) {
-                              pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
-                              setShowReasonModal(false);
-                              setRejectReasonText("");
-                              fetchMatrixData?.();
-                            } else {
-                              pushToast(t("toast.saveError", "저장 실패했습니다."), "error");
-                            }
-                          })
-                          .catch(() => {
-                            pushToast(t("toast.saveSuccess", "저장 처리되었습니다."), "success");
-                            setShowReasonModal(false);
-                            setRejectReasonText("");
-                          });
-                      }
-                    },
-                  );
-
-                  setAsStaging((prev) => {
-                    const next = { ...prev };
-                    asSelectedEqCodes.forEach((code) => {
-                      next[code] = "rejected";
-                    });
-                    return next;
-                  });
-
-                  setAsStagingReasons((prev) => {
-                    const next = { ...prev };
-                    asSelectedEqCodes.forEach((code) => {
-                      next[code] = rejectReasonText.trim();
-                    });
-                    return next;
-                  });
-
-                  setAsSelectedEqCodes(new Set());
+                  setShowReasonModal(false);
                 }}
                 className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >

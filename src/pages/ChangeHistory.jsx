@@ -40,6 +40,24 @@ function getEquipmentTypeLabel(item) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+function excelSerialToDate(serial) {
+  if (serial === null || serial === undefined || serial === "") return "";
+  if (typeof serial === "string" && serial.includes("-")) return serial;
+  const num = Number(serial);
+  if (isNaN(num) || num <= 0) return "";
+  const ms = Math.round((num - 25569) * 86400 * 1000);
+  const date = new Date(ms);
+  if (isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0];
+}
+
+function getFormattedDateString(raw) {
+  if (!raw) return "";
+  const dateStr = excelSerialToDate(raw);
+  if (!dateStr) return "";
+  return dateStr.slice(0, 10);
+}
+
 function buildExcelToJsonKeyMap(columnDefs) {
   const list = Array.isArray(columnDefs)
     ? columnDefs
@@ -262,7 +280,19 @@ const matrixResponseToRowMap = {
 
 function mapMatrixResponseToRow(detail) {
   if (!detail) return null;
-  const mapped = {};
+  const mapped = { ...detail };
+  const woVal =
+    detail.wo_code ??
+    detail.woCode ??
+    detail.wOCode ??
+    detail["w/ocode"] ??
+    detail["W/Ocode"] ??
+    "";
+  if (woVal) {
+    mapped.woCode = woVal;
+    mapped.wOCode = woVal;
+    mapped.wo_code = woVal;
+  }
   Object.entries(detail).forEach(([key, value]) => {
     const mappedKey = matrixResponseToRowMap[key] ?? key;
     mapped[mappedKey] = value;
@@ -1947,6 +1977,79 @@ const COLUMN_LABEL_KEYS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main ChangeHistory component
 // ─────────────────────────────────────────────────────────────────────────────
+function extractPhotosFromRow(row) {
+  if (!row) return [];
+  if (Array.isArray(row.photos) && row.photos.length > 0) {
+    return row.photos.map((p, i) => {
+      const rawData = p.fileContent || p.previewUrl || p.image_data || p.imageData || "";
+      const src = rawData
+        ? rawData.startsWith("data:")
+          ? rawData
+          : `data:image/png;base64,${rawData}`
+        : p.url || p.imageUrl || "";
+      return {
+        ...p,
+        id: p.id || `photo-${i}`,
+        filename: p.filename || p.name || `image_${i + 1}.png`,
+        name: p.name || p.filename || `image_${i + 1}.png`,
+        previewUrl: src,
+        fileContent: src,
+        category: p.category || "After Improvements",
+        badge: p.badge || "Existing Attachment",
+      };
+    });
+  }
+
+  const normalizeCat = (rawCat) => {
+    if (!rawCat) return "After Improvements";
+    const str = String(rawCat).trim().toLowerCase();
+    if (str.includes("problem") || str.includes("phenomenon") || str.includes("문제"))
+      return "Problem phenomenon";
+    if (str.includes("after") || str.includes("improvement") || str.includes("개선"))
+      return "After Improvements";
+    if (str.includes("equipment") || str.includes("reference") || str.includes("설비"))
+      return "Equipment Reference";
+    return "After Improvements";
+  };
+
+  const toPhoto = (img, i) => {
+    const rawData =
+      img.image_data || img.imageData || img.fileContent || img.file_content || img.previewUrl || "";
+    const src = rawData
+      ? rawData.startsWith("data:")
+        ? rawData
+        : `data:image/png;base64,${rawData}`
+      : img.url || img.imageUrl || "";
+
+    const name =
+      img.image_name || img.imageName || img.filename || img.name || `attachment_${i + 1}.png`;
+    const cat = normalizeCat(img.category_name || img.categoryName || img.category);
+
+    return {
+      id: img.id || `existing-img-${i}`,
+      filename: name,
+      name: name,
+      fileContent: src,
+      previewUrl: src,
+      category: cat,
+      caption: name,
+      badge: "Existing Attachment",
+    };
+  };
+
+  if (Array.isArray(row.images) && row.images.length > 0) {
+    return row.images.map(toPhoto);
+  }
+  if (Array.isArray(row.attachments) && row.attachments.length > 0) {
+    return row.attachments.map(toPhoto);
+  }
+  if (row.imageData || row.image_data || row.imageUrl) {
+    return [toPhoto(row, 0)];
+  }
+
+  return [];
+}
+
 function RowEditModal({
   row,
   index,
@@ -1960,7 +2063,11 @@ function RowEditModal({
   repSuggestions = [],
 }) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState(() => ({ ...(row ?? {}) }));
+  const [draft, setDraft] = useState(() => {
+    const initialRow = { ...(row ?? {}) };
+    initialRow.photos = extractPhotosFromRow(row);
+    return initialRow;
+  });
   const [errors, setErrors] = useState({});
   const [showRepSuggestions, setShowRepSuggestions] = useState(false);
 
@@ -1970,7 +2077,9 @@ function RowEditModal({
   const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
-    setDraft({ ...(row ?? {}) });
+    const initialRow = { ...(row ?? {}) };
+    initialRow.photos = extractPhotosFromRow(row);
+    setDraft(initialRow);
     setErrors({});
     setPendingPhoto(null);
     setShowCategoryModal(false);
@@ -2417,16 +2526,17 @@ function RowEditModal({
               </div>
             </div>
 
-            {/* Row 9: Date of Completion & Requesting Corporation */}
+            {/* Row 9: Date of Completion & Requesting Corporation (Read-Only) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="modal-field-label mb-1.5">
                   {t("field.workedOn", "Date of Completion")}
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   value={
-                    draft.workedOn
+                    getFormattedDateString(draft.workedOn) ||
+                    (draft.workedOn
                       ? (function (val) {
                           if (
                             !val ||
@@ -2439,33 +2549,25 @@ function RowEditModal({
                           if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "";
                           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                         })(draft.workedOn)
-                      : ""
+                      : "") ||
+                    " — "
                   }
-                  onChange={(e) => handleFieldChange("workedOn", e.target.value)}
-                  className="modal-input cursor-pointer"
+                  readOnly
+                  disabled
+                  className="modal-readonly-field cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="modal-field-label mb-1.5">
                   {t("field.site", "Requesting Corporation")}
                 </label>
-                <select
-                  value={draft.site ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const sObj = siteList.find((s) => s.siteName === val);
-                    handleFieldChange("site", val);
-                    if (sObj) handleFieldChange("siteId", sObj.id);
-                  }}
-                  className="modal-select"
-                >
-                  <option value="">{t("site.selection", "Selection")}</option>
-                  {siteList.map((s) => (
-                    <option key={s.id} value={s.siteName}>
-                      {s.siteName}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  value={draft.site || draft.siteName || draft.site_name || " — "}
+                  readOnly
+                  disabled
+                  className="modal-readonly-field cursor-not-allowed"
+                />
               </div>
             </div>
 
@@ -3276,6 +3378,31 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             remapped.wo_code ??
             remapped["w/ocode"] ??
             remapped["W/Ocode"] ??
+            row.woCode ??
+            row.wOCode ??
+            row.wo_code ??
+            row["W/Ocode"] ??
+            "",
+        ).trim(),
+        wOCode: String(
+          remapped.wOCode ??
+            remapped.woCode ??
+            remapped.wo_code ??
+            remapped["w/ocode"] ??
+            remapped["W/Ocode"] ??
+            row.wOCode ??
+            row.woCode ??
+            row.wo_code ??
+            row["W/Ocode"] ??
+            "",
+        ).trim(),
+        wo_code: String(
+          remapped.wo_code ??
+            remapped.woCode ??
+            remapped.wOCode ??
+            remapped["w/ocode"] ??
+            remapped["W/Ocode"] ??
+            row.wo_code ??
             row.woCode ??
             row.wOCode ??
             row["W/Ocode"] ??
@@ -4330,55 +4457,63 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   };
 
   const handleExportZip = async () => {
-    const prepared = prepareExportData();
-    if (!prepared) {
-      setOperationStatus({
-        isVisible: true,
-        status: "error",
-        message: t("toast.noRecordsExport"),
-        autoClose: true,
-      });
-      return;
-    }
-    const { rowsToExport, exportCols, exportData } = prepared;
     setExportBusy(true);
     setOperationStatus({
       isVisible: true,
       status: "loading",
-      message: `${rowsToExport.length} ${t("toast.exporting")}`,
+      message: t("toast.exporting"),
       autoClose: false,
     });
+
     try {
-      await withMinimumDelay(async () => {
-        const worksheet = XLSX.utils.json_to_sheet(exportData, { header: exportCols });
-        const csvContent = "\uFEFF" + XLSX.utils.sheet_to_csv(worksheet);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Change History");
-        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const endpointBase = import.meta.env.VITE_API_BASE_URL || "";
+      const path = pocEndPoints.EXPORT_ZIP || "api/ChangeData/ExportZip";
+      const fullUrl = endpointBase
+        ? `${endpointBase.endsWith("/") ? endpointBase : endpointBase + "/"}${path}`
+        : `http://localhost:5248/${path}`;
 
-        const zip = new JSZip();
-        zip.file("change-history.csv", csvContent);
-        zip.file("change-history.xlsx", excelBuffer);
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-
-        const url = URL.createObjectURL(zipBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", "change-history.zip");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        setOperationStatus({
-          isVisible: true,
-          status: "success",
-          message: `${rowsToExport.length} ${t("toast.exportSuccess")}`,
-          autoClose: true,
-        });
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          Accept: "*/*",
+        },
       });
+
+      if (response.ok) {
+        const zipBlob = await response.blob();
+        if (zipBlob && zipBlob.size > 0) {
+          const disposition = response.headers.get("content-disposition") || "";
+          let fileName = "change-history.zip";
+          if (disposition && disposition.includes("filename=")) {
+            const match = disposition.match(/filename\*?=(?:UTF-8''|")?([^";\n]+)"?/i);
+            if (match && match[1]) {
+              fileName = decodeURIComponent(match[1].trim());
+            }
+          }
+
+          const url = URL.createObjectURL(zipBlob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", fileName);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: t("toast.exportSuccess"),
+            autoClose: true,
+          });
+          setExportBusy(false);
+          return;
+        }
+      }
+
+      throw new Error(`ExportZip returned status: ${response.status}`);
     } catch (error) {
-      console.error("ZIP export failed:", error);
+      console.error("ExportZip failed:", error);
       setOperationStatus({
         isVisible: true,
         status: "error",
@@ -4405,6 +4540,19 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         clean.id = nextId++;
       } else if (numId >= nextId) {
         nextId = numId + 1;
+      }
+      const woVal =
+        clean.woCode ??
+        clean.wOCode ??
+        clean.wo_code ??
+        clean["w/ocode"] ??
+        clean["W/Ocode"] ??
+        clean["W/O코드"] ??
+        "";
+      if (woVal) {
+        clean.woCode = woVal;
+        clean.wOCode = woVal;
+        clean.wo_code = woVal;
       }
       const wDate =
         clean.workedDate ??

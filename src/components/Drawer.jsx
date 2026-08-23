@@ -638,9 +638,17 @@ export default function Drawer({
                     </div>
                   ) : isChangeHistoryView ? (
                     <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60">
-                      <span className="text-xs font-bold text-[#1745c2] dark:text-blue-400">
-                        레코드 상세
-                      </span>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-[#eef4ff] dark:bg-blue-950/60 text-[#1745c2] dark:text-blue-400 border border-blue-100 dark:border-blue-800">
+                        <span>{t("detail.record", "Record Detail")}</span>
+                        {atts && atts.length > 0 && (
+                          <>
+                            <i className="fas fa-camera text-[11px] text-[#1745c2] dark:text-blue-400 ml-0.5" />
+                            <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-bold text-white bg-[#1745c2] dark:bg-blue-500 rounded-full">
+                              {atts.length}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700/60">
@@ -778,31 +786,62 @@ export default function Drawer({
                     </div>
                   )}
 
-                  {/* Attachment & Edit Section for ChangeHistory / MPList View */}
-                  {isChangeHistoryView ? (
-                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between gap-2 flex-wrap">
+                  {/* Attachment Section */}
+                  {isChangeHistoryView || showAttachments ? (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 space-y-3">
                       {atts && atts.length > 0 ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <i className="fas fa-camera text-gray-400 text-xs shrink-0" />
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 shrink-0">
-                            첨부사진 ({atts.length}개)
-                          </span>
-                          <div className="flex items-center gap-1.5 flex-wrap ml-1">
-                            {atts.map((att, aIdx) => (
-                              <div
-                                key={att.id || aIdx}
-                                className="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 relative"
-                                onClick={() => setPreviewImage(att)}
-                                title={`${att.name || "사진"}${att.category ? ` (${att.category})` : ""}`}
-                              >
-                                <img
-                                  src={att.url}
-                                  alt={att.name || "Attachment Preview"}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                />
+                        <div className="space-y-3">
+                          {Object.entries(
+                            atts.reduce((groups, att) => {
+                              const rawCat = att.category || "개선 후";
+                              const catStr = String(rawCat).trim().toLowerCase();
+                              let catKey = "category.afterImprovements";
+                              let fallbackText = "After Improvements";
+
+                              if (catStr.includes("problem") || catStr.includes("phenomenon") || catStr.includes("문제")) {
+                                catKey = "category.problemPhenomenon";
+                                fallbackText = "Problem phenomenon";
+                              } else if (catStr.includes("equipment") || catStr.includes("reference") || catStr.includes("설비")) {
+                                catKey = "category.equipmentReference";
+                                fallbackText = "Equipment Reference";
+                              } else if (catStr.includes("other") || catStr.includes("기타")) {
+                                catKey = "category.others";
+                                fallbackText = "Others";
+                              }
+
+                              const displayCat = t(catKey, fallbackText);
+                              if (!groups[displayCat]) groups[displayCat] = [];
+                              groups[displayCat].push(att);
+                              return groups;
+                            }, {}),
+                          ).map(([catName, catAtts]) => (
+                            <div key={catName} className="space-y-2">
+                              <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                {catName} ({catAtts.length})
                               </div>
-                            ))}
-                          </div>
+                              <div className="flex items-center gap-3 flex-wrap">
+                                {catAtts.map((att, aIdx) => (
+                                  <div
+                                    key={att.id || aIdx}
+                                    className="w-32 h-36 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 flex flex-col shadow-2xs hover:shadow-md transition-all bg-white dark:bg-gray-800"
+                                    onClick={() => setPreviewImage(att)}
+                                    title={`${att.name || "사진"} (${catName})`}
+                                  >
+                                    <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
+                                      <img
+                                        src={att.url}
+                                        alt={att.name || "Attachment Preview"}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                      />
+                                    </div>
+                                    <div className="bg-[#43474e] dark:bg-gray-900 text-white text-[11px] font-bold py-1 px-2 text-center truncate shrink-0">
+                                      {catName}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
@@ -813,58 +852,24 @@ export default function Drawer({
 
                       {/* Edit button ONLY shown for MP List view */}
                       {variant === "mpList" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const ev = new CustomEvent("openEditRecordFromDrawer", {
-                              detail: { item: rec },
-                            });
-                            window.dispatchEvent(ev);
-                          }}
-                          className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
-                        >
-                          <i className="far fa-edit text-xs" />
-                          <span>{t("app.edit", "편집")}</span>
-                        </button>
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ev = new CustomEvent("openEditRecordFromDrawer", {
+                                detail: { item: rec },
+                              });
+                              window.dispatchEvent(ev);
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <i className="far fa-edit text-xs" />
+                            <span>{t("app.edit", "편집")}</span>
+                          </button>
+                        </div>
                       )}
                     </div>
-                  ) : (
-                    showAttachments && (
-                      <div className="pt-2 flex items-center justify-between">
-                        {atts && atts.length > 0 ? (
-                          <div className="flex items-center gap-2 flex-wrap w-full justify-between">
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-camera text-gray-400 text-xs" />
-                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                첨부사진 ({atts.length}개)
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {atts.map((att, aIdx) => (
-                                <div
-                                  key={att.id || aIdx}
-                                  className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 relative"
-                                  onClick={() => setPreviewImage(att)}
-                                  title={`${att.name || "사진"}${att.category ? ` (${att.category})` : ""}`}
-                                >
-                                  <img
-                                    src={att.url}
-                                    alt={att.name || "Attachment Preview"}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
-                            <i className="far fa-image text-gray-400 text-xs" />
-                            <span>첨부된 사진이 없습니다</span>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  )}
+                  ) : null}
                 </div>
               );
             })}
@@ -1201,22 +1206,13 @@ export default function Drawer({
                 </div>
                 <div>
                   <label className="modal-field-label">요청 법인</label>
-                  <select
-                    value={editingRecord.site || editingRecord.siteName || editingRecord.corporation || "A3.부산"}
-                    onChange={(e) =>
-                      setEditingRecord({
-                        ...editingRecord,
-                        site: e.target.value,
-                        siteName: e.target.value,
-                      })
-                    }
-                    className="modal-select"
-                  >
-                    <option value="A3.부산">A3.부산</option>
-                    <option value="A13.부산">A13.부산</option>
-                    <option value="D1.필리핀">D1.필리핀</option>
-                    <option value="E1.티엔진">E1.티엔진</option>
-                  </select>
+                  <input
+                    type="text"
+                    disabled
+                    readOnly
+                    value={firstValue(editingRecord, ["site", "siteName", "site_name", "corporation"]) || "A3.부산"}
+                    className="modal-readonly-field cursor-not-allowed"
+                  />
                 </div>
               </div>
 
