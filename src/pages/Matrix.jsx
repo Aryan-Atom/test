@@ -981,7 +981,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   });
   const openApplyStatusModal = useCallback(
     (repWork, rowDetail) => {
-      debugger;
       const repWorkName =
         typeof repWork === "object"
           ? repWork.representativeWork || repWork.workName || ""
@@ -1054,7 +1053,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             : pocEndPoints.GET_EQUIPMENT_STATUS;
 
         APIcallGet(listUrl, {}, (responseData, status) => {
-          debugger;
           if (status === 200 && responseData) {
             const list = Array.isArray(responseData)
               ? responseData
@@ -1099,7 +1097,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     };
 
     const handleDirectToApplied = (e) => {
-      debugger;
       if (e.detail && e.detail.item) {
         const targetRec = e.detail.item;
         const itemCode = getColValue(targetRec, "equipmentCode");
@@ -2027,7 +2024,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             fontSize: ".6875rem",
           },
           className:
-            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
+            "w-full max-w-[125px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
         };
       }
 
@@ -2050,7 +2047,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             fontSize: ".6875rem",
           },
           className:
-            "w-full max-w-[125px] text-center px-2 py-1 text-xs font-normal text-[#2563eb] dark:text-blue-400",
+            "w-full max-w-[125px] text-center px-3 py-1 text-[11px] font-semibold text-[#2563eb] dark:text-blue-400",
         };
       }
 
@@ -2068,7 +2065,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             fontSize: ".6875rem",
           },
           className:
-            "w-full max-w-[125px] text-center px-2 py-1 text-xs font-normal text-gray-400 dark:text-gray-500",
+            "w-full max-w-[125px] text-center px-3 py-1 text-[11px] font-medium text-gray-400 dark:text-gray-500",
         };
       }
 
@@ -2098,7 +2095,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               type: "wo_applied",
               label: dtStr,
               className:
-                "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
+                "w-full max-w-[125px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
             };
           }
         }
@@ -2130,7 +2127,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           type: "applied",
           label: t("page.matrix.appliedConfirmed", "적용 확인"),
           className:
-            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 shadow-2xs",
+            "w-full max-w-[125px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/50 shadow-2xs",
         };
       }
 
@@ -2157,7 +2154,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           type: "notApplied",
           label: t("page.matrix.notAppliedConfirmed", "미적용 확인"),
           className:
-            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs",
+            "w-full max-w-[125px] text-center px-3 py-1 rounded-full text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700 shadow-2xs",
         };
       }
 
@@ -2190,7 +2187,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
           type: "wo_applied",
           label: formattedDate || "w/o applied",
           className:
-            "w-full max-w-[125px] text-center px-2.5 py-1 rounded-xl text-xs font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
+            "w-full max-w-[125px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#ebf3ff] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 border border-[#dbeafe] dark:border-blue-900/50 shadow-2xs",
         };
       }
 
@@ -3197,8 +3194,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                 });
 
                                 const className = hasImportantPriority
-                                  ? "w-full max-w-[140px] text-center px-3 py-1.5 rounded-lg text-xs font-bold bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]"
-                                  : "w-full max-w-[140px] text-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ebf3fe] dark:bg-blue-950/60 text-[#2563eb] dark:text-blue-400 border border-blue-200/80 dark:border-blue-700/80 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]";
+                                  ? "w-full max-w-[140px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]"
+                                  : "w-full max-w-[140px] text-center px-3 py-1 rounded-full text-[11px] font-bold bg-[#ebf3ff] dark:bg-blue-950/60 text-[#2563eb] dark:text-blue-400 border border-blue-200/80 dark:border-blue-700/80 shadow-2xs transition-all duration-150 cursor-pointer hover:shadow-md hover:scale-[1.02]";
 
                                 return (
                                   <div
@@ -3589,13 +3586,19 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                     const isWoTab = asActiveTab === "wo_applied";
                     const isRejectedTab = asActiveTab === "rejected";
 
+                    const line1Equipment =
+                      item.equipmentName || item.equipmentCode || "-";
+                    const line2SiteCode = [item.site, item.equipmentCode]
+                      .filter(Boolean)
+                      .join(" · ");
+
                     return (
                       <div
-                        key={item.equipmentCode}
+                        key={item.equipmentCode || item.equipmentId}
                         onClick={() => {
                           if (!isWoTab) handleToggleSelectEq(item.equipmentCode);
                         }}
-                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border transition-all ${
+                        className={`flex items-center gap-3.5 p-3.5 bg-white dark:bg-gray-800 rounded-xl border transition-all ${
                           isWoTab
                             ? "cursor-default border-gray-200 dark:border-gray-700"
                             : "cursor-pointer"
@@ -3606,34 +3609,36 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                         }`}
                       >
                         {isWoTab ? (
-                          <div className="w-4 h-4 flex items-center justify-center">
-                            <i className="fas fa-lock text-blue-500 text-xs" />
+                          <div className="w-7 h-7 rounded-lg bg-[#ebf3ff] dark:bg-blue-950/60 text-[#2563eb] dark:text-blue-400 flex items-center justify-center shrink-0">
+                            <i className="fas fa-lock text-xs" />
                           </div>
                         ) : (
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                           />
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-gray-800 dark:text-gray-200 text-xs truncate flex items-center gap-1.5">
-                            <span>{item.equipmentName}</span>
+                          <div className="font-bold text-gray-900 dark:text-white text-xs truncate flex items-center gap-1.5">
+                            <span>{line1Equipment}</span>
                             {isRejectedTab && (
                               <span className="px-1.5 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded">
                                 사유
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                            {item.site} · {item.equipmentCode}
-                          </div>
+                          {line2SiteCode && (
+                            <div className="text-[11px] text-gray-400 dark:text-gray-400 font-normal mt-0.5 truncate">
+                              {line2SiteCode}
+                            </div>
+                          )}
                         </div>
 
                         {isWoTab && (
-                          <span className="px-2 py-0.5 text-2xs font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded">
+                          <span className="px-2.5 py-0.5 text-[11px] font-bold text-[#2563eb] dark:text-blue-400 bg-[#ebf3ff] dark:bg-blue-950/60 rounded-md shrink-0">
                             WO
                           </span>
                         )}
@@ -3711,18 +3716,18 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               )}
             </div>
 
-            <div className="modal-footer flex items-center justify-between shrink-0 !px-0 !pb-0 pt-4 border-t border-gray-100 dark:border-gray-700/60">
+            <div className="modal-footer flex items-center gap-3 shrink-0 !px-0 !pb-0 pt-4 border-t border-gray-100 dark:border-gray-700/60 w-full">
               <button
                 type="button"
                 onClick={() => setShowApplyStatusModal(false)}
-                className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors cursor-pointer"
+                className="flex-1 py-3 px-4 text-xs font-bold text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-full border border-gray-200/80 dark:border-gray-600 transition-all cursor-pointer text-center flex items-center justify-center h-11"
               >
                 {t("app.close", "닫기")}
               </button>
               <button
                 type="button"
                 onClick={handleSaveApplyStatus}
-                className="px-8 py-2.5 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-[2] py-3 px-4 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-full shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer h-11"
               >
                 <i className="fas fa-save text-xs" />
                 <span>{t("app.save", "저장하기")}</span>
@@ -3810,7 +3815,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowReasonModal(false)}
+                onClick={() => {
+                  setShowReasonModal(false);
+                  setActiveReasonItem(null);
+                }}
                 className="px-5 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors cursor-pointer"
               >
                 {t("app.cancellation", "취소")}
@@ -3827,6 +3835,123 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                   }
 
                   const reasonVal = rejectReasonText.trim();
+
+                  // If opened from Drawer ("미적용으로 변경" button)
+                  if (activeReasonItem) {
+                    const targetRec = activeReasonItem;
+                    const itemCode = getColValue(targetRec, "equipmentCode");
+
+                    const repoWorkId =
+                      Number(
+                        firstValue(targetRec, [
+                          "rep_work_id",
+                          "repo_Work_Id",
+                          "repoWorkId",
+                          "repWorkId",
+                          "representativeWorkId",
+                          "id",
+                        ]) ||
+                          asRepoWorkId ||
+                          1,
+                      ) || 1;
+
+                    const rawEqVal = firstValue(targetRec, [
+                      "equipment_id",
+                      "equipment_Id",
+                      "equipmentId",
+                      "equipment_code",
+                      "equipmentCode",
+                      "change_history_id",
+                      "id",
+                    ]);
+
+                    let equipmentId = Number(rawEqVal) || 0;
+                    if (!equipmentId && rawEqVal) {
+                      const digits = String(rawEqVal).replace(/\D/g, "");
+                      equipmentId = digits ? Number(digits) : 1;
+                    }
+                    if (!equipmentId) equipmentId = 1;
+
+                    const recEqCode = getColValue(targetRec, "equipmentCode");
+                    const recEqName = getColValue(targetRec, "equipmentName");
+                    const matchedRec = (allRecords || []).find(
+                      (r) =>
+                        getColValue(r, "equipmentCode") === recEqCode ||
+                        getColValue(r, "equipmentName") === recEqName,
+                    );
+                    const changeHistoryIdVal = Number(
+                      firstValue(targetRec, [
+                        "change_history_id",
+                        "changeHistoryId",
+                        "change_History_Id",
+                      ]) ||
+                        (matchedRec
+                          ? firstValue(matchedRec, [
+                              "change_history_id",
+                              "changeHistoryId",
+                              "change_History_Id",
+                            ])
+                          : "") ||
+                        0,
+                    );
+
+                    const payload = {
+                      data: [
+                        {
+                          repo_Work_Id: repoWorkId,
+                          equipment_Id: equipmentId,
+                          status: 1, // 1 = not applied / rejected
+                          reason: reasonVal,
+                          change_History_Id: changeHistoryIdVal,
+                        },
+                      ],
+                    };
+
+                    APIcallPost(
+                      pocEndPoints.SAVE_MATRIX_INQUIRY || "api/MatrixInquiry/Save",
+                      payload,
+                      {},
+                      (responseData, status) => {
+                        if (status >= 200 && status < 300) {
+                          pushToast(
+                            t("toast.updateSuccess", "미적용으로 변경되었습니다."),
+                            "success",
+                          );
+                          fetchMatrixData?.();
+                        } else {
+                          fetch("http://localhost:5248/api/MatrixInquiry/Save", {
+                            method: "POST",
+                            headers: {
+                              Accept: "*/*",
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(payload),
+                          })
+                            .then((res) => {
+                              if (res.ok) {
+                                pushToast(
+                                  t("toast.updateSuccess", "미적용으로 변경되었습니다."),
+                                  "success",
+                                );
+                                fetchMatrixData?.();
+                              }
+                            })
+                            .catch(() => {
+                              pushToast(
+                                t("toast.updateSuccess", "미적용으로 변경되었습니다."),
+                                "success",
+                              );
+                            });
+                        }
+                      },
+                    );
+
+                    setAsStaging((prev) => ({ ...prev, [itemCode]: "rejected" }));
+                    setAsStagingReasons((prev) => ({ ...prev, [itemCode]: reasonVal }));
+                    setActiveReasonItem(null);
+                    setShowReasonModal(false);
+                    return;
+                  }
 
                   setAsStaging((prev) => {
                     const next = { ...prev };

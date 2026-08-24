@@ -801,7 +801,7 @@ export default function MPList({
     return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
   });
   const [selectedSiteId, setSelectedSiteId] = useState(null);
-  const [selectedWoType, setSelectedWoType] = useState("");
+  const [selectedWoCategory, setSelectedWoCategory] = useState("전체");
   const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -840,7 +840,7 @@ export default function MPList({
     processId: null,
     equipmentTypeId: null,
     siteId: null,
-    woType: "전체",
+    woCategory: "전체",
     prioritiesJson: "[]",
     categoriesJson: "[]",
     dateFrom: "",
@@ -848,14 +848,14 @@ export default function MPList({
     searchText: "",
   });
 
-  const currentWoType = selectedWoType;
+  const currentWoCategory = selectedWoCategory;
   const currentPrioritiesJson = JSON.stringify(selectedPriorities);
   const currentCategoriesJson = JSON.stringify(selectedCategories);
 
   if (
     selectedProcessId !== prevFilters.processId ||
     selectedSiteId !== prevFilters.siteId ||
-    selectedWoType !== prevFilters.woType ||
+    selectedWoCategory !== prevFilters.woCategory ||
     currentPrioritiesJson !== prevFilters.prioritiesJson ||
     currentCategoriesJson !== prevFilters.categoriesJson ||
     dateFrom !== prevFilters.dateFrom ||
@@ -865,7 +865,7 @@ export default function MPList({
     setPrevFilters({
       processId: selectedProcessId,
       siteId: selectedSiteId,
-      woType: currentWoType,
+      woCategory: currentWoCategory,
       prioritiesJson: currentPrioritiesJson,
       categoriesJson: currentCategoriesJson,
       dateFrom,
@@ -942,16 +942,8 @@ export default function MPList({
       .filter(Boolean);
   }, [filterPayload]);
 
-  // Auto-select 1st WO Type option by default if data is available
-  useEffect(() => {
-    if (woTypeOptions && woTypeOptions.length > 0) {
-      if (!selectedWoType || !woTypeOptions.includes(selectedWoType)) {
-        setSelectedWoType(woTypeOptions[0]);
-      }
-    } else {
-      setSelectedWoType("");
-    }
-  }, [woTypeOptions]);
+  // Work order category options
+  const woCategoryOptions = ["전체", "Work Order", "VoC"];
 
   const priorityOptions = useMemo(() => {
     if (filterPayload && Array.isArray(filterPayload.priority)) {
@@ -1231,82 +1223,64 @@ export default function MPList({
       return res.length > 0 ? res : [0];
     };
 
-    let workOrderIdVal = 0;
-    if (
-      selectedWoType &&
-      selectedWoType !== "전체" &&
-      selectedWoType !== "All" &&
-      Array.isArray(filterPayload?.woTypes)
-    ) {
-      const match = filterPayload.woTypes.find(
-        (w) => (w.workOrderTypeName || w.name || w.woTypeName) === selectedWoType,
-      );
-      if (match && match.id !== undefined && match.id !== null) {
-        workOrderIdVal = Number(match.id) || 0;
+  let workOrderIdVal = 0;
+
+  const reqBody = {
+    processId:
+      selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
+    equipmentTypeId:
+      selectedEquipmentTypeId && !isNaN(Number(selectedEquipmentTypeId))
+        ? Number(selectedEquipmentTypeId)
+        : 0,
+    siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
+    workOrderId: workOrderIdVal,
+    priority: sanitizePrioritiesToIds(selectedPriorities),
+    effectType: sanitizeCategoriesToIds(selectedCategories),
+    fromDate: dateFrom ? dateFrom : null,
+    toDate: dateTo ? dateTo : null,
+  };
+
+  setDataLoading(true);
+
+  APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
+    setDataLoading(false);
+    if (status === 200 && responseData) {
+      let records = [];
+      if (Array.isArray(responseData) && Array.isArray(responseData[0]?.data?.dataList)) {
+        records = responseData[0].data.dataList;
+      } else if (Array.isArray(responseData?.data?.dataList)) {
+        records = responseData.data.dataList;
+      } else if (Array.isArray(responseData?.dataList)) {
+        records = responseData.dataList;
+      } else if (
+        Array.isArray(responseData) &&
+        responseData.length > 0 &&
+        !responseData[0]?.data
+      ) {
+        records = responseData;
+      } else if (Array.isArray(responseData?.data)) {
+        records = responseData.data;
+      } else if (Array.isArray(responseData?.data?.mpList)) {
+        records = responseData.data.mpList;
+      } else if (Array.isArray(responseData?.mpList)) {
+        records = responseData.mpList;
       }
-    } else if (Array.isArray(filterPayload?.woTypes) && filterPayload.woTypes.length > 0) {
-      const firstItem = filterPayload.woTypes[0];
-      if (firstItem && firstItem.id !== undefined && firstItem.id !== null) {
-        workOrderIdVal = Number(firstItem.id) || 0;
-      }
+      setAllRecords(records);
+    } else {
+      console.warn("[MPList] GetMPList API failed:", status, responseData);
     }
-
-    const reqBody = {
-      processId:
-        selectedProcessId && !isNaN(Number(selectedProcessId)) ? Number(selectedProcessId) : 0,
-      equipmentTypeId:
-        selectedEquipmentTypeId && !isNaN(Number(selectedEquipmentTypeId))
-          ? Number(selectedEquipmentTypeId)
-          : 0,
-      siteId: selectedSiteId && !isNaN(Number(selectedSiteId)) ? Number(selectedSiteId) : 0,
-      workOrderId: workOrderIdVal,
-      priority: sanitizePrioritiesToIds(selectedPriorities),
-      effectType: sanitizeCategoriesToIds(selectedCategories),
-      fromDate: dateFrom ? dateFrom : null,
-      toDate: dateTo ? dateTo : null,
-    };
-
-    setDataLoading(true);
-
-    APIcallPost(pocEndPoints.GET_MP_LIST, reqBody, {}, (responseData, status) => {
-      setDataLoading(false);
-      if (status === 200 && responseData) {
-        let records = [];
-        if (Array.isArray(responseData) && Array.isArray(responseData[0]?.data?.dataList)) {
-          records = responseData[0].data.dataList;
-        } else if (Array.isArray(responseData?.data?.dataList)) {
-          records = responseData.data.dataList;
-        } else if (Array.isArray(responseData?.dataList)) {
-          records = responseData.dataList;
-        } else if (
-          Array.isArray(responseData) &&
-          responseData.length > 0 &&
-          !responseData[0]?.data
-        ) {
-          records = responseData;
-        } else if (Array.isArray(responseData?.data)) {
-          records = responseData.data;
-        } else if (Array.isArray(responseData?.data?.mpList)) {
-          records = responseData.data.mpList;
-        } else if (Array.isArray(responseData?.mpList)) {
-          records = responseData.mpList;
-        }
-        setAllRecords(records);
-      } else {
-        console.warn("[MPList] GetMPList API failed:", status, responseData);
-      }
-    });
-  }, [
-    isStaticDataMode,
-    selectedProcessId,
-    selectedEquipmentTypeId,
-    selectedWoType,
-    selectedSiteId,
-    selectedPriorities,
-    selectedCategories,
-    dateFrom,
-    dateTo,
-  ]);
+  });
+}, [
+  isStaticDataMode,
+  selectedProcessId,
+  selectedEquipmentTypeId,
+  selectedWoCategory,
+  selectedSiteId,
+  selectedPriorities,
+  selectedCategories,
+  dateFrom,
+  dateTo,
+]);
 
   useEffect(() => {
     fetchData();
@@ -1389,23 +1363,33 @@ export default function MPList({
         (itemSiteId !== null && Number(itemSiteId) === Number(selectedSiteId)) ||
         !itemSiteId;
 
-      const itemWoType = getColValue(item, "woType", { filterPayload });
-      const itemWoId =
-        item.work_order_id ?? item.work_order_type_id ?? item.workOrderTypeId ?? null;
-      let selWoId = 0;
-      if (selectedWoType && Array.isArray(filterPayload?.woTypes)) {
-        const found = filterPayload.woTypes.find(
-          (w) => (w.workOrderTypeName || w.name || w.woTypeName) === selectedWoType,
-        );
-        if (found) selWoId = Number(found.id);
+      const isItemVoc =
+        item.is_voc === true ||
+        item.isVoc === true ||
+        item.isVOC === true ||
+        item.is_VOC === true ||
+        String(item.is_voc ?? "").toLowerCase() === "true" ||
+        String(item.isVoc ?? "").toLowerCase() === "true" ||
+        String(item.isVOC ?? "").toLowerCase() === "true" ||
+        item.is_voc === 1 ||
+        item.isVoc === 1 ||
+        item.isVOC === 1 ||
+        !!item._pending;
+
+      let matchWoCategory = true;
+      if (
+        selectedWoCategory === "Work Order" ||
+        selectedWoCategory === "WorkOrder" ||
+        selectedWoCategory === "work_order"
+      ) {
+        matchWoCategory = !isItemVoc;
+      } else if (
+        selectedWoCategory === "VoC" ||
+        selectedWoCategory === "VOC" ||
+        selectedWoCategory === "voc"
+      ) {
+        matchWoCategory = isItemVoc;
       }
-      const matchWoType =
-        selectedWoType === "전체" ||
-        !selectedWoType ||
-        itemWoType === selectedWoType ||
-        (selWoId > 0 && itemWoId !== null && Number(itemWoId) === selWoId) ||
-        !itemWoId ||
-        Number(itemWoId) === 0;
 
       const itemPriority = getColValue(item, "priority", { filterPayload });
       const matchPri = selectedPriorities.length === 0 || selectedPriorities.includes(itemPriority);
@@ -1435,7 +1419,7 @@ export default function MPList({
         matchProc &&
         matchEqType &&
         matchSite &&
-        matchWoType &&
+        matchWoCategory &&
         matchPri &&
         matchCat &&
         matchDate &&
@@ -1479,7 +1463,7 @@ export default function MPList({
     selectedProcessId,
     selectedEquipmentTypeId,
     selectedSiteId,
-    selectedWoType,
+    selectedWoCategory,
     selectedPriorities,
     selectedCategories,
     dateFrom,
@@ -1509,7 +1493,7 @@ export default function MPList({
   }, [
     selectedProcessId,
     selectedEquipmentTypeId,
-    selectedWoType,
+    selectedWoCategory,
     selectedPriorities,
     selectedCategories,
     dateFrom,
@@ -2529,9 +2513,15 @@ export default function MPList({
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-12px); }
         }
-        .mp-row-pending { background: #f0fdf4 !important; border-left: 3px solid #16a34a; }
+        tr.mp-row-pending > td { background-color: #f0fdf4 !important; }
+        tr.mp-row-pending { border-left: 3px solid #16a34a; }
+        tr.mp-row-voc > td { background-color: #ebf3ff !important; }
+        tr.mp-row-voc:hover > td { background-color: #dbeafe !important; }
+        [data-theme="dark"] tr.mp-row-voc > td { background-color: rgba(30, 58, 138, 0.4) !important; }
+        [data-theme="dark"] tr.mp-row-voc:hover > td { background-color: rgba(30, 58, 138, 0.6) !important; }
         .mp-row-clickable { cursor: pointer; }
-        .mp-row-selected { background: var(--fill-active, #ddeaff) !important; }
+        tr.mp-row-selected > td { background-color: var(--fill-active, #ddeaff) !important; }
+        [data-theme="dark"] tr.mp-row-selected > td { background-color: rgba(30, 58, 138, 0.6) !important; }
         .mp-page {
           color: var(--ref-text-primary, #0f172a);
           display: flex;
@@ -3074,27 +3064,21 @@ export default function MPList({
             )}
           </div>
 
-          {/* WO Type Filter */}
+          {/* Work Order Category (구분) Filter */}
           <div className="mp-filter-item">
-            <label>{t("field.woType", "WO Type")}</label>
+            <label>{t("field.woCategory", "구분")}</label>
             {filterLoading ? (
               <SelectSkeleton width="160px" />
             ) : (
               <select
                 className="input-base"
-                value={selectedWoType}
-                onChange={(e) => setSelectedWoType(e.target.value)}
+                value={selectedWoCategory}
+                onChange={(e) => setSelectedWoCategory(e.target.value)}
                 style={{ width: "160px" }}
               >
-                {woTypeOptions.length === 0 ? (
-                  <option value="">{t("common.noData", "데이터 없음")}</option>
-                ) : (
-                  woTypeOptions.map((name, idx) => (
-                    <option key={idx} value={name}>
-                      {name}
-                    </option>
-                  ))
-                )}
+                <option value="전체">{t("app.all", "전체")}</option>
+                <option value="Work Order">Work Order</option>
+                <option value="VoC">VoC</option>
               </select>
             )}
           </div>
@@ -3246,9 +3230,14 @@ export default function MPList({
                       const isVoc =
                         row.is_voc === true ||
                         row.isVoc === true ||
-                        row.is_voc === "true" ||
-                        row.isVoc === "true" ||
-                        !!row._pending;
+                        row.isVOC === true ||
+                        row.is_VOC === true ||
+                        String(row.is_voc ?? "").toLowerCase() === "true" ||
+                        String(row.isVoc ?? "").toLowerCase() === "true" ||
+                        String(row.isVOC ?? "").toLowerCase() === "true" ||
+                        row.is_voc === 1 ||
+                        row.isVoc === 1 ||
+                        row.isVOC === 1;
                       const isPending = !!row._pending;
                       const currentUserName = getUserInfo()?.name || "admin";
                       const isUser =
@@ -3262,7 +3251,7 @@ export default function MPList({
                         : isPending
                           ? "bg-[#f0fdf4]"
                           : isVoc
-                            ? "bg-[#e8f2ff] dark:bg-blue-950/40 hover:bg-[#dbe9fe] dark:hover:bg-blue-900/50"
+                            ? "bg-[#ebf3ff] dark:bg-blue-950/50 hover:bg-[#dbeafe] dark:hover:bg-blue-900/60"
                             : "bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/60";
 
                       return (
@@ -3279,7 +3268,7 @@ export default function MPList({
                               handleRowClick(row);
                             }
                           }}
-                          className={`mp-row-clickable border-t border-border-base transition-colors ${rowBgClass}${isSelected ? " mp-row-selected" : ""}`}
+                          className={`mp-row-clickable border-t border-border-base transition-colors ${rowBgClass}${isSelected ? " mp-row-selected" : isVoc ? " mp-row-voc" : ""}`}
                         >
                           <td className="text-center px-1 py-2">
                             {isVoc && (
