@@ -2,6 +2,10 @@ const redirection = {
   ELM_DASHBOARD: "/",
 };
 
+const aiPipelineServer = (
+  import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || ""
+).replace(/\/+$/, "");
+
 const pocEndPoints = {
   UPLOAD_EXCEL: "api/Excel/Upload",
   GET_FILTER_DATA: "api/ChangeData/GetMasterData",
@@ -30,6 +34,8 @@ const pocEndPoints = {
   SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
   SAVE_IMAGE: "api/MatrixInquiry/SaveImage",
   EXPORT_ZIP: "api/ChangeData/ExportZip",
+  AI_PIPELINE_UPLOAD: `${aiPipelineServer}/api/uploads/auto`,
+  AI_PIPELINE_GET_JOBS: `${aiPipelineServer}/api/jobs?limit=50`,
 };
 
 const auth = {

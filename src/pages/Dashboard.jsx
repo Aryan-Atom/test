@@ -12,6 +12,9 @@ import SpecMatrix from "./SpecMatrix.jsx";
 import Board from "./Board.jsx";
 import Admin from "./Admin.jsx";
 import HomePage from "./HomePage.jsx";
+import Jobs from "./Jobs.jsx";
+import Review from "./Review.jsx";
+import Quarantine from "./Quarantine.jsx";
 import { useToast } from "../components/ToastContext.jsx";
 import { uploadExcel, APIcallGet } from "../utils/api.js";
 import { changeColumns, specColumns, mpColumns } from "../data.js";
@@ -29,6 +32,9 @@ const pageNames = {
   "mx-matrix": "변경 매트릭스 > 매트릭스 조회",
   "mx-mplist": "변경 매트릭스 > MP List",
   "mx-mplist-mgmt": "변경 매트릭스 > MP List 관리",
+  "ai-jobs": "AI Pipeline > Jobs",
+  "ai-review": "AI Pipeline > Review",
+  "ai-quarantine": "AI Pipeline > Quarantine",
   spec: "사양 매트릭스",
   board: "게시판",
   admin: "권한 관리",
@@ -49,6 +55,9 @@ const pageRoutes = {
   "mx-matrix": "/change-matrix/matrix-view",
   "mx-mplist": "/change-matrix/mp-list",
   "mx-mplist-mgmt": "/change-matrix/mp-list-management",
+  "ai-jobs": "/ai-pipeline/jobs",
+  "ai-review": "/ai-pipeline/review",
+  "ai-quarantine": "/ai-pipeline/quarantine",
   spec: "/spec-matrix",
   board: "/board",
   admin: "/admin",
@@ -66,6 +75,9 @@ const allowedFourPageSet = new Set([
   "mx-matrix",
   "mx-mplist",
   "mx-mplist-mgmt",
+  "ai-jobs",
+  "ai-review",
+  "ai-quarantine",
 ]);
 
 const loadLocal = (key, fallback) => {
@@ -131,7 +143,9 @@ export default function Dashboard() {
 
     return isAdminUser ? true : !adminOnlyPages.has(pageId);
   };
+  const normalizedPath = location.pathname.replace(/\/+$/, "") || "/";
   const activePage =
+    routePages[normalizedPath] ??
     routePages[location.pathname] ??
     (isAdminUser ? defaultPage : nonAdminDefaultPage);
   const [searchText, setSearchText] = useState("");
@@ -159,7 +173,8 @@ export default function Dashboard() {
   const { t } = useI18n();
 
   useEffect(() => {
-    const currentPage = routePages[location.pathname];
+    const normPath = location.pathname.replace(/\/+$/, "") || "/";
+    const currentPage = routePages[normPath] ?? routePages[location.pathname];
     if (!currentPage) {
       navigate(pageRoutes[isAdminUser ? defaultPage : nonAdminDefaultPage], {
         replace: true,
@@ -389,6 +404,18 @@ export default function Dashboard() {
 
             <div className={`flex-1 flex flex-col min-h-0 ${activePage === "mx-mplist-mgmt" ? "" : "hidden"}`}>
               <MPListManagement data={mpRows} searchText={searchText} />
+            </div>
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-jobs" ? "" : "hidden"}`}>
+              <Jobs />
+            </div>
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-review" ? "" : "hidden"}`}>
+              <Review />
+            </div>
+
+            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-quarantine" ? "" : "hidden"}`}>
+              <Quarantine />
             </div>
 
             {isPageAllowed("spec") && (

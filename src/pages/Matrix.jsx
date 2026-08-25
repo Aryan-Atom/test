@@ -2554,22 +2554,72 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     setReplacing(true);
 
     let pId = 0;
-    if (newPriority === "상" || newPriority === "High") pId = 1;
-    else if (newPriority === "중" || newPriority === "Medium") pId = 2;
-    else if (newPriority === "하" || newPriority === "Low") pId = 3;
-    else if (!isNaN(Number(newPriority))) pId = Number(newPriority);
+    if (newPriority && filterData && Array.isArray(filterData.priority)) {
+      const matchP = filterData.priority.find(
+        (p) =>
+          (p.priorityName || p.priority_name || p.name || p.priority) === newPriority ||
+          Number(p.id) === Number(newPriority),
+      );
+      if (matchP && matchP.id !== undefined) pId = Number(matchP.id);
+    }
+    if (!pId && newPriority) {
+      if (newPriority === "상" || newPriority === "High") pId = 1;
+      else if (newPriority === "중" || newPriority === "Medium") pId = 2;
+      else if (newPriority === "하" || newPriority === "Low") pId = 3;
+      else if (!isNaN(Number(newPriority))) pId = Number(newPriority);
+    }
 
     let cId = 0;
-    if (newCategory === "품질") cId = 1;
-    else if (newCategory === "생산성") cId = 2;
-    else if (newCategory === "보전성") cId = 3;
-    else if (newCategory === "기타") cId = 4;
-    else if (!isNaN(Number(newCategory))) cId = Number(newCategory);
+    if (newCategory && filterData && Array.isArray(filterData.category)) {
+      const matchC = filterData.category.find(
+        (c) =>
+          (c.categoryName || c.category_name || c.name || c.category) === newCategory ||
+          Number(c.id) === Number(newCategory),
+      );
+      if (matchC && matchC.id !== undefined) cId = Number(matchC.id);
+    }
+    if (!cId && newCategory) {
+      if (newCategory === "품질") cId = 1;
+      else if (newCategory === "생산성") cId = 2;
+      else if (newCategory === "보전성") cId = 3;
+      else if (newCategory === "기타") cId = 4;
+      else if (!isNaN(Number(newCategory))) cId = Number(newCategory);
+    }
+
+    // Look up representative work ID from clickedRecord or allRecords
+    let repWorkIdVal = Number(
+      firstValue(clickedRecord, [
+        "rep_work_id",
+        "repo_Work_Id",
+        "repWorkId",
+        "representativeWorkId",
+        "representative_work_id",
+        "repMappingId",
+        "id",
+      ]) || 0,
+    );
+
+    if (!repWorkIdVal && targetTask) {
+      const match = (allRecords || []).find(
+        (r) => getColValue(r, "representativeWork") === targetTask,
+      );
+      if (match) {
+        repWorkIdVal = Number(
+          firstValue(match, [
+            "rep_work_id",
+            "repo_Work_Id",
+            "repWorkId",
+            "representativeWorkId",
+            "representative_work_id",
+            "repMappingId",
+            "id",
+          ]) || 0,
+        );
+      }
+    }
 
     const updatePayload = {
-      id: Number(
-        clickedRecord?.id || clickedRecord?.repWorkId || clickedRecord?.representativeWorkId || 0,
-      ),
+      id: repWorkIdVal,
       name: newRepresentativeWork.trim() || targetTask,
       priorityId: pId,
       categoryId: cId,
@@ -3383,10 +3433,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       onChange={(e) => setNewPriority(e.target.value)}
                     >
                       <option value="">{t("page.matrix.noChange", "No changes")}</option>
-                      <option value="필수">{t("priority.required", "필수")}</option>
-                      <option value="중요">{t("priority.important", "중요")}</option>
-                      <option value="일반">{t("priority.normal", "일반")}</option>
-                      <option value="제외">{t("priority.excluded", "제외")}</option>
+                      {(priorityOptions && priorityOptions.length > 0
+                        ? priorityOptions
+                        : ["필수", "중요", "일반", "제외"]
+                      ).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -3400,10 +3454,14 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                       onChange={(e) => setNewCategory(e.target.value)}
                     >
                       <option value="">{t("page.matrix.noChange", "No changes")}</option>
-                      <option value="생산성">{t("category.productivity", "Productivity")}</option>
-                      <option value="품질">{t("category.quality", "Quality")}</option>
-                      <option value="보전성">{t("category.maintenance", "Maintenance")}</option>
-                      <option value="기타">{t("category.etc", "Etc")}</option>
+                      {(categoryOptions && categoryOptions.length > 0
+                        ? categoryOptions
+                        : ["보전성", "품질", "생산성", "기타"]
+                      ).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

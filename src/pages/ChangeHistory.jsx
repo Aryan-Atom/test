@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect, forwardRef } from "react";
+import { useNavigate } from "react-router-dom";
 import AnimatedActionButton from "../components/AnimatedActionButton.jsx";
 import { OperationStatus } from "../components/OperationStatus.jsx";
 import { withMinimumDelay } from "../utils/actionTiming.js";
@@ -2014,7 +2015,12 @@ function extractPhotosFromRow(row) {
 
   const toPhoto = (img, i) => {
     const rawData =
-      img.image_data || img.imageData || img.fileContent || img.file_content || img.previewUrl || "";
+      img.image_data ||
+      img.imageData ||
+      img.fileContent ||
+      img.file_content ||
+      img.previewUrl ||
+      "";
     const src = rawData
       ? rawData.startsWith("data:")
         ? rawData
@@ -2811,9 +2817,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   // the entire content blob for that record.
   const [changedDataId, setChangedDataId] = useState(0);
 
+  const navigate = useNavigate();
   const [importBusy, setImportBusy] = useState(false);
   const [importFileName, setImportFileName] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
+  const [aiImportBusy, setAiImportBusy] = useState(false);
   const [operationStatus, setOperationStatus] = useState({
     isVisible: false,
     status: "loading",
@@ -2821,6 +2829,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     autoClose: true,
   });
   const fileInput = useRef(null);
+  const aiFileInput = useRef(null);
   const getFilterDataRef = useRef(null);
 
   const filterLoading = filterPayload === null && filterError === null;
@@ -4330,6 +4339,73 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     }
   };
 
+  const handleAiPipelineUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+    setAiImportBusy(true);
+
+    setOperationStatus({
+      isVisible: true,
+      status: "loading",
+      message: t("toast.aiPipelineUploading", "AI Pipeline 업로드 중..."),
+      autoClose: false,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const apiUrl = pocEndPoints.AI_PIPELINE_UPLOAD;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: t("toast.aiPipelineSuccess", "AI Pipeline 업로드가 성공적으로 완료되었습니다."),
+          autoClose: true,
+        });
+        fetchMasterData();
+        if (
+          selectedProcessId !== null &&
+          selectedMaintenanceId !== null &&
+          Number(selectedProcessId) > 0 &&
+          Number(selectedMaintenanceId) > 0
+        ) {
+          fetchChangedData();
+        }
+        navigate("/ai-pipeline/jobs");
+      } else {
+        const errText = await response.text().catch(() => "");
+        console.error("AI Pipeline upload error:", response.status, errText);
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.aiPipelineError", "AI Pipeline 업로드 실패했습니다."),
+          autoClose: true,
+        });
+      }
+    } catch (err) {
+      console.error("AI Pipeline upload network error:", err);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.aiPipelineError", "AI Pipeline 업로드 실패했습니다."),
+        autoClose: true,
+      });
+    } finally {
+      setAiImportBusy(false);
+    }
+  };
+
   // ── Export ────────────────────────────────────────────────────────────────
   const prepareExportData = () => {
     const rowsToExport =
@@ -4790,6 +4866,22 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               accept=".csv,.xlsx,.xls"
               className="hidden"
               onChange={handleUploadExcel}
+            />
+            <AnimatedActionButton
+              className="btn-secondary"
+              onClick={() => aiFileInput.current?.click()}
+              busy={aiImportBusy}
+              busyLabel="AI Pipeline..."
+              icon="fas fa-robot"
+            >
+              {t("app.aiPipelineImportCsv", "AI Pipeline Import CSV")}
+            </AnimatedActionButton>
+            <input
+              ref={aiFileInput}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleAiPipelineUpload}
             />
             <ExportDropdown
               onExportCsv={handleExportCsv}

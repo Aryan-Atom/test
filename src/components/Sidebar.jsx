@@ -31,6 +31,16 @@ const navSections = [
         ],
       },
       {
+        id: "ai-pipeline",
+        labelKey: "nav.aiPipeline",
+        icon: "fa-robot",
+        children: [
+          { id: "ai-jobs", labelKey: "nav.aiJobs" },
+          { id: "ai-review", labelKey: "nav.aiReview" },
+          { id: "ai-quarantine", labelKey: "nav.aiQuarantine" },
+        ],
+      },
+      {
         id: "spec",
         labelKey: "nav.specMatrix",
         icon: "fa-diagram-project",
@@ -69,6 +79,7 @@ export default function Sidebar({
   const [openGroups, setOpenGroups] = useState({
     data: true,
     matrix: true,
+    "ai-pipeline": true,
   });
   const showOnlyFourPages =
     String(import.meta.env.VITE_SHOW_ONLY_FOUR_PAGES ?? "")
@@ -81,6 +92,9 @@ export default function Sidebar({
     "mx-matrix",
     "mx-mplist",
     "mx-mplist-mgmt",
+    "ai-jobs",
+    "ai-review",
+    "ai-quarantine",
   ]);
 
   const canAccess = (item) => {
@@ -137,7 +151,9 @@ export default function Sidebar({
                 const isGroup = item.children?.length > 0;
                 const isActive =
                   activePage === item.id || hasActiveChild(item, activePage);
-                const isOpen = isGroup ? openGroups[item.id] : false;
+                const isOpen = isGroup
+                  ? Boolean(openGroups[item.id] ?? true) || hasActiveChild(item, activePage)
+                  : false;
                 const label = t(item.labelKey);
 
                 if (!isGroup) {
@@ -159,7 +175,16 @@ export default function Sidebar({
                   <div key={item.id}>
                     <button
                       type="button"
-                      onClick={() => toggleGroup(item.id)}
+                      onClick={() => {
+                        toggleGroup(item.id);
+                        if (
+                          item.children?.[0]?.id &&
+                          activePage !== item.id &&
+                          !hasActiveChild(item, activePage)
+                        ) {
+                          onNavigate(item.children[0].id);
+                        }
+                      }}
                       className={`eq-nav-item ${isActive ? "active-parent" : ""}`}
                       title={label}
                     >
