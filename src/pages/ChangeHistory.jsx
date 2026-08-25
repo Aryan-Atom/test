@@ -4,7 +4,7 @@ import AnimatedActionButton from "../components/AnimatedActionButton.jsx";
 import { OperationStatus } from "../components/OperationStatus.jsx";
 import { withMinimumDelay } from "../utils/actionTiming.js";
 import { pocEndPoints } from "../axios/endPoints.js";
-import { getUserInfo } from "../utils/cookieUtils.js";
+import { getUserInfo, getUserDisplayName } from "../utils/cookieUtils.js";
 import { APIcallGet, APIcallPost, APIcallPostFile } from "../axios/apiCall.js";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -4356,7 +4356,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const formData = new FormData();
       formData.append("file", file);
 
-      const apiUrl = pocEndPoints.AI_PIPELINE_UPLOAD;
+      const userInfo = getUserInfo();
+      const createdBy = userInfo?.name || getUserDisplayName(userInfo) || "admin";
+      const baseUrl = pocEndPoints.AI_PIPELINE_UPLOAD;
+      const separator = baseUrl.includes("?") ? "&" : "?";
+      const apiUrl = `${baseUrl}${separator}created_by=${encodeURIComponent(createdBy)}`;
 
       const response = await fetch(apiUrl, {
         method: "POST",

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
+import JobPreviewModal from "../components/JobPreviewModal.jsx";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [previewJob, setPreviewJob] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
@@ -51,6 +53,9 @@ export default function Jobs() {
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       (Array.isArray(j.files) ? j.files.join(" ") : String(j.files || ""))
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      String(j.createdBy || j.created_by_user || j.uploadedBy || j.created_by || "")
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       String(j.stage || "")
@@ -187,6 +192,7 @@ export default function Jobs() {
                 <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-border-base text-xs font-semibold uppercase tracking-wider text-text-subtle">
                   <th className="px-4 py-3">Job ID</th>
                   <th className="px-4 py-3">Files</th>
+                  <th className="px-4 py-3">Uploaded By</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Started</th>
                   <th className="px-4 py-3 text-center">Actions</th>
@@ -197,6 +203,8 @@ export default function Jobs() {
                   const fileList = Array.isArray(j.files)
                     ? j.files.join(", ")
                     : j.files || j.fileName || "-";
+                  const uploadedBy =
+                    j.createdBy || j.created_by_user || j.uploadedBy || j.created_by || "-";
                   const createdAt = j.created_at || j.createdAt || "-";
 
                   return (
@@ -210,6 +218,12 @@ export default function Jobs() {
                       <td className="px-4 py-3 max-w-[280px] truncate" title={fileList}>
                         {fileList}
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-text-default">
+                        <div className="inline-flex items-center gap-1.5">
+                          <i className="fas fa-user-circle text-gray-400 text-xs" />
+                          <span>{uploadedBy}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{getStatusBadge(j)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-subtle font-mono">
                         {createdAt}
@@ -220,20 +234,10 @@ export default function Jobs() {
                           <button
                             type="button"
                             className="p-1.5 rounded-lg text-gray-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
-                            title="View Job Details"
-                            onClick={() => setSelectedJob(j)}
+                            title="View Job Preview & Save"
+                            onClick={() => setPreviewJob(j)}
                           >
                             <i className="fas fa-eye text-sm" />
-                          </button>
-
-                          {/* Review icon */}
-                          <button
-                            type="button"
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
-                            title="Review Job"
-                            onClick={() => navigate("/ai-pipeline/review")}
-                          >
-                            <i className="fas fa-clipboard-check text-sm" />
                           </button>
 
                           {/* Quarantine icon */}
@@ -278,6 +282,16 @@ export default function Jobs() {
               <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
                 <span className="font-semibold text-text-subtle">Job ID:</span>
                 <span className="col-span-2 font-mono font-medium">{selectedJob.id}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                <span className="font-semibold text-text-subtle">Uploaded By:</span>
+                <span className="col-span-2 font-medium">
+                  {selectedJob.createdBy ||
+                    selectedJob.created_by_user ||
+                    selectedJob.uploadedBy ||
+                    selectedJob.created_by ||
+                    "-"}
+                </span>
               </div>
               <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
                 <span className="font-semibold text-text-subtle">Status:</span>
@@ -332,6 +346,11 @@ export default function Jobs() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewJob && (
+        <JobPreviewModal job={previewJob} onClose={() => setPreviewJob(null)} />
       )}
     </section>
   );

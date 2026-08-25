@@ -36,6 +36,7 @@ const pocEndPoints = {
   EXPORT_ZIP: "api/ChangeData/ExportZip",
   AI_PIPELINE_UPLOAD: `${aiPipelineServer}/api/uploads/auto`,
   AI_PIPELINE_GET_JOBS: `${aiPipelineServer}/api/jobs?limit=50`,
+  AI_PIPELINE_GET_JOB_EXPORTS: `${aiPipelineServer}/api/exports/json`,
 };
 
 const auth = {

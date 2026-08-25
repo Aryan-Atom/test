@@ -406,17 +406,23 @@ export default function Dashboard() {
               <MPListManagement data={mpRows} searchText={searchText} />
             </div>
 
-            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-jobs" ? "" : "hidden"}`}>
-              <Jobs />
-            </div>
+            {activePage === "ai-jobs" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <Jobs />
+              </div>
+            )}
 
-            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-review" ? "" : "hidden"}`}>
-              <Review />
-            </div>
+            {activePage === "ai-review" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <Review />
+              </div>
+            )}
 
-            <div className={`flex-1 flex flex-col min-h-0 ${activePage === "ai-quarantine" ? "" : "hidden"}`}>
-              <Quarantine />
-            </div>
+            {activePage === "ai-quarantine" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <Quarantine />
+              </div>
+            )}
 
             {isPageAllowed("spec") && (
               <div className={`flex-1 flex flex-col min-h-0 ${activePage === "spec" ? "" : "hidden"}`}>
