@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_overall_system_flow_diagram</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 10pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Visual Flowchart Styling */
+    .diagram-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .diagram-header {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .diagram-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .flow-card {
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      border-left: 5px solid #1745c2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .flow-card-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .flow-card-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .flow-connector {
+      text-align: center;
+      padding: 2px 0;
+    }
+    .flow-arrow-down {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1745c2;
+      line-height: 1;
+    }
+    .flow-edge-label {
+      font-size: 8pt;
+      font-style: italic;
+      color: #334155;
+      background-color: #e2e8f0;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>System Specification: End-to-End Flow Diagram &amp; Data Lifecycle</h1>
+<hr/>
+<h2>1. System Architecture &amp; Workflow Diagram</h2>
+<p>This document illustrates the complete end-to-end operational flow of the EQUAL system—from initial multi-format file upload through AI narrative extraction, job monitoring, quarantine handling, master schema standardization, change history management, matrix heatmap visualization, and maintenance plan (MP) versioning.</p>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">File Upload: PPT, Excel, PDF, PNG/JPG, EML</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">AI Pipeline Import Action</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">AiPipelinePromptModal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Detected Columns Summary Report</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Predefined System Prompt &amp; Defined Change Points</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">GPT Opus 120B Inference Model</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Domain Jargon Normalization</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">ISO Date &amp; Equipment Alias Standardization</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Row Verification Check</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Valid Report Content / Blank / Noise / Non-Content</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Jobs Execution Queue</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 11</div>
+      <div class="flow-card-title">Quarantine Subsystem</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 12</div>
+      <div class="flow-card-title">Jobs Table 4s Scoped Polling</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Eye Icon Click</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 13</div>
+      <div class="flow-card-title">Job Preview Modal 22 Master Attributes Preview</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 14</div>
+      <div class="flow-card-title">Quarantine Table WHY Reason Pills</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Restore Action</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 15</div>
+      <div class="flow-card-title">Re-inject Row into Active Pool</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 16</div>
+      <div class="flow-card-title">Change History Data Grid</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 17</div>
+      <div class="flow-card-title">Header Actions: Import CSV / Export CSV &amp; Excel</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 18</div>
+      <div class="flow-card-title">Targeted ZIP Export: POST /api/ChangeData/ExportZipByIds</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 19</div>
+      <div class="flow-card-title">Save Changes: POST /api/ChangeData/SaveChangedData</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Auto-Trigger</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 20</div>
+      <div class="flow-card-title">Event Listener: refreshChangeHistoryData</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 21</div>
+      <div class="flow-card-title">Matrix Inquiry 2D Heatmap &amp; Photo Gallery</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 22</div>
+      <div class="flow-card-title">MP List Inquiry Version Control &amp; Row Revisions</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 23</div>
+      <div class="flow-card-title">MP List Management Spec Column Sequence Engine</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Stage-by-Stage Operational Summary for QC Testing</h2>
+<table class="styled-table">
+<thead>
+<tr><th>Stage #</th><th>Stage Name</th><th>System Action</th><th>QC Verification Expectation</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>1</strong></td><td><strong>Multi-Format Ingestion</strong></td><td>Ingests <code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>, <code>.pptx</code>, <code>.png</code>, <code>.eml</code> files.</td><td>System accepts all 5 supported file types without rejection.</td></tr>
+<tr><td><strong>2</strong></td><td><strong>Pre-Upload Report</strong></td><td>Displays column headers and editable prompt with Change Points.</td><td>Column summary tags match input file headers exactly.</td></tr>
+<tr><td><strong>3</strong></td><td><strong>AI Extraction</strong></td><td>GPT Opus 120B maps text to 22 master schema columns.</td><td>Jargon normalized; dates converted to ISO-8601 (<code>YYYY-MM-DD</code>).</td></tr>
+<tr><td><strong>4</strong></td><td><strong>Routing &amp; Isolation</strong></td><td>Valid rows sent to Jobs; blank/noise sent to Quarantine.</td><td>Invalid/empty rows isolated without breaking the job run.</td></tr>
+<tr><td><strong>5</strong></td><td><strong>Jobs &amp; Quarantine</strong></td><td>4s polling on Jobs; Restore action on Quarantine.</td><td>Polling active only on Jobs page; Restore returns row to pool.</td></tr>
+<tr><td><strong>6</strong></td><td><strong>Change History Data</strong></td><td>22-attribute grid editing, targeted ZIP export by IDs.</td><td>Selected checkbox IDs exported in ZIP package.</td></tr>
+<tr><td><strong>7</strong></td><td><strong>Matrix &amp; MP Modules</strong></td><td>Heatmap status badges, MP versioning, column sequence.</td><td>Column order strictly matches sequence numbers.</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>

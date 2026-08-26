@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_ai_prompts_change_points</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 10pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Visual Flowchart Styling */
+    .diagram-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .diagram-header {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .diagram-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .flow-card {
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      border-left: 5px solid #1745c2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .flow-card-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .flow-card-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .flow-connector {
+      text-align: center;
+      padding: 2px 0;
+    }
+    .flow-arrow-down {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1745c2;
+      line-height: 1;
+    }
+    .flow-edge-label {
+      font-size: 8pt;
+      font-style: italic;
+      color: #334155;
+      background-color: #e2e8f0;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Software Requirements Specification (SRS)</h1>
+<h2>AI Prompts &amp; Change Points Configuration System</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Pre-Upload Column Report &amp; Editable AI Prompts with Change Points</td></tr>
+<tr><td><strong>System Feature</strong></td><td>Pre-Upload AI Pipeline Modal (<code>AiPipelinePromptModal</code>)</td></tr>
+<tr><td><strong>Core AI Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Domain Experts, System Administrators, QC Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Functional Scope &amp; Individual Flow Diagram</h2>
+<h3>1.1 Objective</h3>
+<p>When uploading datasets through the AI Pipeline, operators MUST be presented with a <strong>Pre-Upload Column Summary Report</strong> displaying all detected input columns. Immediately below the report, the system MUST display a <strong>Predefined System Prompt</strong> configured with defined Change Points. Operators can review and customize extraction rules prior to executing pipeline processing.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">User Selects File</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">File Column Parsing Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Launch AiPipelinePromptModal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Section 1: Render Detected Column Header Tags</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Section 2: Render Predefined Prompt Textarea</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Change Point 1: Equipment Aliases</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Change Point 2: Date Formatting ISO-8601</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Change Point 3: Plant Jargon Rules</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">User Review &amp; Action</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Accept Default Prompt / Modify Rules in Textarea</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Execute AI Ingestion Queue</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 11</div>
+      <div class="flow-card-title">Inject Custom Prompt Parameters</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Component Requirements</h2>
+<h3>2.1 Detected Column Summary Report Page</h3>
+<li class="bullet-item"><strong>Requirement</strong>: Displays an interactive summary of all column headers parsed from the selected input file.</li>
+<li class="bullet-item"><strong>QC Verification</strong>: Ensure column count and header labels match source file headers exactly.</li>
+<h3>2.2 Predefined AI Prompt &amp; Change Points Component</h3>
+<li class="bullet-item"><strong>Requirement</strong>: Displays an editable prompt template containing domain rules for the <strong>GPT Opus 120B</strong> model:</li>
+<li class="bullet-item"><strong>Change Point 1: Equipment Alias Normalization</strong> (e.g., mapping &quot;R203&quot; to &quot;0303. R2 Coater&quot;).</li>
+<li class="bullet-item"><strong>Change Point 2: Date Formatting Directive</strong> (enforcing ISO-8601 <code>YYYY-MM-DD</code>).</li>
+<li class="bullet-item"><strong>Change Point 3: Jargon Translation Directive</strong> (standardizing plant abbreviations).</li>
+<li class="bullet-item"><strong>User Control</strong>: The prompt box MUST be fully editable by the user before initiating extraction.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Report Display Verification</strong>: Modal MUST display detected columns accurately before pipeline execution.</li>
+<li class="bullet-item"><strong>Editable Prompt Verification</strong>: User modifications to the prompt text MUST be passed into the extraction run.</li>
+<li class="bullet-item"><strong>Change Point Effect Verification</strong>: QC testers MUST confirm that custom rules added to the prompt take effect during data extraction.</li>
+
+</body>
+</html>

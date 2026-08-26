@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_jobs_and_quarantine</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 10pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Visual Flowchart Styling */
+    .diagram-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .diagram-header {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .diagram-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .flow-card {
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      border-left: 5px solid #1745c2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .flow-card-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .flow-card-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .flow-connector {
+      text-align: center;
+      padding: 2px 0;
+    }
+    .flow-arrow-down {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1745c2;
+      line-height: 1;
+    }
+    .flow-edge-label {
+      font-size: 8pt;
+      font-style: italic;
+      color: #334155;
+      background-color: #e2e8f0;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Software Requirements Specification (SRS)</h1>
+<h2>AI Pipeline Jobs &amp; Quarantine Modules</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Jobs Execution Tracking &amp; Quarantine Subsystems</td></tr>
+<tr><td><strong>System Modules</strong></td><td>EQUAL AI Pipeline Subsystem (<code>/ai-pipeline/jobs</code> &amp; <code>/ai-pipeline/quarantine</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Engineers, AI Pipeline Developers, QA / QC Test Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>Jobs Module</strong> and <strong>Quarantine Module</strong> work in tandem to provide asynchronous job tracking, export verification, and isolated row restoration for all multi-format AI data extraction runs.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">4s Scoped Polling</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Jobs List Table</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Eye Icon Click / Quarantine Icon Click: if has_quarantine === true</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Job Preview Modal 22 Master Schema Attributes</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Redirect to /ai-pipeline/quarantine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Quarantine Inspection Table</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Click Restore</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Display WHY Reason Pills: empty, literal_noise, numeric_only, non_content, too_short</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Re-inject Row into Active Processing Pool</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Jobs Module Specifications (<code>/ai-pipeline/jobs</code>)</h2>
+<h3>2.1 Real-Time Job Polling</h3>
+<li class="bullet-item"><strong>Req-1.1 Polling Scope</strong>: The system MUST poll for job status updates every 4 seconds <strong>only while the Jobs page is active</strong>.</li>
+<li class="bullet-item"><strong>Req-1.2 Polling Cleanup</strong>: Navigating away from Jobs MUST stop background polling immediately.</li>
+<h3>2.2 Table Actions</h3>
+<li class="bullet-item"><strong>Req-2.1 Eye Icon Preview</strong>: Clicking the Eye icon opens a preview modal rendering extracted rows mapped to the 22 master schema attributes, highlighting missing mandatory fields and enabling inline cell editing.</li>
+<li class="bullet-item"><strong>Req-2.2 Conditional Quarantine Icon</strong>: The Quarantine icon button MUST be enabled <strong>only</strong> when <code>has_quarantine</code> is <code>true</code>. When <code>has_quarantine</code> is <code>false</code>, the button MUST be disabled and grayed out. Clicking an enabled Quarantine button MUST navigate to <code>/ai-pipeline/quarantine</code>.</li>
+<hr/>
+<h2>3. Quarantine Module Specifications (<code>/ai-pipeline/quarantine</code>)</h2>
+<h3>3.1 Reasoning Mapping (<code>WHY</code> Dictionary)</h3>
+<li class="bullet-item">Quarantined items MUST display reason explanations mapped from the <code>WHY</code> dictionary:</li>
+<li class="bullet-item"><code>empty</code>: *&quot;The report cell was blank, or held nothing but codes and dates.&quot;*</li>
+<li class="bullet-item"><code>literal_noise</code>: *&quot;The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).&quot;*</li>
+<li class="bullet-item"><code>numeric_only</code>: *&quot;The text was only digits.&quot;*</li>
+<li class="bullet-item"><code>non_content</code>: *&quot;The text was only punctuation or symbols.&quot;*</li>
+<li class="bullet-item"><code>too_short</code>: *&quot;Fewer than the minimum characters once codes and dates were removed.&quot;*</li>
+<h3>3.2 Table &amp; Restoration Flow</h3>
+<li class="bullet-item"><strong>Req-3.1 Table Columns</strong>: <code>Source</code> (file name, row number), <code>W/O code</code>, <code>Process · Equipment</code>, <code>What the cell held</code>, <code>Why</code> (reason badge + explanation text), and <code>Action</code> (Restore button or status).</li>
+<li class="bullet-item"><strong>Req-3.2 Restore Action</strong>: Clicking <strong>Restore</strong> puts the row back as a valid report in the active processing pool.</li>
+<hr/>
+<h2>4. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Jobs Polling Lifecycle Test</strong>: Confirm polling starts on entering Jobs page and stops immediately upon leaving.</li>
+<li class="bullet-item"><strong>Quarantine Icon Enable/Disable Test</strong>: Verify Quarantine button is enabled only for jobs with <code>has_quarantine === true</code>.</li>
+<li class="bullet-item"><strong>Quarantine Restore Test</strong>: Confirm clicking <strong>Restore</strong> successfully restores non-blank quarantined rows.</li>
+
+</body>
+</html>

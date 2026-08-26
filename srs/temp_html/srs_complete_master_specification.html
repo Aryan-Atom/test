@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EQUAL Master SRS Specification</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 10pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Visual Flowchart Styling */
+    .diagram-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .diagram-header {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .diagram-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .flow-card {
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      border-left: 5px solid #1745c2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .flow-card-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .flow-card-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .flow-connector {
+      text-align: center;
+      padding: 2px 0;
+    }
+    .flow-arrow-down {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1745c2;
+      line-height: 1;
+    }
+    .flow-edge-label {
+      font-size: 8pt;
+      font-style: italic;
+      color: #334155;
+      background-color: #e2e8f0;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>EQUAL Platform: Complete Software Requirements Specifications (SRS)</h1>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>AI Prompts &amp; Change Points Configuration System</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Pre-Upload Column Report &amp; Editable AI Prompts with Change Points</td></tr>
+<tr><td><strong>System Feature</strong></td><td>Pre-Upload AI Pipeline Modal (<code>AiPipelinePromptModal</code>)</td></tr>
+<tr><td><strong>Core AI Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Domain Experts, System Administrators, QC Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Functional Scope &amp; Individual Flow Diagram</h2>
+<h3>1.1 Objective</h3>
+<p>When uploading datasets through the AI Pipeline, operators MUST be presented with a <strong>Pre-Upload Column Summary Report</strong> displaying all detected input columns. Immediately below the report, the system MUST display a <strong>Predefined System Prompt</strong> configured with defined Change Points. Operators can review and customize extraction rules prior to executing pipeline processing.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">User Selects File</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">File Column Parsing Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Launch AiPipelinePromptModal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Section 1: Render Detected Column Header Tags</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Section 2: Render Predefined Prompt Textarea</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Change Point 1: Equipment Aliases</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Change Point 2: Date Formatting ISO-8601</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Change Point 3: Plant Jargon Rules</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">User Review &amp; Action</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Accept Default Prompt / Modify Rules in Textarea</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Execute AI Ingestion Queue</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 11</div>
+      <div class="flow-card-title">Inject Custom Prompt Parameters</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Component Requirements</h2>
+<h3>2.1 Detected Column Summary Report Page</h3>
+<li class="bullet-item"><strong>Requirement</strong>: Displays an interactive summary of all column headers parsed from the selected input file.</li>
+<li class="bullet-item"><strong>QC Verification</strong>: Ensure column count and header labels match source file headers exactly.</li>
+<h3>2.2 Predefined AI Prompt &amp; Change Points Component</h3>
+<li class="bullet-item"><strong>Requirement</strong>: Displays an editable prompt template containing domain rules for the <strong>GPT Opus 120B</strong> model:</li>
+<li class="bullet-item"><strong>Change Point 1: Equipment Alias Normalization</strong> (e.g., mapping &quot;R203&quot; to &quot;0303. R2 Coater&quot;).</li>
+<li class="bullet-item"><strong>Change Point 2: Date Formatting Directive</strong> (enforcing ISO-8601 <code>YYYY-MM-DD</code>).</li>
+<li class="bullet-item"><strong>Change Point 3: Jargon Translation Directive</strong> (standardizing plant abbreviations).</li>
+<li class="bullet-item"><strong>User Control</strong>: The prompt box MUST be fully editable by the user before initiating extraction.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Report Display Verification</strong>: Modal MUST display detected columns accurately before pipeline execution.</li>
+<li class="bullet-item"><strong>Editable Prompt Verification</strong>: User modifications to the prompt text MUST be passed into the extraction run.</li>
+<li class="bullet-item"><strong>Change Point Effect Verification</strong>: QC testers MUST confirm that custom rules added to the prompt take effect during data extraction.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Change History Data Management Module</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Change History Data Management Workspace</td></tr>
+<tr><td><strong>System Module</strong></td><td>EQUAL Data Management Subsystem (<code>/data-management/change-history-data</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Engineers, QA / QC Test Engineers, Enterprise Solution Architects</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>Change History Data Management Module</strong> serves as the central operational hub for managing, viewing, filtering, inline-editing, batch-deleting, importing, and exporting standardized equipment maintenance records (<code>ChangeData</code>).</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">1. AI Pipeline Import CSV</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">AiPipelinePromptModal</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">2. Import CSV</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">UploadDataPreview Modal</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">3. Export Dropdown</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">CSV / Excel / Targeted ZIP Export</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Master Filters: Site, Process, Maint Part</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Virtualized Data Grid - 22 Master Schema Attributes</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Double-Click Cell Edit / Checkbox Selection</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Save Button Action</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 11</div>
+      <div class="flow-card-title">Auto Trigger refreshChangeHistoryData Listener</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Functional Requirements</h2>
+<h3>2.1 Header Action Bar Sequence</h3>
+<li class="bullet-item"><strong>Req-1.1 Action Button Ordering</strong>: The top action bar MUST render buttons in strict left-to-right order:</li>
+<li class="numbered-item"><strong>AI Pipeline Import CSV</strong></li>
+<li class="numbered-item"><strong>Import CSV</strong></li>
+<li class="numbered-item"><strong>Export</strong> (Dropdown for CSV, Excel, and Targeted ZIP)</li>
+<li class="bullet-item"><strong>Req-1.2 User Identity Tracking</strong>: AI Pipeline import requests MUST capture and attach the authenticated operator's user name.</li>
+<h3>2.2 Predefined Master Data Schema (22 Attributes)</h3>
+<p>The module MUST manage records according to the 22 standardized master columns:</p>
+<p><code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>W/O Code</code>, <code>Report Content</code>, <code>BOM</code>, <code>Spare Part</code>, <code>Work Date</code>, <code>Improvement Work</code>, <code>Work Purpose</code>, <code>Problem Symptom</code>, <code>Problem Cause</code>, <code>HW Before</code>, <code>HW After</code>, <code>SW Before</code>, <code>SW After</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>, <code>Wotype</code>.</p>
+<h3>2.3 Export Functions &amp; Targeted ZIP Package</h3>
+<li class="bullet-item"><strong>Req-3.1 CSV &amp; Excel Export</strong>: Exports selected table rows (or all filtered rows if none selected) as <code>.csv</code> or <code>.xlsx</code>.</li>
+<li class="bullet-item"><strong>Req-3.2 Targeted ZIP Export</strong>: When the user selects specific rows via table checkboxes, ZIP Export MUST export only the selected record IDs. If no rows are selected, it exports the default record set.</li>
+<h3>2.4 Automatic Data Refresh</h3>
+<li class="bullet-item"><strong>Req-4.1 Navigation &amp; Event Triggers</strong>: Navigating to Change History or saving changes in preview modals MUST automatically trigger a data refresh so that table records and dropdown filters reflect the latest state immediately.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>UI Button Order Test</strong>: Verify that <strong>AI Pipeline Import CSV</strong>, <strong>Import CSV</strong>, and <strong>Export</strong> appear in exact order.</li>
+<li class="bullet-item"><strong>Mandatory Field Highlighting Test</strong>: Confirm that only mandatory fields (<code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>) are highlighted in red when empty.</li>
+<li class="bullet-item"><strong>Targeted ZIP Export Test</strong>: Verify that selecting row checkboxes exports a ZIP file containing only those selected records.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>AI Pipeline Jobs &amp; Quarantine Modules</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Jobs Execution Tracking &amp; Quarantine Subsystems</td></tr>
+<tr><td><strong>System Modules</strong></td><td>EQUAL AI Pipeline Subsystem (<code>/ai-pipeline/jobs</code> &amp; <code>/ai-pipeline/quarantine</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Engineers, AI Pipeline Developers, QA / QC Test Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>Jobs Module</strong> and <strong>Quarantine Module</strong> work in tandem to provide asynchronous job tracking, export verification, and isolated row restoration for all multi-format AI data extraction runs.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">4s Scoped Polling</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Jobs List Table</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Eye Icon Click / Quarantine Icon Click: if has_quarantine === true</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Job Preview Modal 22 Master Schema Attributes</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Redirect to /ai-pipeline/quarantine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Quarantine Inspection Table</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Click Restore</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Display WHY Reason Pills: empty, literal_noise, numeric_only, non_content, too_short</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Re-inject Row into Active Processing Pool</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Jobs Module Specifications (<code>/ai-pipeline/jobs</code>)</h2>
+<h3>2.1 Real-Time Job Polling</h3>
+<li class="bullet-item"><strong>Req-1.1 Polling Scope</strong>: The system MUST poll for job status updates every 4 seconds <strong>only while the Jobs page is active</strong>.</li>
+<li class="bullet-item"><strong>Req-1.2 Polling Cleanup</strong>: Navigating away from Jobs MUST stop background polling immediately.</li>
+<h3>2.2 Table Actions</h3>
+<li class="bullet-item"><strong>Req-2.1 Eye Icon Preview</strong>: Clicking the Eye icon opens a preview modal rendering extracted rows mapped to the 22 master schema attributes, highlighting missing mandatory fields and enabling inline cell editing.</li>
+<li class="bullet-item"><strong>Req-2.2 Conditional Quarantine Icon</strong>: The Quarantine icon button MUST be enabled <strong>only</strong> when <code>has_quarantine</code> is <code>true</code>. When <code>has_quarantine</code> is <code>false</code>, the button MUST be disabled and grayed out. Clicking an enabled Quarantine button MUST navigate to <code>/ai-pipeline/quarantine</code>.</li>
+<hr/>
+<h2>3. Quarantine Module Specifications (<code>/ai-pipeline/quarantine</code>)</h2>
+<h3>3.1 Reasoning Mapping (<code>WHY</code> Dictionary)</h3>
+<li class="bullet-item">Quarantined items MUST display reason explanations mapped from the <code>WHY</code> dictionary:</li>
+<li class="bullet-item"><code>empty</code>: *&quot;The report cell was blank, or held nothing but codes and dates.&quot;*</li>
+<li class="bullet-item"><code>literal_noise</code>: *&quot;The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).&quot;*</li>
+<li class="bullet-item"><code>numeric_only</code>: *&quot;The text was only digits.&quot;*</li>
+<li class="bullet-item"><code>non_content</code>: *&quot;The text was only punctuation or symbols.&quot;*</li>
+<li class="bullet-item"><code>too_short</code>: *&quot;Fewer than the minimum characters once codes and dates were removed.&quot;*</li>
+<h3>3.2 Table &amp; Restoration Flow</h3>
+<li class="bullet-item"><strong>Req-3.1 Table Columns</strong>: <code>Source</code> (file name, row number), <code>W/O code</code>, <code>Process · Equipment</code>, <code>What the cell held</code>, <code>Why</code> (reason badge + explanation text), and <code>Action</code> (Restore button or status).</li>
+<li class="bullet-item"><strong>Req-3.2 Restore Action</strong>: Clicking <strong>Restore</strong> puts the row back as a valid report in the active processing pool.</li>
+<hr/>
+<h2>4. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Jobs Polling Lifecycle Test</strong>: Confirm polling starts on entering Jobs page and stops immediately upon leaving.</li>
+<li class="bullet-item"><strong>Quarantine Icon Enable/Disable Test</strong>: Verify Quarantine button is enabled only for jobs with <code>has_quarantine === true</code>.</li>
+<li class="bullet-item"><strong>Quarantine Restore Test</strong>: Confirm clicking <strong>Restore</strong> successfully restores non-blank quarantined rows.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Matrix Inquiry Module</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Matrix Inquiry &amp; Equipment Heatmap Module</td></tr>
+<tr><td><strong>System Module</strong></td><td>EQUAL Change Matrix Subsystem (<code>/change-matrix/matrix-inquiry</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Data Visualization Engineers, Maintenance Managers, QC Test Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>Matrix Inquiry Module</strong> provides an interactive 2D Heatmap Grid cross-referencing equipment assets against representative work activities, enabling plant engineers to visualize maintenance frequency, operational status, and VOC (Voice of Customer) complaint flags.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Filter Bar: Site / Process / Maint Part</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Matrix Data Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Status Counter Summary Rail</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">2D Heatmap Grid X-Axis: Equipment / Process Y-Axis: Representative Work</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Cell Click / Double Click</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Status Badges: Normal / Warning / Critical / VOC</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Inspection Modal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">22 Master Schema Attributes View</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Equipment Inspection Photo Upload &amp; Gallery</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Save Matrix Data Changes</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Functional Requirements</h2>
+<h3>2.1 2D Heatmap Matrix Grid</h3>
+<li class="bullet-item"><strong>Req-1.1 Axis Alignment</strong>: X-Axis represents Equipment Items / Process Steps; Y-Axis represents Representative Work Items.</li>
+<li class="bullet-item"><strong>Req-1.2 Status Color-Coding</strong>:</li>
+<li class="bullet-item"><code>Normal</code>: Green badge.</li>
+<li class="bullet-item"><code>Warning / Frequent</code>: Amber badge.</li>
+<li class="bullet-item"><code>Critical / VOC Flagged</code>: Red badge.</li>
+<h3>2.2 Inspection Modal &amp; Media Attachments</h3>
+<li class="bullet-item"><strong>Req-2.1 Detail Inspection</strong>: Clicking a matrix cell opens a modal displaying detailed work order records across the 22 master schema fields.</li>
+<li class="bullet-item"><strong>Req-2.2 Photo Attachments</strong>: Supports uploading, viewing, and managing equipment inspection photos.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Filter Synchronization</strong>: Grid MUST reload dynamically when Site or Process filter selections change.</li>
+<li class="bullet-item"><strong>Heatmap Color Accuracy</strong>: Status color badges MUST accurately reflect equipment criticality and VOC status.</li>
+<li class="bullet-item"><strong>Photo Upload Verification</strong>: Attached inspection photos MUST render correctly within the cell detail modal.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Maintenance Plan (MP) List Inquiry Module</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Maintenance Plan (MP) List Inquiry Module</td></tr>
+<tr><td><strong>System Module</strong></td><td>EQUAL Change Matrix Subsystem (<code>/change-matrix/mp-list-inquiry</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Engineers, Maintenance Leads, QC Auditors</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>MP List Inquiry Module</strong> provides maintenance engineers and auditors with a comprehensive interface to query, filter, compare versions, and audit revision histories of Maintenance Plan (MP) records across manufacturing facilities.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Filter Bar: Site / Process / Maint Part</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">MP Data Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Version Select Dropdown</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">MP List Data Grid</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Row Click / Version Badge / Export Click / Delete Action</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Row Revision Audit Modal</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Excel / CSV Export Engine</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Delete MP Item Request</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Functional Requirements</h2>
+<h3>2.1 Multi-Criteria Data Grid</h3>
+<li class="bullet-item"><strong>Req-1.1 Filtering</strong>: Dynamically filter MP items by Site, Process, Maintenance Part, and active Version.</li>
+<li class="bullet-item"><strong>Req-1.2 Master Attributes</strong>: Display Equipment Code, Equipment Name, Representative Work, Version Numbers, and Active Status.</li>
+<h3>2.2 Version Management &amp; Revision Audit</h3>
+<li class="bullet-item"><strong>Req-2.1 Version Switching</strong>: Support switching active MP versions from a dropdown menu.</li>
+<li class="bullet-item"><strong>Req-2.2 Row Revision Audit</strong>: Clicking a row's version badge opens a historical audit modal displaying past modifications to that specific MP item.</li>
+<li class="bullet-item"><strong>Req-2.3 Delete MP Item</strong>: Support removing individual MP records with confirmation.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Version Switch Test</strong>: Changing active version MUST update all grid rows immediately.</li>
+<li class="bullet-item"><strong>Revision History Test</strong>: Opening row revision history MUST display all historical changes in chronological order.</li>
+<li class="bullet-item"><strong>Deletion Audit Test</strong>: Deleting an item MUST remove it from the active view.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Maintenance Plan (MP) List Management Module</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: MP List &amp; Specification Data Management Workspace</td></tr>
+<tr><td><strong>System Module</strong></td><td>EQUAL Change Matrix Subsystem (<code>/change-matrix/mp-list-management</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>System Administrators, Specification Engineers, QC Test Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>MP List Management Module</strong> serves as the primary authoring workspace for configuring, editing, reordering, adding, deleting, and persisting Maintenance Plan (MP) and Specification Data records (<code>SpecData</code>).</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Master Filter Bar: Site / Process</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Specification Column Sequence Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Fetch Specification Data</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Specification Data Grid &amp; Drawer Panel</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Click Add Record / Double Click Cell / Click Delete</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Add Specification Modal</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Inline Editing Workspace</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Delete Specification Action</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Save Specification Changes</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Functional Requirements</h2>
+<h3>2.1 Specification Master Column Ordering Engine</h3>
+<li class="bullet-item"><strong>Req-1.1 Master Column Definitions</strong>: Loads specification master column definitions.</li>
+<li class="bullet-item"><strong>Req-1.2 Sequence Ordering</strong>: Grid columns MUST be ordered strictly by <code>sequence</code>, guaranteeing uniform attribute order across all plant views.</li>
+<h3>2.2 Authoring &amp; Workspace Management</h3>
+<li class="bullet-item"><strong>Req-2.1 Add Record</strong>: Provides an <strong>Add Record</strong> modal allowing operators to define new equipment parameters.</li>
+<li class="bullet-item"><strong>Req-2.2 Inline &amp; Drawer Editing</strong>: Supports double-click inline cell editing and drawer panel editing.</li>
+<li class="bullet-item"><strong>Req-2.3 Delete Record</strong>: Supports deleting individual specification items with confirmation.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Column Sequence Test</strong>: Verify that grid columns appear in exact order defined by column sequence numbers.</li>
+<li class="bullet-item"><strong>Add &amp; Save Test</strong>: Adding a specification record MUST immediately update the workspace grid.</li>
+<li class="bullet-item"><strong>Delete Test</strong>: Deleting a record MUST remove it from the active dataset.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Multi-Format File Processing System</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Multi-Format File Ingestion &amp; Document Processing System</td></tr>
+<tr><td><strong>Supported File Formats</strong></td><td>PPT/PPTX, Excel (XLSX/XLS/CSV), PDF, Images (PNG/JPG), EML Emails</td></tr>
+<tr><td><strong>Primary AI Inference Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Systems Engineers, Integration Architects, QA Testers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Functional Scope &amp; Individual Flow Diagram</h2>
+<h3>1.1 Objective</h3>
+<p>The Multi-Format File Processing System provides a unified ingestion framework capable of extracting operational maintenance records from multi-modal source documents.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">PowerPoint .pptx / .ppt</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Spreadsheet .xlsx / .csv</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">PDF Document .pdf</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Image Scan .png / .jpg</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Email Message .eml</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Format-Specific Ingestion Handler</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Text &amp; Layout Extraction Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">GPT Opus 120B Multimodal Model</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">22 Master Schema Mapping</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Standardized Output Database</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Ingestion Specifications by File Format</h2>
+<h3>2.1 PowerPoint Presentation Decks (PPT / PPTX)</h3>
+<li class="bullet-item"><strong>Requirements</strong>:</li>
+<li class="bullet-item">Extract text contents from slides, text boxes, callout shapes, and embedded tables.</li>
+<li class="bullet-item">Parse slide titles to contextualize maintenance activity locations.</li>
+<h3>2.2 Spreadsheets (XLSX / XLS / CSV)</h3>
+<li class="bullet-item"><strong>Requirements</strong>:</li>
+<li class="bullet-item">Auto-detect table boundaries, multi-header rows, and merged cells.</li>
+<li class="bullet-item">Parse multiple worksheets within a single workbook.</li>
+<h3>2.3 PDF Inspection Reports (PDF)</h3>
+<li class="bullet-item"><strong>Requirements</strong>:</li>
+<li class="bullet-item">Process both native digital PDFs and scanned image-based PDFs.</li>
+<li class="bullet-item">Retain tabular layout structures during text extraction.</li>
+<h3>2.4 Diagnostic Images &amp; Photos (PNG / JPG)</h3>
+<li class="bullet-item"><strong>Requirements</strong>:</li>
+<li class="bullet-item">Extract text embedded within maintenance screenshots, equipment nameplates, and meter readings.</li>
+<li class="bullet-item">Feed visual context directly to the multimodal AI processing pipeline.</li>
+<h3>2.5 Email Communications (EML)</h3>
+<li class="bullet-item"><strong>Requirements</strong>:</li>
+<li class="bullet-item">Extract email headers (Sender, Date, Subject) and body text.</li>
+<li class="bullet-item">Process attached documents (e.g., attached spreadsheets or PDF reports).</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Format Resilience Test</strong>: The system MUST process all 5 supported file types in a single execution queue without failing.</li>
+<li class="bullet-item"><strong>Data Completeness Test</strong>: Extracted fields from all file types MUST map into the 22 master schema attributes.</li>
+<li class="bullet-item"><strong>Error Handling</strong>: Corrupt or unreadable files MUST generate a clear error message and isolate affected items into Quarantine.</li>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Non-Standard Format Data Extraction System &amp; Verification Engine</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: System for Extracting Data from Non-Standard Formats &amp; Performance Validation</td></tr>
+<tr><td><strong>System Module</strong></td><td>Data Extraction &amp; Verification Engine</td></tr>
+<tr><td><strong>Primary AI Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Architects, QA Lead Engineers, Data QC Testers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>Legacy plant maintenance logs are frequently stored in non-standard formats with irregular layout patterns, merged spreadsheet cells, informal column titles, and varying terminology. This specification defines the requirements for a resilient extraction system capable of interpreting non-standard inputs, normalizing raw content into standardized schemas, and validating extraction accuracy using defined verification test suites.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Non-Standard Data File</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Format-Agnostic Parser</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">GPT Opus 120B Model</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Context-Aware Field Binding</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Verification Test Suite</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Scenario 1: Clean Data / Scenario 2: Noisy Data / Scenario 3: Mixed Data</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">100% Master Schema Precision</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Noise Suppression &amp; Intent Extraction</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Multi-Format Cross Validation</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Standardized Output Database</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Theoretical Processing Logic</h2>
+<li class="numbered-item"><strong>Format Agnostic Parsing</strong>: The system parses input documents regardless of layout structure or custom column names.</li>
+<li class="numbered-item"><strong>Context-Aware Field Binding</strong>: Using deep semantic understanding provided by <strong>GPT Opus 120B</strong>, non-standard column headers (e.g., &quot;설비명칭&quot;, &quot;Machine ID&quot;, &quot;작업내용&quot;) are automatically mapped to standard target fields (<code>Equipment Name</code>, <code>Equipment Code</code>, <code>Report Content</code>).</li>
+<li class="numbered-item"><strong>Validation &amp; Isolation</strong>: Entries failing basic mandatory constraints are highlighted for user review or isolated in Quarantine.</li>
+<hr/>
+<h2>3. Quality Control (QC) Verification Test Scenarios</h2>
+<p>Quality Control engineers MUST evaluate system performance across three specific verification scenarios:</p>
+<h3>3.1 Verification Scenario 1: Clean Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Standardized files with clear column headers and complete entries.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Zero missing mandatory fields (<code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>).</li>
+<li class="bullet-item">100% correct data type enforcement (e.g., ISO date formatting).</li>
+<h3>3.2 Verification Scenario 2: Noisy Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Files containing OCR noise, placeholder tokens (&quot;N/A&quot;, &quot;확인중&quot;, &quot;TBD&quot;), text truncations, and informal slang.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Automatic suppression of meaningless noise tokens.</li>
+<li class="bullet-item">Accurate extraction of real underlying maintenance intent.</li>
+<li class="bullet-item">Flagging incomplete records without causing processing failures.</li>
+<h3>3.3 Verification Scenario 3: Mixed Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Batch uploads combining spreadsheets, presentation decks, PDF invoices, image scans, and email messages.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Unified output dataset standardized to the master target schema.</li>
+<li class="bullet-item">Zero data loss or corruption during multi-format batch ingestion.</li>
+<hr/>
+<h2>4. Operational Requirements</h2>
+<li class="bullet-item"><strong>Accuracy Threshold</strong>: Minimum 95% field extraction accuracy on noisy data inputs.</li>
+<li class="bullet-item"><strong>Fault Tolerance</strong>: Malformed rows MUST be quarantined without breaking the pipeline.</li>
+<li class="bullet-item"><strong>Auditability</strong>: All extraction actions MUST retain line-level source traceability.</li>
+<hr/>
+<h1>System Specification: End-to-End Flow Diagram &amp; Data Lifecycle</h1>
+<hr/>
+<h2>1. System Architecture &amp; Workflow Diagram</h2>
+<p>This document illustrates the complete end-to-end operational flow of the EQUAL system—from initial multi-format file upload through AI narrative extraction, job monitoring, quarantine handling, master schema standardization, change history management, matrix heatmap visualization, and maintenance plan (MP) versioning.</p>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">File Upload: PPT, Excel, PDF, PNG/JPG, EML</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">AI Pipeline Import Action</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">AiPipelinePromptModal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">Detected Columns Summary Report</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Predefined System Prompt &amp; Defined Change Points</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">GPT Opus 120B Inference Model</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Domain Jargon Normalization</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">ISO Date &amp; Equipment Alias Standardization</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Row Verification Check</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Valid Report Content / Blank / Noise / Non-Content</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 10</div>
+      <div class="flow-card-title">Jobs Execution Queue</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 11</div>
+      <div class="flow-card-title">Quarantine Subsystem</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 12</div>
+      <div class="flow-card-title">Jobs Table 4s Scoped Polling</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Eye Icon Click</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 13</div>
+      <div class="flow-card-title">Job Preview Modal 22 Master Attributes Preview</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 14</div>
+      <div class="flow-card-title">Quarantine Table WHY Reason Pills</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Restore Action</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 15</div>
+      <div class="flow-card-title">Re-inject Row into Active Pool</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 16</div>
+      <div class="flow-card-title">Change History Data Grid</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 17</div>
+      <div class="flow-card-title">Header Actions: Import CSV / Export CSV &amp; Excel</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 18</div>
+      <div class="flow-card-title">Targeted ZIP Export: POST /api/ChangeData/ExportZipByIds</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 19</div>
+      <div class="flow-card-title">Save Changes: POST /api/ChangeData/SaveChangedData</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Auto-Trigger</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 20</div>
+      <div class="flow-card-title">Event Listener: refreshChangeHistoryData</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 21</div>
+      <div class="flow-card-title">Matrix Inquiry 2D Heatmap &amp; Photo Gallery</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 22</div>
+      <div class="flow-card-title">MP List Inquiry Version Control &amp; Row Revisions</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 23</div>
+      <div class="flow-card-title">MP List Management Spec Column Sequence Engine</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Stage-by-Stage Operational Summary for QC Testing</h2>
+<table class="styled-table">
+<thead>
+<tr><th>Stage #</th><th>Stage Name</th><th>System Action</th><th>QC Verification Expectation</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>1</strong></td><td><strong>Multi-Format Ingestion</strong></td><td>Ingests <code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>, <code>.pptx</code>, <code>.png</code>, <code>.eml</code> files.</td><td>System accepts all 5 supported file types without rejection.</td></tr>
+<tr><td><strong>2</strong></td><td><strong>Pre-Upload Report</strong></td><td>Displays column headers and editable prompt with Change Points.</td><td>Column summary tags match input file headers exactly.</td></tr>
+<tr><td><strong>3</strong></td><td><strong>AI Extraction</strong></td><td>GPT Opus 120B maps text to 22 master schema columns.</td><td>Jargon normalized; dates converted to ISO-8601 (<code>YYYY-MM-DD</code>).</td></tr>
+<tr><td><strong>4</strong></td><td><strong>Routing &amp; Isolation</strong></td><td>Valid rows sent to Jobs; blank/noise sent to Quarantine.</td><td>Invalid/empty rows isolated without breaking the job run.</td></tr>
+<tr><td><strong>5</strong></td><td><strong>Jobs &amp; Quarantine</strong></td><td>4s polling on Jobs; Restore action on Quarantine.</td><td>Polling active only on Jobs page; Restore returns row to pool.</td></tr>
+<tr><td><strong>6</strong></td><td><strong>Change History Data</strong></td><td>22-attribute grid editing, targeted ZIP export by IDs.</td><td>Selected checkbox IDs exported in ZIP package.</td></tr>
+<tr><td><strong>7</strong></td><td><strong>Matrix &amp; MP Modules</strong></td><td>Heatmap status badges, MP versioning, column sequence.</td><td>Column order strictly matches sequence numbers.</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1>Software Requirements Specification (SRS)</h1>
+<h2>Unstructured &amp; Semi-Structured Data Extraction Pipeline</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Unstructured &amp; Semi-Structured Data Ingestion and Schema Standardization</td></tr>
+<tr><td><strong>Target Subsystem</strong></td><td>EQUAL Data Extraction &amp; Schema Standardization Pipeline</td></tr>
+<tr><td><strong>Core Inference Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Primary Audience</strong></td><td>Product Managers, Data Engineers, QC / QA Test Engineers, Domain Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Project Purpose</h2>
+<h3>1.1 Purpose</h3>
+<p>Industrial maintenance operations generate vast amounts of unstructured and semi-structured documentation—such as free-text work logs, technical inspection reports, equipment audit slide decks, email communications, and scanned diagnostic invoices. These documents contain critical insights regarding machine health, failure causes, and maintenance history, but lack standardized structure.</p>
+<p>This System Requirements Specification (SRS) defines the functional, data, processing, and Quality Control (QC) requirements for an AI-powered data extraction pipeline. Powered by the <strong>GPT Opus 120B</strong> model, the system ingests non-standard multi-format operational documents, interprets domain-specific maintenance narratives, normalizes equipment terminology, and maps extracted attributes into a <strong>predefined 22-column master database schema</strong>.</p>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Unstructured / Semi-Structured Input Files</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Multi-Format Ingestion Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Text Extraction &amp; Preprocessing</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">GPT Opus 120B Large Language Model</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Domain Jargon &amp; Alias Normalization</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Schema Mapping Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">Predefined 22-Column Master Database Schema</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">QC &amp; Validation Audit Layer</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Predefined Master Database Schema (22 Attributes)</h2>
+<p>The extraction engine MUST convert and normalize arbitrary input fields into the following 22 standardized master target attributes:</p>
+<table class="styled-table">
+<thead>
+<tr><th>Column #</th><th>Standardized Attribute</th><th>Data Type</th><th>Mandatory Rule</th><th>Description &amp; QC Validation Expectation</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><code>Site</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Manufacturing plant or facility location (e.g., &quot;Suwon Site A1&quot;).</td></tr>
+<tr><td>2</td><td><code>Process</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Production line or process step (e.g., &quot;03. Molding / Coating&quot;).</td></tr>
+<tr><td>3</td><td><code>Maintenance Part</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Maintenance group or equipment class (e.g., &quot;0303. R2 Coater&quot;).</td></tr>
+<tr><td>4</td><td><code>Equipment Code</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Unique hardware asset tag / code (e.g., &quot;H0303001&quot;).</td></tr>
+<tr><td>5</td><td><code>Equipment Name</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Descriptive equipment label (e.g., &quot;Coater(3R2)_450&quot;).</td></tr>
+<tr><td>6</td><td><code>W/O Code</code></td><td>String</td><td>Optional</td><td>Work Order or Work Instruction identifier code (e.g., &quot;W004512547&quot;).</td></tr>
+<tr><td>7</td><td><code>Report Content</code></td><td>String</td><td>Optional</td><td>Full narrative of maintenance activity or technician observation.</td></tr>
+<tr><td>8</td><td><code>BOM</code></td><td>String</td><td>Optional</td><td>Bill of Materials reference or part catalog identifier.</td></tr>
+<tr><td>9</td><td><code>Spare Part</code></td><td>String</td><td>Optional</td><td>List of replaced components or spare parts utilized during repair.</td></tr>
+<tr><td>10</td><td><code>Work Date</code></td><td>ISO Date/Time</td><td>Optional</td><td>Timestamp or date when maintenance was performed (YYYY-MM-DD format).</td></tr>
+<tr><td>11</td><td><code>Improvement Work</code></td><td>String</td><td>Optional</td><td>Concise summary of corrective action taken.</td></tr>
+<tr><td>12</td><td><code>Work Purpose</code></td><td>String</td><td>Optional</td><td>Stated objective or justification for the maintenance intervention.</td></tr>
+<tr><td>13</td><td><code>Problem Symptom</code></td><td>String</td><td>Optional</td><td>Observed machine anomaly, failure symptom, or operational warning.</td></tr>
+<tr><td>14</td><td><code>Problem Cause</code></td><td>String</td><td>Optional</td><td>Identified root cause of the equipment breakdown.</td></tr>
+<tr><td>15</td><td><code>HW Before</code></td><td>String</td><td>Optional</td><td>Hardware state, model, or count prior to maintenance.</td></tr>
+<tr><td>16</td><td><code>HW After</code></td><td>String</td><td>Optional</td><td>Hardware state, model, or count following maintenance.</td></tr>
+<tr><td>17</td><td><code>SW Before</code></td><td>String</td><td>Optional</td><td>Software version or firmware parameter prior to change.</td></tr>
+<tr><td>18</td><td><code>SW After</code></td><td>String</td><td>Optional</td><td>Software version or firmware parameter following change.</td></tr>
+<tr><td>19</td><td><code>Representative Work</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Standardized cluster title for the maintenance activity.</td></tr>
+<tr><td>20</td><td><code>Priority</code></td><td>Enum</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Criticality level (&quot;Urgent&quot;, &quot;Important&quot;, &quot;Normal&quot;).</td></tr>
+<tr><td>21</td><td><code>Category</code></td><td>Enum</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Maintenance classification (&quot;Quality&quot;, &quot;Safety&quot;, &quot;Productivity&quot;, &quot;Other&quot;).</td></tr>
+<tr><td>22</td><td><code>Wotype</code></td><td>Enum</td><td>Optional</td><td>Work order classification type (e.g., &quot;CM&quot;, &quot;BM&quot;, &quot;PM&quot;).</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>3. Functional Requirements &amp; System Capabilities</h2>
+<h3>3.1 AI Narrative Interpretation (GPT Opus 120B)</h3>
+<li class="bullet-item"><strong>FR-01.1 Contextual Interpretation</strong>: The system SHALL process unstructured technical Korean and English prose to accurately discern root causes from symptoms and corrective actions from work purposes.</li>
+<li class="bullet-item"><strong>FR-01.2 Domain Jargon Normalization</strong>: The AI engine SHALL automatically translate colloquial plant jargon, abbreviations, and informal equipment aliases into official master terms.</li>
+<li class="bullet-item"><strong>FR-01.3 Date &amp; Numeric Standardization</strong>: All extracted dates SHALL be converted to standard ISO-8601 (<code>YYYY-MM-DDTHH:mm:ss</code>) format regardless of source input formatting (e.g., &quot;2019/4/24&quot;, &quot;19.04.24&quot;, &quot;Apr 24 2019&quot;).</li>
+<h3>3.2 Pre-Upload Change Point Prompt Configuration</h3>
+<li class="bullet-item"><strong>FR-02.1 Change Point Customization</strong>: Operators SHALL be able to review and adjust AI extraction directives and prompt parameters prior to starting pipeline ingestion.</li>
+<li class="bullet-item"><strong>FR-02.2 Real-Time Schema Preview</strong>: The system SHALL provide a preliminary summary report of detected input columns before executing full model extraction.</li>
+<hr/>
+<h2>4. QC Testing &amp; Quality Assurance Verification Plan</h2>
+<p>Quality Control (QC) engineers SHALL verify the extraction accuracy and system resilience using three structured test suites:</p>
+<h3>4.1 Verification Scenario A: Clean Data Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Standard structured spreadsheets with complete headers and well-formatted text.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">100% field extraction precision across all 22 master schema columns.</li>
+<li class="bullet-item">Zero missing mandatory fields (<code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>).</li>
+<h3>4.2 Verification Scenario B: Noisy Data Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Free-text logs containing OCR artifacts, Korean/English typos, missing punctuation, placeholder phrases (&quot;N/A&quot;, &quot;TBD&quot;, &quot;확인중&quot;), and slang.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">System successfully filters out noise phrases and flags invalid rows for Quarantine.</li>
+<li class="bullet-item">Correct identification of core maintenance intent despite spelling errors.</li>
+<h3>4.3 Verification Scenario C: Mixed Format Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Multi-page PDFs containing embedded tables, PPTX slides, scanned inspection images, and email attachment threads.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">Successful end-to-end extraction across all document formats without memory leak or process crash.</li>
+<li class="bullet-item">Consistent schema mapping to the 22 master target fields across all file types.</li>
+<hr/>
+<h2>5. Non-Functional Requirements (NFR)</h2>
+<li class="bullet-item"><strong>NFR-01 Extraction Speed</strong>: Total processing time SHALL not exceed 3.0 seconds per record for standard multi-row files.</li>
+<li class="bullet-item"><strong>NFR-02 Model Model Integrity</strong>: The pipeline SHALL utilize the <strong>GPT Opus 120B</strong> model to guarantee high-reasoning accuracy on domain-specific maintenance queries.</li>
+<li class="bullet-item"><strong>NFR-03 Reliability</strong>: The system SHALL handle corrupt file inputs gracefully by sending non-parsable records to a Quarantine view without halting the overall job execution.</li>
+<hr/>
+
+</body>
+</html>

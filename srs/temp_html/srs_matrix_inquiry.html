@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_matrix_inquiry</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 10pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Visual Flowchart Styling */
+    .diagram-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+    .diagram-header {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 6px;
+    }
+    .diagram-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .flow-card {
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      border-left: 5px solid #1745c2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .flow-card-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .flow-card-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .flow-connector {
+      text-align: center;
+      padding: 2px 0;
+    }
+    .flow-arrow-down {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1745c2;
+      line-height: 1;
+    }
+    .flow-edge-label {
+      font-size: 8pt;
+      font-style: italic;
+      color: #334155;
+      background-color: #e2e8f0;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Software Requirements Specification (SRS)</h1>
+<h2>Matrix Inquiry Module</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Matrix Inquiry &amp; Equipment Heatmap Module</td></tr>
+<tr><td><strong>System Module</strong></td><td>EQUAL Change Matrix Subsystem (<code>/change-matrix/matrix-inquiry</code>)</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Data Visualization Engineers, Maintenance Managers, QC Test Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>The <strong>Matrix Inquiry Module</strong> provides an interactive 2D Heatmap Grid cross-referencing equipment assets against representative work activities, enabling plant engineers to visualize maintenance frequency, operational status, and VOC (Voice of Customer) complaint flags.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-container">
+<div class="diagram-header">SYSTEM WORKFLOW DIAGRAM</div>
+<div class="diagram-steps">
+<div class="flow-card">
+      <div class="flow-card-num">Step 1</div>
+      <div class="flow-card-title">Filter Bar: Site / Process / Maint Part</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 2</div>
+      <div class="flow-card-title">Matrix Data Engine</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 3</div>
+      <div class="flow-card-title">Status Counter Summary Rail</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 4</div>
+      <div class="flow-card-title">2D Heatmap Grid X-Axis: Equipment / Process Y-Axis: Representative Work</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        <div class="flow-edge-label">Cell Click / Double Click</div>
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 5</div>
+      <div class="flow-card-title">Status Badges: Normal / Warning / Critical / VOC</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 6</div>
+      <div class="flow-card-title">Inspection Modal</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 7</div>
+      <div class="flow-card-title">22 Master Schema Attributes View</div>
+    </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 8</div>
+      <div class="flow-card-title">Equipment Inspection Photo Upload &amp; Gallery</div>
+    </div>
+<div class="flow-connector">
+        <div class="flow-arrow-down">↓</div>
+        
+      </div>
+<div class="flow-card">
+      <div class="flow-card-num">Step 9</div>
+      <div class="flow-card-title">Save Matrix Data Changes</div>
+    </div>
+</div>
+</div>
+<hr/>
+<h2>2. Functional Requirements</h2>
+<h3>2.1 2D Heatmap Matrix Grid</h3>
+<li class="bullet-item"><strong>Req-1.1 Axis Alignment</strong>: X-Axis represents Equipment Items / Process Steps; Y-Axis represents Representative Work Items.</li>
+<li class="bullet-item"><strong>Req-1.2 Status Color-Coding</strong>:</li>
+<li class="bullet-item"><code>Normal</code>: Green badge.</li>
+<li class="bullet-item"><code>Warning / Frequent</code>: Amber badge.</li>
+<li class="bullet-item"><code>Critical / VOC Flagged</code>: Red badge.</li>
+<h3>2.2 Inspection Modal &amp; Media Attachments</h3>
+<li class="bullet-item"><strong>Req-2.1 Detail Inspection</strong>: Clicking a matrix cell opens a modal displaying detailed work order records across the 22 master schema fields.</li>
+<li class="bullet-item"><strong>Req-2.2 Photo Attachments</strong>: Supports uploading, viewing, and managing equipment inspection photos.</li>
+<hr/>
+<h2>3. QC Testing &amp; Acceptance Criteria</h2>
+<li class="bullet-item"><strong>Filter Synchronization</strong>: Grid MUST reload dynamically when Site or Process filter selections change.</li>
+<li class="bullet-item"><strong>Heatmap Color Accuracy</strong>: Status color badges MUST accurately reflect equipment criticality and VOC status.</li>
+<li class="bullet-item"><strong>Photo Upload Verification</strong>: Attached inspection photos MUST render correctly within the cell detail modal.</li>
+
+</body>
+</html>
