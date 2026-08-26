@@ -1,66 +1,116 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useI18n } from "../i18n.jsx";
 
+const WHY = {
+  empty: "The report cell was blank, or held nothing but codes and dates.",
+  literal_noise: "The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).",
+  numeric_only: "The text was only digits.",
+  non_content: "The text was only punctuation or symbols.",
+  too_short: "Fewer than the minimum characters once codes and dates were removed.",
+};
+
 export default function Quarantine() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [reason, setReason] = useState("");
+  const [showReleased, setShowReleased] = useState(false);
   const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [note, setNote] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const { t } = useI18n();
 
-  const fetchQuarantineData = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const baseUrl =
-        pocEndPoints.AI_PIPELINE_GET_QUARANTINE ||
-        "http://107.108.32.188:8001/api/quarantine?include_released=false&limit=200&offset=0";
+      const aiServer = (
+        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+      ).replace(/\/+$/, "");
 
-      const response = await fetch(baseUrl, {
+      const params = new URLSearchParams({
+        include_released: String(showReleased),
+        limit: "200",
+        offset: "0",
+      });
+      if (reason) {
+        params.append("reason", reason);
+      }
+
+      const apiUrl = `${aiServer}/api/quarantine?${params.toString()}`;
+
+      const response = await fetch(apiUrl, {
         headers: { accept: "application/json" },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch quarantine items (status: ${response.status})`);
+        throw new Error(`Failed to load quarantine data (status: ${response.status})`);
       }
 
-      const data = await response.json();
-      const rawList = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : Array.isArray(data?.quarantines)
-        ? data.quarantines
-        : Array.isArray(data?.data)
-        ? data.data
-        : [];
-
-      setItems(rawList);
+      const json = await response.json();
+      setData(json);
     } catch (err) {
       console.error("Quarantine fetch error:", err);
-      setError(err.message || "Failed to load quarantine details.");
+      setError(err.message || "Failed to load quarantine data.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchQuarantineData();
-  }, []);
+    loadData();
+  }, [reason, showReleased]);
 
-  const filteredItems = items.filter((item) => {
+  const handleRelease = async (row) => {
+    setBusy(row.id);
+    setError(null);
+    setNote(null);
+    try {
+      const aiServer = (
+        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+      ).replace(/\/+$/, "");
+
+      const apiUrl = `${aiServer}/api/quarantine/${row.id}/release`;
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { accept: "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to release row (status: ${response.status})`);
+      }
+
+      const r = await response.json();
+      setNote(
+        r.duplicate_of
+          ? `Row ${row.source_row || row.id} released, but its text already exists in this process — recorded as a repeat report.`
+          : `Row ${row.source_row || row.id} is now released as report ${r.report_id || r.id || ""}.`
+      );
+      loadData();
+    } catch (err) {
+      console.error("Release error:", err);
+      setError(err.message || "Failed to restore row.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const byReason = data?.by_reason || {};
+  const reasonKinds = Object.keys(byReason);
+  const itemsList = data?.items || (Array.isArray(data) ? data : []);
+
+  const filteredItems = itemsList.filter((r) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const str = JSON.stringify(item).toLowerCase();
+    const str = JSON.stringify(r).toLowerCase();
     return str.includes(q);
   });
 
   return (
     <section className="flex-1 flex flex-col min-h-0 space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-20">
         <div>
           <h1 className="page-title flex items-center gap-2.5">
@@ -68,18 +118,18 @@ export default function Quarantine() {
             <span>Quarantine</span>
           </h1>
           <p className="page-subtitle">
-            Inspect quarantined rows or files flagged by the AI pipeline during ingestion.
+            Rows that were read but judged to have no usable report text. They are kept, not deleted — but they do <b>not</b> appear in the export.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative w-72 sm:w-96">
+          <div className="relative w-64 sm:w-80">
             <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none" />
             <input
               type="text"
               className="input-base text-xs w-full py-1.5"
               style={{ paddingLeft: "2.25rem" }}
-              placeholder="Search quarantine ID, file, reason..."
+              placeholder="Search file, W/O code, text..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -87,9 +137,9 @@ export default function Quarantine() {
 
           <button
             type="button"
-            onClick={fetchQuarantineData}
+            onClick={loadData}
             className="btn-base btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
-            title="Refresh Quarantine Data"
+            title="Refresh"
           >
             <i className={`fas fa-sync-alt text-xs ${loading ? "fa-spin" : ""}`} />
             <span>Refresh</span>
@@ -97,31 +147,50 @@ export default function Quarantine() {
         </div>
       </header>
 
-      {/* Main Table Card */}
+      {/* Notices */}
+      {error && (
+        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+          <i className="fas fa-exclamation-circle text-sm" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {note && (
+        <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs flex items-center gap-2">
+          <i className="fas fa-check-circle text-sm" />
+          <span>{note}</span>
+        </div>
+      )}
+
+      {/* Main Card */}
       <div className="card flex-1 flex flex-col min-h-0 p-0 overflow-hidden shadow-xs border border-border-base bg-surface-default">
-        {loading ? (
+        {/* Filters bar */}
+        <div className="flex flex-wrap items-center justify-end gap-4 px-6 py-3 border-b border-border-base bg-gray-50/50 dark:bg-gray-800/40 shrink-0">
+          <div className="text-xs text-text-subtle font-mono">
+            {data?.total != null ? data.total.toLocaleString() : 0} row
+            {data?.total === 1 ? "" : "s"}
+            {reason && (
+              <>
+                {" "}with reason <b>{reason}</b>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Content Body */}
+        {loading && !data ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
             <i className="fas fa-spinner fa-spin text-3xl text-amber-600 mb-3" />
-            <p className="text-sm font-medium">Loading quarantine data...</p>
+            <p className="text-sm font-medium">Loading quarantine items...</p>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-20 text-red-600">
-            <i className="fas fa-exclamation-triangle text-3xl mb-3" />
-            <p className="text-sm font-medium">{error}</p>
-            <button
-              type="button"
-              onClick={fetchQuarantineData}
-              className="mt-4 btn-base btn-secondary text-xs px-4 py-1.5"
-            >
-              Retry
-            </button>
-          </div>
-        ) : filteredItems.length === 0 ? (
+        ) : data?.total === 0 || filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
             <i className="fas fa-shield-alt text-5xl opacity-30 mb-3 text-amber-500" />
-            <h3 className="text-base font-semibold text-text-default mb-1">No Quarantine Data Found</h3>
-            <p className="text-xs text-text-subtle">
-              There are no quarantined entries matching your criteria.
+            <h3 className="text-base font-semibold text-text-default mb-1">
+              Nothing is quarantined
+            </h3>
+            <p className="text-xs text-text-subtle max-w-sm text-center">
+              Every row that was read had usable report text or matches your filter criteria.
             </p>
           </div>
         ) : (
@@ -129,59 +198,100 @@ export default function Quarantine() {
             <table className="w-full text-xs text-left border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">
                 <tr className="font-semibold text-text-subtle whitespace-nowrap">
-                  <th className="px-4 py-3 w-12 text-center">#</th>
-                  <th className="px-4 py-3 min-w-[100px]">ID / Job ID</th>
-                  <th className="px-4 py-3 min-w-[200px]">File / Item</th>
-                  <th className="px-4 py-3 min-w-[250px]">Reason / Issue</th>
-                  <th className="px-4 py-3 min-w-[180px]">Quarantined At</th>
-                  <th className="px-4 py-3 min-w-[120px] text-center">Status</th>
+                  <th className="px-4 py-3 min-w-[160px]">Source</th>
+                  <th className="px-4 py-3 min-w-[120px]">W/O code</th>
+                  <th className="px-4 py-3 min-w-[180px]">Process · Equipment</th>
+                  <th className="px-4 py-3 min-w-[220px]">What the cell held</th>
+                  <th className="px-4 py-3 min-w-[200px]">Why</th>
+                  <th className="px-4 py-3 min-w-[130px] text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base">
-                {filteredItems.map((item, idx) => {
-                  const itemId = item.id || item.quarantine_id || item.job_id || idx + 1;
-                  const fileName =
-                    item.file_name ||
-                    item.file ||
-                    item.filename ||
-                    (Array.isArray(item.files) ? item.files.join(", ") : "-");
-                  const reason =
-                    item.reason || item.error || item.cause || item.issue || item.message || "Quarantined by AI Pipeline";
-                  const createdAt = item.created_at || item.timestamp || item.quarantined_at || "-";
-                  const isReleased = Boolean(item.is_released || item.released);
+                {filteredItems.map((r) => {
+                  const isReleased = Boolean(r.released_report_id || r.released_at);
 
                   return (
                     <tr
-                      key={idx}
-                      className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
+                      key={r.id}
+                      className={`transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/60 ${
+                        isReleased ? "opacity-60 bg-gray-50/30" : ""
+                      }`}
                     >
-                      <td className="px-4 py-3 text-center text-text-subtle font-mono">
-                        {idx + 1}
+                      {/* Source */}
+                      <td className="px-4 py-3 font-mono text-xs">
+                        <div className="font-medium text-text-default truncate max-w-[180px]" title={r.source_file}>
+                          {r.source_file || "-"}
+                        </div>
+                        <div className="text-[11px] text-text-subtle">
+                          row {r.source_row ?? "-"}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 font-mono font-semibold text-text-default">
-                        #{itemId}
+
+                      {/* W/O code */}
+                      <td className="px-4 py-3 font-mono font-medium text-text-default">
+                        {r.wo_code || "—"}
                       </td>
-                      <td className="px-4 py-3 font-medium text-text-default max-w-[260px] truncate" title={String(fileName)}>
-                        <i className="fas fa-file-excel text-emerald-600 mr-2" />
-                        {String(fileName)}
+
+                      {/* Process · Equipment */}
+                      <td className="px-4 py-3 text-xs">
+                        <div className="font-medium text-text-default">
+                          {r.process || "—"}
+                        </div>
+                        <div className="text-[11px] text-text-subtle truncate max-w-[200px]" title={`${r.equipment_name || r.equipment || ""}${r.equipment_code ? ` (${r.equipment_code})` : ""}`}>
+                          {r.equipment_name || r.equipment || ""}
+                          {r.equipment_code && ` (${r.equipment_code})`}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-amber-700 dark:text-amber-400 font-medium max-w-[320px] truncate" title={String(reason)}>
-                        {String(reason)}
+
+                      {/* What the cell held */}
+                      <td className="px-4 py-3 text-xs max-w-[260px]">
+                        {r.raw_content ? (
+                          <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded font-mono text-[11px] block truncate" title={String(r.raw_content)}>
+                            {String(r.raw_content).slice(0, 120)}
+                          </code>
+                        ) : (
+                          <span className="text-text-subtle italic">(blank)</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-text-subtle">
-                        {String(createdAt)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            isReleased
-                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200"
-                              : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200"
-                          }`}
-                        >
-                          <i className={`fas ${isReleased ? "fa-check-circle" : "fa-shield-alt"} text-[10px]`} />
-                          {isReleased ? "Released" : "Quarantined"}
+
+                      {/* Why */}
+                      <td className="px-4 py-3 text-xs">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 mb-1">
+                          {r.reason || "quarantined"}
                         </span>
+                        <div className="text-[11px] text-text-subtle leading-tight">
+                          {WHY[r.reason] || ""}
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {r.released_report_id ? (
+                          <span className="text-xs text-text-subtle font-mono">
+                            released as <span className="font-semibold text-emerald-600">#{r.released_report_id}</span>
+                          </span>
+                        ) : r.reason === "empty" ? (
+                          <span className="text-xs text-text-subtle italic">nothing to restore</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy === r.id}
+                            onClick={() => handleRelease(r)}
+                            className="btn-base btn-primary text-xs px-3 py-1 flex items-center gap-1 ml-auto"
+                          >
+                            {busy === r.id ? (
+                              <>
+                                <i className="fas fa-spinner fa-spin" />
+                                <span>Restoring…</span>
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-undo text-[10px]" />
+                                <span>Restore</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -190,6 +300,14 @@ export default function Quarantine() {
             </table>
           </div>
         )}
+
+        {/* Footer info tip */}
+        <div className="px-6 py-3 border-t border-border-base bg-gray-50/50 dark:bg-gray-800/40 text-xs text-text-subtle flex items-center gap-2 shrink-0">
+          <i className="fas fa-info-circle text-amber-500" />
+          <span>
+            <b>Restoring</b> puts the row back as a real report, keeping its own process, equipment and date.
+          </span>
+        </div>
       </div>
     </section>
   );

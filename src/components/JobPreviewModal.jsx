@@ -34,9 +34,11 @@ const DEFAULT_PREVIEW_COLUMNS = [
 
 function mapExportedRowToChangeData(row) {
   const currentUserName = getUserInfo()?.name || "Chirati Harish";
-  const maintVal = row.maintenance_part || row.maintGroup || row.eqType || "";
-  const woTypeVal = row.wotype || row.woType || row.wo_type || "";
-  const workedDate = row.work_date || row.workedOn || "";
+  const maintVal = row.maintenance_part || row.maintGroup || row.eqType || row["보전파트"] || "";
+  const woTypeVal = row.Wotype || row.wotype || row.woType || row.wo_type || row["W/O타입"] || "";
+  const woCodeVal = row.wOCode || row.woCode || row.wo_code || row["W/O코드"] || row["작업지시서 코드"] || "";
+  const workedDate = row.work_date || row.workedOn || row["작업완료일"] || row["작업일자"] || "";
+  const sparePartVal = row.sparepart || row.sparePart || row["자재목록"] || row["예비 부품"] || "";
 
   return {
     id: 0,
@@ -45,24 +47,25 @@ function mapExportedRowToChangeData(row) {
     maintGroup: maintVal,
     equipmentCode: row.equipment_code || row.equipmentCode || "",
     equipmentName: row.equipment_name || row.equipmentName || "",
-    woCode: row.wo_code || row.woCode || "",
-    wOCode: row.wo_code || row.woCode || "",
-    wo_code: row.wo_code || row.woCode || "",
-    report: row.report || row.report_content || row.reportContent || "",
-    bom: row.bom || "",
-    sparePart: row.sparepart || row.sparePart || "",
+    woCode: woCodeVal,
+    wOCode: woCodeVal,
+    wo_code: woCodeVal,
+    report: row.report || row.report_content || row.reportContent || row["Report내용"] || row["보고서"] || "",
+    bom: row.bom || row.BOM || "",
+    sparePart: sparePartVal,
+    "자재목록": sparePartVal,
     workedOn: workedDate,
-    work: row.improvements || row.work || "",
-    purpose: row.task_purpose || row.purpose || "",
-    situation: row.problem_phenomenon || row.situation || "",
-    cause: row.problem_cause || row.cause || "",
-    hwAsWas: row.hw_before || row.hwAsWas || "",
-    hwAsIs: row.hw_after || row.hwAsIs || "",
-    swAsWas: row.sw_before || row.swAsWas || "",
-    swAsIs: row.sw_after || row.swAsIs || "",
-    representativeWork: row.rep_name || row.representativeWork || "",
-    priority: row.importance || row.priority || "",
-    category: row.effect_type || row.category || "",
+    work: row.improvements || row.work || row.work_description || row["개선 작업"] || row["작업"] || "",
+    purpose: row.task_purpose || row.purpose || row["작업 목적"] || "",
+    situation: row.problem_phenomenon || row.situation || row["문제 현상"] || row["상황"] || "",
+    cause: row.problem_cause || row.cause || row["문제 원인"] || row["원인"] || "",
+    hwAsWas: row.hw_before || row.hwAsWas || row["HW 변경 전"] || row["기존 하드웨어"] || "",
+    hwAsIs: row.hw_after || row.hwAsIs || row["HW 변경 후"] || row["현 하드웨어"] || "",
+    swAsWas: row.sw_before || row.swAsWas || row["SW 변경 전"] || row["기존 소프트웨어"] || "",
+    swAsIs: row.sw_after || row.swAsIs || row["SW 변경 후"] || row["현 소프트웨어"] || "",
+    representativeWork: row.rep_name || row.representativeWork || row["대표 작업명"] || row["대표 작업"] || "",
+    priority: row.importance || row.priority || row["중요도"] || row["우선순위"] || "",
+    category: row.effect_type || row.category || row["효과 유형"] || row["구분"] || "",
     woType: woTypeVal,
     woTypeId: 0,
     eqType: maintVal,
@@ -154,7 +157,13 @@ export default function JobPreviewModal({ job, onClose }) {
 
         const data = await response.json();
         if (isMounted) {
-          const rawRows = data?.rows || [];
+          const rawRows = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.rows)
+            ? data.rows
+            : Array.isArray(data?.data)
+            ? data.data
+            : [];
           const mappedRows = rawRows.map(mapExportedRowToChangeData);
           setRows(mappedRows);
         }
@@ -180,7 +189,26 @@ export default function JobPreviewModal({ job, onClose }) {
     if (editingCell) {
       setRows((prev) => {
         const next = [...prev];
-        next[rowIdx] = { ...next[rowIdx], [key]: cellValue };
+        const updatedRow = { ...next[rowIdx], [key]: cellValue };
+        const lowerKey = String(key).toLowerCase();
+        if (lowerKey === "wocode") {
+          updatedRow.woCode = cellValue;
+          updatedRow.wOCode = cellValue;
+          updatedRow.wo_code = cellValue;
+        } else if (lowerKey === "wotype") {
+          updatedRow.woType = cellValue;
+          updatedRow.Wotype = cellValue;
+          updatedRow.wo_type = cellValue;
+          updatedRow.woTypeName = cellValue;
+        } else if (lowerKey === "maintgroup" || lowerKey === "eqtype") {
+          updatedRow.maintGroup = cellValue;
+          updatedRow.eqType = cellValue;
+        } else if (lowerKey === "sparepart" || key === "자재목록") {
+          updatedRow.sparePart = cellValue;
+          updatedRow["자재목록"] = cellValue;
+        }
+
+        next[rowIdx] = updatedRow;
         return next;
       });
       setEditingCell(null);

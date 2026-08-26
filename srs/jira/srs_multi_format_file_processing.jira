@@ -1,0 +1,74 @@
+h1. Software Requirements Specification (SRS)
+h2. Multi-Format File Processing System
+
+----
+
+h3. Document Control
+|| Item || Details ||
+| *Document Title* | SRS: Multi-Format File Ingestion & Document Processing System |
+| *Supported File Formats* | PPT/PPTX, Excel (XLSX/XLS/CSV), PDF, Images (PNG/JPG), EML Emails |
+| *Primary AI Inference Engine* | GPT Opus 120B Large Language Model |
+| *Document Version* | 1.0.0 (Pre-Implementation Baseline) |
+| *Target Audience* | Systems Engineers, Integration Architects, QA Testers |
+
+----
+
+h2. 1. Functional Scope & Individual Flow Diagram
+
+h3. 1.1 Objective
+The Multi-Format File Processing System provides a unified ingestion framework capable of extracting operational maintenance records from multi-modal source documents.
+
+h3. 1.2 Individual Module Flow Diagram
+{code}
+[ PowerPoint .pptx/.ppt ] ──┐
+[ Spreadsheet .xlsx/.csv ] ──┼──> [ Format Ingestion Handler ]
+[ PDF Document .pdf      ] ──┤                 │
+[ Image Scan .png/.jpg   ] ──┤                 ▼
+[ Email Message .eml     ] ──┘   [ Layout & OCR Extraction ]
+                                               │
+                                               ▼
+                                 [ GPT Opus 120B Model ]
+                                               │
+                                               ▼
+                                 [ 22 Master Schema Map ]
+                                               │
+                                               ▼
+                                 [ Standardized Database ]
+{code}
+
+----
+
+h2. 2. Ingestion Specifications by File Format
+
+h3. 2.1 PowerPoint Presentation Decks (PPT / PPTX)
+* *Requirements*:
+** Extract text contents from slides, text boxes, callout shapes, and embedded tables.
+** Parse slide titles to contextualize maintenance activity locations.
+
+h3. 2.2 Spreadsheets (XLSX / XLS / CSV)
+* *Requirements*:
+** Auto-detect table boundaries, multi-header rows, and merged cells.
+** Parse multiple worksheets within a single workbook.
+
+h3. 2.3 PDF Inspection Reports (PDF)
+* *Requirements*:
+** Process both native digital PDFs and scanned image-based PDFs.
+** Retain tabular layout structures during text extraction.
+
+h3. 2.4 Diagnostic Images & Photos (PNG / JPG)
+* *Requirements*:
+** Extract text embedded within maintenance screenshots, equipment nameplates, and meter readings.
+** Feed visual context directly to the multimodal AI processing pipeline.
+
+h3. 2.5 Email Communications (EML)
+* *Requirements*:
+** Extract email headers (Sender, Date, Subject) and body text.
+** Process attached documents (e.g., attached spreadsheets or PDF reports).
+
+----
+
+h2. 3. QC Testing & Acceptance Criteria
+
+* *Format Resilience Test*: The system MUST process all 5 supported file types in a single execution queue without failing.
+* *Data Completeness Test*: Extracted fields from all file types MUST map into the 22 master schema attributes.
+* *Error Handling*: Corrupt or unreadable files MUST generate a clear error message and isolate affected items into Quarantine.

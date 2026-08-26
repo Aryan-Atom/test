@@ -1,0 +1,111 @@
+# Software Requirements Specification (SRS)
+
+## Unstructured & Semi-Structured Data Extraction Pipeline
+
+---
+
+### Document Control
+
+| Item | Details |
+| :--- | :--- |
+| **Document Title** | SRS: Unstructured & Semi-Structured Data Ingestion and Schema Standardization |
+| **Target Subsystem** | EQUAL Data Extraction & Schema Standardization Pipeline |
+| **Core Inference Engine** | GPT Opus 120B Large Language Model |
+| **Document Version** | 1.0.0 (Pre-Implementation Baseline) |
+| **Primary Audience** | Product Managers, Data Engineers, QC / QA Test Engineers, Domain Engineers |
+
+---
+
+## 1. Executive Summary & Project Purpose
+
+### 1.1 Purpose
+Industrial maintenance operations generate vast amounts of unstructured and semi-structured documentation—such as free-text work logs, technical inspection reports, equipment audit slide decks, email communications, and scanned diagnostic invoices. These documents contain critical insights regarding machine health, failure causes, and maintenance history, but lack standardized structure.
+
+This System Requirements Specification (SRS) defines the functional, data, processing, and Quality Control (QC) requirements for an AI-powered data extraction pipeline. Powered by the **GPT Opus 120B** model, the system ingests non-standard multi-format operational documents, interprets domain-specific maintenance narratives, normalizes equipment terminology, and maps extracted attributes into a **predefined 22-column master database schema**.
+
+```mermaid
+flowchart TD
+    A[Unstructured / Semi-Structured Input Files] --> B[Multi-Format Ingestion Engine]
+    B --> C[Text Extraction & Preprocessing]
+    C --> D[GPT Opus 120B Large Language Model]
+    D --> E[Domain Jargon & Alias Normalization]
+    E --> F[Schema Mapping Engine]
+    F --> G[Predefined 22-Column Master Database Schema]
+    G --> H[QC & Validation Audit Layer]
+```
+
+---
+
+## 2. Predefined Master Database Schema (22 Attributes)
+
+The extraction engine MUST convert and normalize arbitrary input fields into the following 22 standardized master target attributes:
+
+| Column # | Standardized Attribute | Data Type | Mandatory Rule | Description & QC Validation Expectation |
+| :-: | :--- | :--- | :-: | :--- |
+| 1 | `Site` | String | **Mandatory** | Manufacturing plant or facility location (e.g., "Suwon Site A1"). |
+| 2 | `Process` | String | **Mandatory** | Production line or process step (e.g., "03. Molding / Coating"). |
+| 3 | `Maintenance Part` | String | **Mandatory** | Maintenance group or equipment class (e.g., "0303. R2 Coater"). |
+| 4 | `Equipment Code` | String | **Mandatory** | Unique hardware asset tag / code (e.g., "H0303001"). |
+| 5 | `Equipment Name` | String | **Mandatory** | Descriptive equipment label (e.g., "Coater(3R2)_450"). |
+| 6 | `W/O Code` | String | Optional | Work Order or Work Instruction identifier code (e.g., "W004512547"). |
+| 7 | `Report Content` | String | Optional | Full narrative of maintenance activity or technician observation. |
+| 8 | `BOM` | String | Optional | Bill of Materials reference or part catalog identifier. |
+| 9 | `Spare Part` | String | Optional | List of replaced components or spare parts utilized during repair. |
+| 10 | `Work Date` | ISO Date/Time | Optional | Timestamp or date when maintenance was performed (YYYY-MM-DD format). |
+| 11 | `Improvement Work` | String | Optional | Concise summary of corrective action taken. |
+| 12 | `Work Purpose` | String | Optional | Stated objective or justification for the maintenance intervention. |
+| 13 | `Problem Symptom` | String | Optional | Observed machine anomaly, failure symptom, or operational warning. |
+| 14 | `Problem Cause` | String | Optional | Identified root cause of the equipment breakdown. |
+| 15 | `HW Before` | String | Optional | Hardware state, model, or count prior to maintenance. |
+| 16 | `HW After` | String | Optional | Hardware state, model, or count following maintenance. |
+| 17 | `SW Before` | String | Optional | Software version or firmware parameter prior to change. |
+| 18 | `SW After` | String | Optional | Software version or firmware parameter following change. |
+| 19 | `Representative Work` | String | **Mandatory** | Standardized cluster title for the maintenance activity. |
+| 20 | `Priority` | Enum | **Mandatory** | Criticality level ("Urgent", "Important", "Normal"). |
+| 21 | `Category` | Enum | **Mandatory** | Maintenance classification ("Quality", "Safety", "Productivity", "Other"). |
+| 22 | `Wotype` | Enum | Optional | Work order classification type (e.g., "CM", "BM", "PM"). |
+
+---
+
+## 3. Functional Requirements & System Capabilities
+
+### 3.1 AI Narrative Interpretation (GPT Opus 120B)
+- **FR-01.1 Contextual Interpretation**: The system SHALL process unstructured technical Korean and English prose to accurately discern root causes from symptoms and corrective actions from work purposes.
+- **FR-01.2 Domain Jargon Normalization**: The AI engine SHALL automatically translate colloquial plant jargon, abbreviations, and informal equipment aliases into official master terms.
+- **FR-01.3 Date & Numeric Standardization**: All extracted dates SHALL be converted to standard ISO-8601 (`YYYY-MM-DDTHH:mm:ss`) format regardless of source input formatting (e.g., "2019/4/24", "19.04.24", "Apr 24 2019").
+
+### 3.2 Pre-Upload Change Point Prompt Configuration
+- **FR-02.1 Change Point Customization**: Operators SHALL be able to review and adjust AI extraction directives and prompt parameters prior to starting pipeline ingestion.
+- **FR-02.2 Real-Time Schema Preview**: The system SHALL provide a preliminary summary report of detected input columns before executing full model extraction.
+
+---
+
+## 4. QC Testing & Quality Assurance Verification Plan
+
+Quality Control (QC) engineers SHALL verify the extraction accuracy and system resilience using three structured test suites:
+
+### 4.1 Verification Scenario A: Clean Data Test Suite
+- **Dataset**: Standard structured spreadsheets with complete headers and well-formatted text.
+- **Pass Criteria**:
+  - 100% field extraction precision across all 22 master schema columns.
+  - Zero missing mandatory fields (`Site`, `Process`, `Maintenance Part`, `Equipment Code`, `Equipment Name`, `Representative Work`, `Priority`, `Category`).
+
+### 4.2 Verification Scenario B: Noisy Data Test Suite
+- **Dataset**: Free-text logs containing OCR artifacts, Korean/English typos, missing punctuation, placeholder phrases ("N/A", "TBD", "확인중"), and slang.
+- **Pass Criteria**:
+  - System successfully filters out noise phrases and flags invalid rows for Quarantine.
+  - Correct identification of core maintenance intent despite spelling errors.
+
+### 4.3 Verification Scenario C: Mixed Format Test Suite
+- **Dataset**: Multi-page PDFs containing embedded tables, PPTX slides, scanned inspection images, and email attachment threads.
+- **Pass Criteria**:
+  - Successful end-to-end extraction across all document formats without memory leak or process crash.
+  - Consistent schema mapping to the 22 master target fields across all file types.
+
+---
+
+## 5. Non-Functional Requirements (NFR)
+
+- **NFR-01 Extraction Speed**: Total processing time SHALL not exceed 3.0 seconds per record for standard multi-row files.
+- **NFR-02 Model Model Integrity**: The pipeline SHALL utilize the **GPT Opus 120B** model to guarantee high-reasoning accuracy on domain-specific maintenance queries.
+- **NFR-03 Reliability**: The system SHALL handle corrupt file inputs gracefully by sending non-parsable records to a Quarantine view without halting the overall job execution.

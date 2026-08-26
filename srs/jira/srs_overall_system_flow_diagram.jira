@@ -1,0 +1,43 @@
+h1. System Specification: End-to-End Flow Diagram & Data Lifecycle
+
+----
+
+h2. 1. System Architecture & Flow Diagram
+
+This document illustrates the complete end-to-end operational flow of the EQUAL system—from initial multi-format file upload through AI narrative extraction, job monitoring, quarantine handling, master schema standardization, change history management, matrix heatmap visualization, and maintenance plan (MP) versioning.
+
+h3. 1.1 System Data Lifecycle Workflow
+* *Step 1: Multi-Format File Ingestion*
+** Ingests PowerPoint ({{.pptx}}), Excel ({{.xlsx}}/{{.csv}}), PDF ({{.pdf}}), Images ({{.png}}/{{.jpg}}), and Emails ({{.eml}}).
+* *Step 2: Pre-Upload Configuration ({{AiPipelinePromptModal}})*
+** Displays Detected Column Summary Report.
+** Displays Predefined Prompt with defined Change Points (Equipment Aliases, ISO Date formatting, Jargon rules).
+* *Step 3: AI Narrative Extraction Engine (GPT Opus 120B)*
+** Performs deep contextual interpretation, normalizing colloquial plant jargon and equipment aliases into official master terms.
+* *Step 4: Extraction Verification & Routing*
+** Valid rows are routed to the Jobs Execution Queue.
+** Blank, noise, or non-content rows are routed to the Quarantine Subsystem.
+* *Step 5: Jobs & Quarantine Subsystems*
+** Jobs page tracks runs with 4s scoped polling and Eye icon export preview modal.
+** Quarantine page displays {{WHY}} reason badges (empty, literal_noise, numeric_only, non_content, too_short) with Restore action.
+* *Step 6: Change History Data Workspace*
+** Centralized grid for editing and managing 22 standardized master attributes.
+** Action buttons in strict order: *1. AI Pipeline Import CSV*, *2. Import CSV*, *3. Export*.
+** Targeted ZIP Export sends selected checkbox IDs.
+* *Step 7: Change Matrix & MP Subsystems*
+** Matrix Inquiry: 2D Heatmap grid, status color badges (Normal, Warning, Critical/VOC), inspection photo gallery.
+** MP List Inquiry: Multi-criteria filtering, version dropdown, row-level revision history modal.
+** MP List Management: Specification authoring workspace and column sequence ordering engine.
+
+----
+
+h2. 2. Stage-by-Stage Operational Summary for QC Testing
+
+|| Stage # || Stage Name || System Action || QC Verification Expectation ||
+| 1 | *Multi-Format Ingestion* | Ingests {{.xlsx}}, {{.csv}}, {{.pdf}}, {{.pptx}}, {{.png}}, {{.eml}} files. | System accepts all 5 supported file types without rejection. |
+| 2 | *Pre-Upload Report* | Displays column headers and editable prompt with Change Points. | Column summary tags match input file headers exactly. |
+| 3 | *AI Extraction* | GPT Opus 120B maps text to 22 master schema columns. | Jargon normalized; dates converted to ISO-8601 ({{YYYY-MM-DD}}). |
+| 4 | *Routing & Isolation* | Valid rows sent to Jobs; blank/noise sent to Quarantine. | Invalid/empty rows isolated without breaking the job run. |
+| 5 | *Jobs & Quarantine* | 4s polling on Jobs; Restore action on Quarantine. | Polling active only on Jobs page; Restore returns row to pool. |
+| 6 | *Change History Data* | 22-attribute grid editing, targeted ZIP export by IDs. | Selected checkbox IDs exported in ZIP package. |
+| 7 | *Matrix & MP Modules* | Heatmap status badges, MP versioning, column sequence. | Column order strictly matches sequence numbers. |
