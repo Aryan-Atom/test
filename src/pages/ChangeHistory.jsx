@@ -1322,7 +1322,6 @@ export function UploadPreviewModal({
           border: "1px solid var(--color-border-base, #e5e7eb)",
           width: "min(96vw, 1600px)",
           maxWidth: "96vw",
-          height: "88vh",
           maxHeight: "88vh",
         }}
       >
@@ -4549,17 +4548,30 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     });
 
     try {
-      const endpointBase = import.meta.env.VITE_API_BASE_URL || "";
-      const path = pocEndPoints.EXPORT_ZIP || "api/ChangeData/ExportZip";
+      const endpointBase = import.meta.env.VITE_API_BASE_URL || "http://107.108.32.41:9090";
+      const path = pocEndPoints.EXPORT_ZIP_BY_IDS || "api/ChangeData/ExportZipByIds";
       const fullUrl = endpointBase
         ? `${endpointBase.endsWith("/") ? endpointBase : endpointBase + "/"}${path}`
-        : `http://localhost:5248/${path}`;
+        : `http://107.108.32.41:9090/${path}`;
+
+      // Extract IDs from selected rows (or all filtered rows if none selected)
+      let idsToExport = [];
+      if (selectedIds.size > 0) {
+        idsToExport = filtered
+          .filter((_, i) => selectedIds.has(i))
+          .map((r) => Number(r.id))
+          .filter((id) => !Number.isNaN(id) && id > 0);
+      }
 
       const response = await fetch(fullUrl, {
-        method: "GET",
+        method: "POST",
         headers: {
-          Accept: "*/*",
+          "Accept": "*/*",
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          ids: idsToExport,
+        }),
       });
 
       if (response.ok) {
@@ -4594,9 +4606,9 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         }
       }
 
-      throw new Error(`ExportZip returned status: ${response.status}`);
+      throw new Error(`ExportZipByIds returned status: ${response.status}`);
     } catch (error) {
-      console.error("ExportZip failed:", error);
+      console.error("ExportZipByIds failed:", error);
       setOperationStatus({
         isVisible: true,
         status: "error",

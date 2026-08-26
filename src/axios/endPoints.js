@@ -34,9 +34,11 @@ const pocEndPoints = {
   SAVE_MATRIX_INQUIRY: "api/MatrixInquiry/Save",
   SAVE_IMAGE: "api/MatrixInquiry/SaveImage",
   EXPORT_ZIP: "api/ChangeData/ExportZip",
+  EXPORT_ZIP_BY_IDS: "api/ChangeData/ExportZipByIds",
   AI_PIPELINE_UPLOAD: `${aiPipelineServer}/api/uploads/auto`,
   AI_PIPELINE_GET_JOBS: `${aiPipelineServer}/api/jobs?limit=50`,
   AI_PIPELINE_GET_JOB_EXPORTS: `${aiPipelineServer}/api/exports/json`,
+  AI_PIPELINE_GET_QUARANTINE: `${aiPipelineServer}/api/quarantine?include_released=false&limit=200&offset=0`,
 };
 
 const auth = {

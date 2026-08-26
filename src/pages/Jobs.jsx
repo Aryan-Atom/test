@@ -241,9 +241,18 @@ export default function Jobs() {
                           {/* Quarantine icon */}
                           <button
                             type="button"
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
-                            title="Quarantine Job"
-                            onClick={() => navigate("/ai-pipeline/quarantine")}
+                            disabled={!j.has_quarantine}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              j.has_quarantine
+                                ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
+                                : "text-gray-300 dark:text-gray-600 opacity-40 cursor-not-allowed"
+                            }`}
+                            title={j.has_quarantine ? "View Quarantine Data" : "No Quarantine Data"}
+                            onClick={() => {
+                              if (j.has_quarantine) {
+                                navigate("/ai-pipeline/quarantine");
+                              }
+                            }}
                           >
                             <i className="fas fa-shield-alt text-sm" />
                           </button>

@@ -13,23 +13,23 @@ const DEFAULT_PREVIEW_COLUMNS = [
   { key: "maintGroup", label: "Maintenance Part", required: true },
   { key: "equipmentCode", label: "Eqcode", required: true },
   { key: "equipmentName", label: "Eqname", required: true },
-  { key: "woCode", label: "W/Ocode" },
-  { key: "report", label: "report content" },
-  { key: "bom", label: "BOM" },
-  { key: "sparePart", label: "Sparepart" },
-  { key: "workedOn", label: "Work Date", required: true },
-  { key: "work", label: "Improvement Work" },
-  { key: "purpose", label: "Work Purpose", required: true },
-  { key: "situation", label: "Problem Symptom", required: true },
-  { key: "cause", label: "Problem Cause", required: true },
-  { key: "hwAsWas", label: "HW Before", required: true },
-  { key: "hwAsIs", label: "HW After", required: true },
-  { key: "swAsWas", label: "SW Before", required: true },
-  { key: "swAsIs", label: "SW After", required: true },
+  { key: "woCode", label: "W/Ocode", required: false },
+  { key: "report", label: "report content", required: false },
+  { key: "bom", label: "BOM", required: false },
+  { key: "sparePart", label: "Sparepart", required: false },
+  { key: "workedOn", label: "Work Date", required: false },
+  { key: "work", label: "Improvement Work", required: false },
+  { key: "purpose", label: "Work Purpose", required: false },
+  { key: "situation", label: "Problem Symptom", required: false },
+  { key: "cause", label: "Problem Cause", required: false },
+  { key: "hwAsWas", label: "HW Before", required: false },
+  { key: "hwAsIs", label: "HW After", required: false },
+  { key: "swAsWas", label: "SW Before", required: false },
+  { key: "swAsIs", label: "SW After", required: false },
   { key: "representativeWork", label: "Rep Work Name", required: true },
-  { key: "priority", label: "Priority" },
-  { key: "category", label: "Effect Type" },
-  { key: "woType", label: "Wotype" },
+  { key: "priority", label: "Priority", required: true },
+  { key: "category", label: "Effect Type", required: true },
+  { key: "woType", label: "Wotype", required: false },
 ];
 
 function mapExportedRowToChangeData(row) {
@@ -122,11 +122,10 @@ export default function JobPreviewModal({ job, onClose }) {
           const match = DEFAULT_PREVIEW_COLUMNS.find(
             (c) => c.key.toLowerCase() === key?.toLowerCase(),
           );
-          if (match) return match;
           return {
-            key,
-            label: mc.columnNameKr || mc.columnName || key,
-            required: Boolean(mc.isMandatory),
+            key: match ? match.key : key,
+            label: match ? match.label : (mc.columnNameKr || mc.columnName || key),
+            required: mc.isMandatory !== undefined ? Boolean(mc.isMandatory) : (match ? Boolean(match.required) : false),
           };
         })
         .filter(Boolean);
@@ -244,7 +243,7 @@ export default function JobPreviewModal({ job, onClose }) {
     <div className="modal-overlay">
       <div
         className="modal-content flex flex-col p-0 overflow-hidden shadow-2xl"
-        style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", height: "88vh" }}
+        style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", maxHeight: "88vh" }}
       >
         {/* Header */}
         <div
@@ -320,7 +319,7 @@ export default function JobPreviewModal({ job, onClose }) {
         </div>
 
         {/* Body (Table Container) */}
-        <div className="flex-1 overflow-auto bg-surface-default">
+        <div className="overflow-auto bg-surface-default max-h-[calc(88vh-140px)]">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
               <i className="fas fa-spinner fa-spin text-3xl text-teal-600 mb-3" />
