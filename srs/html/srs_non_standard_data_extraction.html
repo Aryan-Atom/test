@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_non_standard_data_extraction</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.mermaid) {
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          }
+        });
+      }
+    });
+  </script>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9.5pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Graphical Diagram Card Styling */
+    .diagram-card {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 22px 0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .diagram-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+      display: flex;
+      items-center: center;
+      gap: 8px;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0;
+    }
+    .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>Software Requirements Specification (SRS)</h1>
+<h2>Non-Standard Format Data Extraction System &amp; Verification Engine</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: System for Extracting Data from Non-Standard Formats &amp; Performance Validation</td></tr>
+<tr><td><strong>System Module</strong></td><td>Data Extraction &amp; Verification Engine</td></tr>
+<tr><td><strong>Primary AI Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Target Audience</strong></td><td>Software Architects, QA Lead Engineers, Data QC Testers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Individual Flow Diagram</h2>
+<h3>1.1 Purpose</h3>
+<p>Legacy plant maintenance logs are frequently stored in non-standard formats with irregular layout patterns, merged spreadsheet cells, informal column titles, and varying terminology. This specification defines the requirements for a resilient extraction system capable of interpreting non-standard inputs, normalizing raw content into standardized schemas, and validating extraction accuracy using defined verification test suites.</p>
+<h3>1.2 Individual Module Flow Diagram</h3>
+<div class="diagram-card">
+  <div class="diagram-title"><i class="fas fa-project-diagram"></i> System Workflow & Process Architecture</div>
+  <div class="mermaid">
+flowchart TD
+    A[Non-Standard Data File] --> B[Format-Agnostic Parser]
+    B --> C[GPT Opus 120B Model]
+    C --> D[Context-Aware Field Binding]
+    D --> E{Verification Test Suite}
+    E -->|Scenario 1: Clean Data| F[100% Master Schema Precision]
+    E -->|Scenario 2: Noisy Data| G[Noise Suppression & Intent Extraction]
+    E -->|Scenario 3: Mixed Data| H[Multi-Format Cross Validation]
+    F & G & H --> I[Standardized Output Database]
+  </div>
+</div>
+<hr/>
+<h2>2. Theoretical Processing Logic</h2>
+<li class="numbered-item"><strong>Format Agnostic Parsing</strong>: The system parses input documents regardless of layout structure or custom column names.</li>
+<li class="numbered-item"><strong>Context-Aware Field Binding</strong>: Using deep semantic understanding provided by <strong>GPT Opus 120B</strong>, non-standard column headers (e.g., &quot;설비명칭&quot;, &quot;Machine ID&quot;, &quot;작업내용&quot;) are automatically mapped to standard target fields (<code>Equipment Name</code>, <code>Equipment Code</code>, <code>Report Content</code>).</li>
+<li class="numbered-item"><strong>Validation &amp; Isolation</strong>: Entries failing basic mandatory constraints are highlighted for user review or isolated in Quarantine.</li>
+<hr/>
+<h2>3. Quality Control (QC) Verification Test Scenarios</h2>
+<p>Quality Control engineers MUST evaluate system performance across three specific verification scenarios:</p>
+<h3>3.1 Verification Scenario 1: Clean Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Standardized files with clear column headers and complete entries.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Zero missing mandatory fields (<code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>).</li>
+<li class="bullet-item">100% correct data type enforcement (e.g., ISO date formatting).</li>
+<h3>3.2 Verification Scenario 2: Noisy Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Files containing OCR noise, placeholder tokens (&quot;N/A&quot;, &quot;확인중&quot;, &quot;TBD&quot;), text truncations, and informal slang.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Automatic suppression of meaningless noise tokens.</li>
+<li class="bullet-item">Accurate extraction of real underlying maintenance intent.</li>
+<li class="bullet-item">Flagging incomplete records without causing processing failures.</li>
+<h3>3.3 Verification Scenario 3: Mixed Data Benchmark</h3>
+<li class="bullet-item"><strong>Input Specification</strong>: Batch uploads combining spreadsheets, presentation decks, PDF invoices, image scans, and email messages.</li>
+<li class="bullet-item"><strong>Expected QC Outcome</strong>:</li>
+<li class="bullet-item">Unified output dataset standardized to the master target schema.</li>
+<li class="bullet-item">Zero data loss or corruption during multi-format batch ingestion.</li>
+<hr/>
+<h2>4. Operational Requirements</h2>
+<li class="bullet-item"><strong>Accuracy Threshold</strong>: Minimum 95% field extraction accuracy on noisy data inputs.</li>
+<li class="bullet-item"><strong>Fault Tolerance</strong>: Malformed rows MUST be quarantined without breaking the pipeline.</li>
+<li class="bullet-item"><strong>Auditability</strong>: All extraction actions MUST retain line-level source traceability.</li>
+
+</body>
+</html>

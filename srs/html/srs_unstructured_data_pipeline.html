@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_unstructured_data_pipeline</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.mermaid) {
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          }
+        });
+      }
+    });
+  </script>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9.5pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Graphical Diagram Card Styling */
+    .diagram-card {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 22px 0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .diagram-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+      display: flex;
+      items-center: center;
+      gap: 8px;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0;
+    }
+    .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>Software Requirements Specification (SRS)</h1>
+<h2>Unstructured &amp; Semi-Structured Data Extraction Pipeline</h2>
+<hr/>
+<h3>Document Control</h3>
+<table class="styled-table">
+<thead>
+<tr><th>Item</th><th>Details</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Document Title</strong></td><td>SRS: Unstructured &amp; Semi-Structured Data Ingestion and Schema Standardization</td></tr>
+<tr><td><strong>Target Subsystem</strong></td><td>EQUAL Data Extraction &amp; Schema Standardization Pipeline</td></tr>
+<tr><td><strong>Core Inference Engine</strong></td><td>GPT Opus 120B Large Language Model</td></tr>
+<tr><td><strong>Document Version</strong></td><td>1.0.0 (Pre-Implementation Baseline)</td></tr>
+<tr><td><strong>Primary Audience</strong></td><td>Product Managers, Data Engineers, QC / QA Test Engineers, Domain Engineers</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>1. Executive Summary &amp; Project Purpose</h2>
+<h3>1.1 Purpose</h3>
+<p>Industrial maintenance operations generate vast amounts of unstructured and semi-structured documentation—such as free-text work logs, technical inspection reports, equipment audit slide decks, email communications, and scanned diagnostic invoices. These documents contain critical insights regarding machine health, failure causes, and maintenance history, but lack standardized structure.</p>
+<p>This System Requirements Specification (SRS) defines the functional, data, processing, and Quality Control (QC) requirements for an AI-powered data extraction pipeline. Powered by the <strong>GPT Opus 120B</strong> model, the system ingests non-standard multi-format operational documents, interprets domain-specific maintenance narratives, normalizes equipment terminology, and maps extracted attributes into a <strong>predefined 22-column master database schema</strong>.</p>
+<div class="diagram-card">
+  <div class="diagram-title"><i class="fas fa-project-diagram"></i> System Workflow & Process Architecture</div>
+  <div class="mermaid">
+flowchart TD
+    A[Unstructured / Semi-Structured Input Files] --> B[Multi-Format Ingestion Engine]
+    B --> C[Text Extraction & Preprocessing]
+    C --> D[GPT Opus 120B Large Language Model]
+    D --> E[Domain Jargon & Alias Normalization]
+    E --> F[Schema Mapping Engine]
+    F --> G[Predefined 22-Column Master Database Schema]
+    G --> H[QC & Validation Audit Layer]
+  </div>
+</div>
+<hr/>
+<h2>2. Predefined Master Database Schema (22 Attributes)</h2>
+<p>The extraction engine MUST convert and normalize arbitrary input fields into the following 22 standardized master target attributes:</p>
+<table class="styled-table">
+<thead>
+<tr><th>Column #</th><th>Standardized Attribute</th><th>Data Type</th><th>Mandatory Rule</th><th>Description &amp; QC Validation Expectation</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><code>Site</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Manufacturing plant or facility location (e.g., &quot;Suwon Site A1&quot;).</td></tr>
+<tr><td>2</td><td><code>Process</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Production line or process step (e.g., &quot;03. Molding / Coating&quot;).</td></tr>
+<tr><td>3</td><td><code>Maintenance Part</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Maintenance group or equipment class (e.g., &quot;0303. R2 Coater&quot;).</td></tr>
+<tr><td>4</td><td><code>Equipment Code</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Unique hardware asset tag / code (e.g., &quot;H0303001&quot;).</td></tr>
+<tr><td>5</td><td><code>Equipment Name</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Descriptive equipment label (e.g., &quot;Coater(3R2)_450&quot;).</td></tr>
+<tr><td>6</td><td><code>W/O Code</code></td><td>String</td><td>Optional</td><td>Work Order or Work Instruction identifier code (e.g., &quot;W004512547&quot;).</td></tr>
+<tr><td>7</td><td><code>Report Content</code></td><td>String</td><td>Optional</td><td>Full narrative of maintenance activity or technician observation.</td></tr>
+<tr><td>8</td><td><code>BOM</code></td><td>String</td><td>Optional</td><td>Bill of Materials reference or part catalog identifier.</td></tr>
+<tr><td>9</td><td><code>Spare Part</code></td><td>String</td><td>Optional</td><td>List of replaced components or spare parts utilized during repair.</td></tr>
+<tr><td>10</td><td><code>Work Date</code></td><td>ISO Date/Time</td><td>Optional</td><td>Timestamp or date when maintenance was performed (YYYY-MM-DD format).</td></tr>
+<tr><td>11</td><td><code>Improvement Work</code></td><td>String</td><td>Optional</td><td>Concise summary of corrective action taken.</td></tr>
+<tr><td>12</td><td><code>Work Purpose</code></td><td>String</td><td>Optional</td><td>Stated objective or justification for the maintenance intervention.</td></tr>
+<tr><td>13</td><td><code>Problem Symptom</code></td><td>String</td><td>Optional</td><td>Observed machine anomaly, failure symptom, or operational warning.</td></tr>
+<tr><td>14</td><td><code>Problem Cause</code></td><td>String</td><td>Optional</td><td>Identified root cause of the equipment breakdown.</td></tr>
+<tr><td>15</td><td><code>HW Before</code></td><td>String</td><td>Optional</td><td>Hardware state, model, or count prior to maintenance.</td></tr>
+<tr><td>16</td><td><code>HW After</code></td><td>String</td><td>Optional</td><td>Hardware state, model, or count following maintenance.</td></tr>
+<tr><td>17</td><td><code>SW Before</code></td><td>String</td><td>Optional</td><td>Software version or firmware parameter prior to change.</td></tr>
+<tr><td>18</td><td><code>SW After</code></td><td>String</td><td>Optional</td><td>Software version or firmware parameter following change.</td></tr>
+<tr><td>19</td><td><code>Representative Work</code></td><td>String</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Standardized cluster title for the maintenance activity.</td></tr>
+<tr><td>20</td><td><code>Priority</code></td><td>Enum</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Criticality level (&quot;Urgent&quot;, &quot;Important&quot;, &quot;Normal&quot;).</td></tr>
+<tr><td>21</td><td><code>Category</code></td><td>Enum</td><td><span class="badge badge-mandatory">Mandatory</span></td><td>Maintenance classification (&quot;Quality&quot;, &quot;Safety&quot;, &quot;Productivity&quot;, &quot;Other&quot;).</td></tr>
+<tr><td>22</td><td><code>Wotype</code></td><td>Enum</td><td>Optional</td><td>Work order classification type (e.g., &quot;CM&quot;, &quot;BM&quot;, &quot;PM&quot;).</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2>3. Functional Requirements &amp; System Capabilities</h2>
+<h3>3.1 AI Narrative Interpretation (GPT Opus 120B)</h3>
+<li class="bullet-item"><strong>FR-01.1 Contextual Interpretation</strong>: The system SHALL process unstructured technical Korean and English prose to accurately discern root causes from symptoms and corrective actions from work purposes.</li>
+<li class="bullet-item"><strong>FR-01.2 Domain Jargon Normalization</strong>: The AI engine SHALL automatically translate colloquial plant jargon, abbreviations, and informal equipment aliases into official master terms.</li>
+<li class="bullet-item"><strong>FR-01.3 Date &amp; Numeric Standardization</strong>: All extracted dates SHALL be converted to standard ISO-8601 (<code>YYYY-MM-DDTHH:mm:ss</code>) format regardless of source input formatting (e.g., &quot;2019/4/24&quot;, &quot;19.04.24&quot;, &quot;Apr 24 2019&quot;).</li>
+<h3>3.2 Pre-Upload Change Point Prompt Configuration</h3>
+<li class="bullet-item"><strong>FR-02.1 Change Point Customization</strong>: Operators SHALL be able to review and adjust AI extraction directives and prompt parameters prior to starting pipeline ingestion.</li>
+<li class="bullet-item"><strong>FR-02.2 Real-Time Schema Preview</strong>: The system SHALL provide a preliminary summary report of detected input columns before executing full model extraction.</li>
+<hr/>
+<h2>4. QC Testing &amp; Quality Assurance Verification Plan</h2>
+<p>Quality Control (QC) engineers SHALL verify the extraction accuracy and system resilience using three structured test suites:</p>
+<h3>4.1 Verification Scenario A: Clean Data Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Standard structured spreadsheets with complete headers and well-formatted text.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">100% field extraction precision across all 22 master schema columns.</li>
+<li class="bullet-item">Zero missing mandatory fields (<code>Site</code>, <code>Process</code>, <code>Maintenance Part</code>, <code>Equipment Code</code>, <code>Equipment Name</code>, <code>Representative Work</code>, <code>Priority</code>, <code>Category</code>).</li>
+<h3>4.2 Verification Scenario B: Noisy Data Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Free-text logs containing OCR artifacts, Korean/English typos, missing punctuation, placeholder phrases (&quot;N/A&quot;, &quot;TBD&quot;, &quot;확인중&quot;), and slang.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">System successfully filters out noise phrases and flags invalid rows for Quarantine.</li>
+<li class="bullet-item">Correct identification of core maintenance intent despite spelling errors.</li>
+<h3>4.3 Verification Scenario C: Mixed Format Test Suite</h3>
+<li class="bullet-item"><strong>Dataset</strong>: Multi-page PDFs containing embedded tables, PPTX slides, scanned inspection images, and email attachment threads.</li>
+<li class="bullet-item"><strong>Pass Criteria</strong>:</li>
+<li class="bullet-item">Successful end-to-end extraction across all document formats without memory leak or process crash.</li>
+<li class="bullet-item">Consistent schema mapping to the 22 master target fields across all file types.</li>
+<hr/>
+<h2>5. Non-Functional Requirements (NFR)</h2>
+<li class="bullet-item"><strong>NFR-01 Extraction Speed</strong>: Total processing time SHALL not exceed 3.0 seconds per record for standard multi-row files.</li>
+<li class="bullet-item"><strong>NFR-02 Model Model Integrity</strong>: The pipeline SHALL utilize the <strong>GPT Opus 120B</strong> model to guarantee high-reasoning accuracy on domain-specific maintenance queries.</li>
+<li class="bullet-item"><strong>NFR-03 Reliability</strong>: The system SHALL handle corrupt file inputs gracefully by sending non-parsable records to a Quarantine view without halting the overall job execution.</li>
+
+</body>
+</html>

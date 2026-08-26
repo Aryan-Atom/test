@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>srs_overall_system_flow_diagram</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.mermaid) {
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          }
+        });
+      }
+    });
+  </script>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #1745c2;
+      padding-bottom: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 15pt;
+      color: #1745c2;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #cbd5e1;
+      margin: 20px 0;
+    }
+    .bullet-item, .numbered-item {
+      margin-left: 20px;
+      margin-bottom: 6px;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 9.5pt;
+    }
+    .styled-table th {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .styled-table td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .styled-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .code-block {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 14px 0;
+    }
+    code {
+      font-family: 'Consolas', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+    }
+    strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    .badge-mandatory {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    /* Graphical Diagram Card Styling */
+    .diagram-card {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 22px 0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .diagram-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1745c2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+      display: flex;
+      items-center: center;
+      gap: 8px;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0;
+    }
+    .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>System Specification: End-to-End Flow Diagram &amp; Data Lifecycle</h1>
+<hr/>
+<h2>1. System Architecture &amp; Workflow Diagram</h2>
+<p>This document illustrates the complete end-to-end operational flow of the EQUAL system—from initial multi-format file upload through AI narrative extraction, job monitoring, quarantine handling, master schema standardization, change history management, matrix heatmap visualization, and maintenance plan (MP) versioning.</p>
+<div class="diagram-card">
+  <div class="diagram-title"><i class="fas fa-project-diagram"></i> System Workflow & Process Architecture</div>
+  <div class="mermaid">
+flowchart TD
+    subgraph STEP_1 [1. Multi-Format File Ingestion]
+        A1[File Upload: PPT, Excel, PDF, PNG/JPG, EML] --> A2[AI Pipeline Import Action]
+    end
+
+    subgraph STEP_2 [2. Pre-Upload Configuration]
+        A2 --> B1[AiPipelinePromptModal]
+        B1 --> B2[Detected Columns Summary Report]
+        B1 --> B3[Predefined System Prompt & Defined Change Points]
+    end
+
+    subgraph STEP_3 [3. AI Narrative Extraction Engine]
+        B3 --> C1[GPT Opus 120B Inference Model]
+        C1 --> C2[Domain Jargon Normalization]
+        C1 --> C3[ISO Date & Equipment Alias Standardization]
+    end
+
+    subgraph STEP_4 [4. Extraction Verification & Routing]
+        C3 --> D{Row Verification Check}
+        D -->|Valid Report Content| E1[Jobs Execution Queue]
+        D -->|Blank / Noise / Non-Content| E2[Quarantine Subsystem]
+    end
+
+    subgraph STEP_5 [5. Jobs & Quarantine Processing]
+        E1 --> F1[Jobs Table\n4s Scoped Polling]
+        F1 -->|Eye Icon Click| F2[Job Preview Modal\n22 Master Attributes Preview]
+
+        E2 --> G1[Quarantine Table\nWHY Reason Pills]
+        G1 -->|Restore Action| G2[Re-inject Row into Active Pool]
+    end
+
+    subgraph STEP_6 [6. Change History Data Workspace]
+        F2 & G2 --> H1[Change History Data Grid]
+        H1 --> H2[Header Actions: Import CSV / Export CSV & Excel]
+        H1 --> H3[Targeted ZIP Export: POST /api/ChangeData/ExportZipByIds]
+        H1 --> H4[Save Changes: POST /api/ChangeData/SaveChangedData]
+        H4 -->|Auto-Trigger| H5[Event Listener: refreshChangeHistoryData]
+    end
+
+    subgraph STEP_7 [7. Change Matrix & MP Subsystems]
+        H5 --> I1[Matrix Inquiry\n2D Heatmap & Photo Gallery]
+        H5 --> I2[MP List Inquiry\nVersion Control & Row Revisions]
+        H5 --> I3[MP List Management\nSpec Column Sequence Engine]
+    end
+  </div>
+</div>
+<hr/>
+<h2>2. Stage-by-Stage Operational Summary for QC Testing</h2>
+<table class="styled-table">
+<thead>
+<tr><th>Stage #</th><th>Stage Name</th><th>System Action</th><th>QC Verification Expectation</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>1</strong></td><td><strong>Multi-Format Ingestion</strong></td><td>Ingests <code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>, <code>.pptx</code>, <code>.png</code>, <code>.eml</code> files.</td><td>System accepts all 5 supported file types without rejection.</td></tr>
+<tr><td><strong>2</strong></td><td><strong>Pre-Upload Report</strong></td><td>Displays column headers and editable prompt with Change Points.</td><td>Column summary tags match input file headers exactly.</td></tr>
+<tr><td><strong>3</strong></td><td><strong>AI Extraction</strong></td><td>GPT Opus 120B maps text to 22 master schema columns.</td><td>Jargon normalized; dates converted to ISO-8601 (<code>YYYY-MM-DD</code>).</td></tr>
+<tr><td><strong>4</strong></td><td><strong>Routing &amp; Isolation</strong></td><td>Valid rows sent to Jobs; blank/noise sent to Quarantine.</td><td>Invalid/empty rows isolated without breaking the job run.</td></tr>
+<tr><td><strong>5</strong></td><td><strong>Jobs &amp; Quarantine</strong></td><td>4s polling on Jobs; Restore action on Quarantine.</td><td>Polling active only on Jobs page; Restore returns row to pool.</td></tr>
+<tr><td><strong>6</strong></td><td><strong>Change History Data</strong></td><td>22-attribute grid editing, targeted ZIP export by IDs.</td><td>Selected checkbox IDs exported in ZIP package.</td></tr>
+<tr><td><strong>7</strong></td><td><strong>Matrix &amp; MP Modules</strong></td><td>Heatmap status badges, MP versioning, column sequence.</td><td>Column order strictly matches sequence numbers.</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>
