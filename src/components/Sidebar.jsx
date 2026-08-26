@@ -36,7 +36,6 @@ const navSections = [
         icon: "fa-robot",
         children: [
           { id: "ai-jobs", labelKey: "nav.aiJobs" },
-          { id: "ai-review", labelKey: "nav.aiReview" },
           { id: "ai-quarantine", labelKey: "nav.aiQuarantine" },
         ],
       },
@@ -93,7 +92,6 @@ export default function Sidebar({
     "mx-mplist",
     "mx-mplist-mgmt",
     "ai-jobs",
-    "ai-review",
     "ai-quarantine",
   ]);
 

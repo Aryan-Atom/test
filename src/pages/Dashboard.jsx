@@ -76,7 +76,6 @@ const allowedFourPageSet = new Set([
   "mx-mplist",
   "mx-mplist-mgmt",
   "ai-jobs",
-  "ai-review",
   "ai-quarantine",
 ]);
 

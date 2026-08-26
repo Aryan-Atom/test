@@ -1,33 +1,35 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
-import { APIcallPost } from "../axios/apiCall.js";
+import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 import { useToast } from "./ToastContext.jsx";
 import { useI18n } from "../i18n.jsx";
 
-const PREVIEW_COLUMNS = [
-  { key: "equipmentCode", label: "설비코드 (Equipment Code)", required: true },
-  { key: "equipmentName", label: "설비명 (Equipment Name)", required: true },
-  { key: "process", label: "공정 (Process)", required: true },
-  { key: "site", label: "법인 (Site)", required: true },
-  { key: "maintGroup", label: "보전파트 (Maintenance Part)", required: true },
-  { key: "workedOn", label: "작업완료일 (Work Date)", required: true },
-  { key: "woCode", label: "W/O코드 (W/O Code)" },
-  { key: "representativeWork", label: "대표 작업명 (Rep Work Name)", required: true },
-  { key: "work", label: "개선 작업 (Improvement Work)" },
-  { key: "purpose", label: "작업목적 (Work Purpose)", required: true },
-  { key: "situation", label: "문제 현상 (Problem Symptom)", required: true },
-  { key: "cause", label: "문제 원인 (Problem Cause)", required: true },
-  { key: "hwAsWas", label: "HW 변경 전 (HW Before)", required: true },
-  { key: "hwAsIs", label: "HW 변경 후 (HW After)", required: true },
-  { key: "swAsWas", label: "SW 변경 전 (SW Before)", required: true },
-  { key: "swAsIs", label: "SW 변경 후 (SW After)", required: true },
-  { key: "priority", label: "중요도 (Priority)" },
-  { key: "category", label: "효과 유형 (Effect Type)" },
-  { key: "woType", label: "작업타입 (Wotype)" },
+// Standard Master Data column sequence fallback
+const DEFAULT_PREVIEW_COLUMNS = [
+  { key: "site", label: "Site", required: true },
+  { key: "process", label: "Process", required: true },
+  { key: "maintGroup", label: "Maintenance Part", required: true },
+  { key: "equipmentCode", label: "Eqcode", required: true },
+  { key: "equipmentName", label: "Eqname", required: true },
+  { key: "woCode", label: "W/Ocode" },
+  { key: "report", label: "report content" },
   { key: "bom", label: "BOM" },
-  { key: "sparePart", label: "자재목록 (Sparepart)" },
+  { key: "sparePart", label: "Sparepart" },
+  { key: "workedOn", label: "Work Date", required: true },
+  { key: "work", label: "Improvement Work" },
+  { key: "purpose", label: "Work Purpose", required: true },
+  { key: "situation", label: "Problem Symptom", required: true },
+  { key: "cause", label: "Problem Cause", required: true },
+  { key: "hwAsWas", label: "HW Before", required: true },
+  { key: "hwAsIs", label: "HW After", required: true },
+  { key: "swAsWas", label: "SW Before", required: true },
+  { key: "swAsIs", label: "SW After", required: true },
+  { key: "representativeWork", label: "Rep Work Name", required: true },
+  { key: "priority", label: "Priority" },
+  { key: "category", label: "Effect Type" },
+  { key: "woType", label: "Wotype" },
 ];
 
 function mapExportedRowToChangeData(row) {
@@ -89,11 +91,49 @@ export default function JobPreviewModal({ job, onClose }) {
   const [editingCell, setEditingCell] = useState(null); // { rowIdx, key }
   const [cellValue, setCellValue] = useState("");
   const [filterType, setFilterType] = useState("all");
-  const [searchText, setSearchText] = useState("");
+  const [masterColumns, setMasterColumns] = useState(null);
 
   const navigate = useNavigate();
   const { pushToast } = useToast();
   const { t } = useI18n();
+
+  // Fetch Master Data column sequence from API
+  useEffect(() => {
+    APIcallGet(`${pocEndPoints.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
+      if (status === 200 && responseData) {
+        const cols = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+          ? responseData.data
+          : null;
+        if (cols && cols.length > 0) {
+          const sorted = [...cols].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+          setMasterColumns(sorted);
+        }
+      }
+    });
+  }, []);
+
+  const previewColumns = useMemo(() => {
+    if (masterColumns && masterColumns.length > 0) {
+      const mapped = masterColumns
+        .map((mc) => {
+          const key = mc.jsonKey || mc.excelColumnName;
+          const match = DEFAULT_PREVIEW_COLUMNS.find(
+            (c) => c.key.toLowerCase() === key?.toLowerCase(),
+          );
+          if (match) return match;
+          return {
+            key,
+            label: mc.columnNameKr || mc.columnName || key,
+            required: Boolean(mc.isMandatory),
+          };
+        })
+        .filter(Boolean);
+      if (mapped.length > 0) return mapped;
+    }
+    return DEFAULT_PREVIEW_COLUMNS;
+  }, [masterColumns]);
 
   useEffect(() => {
     let isMounted = true;
@@ -148,18 +188,28 @@ export default function JobPreviewModal({ job, onClose }) {
     }
   };
 
+  const handleDeleteRow = (rowIdx) => {
+    setRows((prev) => prev.filter((_, idx) => idx !== rowIdx));
+  };
+
+  const missingMandatoryCount = useMemo(() => {
+    return rows.filter((r) =>
+      previewColumns.some(
+        (col) => col.required && (!r[col.key] || String(r[col.key]).trim() === ""),
+      ),
+    ).length;
+  }, [rows, previewColumns]);
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      const matchesSearch =
-        !searchText.trim() ||
-        Object.values(r).some((v) =>
-          String(v || "")
-            .toLowerCase()
-            .includes(searchText.toLowerCase()),
-        );
-      return matchesSearch;
-    });
-  }, [rows, searchText]);
+    if (filterType === "missing") {
+      return rows.filter((r) =>
+        previewColumns.some(
+          (col) => col.required && (!r[col.key] || String(r[col.key]).trim() === ""),
+        ),
+      );
+    }
+    return rows;
+  }, [rows, filterType, previewColumns]);
 
   const handleSaveAll = () => {
     if (!rows || rows.length === 0) {
@@ -181,6 +231,7 @@ export default function JobPreviewModal({ job, onClose }) {
           t("toast.saveSuccess", "데이터가 성공적으로 저장되었습니다."),
           "success",
         );
+        window.dispatchEvent(new Event("refreshChangeHistoryData"));
         onClose();
         navigate("/data-management/change-history-data");
       } else {
@@ -190,151 +241,221 @@ export default function JobPreviewModal({ job, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="card w-full max-w-6xl h-[88vh] flex flex-col min-h-0 overflow-hidden shadow-2xl space-y-0">
+    <div className="modal-overlay">
+      <div
+        className="modal-content flex flex-col p-0 overflow-hidden shadow-2xl"
+        style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", height: "88vh" }}
+      >
         {/* Header */}
-        <div className="p-4 border-b border-border-base flex items-center justify-between bg-surface-default">
-          <div>
-            <h3 className="font-bold text-base md:text-lg text-text-default flex items-center gap-2">
-              <i className="fas fa-file-excel text-teal-600" />
-              <span>{t("preview.title", "업로드 데이터 미리보기")} (Job #{job?.id})</span>
-            </h3>
-            <p className="text-xs text-text-subtle mt-0.5">
-              {t("preview.total", "총")} <strong className="text-teal-600">{rows.length}</strong> {t("preview.row", "행")} · {t("preview.tip", "셀을 더블 클릭하여 수정한 후, 저장 버튼으로 전체 데이터를 저장하세요")}
-            </p>
+        <div
+          className="flex items-center justify-between px-6 py-4 shrink-0"
+          style={{
+            borderBottom: "1px solid var(--color-border-base, #e5e7eb)",
+            background: "var(--color-surface-raised, #f9fafb)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold"
+              style={{
+                background: "var(--color-brand-10, #eff6ff)",
+                color: "var(--color-brand-60, #2563eb)",
+              }}
+            >
+              <i className="fas fa-table" />
+            </div>
+            <div>
+              <h2
+                className="text-base font-bold"
+                style={{ color: "var(--color-text-default, #111827)" }}
+              >
+                Upload Data Preview
+              </h2>
+              <p
+                className="text-xs mt-0.5"
+                style={{ color: "var(--color-text-subtle, #6b7280)" }}
+              >
+                Total <span className="font-semibold">{rows.length}rows</span> ·{" "}
+                {previewColumns.length + 1}columns · double click on the field to edit
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-4">
+            {/* Filters Segmented Control */}
+            <div className="toggle-group text-xs flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setFilterType("all")}
+                className={`toggle-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  filterType === "all"
+                    ? "bg-white dark:bg-gray-700 text-teal-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                All ({rows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("missing")}
+                className={`toggle-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  filterType === "missing"
+                    ? "bg-white dark:bg-gray-700 text-orange-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Missing Required ({missingMandatoryCount})
+              </button>
+            </div>
+
             <button
               type="button"
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg text-sm"
               onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              aria-label="Close"
             >
-              <i className="fas fa-times" />
+              <i className="fas fa-times text-sm" />
             </button>
           </div>
         </div>
 
-        {/* Search & Action Bar */}
-        <div className="p-3 border-b border-border-base bg-gray-50/50 dark:bg-gray-800/40 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-64">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
-            <input
-              type="text"
-              className="input-base pl-8 py-1.5 text-xs w-full"
-              placeholder="Search preview data..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="btn-secondary text-xs px-4 py-1.5"
-              onClick={onClose}
-              disabled={saving}
-            >
-              {t("app.cancel", "취소")}
-            </button>
-            <button
-              type="button"
-              className="btn-primary text-xs px-5 py-1.5 flex items-center gap-1.5"
-              onClick={handleSaveAll}
-              disabled={saving || loading || rows.length === 0}
-            >
-              {saving ? (
-                <>
-                  <i className="fas fa-spinner fa-spin" />
-                  <span>{t("app.saving", "저장 중...")}</span>
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-save" />
-                  <span>
-                    {t("app.saveBtn", "저장하기")} ({rows.length}{t("app.rows", "건")})
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        {/* Body (Table Container) */}
+        <div className="flex-1 overflow-auto bg-surface-default">
           {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-subtle">
+            <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
               <i className="fas fa-spinner fa-spin text-3xl text-teal-600 mb-3" />
-              <p className="text-sm font-medium">{t("app.loadingData", "데이터를 불러오는 중...")}</p>
+              <p className="text-sm font-medium">Loading preview data...</p>
             </div>
           ) : error ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-red-600">
+            <div className="flex flex-col items-center justify-center py-20 text-red-600">
               <i className="fas fa-exclamation-triangle text-3xl mb-3" />
               <p className="text-sm font-medium">{error}</p>
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-subtle">
-              <i className="fas fa-inbox text-3xl mb-2" />
-              <p className="text-sm">{t("preview.noData", "미리보기할 데이터가 없습니다.")}</p>
+            <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
+              <i className="fas fa-inbox text-4xl opacity-30 mb-2" />
+              <p className="text-sm">No data available for preview.</p>
             </div>
           ) : (
-            <div className="table-wrapper flex-1 overflow-auto">
-              <table className="table-base w-full text-xs text-left">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-800 border-b border-border-base sticky top-0 z-10 font-semibold text-text-subtle whitespace-nowrap">
-                    <th className="px-3 py-2 text-center w-12">#</th>
-                    {PREVIEW_COLUMNS.map((col) => (
-                      <th key={col.key} className="px-3 py-2">
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-base">
-                  {filteredRows.map((r, rIdx) => (
-                    <tr
-                      key={rIdx}
-                      className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
-                    >
-                      <td className="px-3 py-2 text-center text-text-subtle font-mono">
-                        {rIdx + 1}
-                      </td>
-                      {PREVIEW_COLUMNS.map((col) => {
-                        const val = r[col.key] ?? "";
-                        const isEditing =
-                          editingCell?.rowIdx === rIdx && editingCell?.key === col.key;
-
-                        return (
-                          <td
-                            key={col.key}
-                            className="px-3 py-2 whitespace-nowrap max-w-[200px] truncate cursor-pointer hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
-                            onDoubleClick={() => handleCellDoubleClick(rIdx, col.key, val)}
-                            title={String(val)}
-                          >
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                className="input-base text-xs py-0.5 px-1 w-full"
-                                value={cellValue}
-                                autoFocus
-                                onChange={(e) => setCellValue(e.target.value)}
-                                onBlur={() => handleCellSave(rIdx, col.key)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleCellSave(rIdx, col.key);
-                                  if (e.key === "Escape") setEditingCell(null);
-                                }}
-                              />
-                            ) : (
-                              <span>{String(val || "-")}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
+            <table className="w-full text-xs text-left border-collapse">
+              <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">
+                <tr className="font-semibold text-text-subtle whitespace-nowrap">
+                  <th className="px-4 py-3 w-12 text-center">#</th>
+                  <th className="px-3 py-3 w-16 text-center">Action</th>
+                  {previewColumns.map((col) => (
+                    <th key={col.key} className="px-4 py-3 min-w-[140px]">
+                      {col.label}
+                    </th>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-base">
+                {filteredRows.map((r, rIdx) => (
+                  <tr
+                    key={rIdx}
+                    className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-center text-text-subtle font-mono">
+                      {rIdx + 1}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
+                        title="Delete row"
+                        onClick={() => handleDeleteRow(rIdx)}
+                      >
+                        <i className="fas fa-trash-alt text-xs" />
+                      </button>
+                    </td>
+                    {previewColumns.map((col) => {
+                      const val = r[col.key] ?? "";
+                      const isEditing =
+                        editingCell?.rowIdx === rIdx && editingCell?.key === col.key;
+                      const isMissing =
+                        col.required && (!val || String(val).trim() === "");
+
+                      return (
+                        <td
+                          key={col.key}
+                          className={`px-4 py-3 whitespace-nowrap max-w-[220px] truncate cursor-pointer transition-colors ${
+                            isMissing
+                              ? "bg-red-50/60 dark:bg-red-950/40 text-red-700 dark:text-red-300 font-medium"
+                              : "hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
+                          }`}
+                          onDoubleClick={() => handleCellDoubleClick(rIdx, col.key, val)}
+                          title={String(val)}
+                        >
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              className="input-base text-xs py-0.5 px-1.5 w-full"
+                              value={cellValue}
+                              autoFocus
+                              onChange={(e) => setCellValue(e.target.value)}
+                              onBlur={() => handleCellSave(rIdx, col.key)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleCellSave(rIdx, col.key);
+                                if (e.key === "Escape") setEditingCell(null);
+                              }}
+                            />
+                          ) : (
+                            <span>{String(val || "")}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-between gap-3 px-6 py-4 shrink-0"
+          style={{
+            borderTop: "1px solid var(--color-border-base, #e5e7eb)",
+            background: "var(--color-surface-raised, #f9fafb)",
+          }}
+        >
+          <p className="text-xs text-text-subtle flex items-center gap-1.5">
+            <i className="fas fa-info-circle text-gray-400" />
+            <span>
+              Double click on the field to edit, then click the Save button to save the entire data.
+            </span>
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="btn-base btn-secondary flex items-center gap-1.5 text-xs px-4 py-2"
+            >
+              <i className="fas fa-times" />
+              <span>Cancel</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={saving || loading || rows.length === 0}
+              className="btn-base btn-primary min-w-[130px] justify-center flex items-center gap-1.5 text-xs px-5 py-2"
+            >
+              {saving ? (
+                <>
+                  <i className="fas fa-spinner fa-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-check" />
+                  <span>Save ({rows.length} rows)</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

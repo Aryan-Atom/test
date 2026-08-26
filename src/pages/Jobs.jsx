@@ -92,9 +92,6 @@ export default function Jobs() {
           <i className={`fas ${icon} text-[10px]`} />
           {j.status || "idle"}
         </span>
-        {j.stage && (
-          <span className="text-xs text-text-subtle">({j.stage})</span>
-        )}
         {j.columns_uncertain && (
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help"
@@ -127,12 +124,13 @@ export default function Jobs() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative w-64">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+          <div className="relative w-72 sm:w-96">
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none" />
             <input
               type="text"
-              className="input-base pl-8 py-1.5 text-xs w-full"
-              placeholder="Search job ID, files, stage..."
+              className="input-base text-xs w-full py-1.5"
+              style={{ paddingLeft: "2.25rem" }}
+              placeholder="Search job ID, files..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -311,12 +309,6 @@ export default function Jobs() {
                   {selectedJob.created_at || selectedJob.createdAt || "-"}
                 </span>
               </div>
-              {selectedJob.stage && (
-                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Stage:</span>
-                  <span className="col-span-2">{selectedJob.stage}</span>
-                </div>
-              )}
               {selectedJob.columns_uncertain && (
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
                   <span className="font-semibold text-text-subtle">Uncertain Fields:</span>

@@ -134,13 +134,22 @@ export default function Navbar({ activePage, collapsed, onToggleMenu, theme, onT
           description={null}
           onClose={() => setShowConfirm(false)}
           footer={
-            <button
-              type="button"
-              className="btn-base bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-xl transition-colors"
-              onClick={handleReset}
-            >
-              {t("app.delete")}
-            </button>
+            <div className="flex items-center justify-end gap-2.5 w-full">
+              <button
+                type="button"
+                className="btn-secondary text-xs px-4 py-2 rounded-xl"
+                onClick={() => setShowConfirm(false)}
+              >
+                {t("app.cancel", "취소")}
+              </button>
+              <button
+                type="button"
+                className="btn-base bg-red-600 hover:bg-red-700 text-white font-medium text-xs px-4 py-2 rounded-xl transition-colors"
+                onClick={handleReset}
+              >
+                {t("app.delete")}
+              </button>
+            </div>
           }
         >
           <div className="py-2 text-sm text-text-default">{t("app.resetDataConfirmDesc")}</div>

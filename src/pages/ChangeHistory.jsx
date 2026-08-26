@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect, forwardRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AnimatedActionButton from "../components/AnimatedActionButton.jsx";
 import { OperationStatus } from "../components/OperationStatus.jsx";
 import { withMinimumDelay } from "../utils/actionTiming.js";
@@ -1320,7 +1320,9 @@ export function UploadPreviewModal({
         style={{
           background: "var(--color-surface-default, #fff)",
           border: "1px solid var(--color-border-base, #e5e7eb)",
-          width: "min(95vw, 1200px)",
+          width: "min(96vw, 1600px)",
+          maxWidth: "96vw",
+          height: "88vh",
           maxHeight: "88vh",
         }}
       >
@@ -2788,6 +2790,7 @@ function RowEditModal({
 
 export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
   const { t, language } = useI18n();
+  const location = useLocation();
   const [selectedProcessId, setSelectedProcessId] = useState(() => {
     const saved = sessionStorage.getItem("eq_selected_process_id");
     return saved && !isNaN(Number(saved)) && Number(saved) > 0 ? Number(saved) : null;
@@ -4798,6 +4801,36 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   }, [fetchMasterData]);
 
   useEffect(() => {
+    if (location.pathname === "/data-management/change-history-data") {
+      fetchMasterData();
+      if (
+        selectedProcessId !== null &&
+        selectedMaintenanceId !== null &&
+        Number(selectedProcessId) > 0 &&
+        Number(selectedMaintenanceId) > 0
+      ) {
+        fetchChangedData();
+      }
+    }
+  }, [location.pathname, fetchMasterData, fetchChangedData, selectedProcessId, selectedMaintenanceId]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchMasterData();
+      if (
+        selectedProcessId !== null &&
+        selectedMaintenanceId !== null &&
+        Number(selectedProcessId) > 0 &&
+        Number(selectedMaintenanceId) > 0
+      ) {
+        fetchChangedData();
+      }
+    };
+    window.addEventListener("refreshChangeHistoryData", handleRefresh);
+    return () => window.removeEventListener("refreshChangeHistoryData", handleRefresh);
+  }, [fetchMasterData, fetchChangedData, selectedProcessId, selectedMaintenanceId]);
+
+  useEffect(() => {
     if (
       selectedProcessId !== null &&
       selectedMaintenanceId !== null &&
@@ -4857,22 +4890,6 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           <div className="flex flex-wrap gap-3">
             <AnimatedActionButton
               className="btn-secondary"
-              onClick={() => fileInput.current?.click()}
-              busy={importBusy}
-              busyLabel="Loading CSV..."
-              icon="fas fa-file-import"
-            >
-              {t("app.importCsv")}
-            </AnimatedActionButton>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleUploadExcel}
-            />
-            <AnimatedActionButton
-              className="btn-secondary"
               onClick={() => aiFileInput.current?.click()}
               busy={aiImportBusy}
               busyLabel="AI Pipeline..."
@@ -4886,6 +4903,22 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               accept=".csv,.xlsx,.xls"
               className="hidden"
               onChange={handleAiPipelineUpload}
+            />
+            <AnimatedActionButton
+              className="btn-secondary"
+              onClick={() => fileInput.current?.click()}
+              busy={importBusy}
+              busyLabel="Loading CSV..."
+              icon="fas fa-file-import"
+            >
+              {t("app.importCsv")}
+            </AnimatedActionButton>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleUploadExcel}
             />
             <ExportDropdown
               onExportCsv={handleExportCsv}
