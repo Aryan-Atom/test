@@ -9,7 +9,10 @@ import ExportDropdown from "../components/ExportDropdown.jsx";
 import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
-import { changeFilterDataAndTableData } from "./static-data/ChangeHistoryData.js";
+import {
+  changeFilterDataAndTableData,
+  changeDataColumns as staticChangeDataColumns,
+} from "./static-data/ChangeHistoryData.js";
 import { getUserInfo } from "../utils/cookieUtils.js";
 import { getPriorityLabel, getCategoryLabel } from "../utils/filterTranslationHelpers.js";
 
@@ -805,6 +808,7 @@ export default function MPList({
   const [changeDataColumns, setChangeDataColumns] = useState([]);
   const [selectedPriorities, setSelectedPriorities] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [downloadSampleBusy, setDownloadSampleBusy] = useState(false);
 
   useEffect(() => {
     APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
@@ -2456,6 +2460,92 @@ export default function MPList({
     }
   };
 
+  const generateAndDownloadSampleExcel = (columns) => {
+    try {
+      const activeCols = [...(columns || [])]
+        .filter((c) => c.isActive !== false)
+        .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+      const headers = activeCols
+        .map((col) =>
+          (col.excelColumnName || col.columnNameKr || col.jsonKey || "")
+            .replace(/\r?\n/g, "")
+            .trim(),
+        )
+        .filter(Boolean);
+
+      if (headers.length === 0) {
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.noColumnsFound", "No column definitions found."),
+          autoClose: true,
+        });
+        return;
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "VOC_Template");
+      XLSX.writeFile(workbook, "voc_import_template.xlsx");
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: t("toast.sampleDownloadSuccess", "Sample form downloaded successfully."),
+        autoClose: true,
+      });
+    } catch (err) {
+      console.error("[MPList] Failed to generate sample excel:", err);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.sampleDownloadError", "Failed to download sample form."),
+        autoClose: true,
+      });
+    }
+  };
+
+  const handleDownloadSampleForm = async () => {
+    setDownloadSampleBusy(true);
+
+    if (isStaticDataMode) {
+      setTimeout(() => {
+        setDownloadSampleBusy(false);
+        generateAndDownloadSampleExcel(staticChangeDataColumns);
+      }, 200);
+      return;
+    }
+
+    APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
+      setDownloadSampleBusy(false);
+      try {
+        if (status === 200 && responseData) {
+          const cols = Array.isArray(responseData?.data)
+            ? responseData.data
+            : Array.isArray(responseData)
+              ? responseData
+              : changeDataColumns || [];
+
+          generateAndDownloadSampleExcel(cols);
+        } else {
+          const fallbackCols =
+            Array.isArray(changeDataColumns) && changeDataColumns.length > 0
+              ? changeDataColumns
+              : staticChangeDataColumns;
+          generateAndDownloadSampleExcel(fallbackCols);
+        }
+      } catch (e) {
+        console.error("[MPList] Error processing sample form columns:", e);
+        const fallbackCols =
+          Array.isArray(changeDataColumns) && changeDataColumns.length > 0
+            ? changeDataColumns
+            : staticChangeDataColumns;
+        generateAndDownloadSampleExcel(fallbackCols);
+      }
+    });
+  };
+
   const setField = (key, val) => {
     setNewRow((prev) => ({ ...prev, [key]: val }));
     if (errors[key]) {
@@ -4059,106 +4149,20 @@ export default function MPList({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  const dynamicCols =
-                    changeDataColumns && changeDataColumns.length > 0
-                      ? [...changeDataColumns]
-                          .filter((c) => c.isActive !== false)
-                          .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-                          .map((c) =>
-                            (c.excelColumnName || c.jsonKey || "").replace(/\r?\n/g, "").trim(),
-                          )
-                          .filter(Boolean)
-                      : [];
-
-                  const headers =
-                    dynamicCols.length > 0
-                      ? dynamicCols
-                      : [
-                          "Eqcode",
-                          "W/Ocode",
-                          "Process",
-                          "Eqname",
-                          "equipment type",
-                          "report content",
-                          "site",
-                          "worked date",
-                          "work description",
-                          "purpose",
-                          "situation",
-                          "cause",
-                          "HW as was",
-                          "HW as is",
-                          "SW as was",
-                          "SW as is",
-                          "priority",
-                          "category",
-                          "rep_work",
-                          "BOM",
-                          "Sparepart",
-                          "Wotype",
-                        ];
-                  const sampleData = [
-                    {
-                      Eqcode: "H0303001",
-                      "W/Ocode": "W004512547",
-                      Process: "03.성형",
-                      Eqname: "Coater(3R2)_450___C1HH-R2-01",
-                      "equipment type": "0303. R2 Coater (450)",
-                      "report content": "형광등 노후로 인한  led type 변경",
-                      site: "A1.수원",
-                      "worked date": "2019-04-24",
-                      "work description": "형광등을 LED 타입으로 교체",
-                      purpose: "형광등 노후에 따른 교체 및 조명 효율 향상",
-                      situation: "기존 형광등의 노후화",
-                      cause: "형광등 수명 종료 및 노후",
-                      "HW as was": "형광등(기존 조명)",
-                      "HW as is": "LED 조명(LED 타입)",
-                      "SW as was": "정보 없음",
-                      "SW as is": "정보 없음",
-                      priority: "일반",
-                      category: "보전성",
-                      rep_work: "형광등 LED 교체",
-                      BOM: "",
-                      Sparepart: "",
-                      Wotype: "CM(개량)",
-                    },
-                    {
-                      Eqcode: "H0306001",
-                      "W/Ocode": "W005509731",
-                      Process: "03.성형",
-                      Eqname: "R203-R2 Coater-4세대",
-                      "equipment type": "0303. R2 Coater (450)",
-                      "report content":
-                        "성형기 상반기 가스 검출기 검교정 진행\n레포트 결과 정리 및 이상부분 확인",
-                      site: "A3.부산",
-                      "worked date": "2020-06-03",
-                      "work description": "성형기 가스 검출기 검교정 진행",
-                      purpose:
-                        "가스 검출기의 정확도 유지 및 검교정 결과 보고서 작성, 이상 부분 확인",
-                      situation: "정보 없음",
-                      cause: "정보 없음",
-                      "HW as was": "정보 없음",
-                      "HW as is": "정보 없음",
-                      "SW as was": "정보 없음",
-                      "SW as is": "정보 없음",
-                      priority: "일반",
-                      category: "품질",
-                      rep_work: "성형기 가스 검출기 검교정",
-                      BOM: "",
-                      Sparepart: "",
-                      Wotype: "BM(고장)",
-                    },
-                  ];
-                  const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
-                  const workbook = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(workbook, worksheet, "VOC_Template");
-                  XLSX.writeFile(workbook, "voc_import_template.xlsx");
-                }}
-                className="bg-surface-default border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+                onClick={handleDownloadSampleForm}
+                disabled={downloadSampleBusy}
+                className="bg-surface-default border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-xs px-3.5 py-2 rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <i className="fas fa-download text-xs text-gray-500" />
-                <span>{t("page.mp.downloadFormBtn", "Download Form")}</span>
+                <i
+                  className={`fas ${
+                    downloadSampleBusy ? "fa-spinner fa-spin text-blue-500" : "fa-download text-gray-500"
+                  } text-xs`}
+                />
+                <span>
+                  {downloadSampleBusy
+                    ? t("app.downloading", "Downloading...")
+                    : t("page.mp.downloadFormBtn", "Download Form")}
+                </span>
               </button>
             </div>
 
