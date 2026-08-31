@@ -2923,7 +2923,14 @@ function RowEditModal({
   );
 }
 
-export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, searchText }) {
+export default function ChangeHistory({
+  data,
+  onUpload,
+  onExport,
+  onOpenDetail,
+  searchText,
+  isActive,
+}) {
   const { t, language } = useI18n();
   const location = useLocation();
   const [selectedProcessId, setSelectedProcessId] = useState(() => {
@@ -2960,6 +2967,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
   const [importFileName, setImportFileName] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
   const [aiImportBusy, setAiImportBusy] = useState(false);
+  const [downloadSampleBusy, setDownloadSampleBusy] = useState(false);
   const [operationStatus, setOperationStatus] = useState({
     isVisible: false,
     status: "loading",
@@ -4830,6 +4838,92 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
     }
   };
 
+  const generateAndDownloadSampleExcel = (columns) => {
+    try {
+      const activeCols = [...(columns || [])]
+        .filter((c) => c.isActive !== false)
+        .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+
+      const headers = activeCols
+        .map((col) =>
+          (col.excelColumnName || col.columnNameKr || col.jsonKey || "")
+            .replace(/\r?\n/g, "")
+            .trim(),
+        )
+        .filter(Boolean);
+
+      if (headers.length === 0) {
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: t("toast.noColumnsFound", "No column definitions found."),
+          autoClose: true,
+        });
+        return;
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+      XLSX.writeFile(workbook, "change_history_sample_form.xlsx");
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: t("toast.sampleDownloadSuccess", "Sample form downloaded successfully."),
+        autoClose: true,
+      });
+    } catch (err) {
+      console.error("[ChangeHistory] Failed to generate sample excel:", err);
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.sampleDownloadError", "Failed to download sample form."),
+        autoClose: true,
+      });
+    }
+  };
+
+  const handleDownloadSampleForm = async () => {
+    setDownloadSampleBusy(true);
+
+    if (isStaticDataMode) {
+      setTimeout(() => {
+        setDownloadSampleBusy(false);
+        generateAndDownloadSampleExcel(staticChangeDataColumns);
+      }, 200);
+      return;
+    }
+
+    APIcallGet(`${pocEndPoints?.CHANGE_DATA_COLUMNS}/1`, {}, (responseData, status) => {
+      setDownloadSampleBusy(false);
+      try {
+        if (status === 200 && responseData) {
+          const cols = Array.isArray(responseData?.data)
+            ? responseData.data
+            : Array.isArray(responseData)
+              ? responseData
+              : changeDataColumns || [];
+
+          generateAndDownloadSampleExcel(cols);
+        } else {
+          const fallbackCols =
+            Array.isArray(changeDataColumns) && changeDataColumns.length > 0
+              ? changeDataColumns
+              : staticChangeDataColumns;
+          generateAndDownloadSampleExcel(fallbackCols);
+        }
+      } catch (e) {
+        console.error("[ChangeHistory] Error processing sample form columns:", e);
+        const fallbackCols =
+          Array.isArray(changeDataColumns) && changeDataColumns.length > 0
+            ? changeDataColumns
+            : staticChangeDataColumns;
+        generateAndDownloadSampleExcel(fallbackCols);
+      }
+    });
+  };
+
   const handleExportZip = async () => {
     setExportBusy(true);
     setOperationStatus({
@@ -5198,6 +5292,15 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             <p className="page-subtitle">{t("page.change.desc")}</p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <AnimatedActionButton
+              className="btn-secondary"
+              onClick={handleDownloadSampleForm}
+              busy={downloadSampleBusy}
+              busyLabel={t("app.downloading", "Downloading...")}
+              icon="fas fa-download"
+            >
+              {t("app.downloadSampleForm", "Download Sample Form")}
+            </AnimatedActionButton>
             <AnimatedActionButton
               className="btn-secondary"
               onClick={() => aiFileInput.current?.click()}
