@@ -1299,6 +1299,20 @@ export default function MPList({
   }, [isActive, fetchData]);
 
   useEffect(() => {
+    const handleRefresh = () => {
+      fetchData();
+    };
+    window.addEventListener("refreshMPListData", handleRefresh);
+    window.addEventListener("refreshFilterData", handleRefresh);
+    window.addEventListener("refreshChangeHistoryData", handleRefresh);
+    return () => {
+      window.removeEventListener("refreshMPListData", handleRefresh);
+      window.removeEventListener("refreshFilterData", handleRefresh);
+      window.removeEventListener("refreshChangeHistoryData", handleRefresh);
+    };
+  }, [fetchData]);
+
+  useEffect(() => {
     if (!filterPayload) return;
     const hasProcess =
       selectedProcessId !== null &&
@@ -2733,16 +2747,34 @@ export default function MPList({
                 const uploadExcelFile = async (uploadFile, callback) => {
                   let filterColumns = "";
                   if (changeDataColumns && changeDataColumns.length > 0) {
-                    filterColumns = [...changeDataColumns]
+                    const colList = [];
+                    [...changeDataColumns]
                       .filter((c) => c.isActive !== false)
                       .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-                      .map((c) => (c.excelColumnName || "").replace(/\r?\n/g, "").trim())
-                      .filter(Boolean)
-                      .join(",");
+                      .forEach((c) => {
+                        const name = (c.excelColumnName || "").replace(/\r?\n/g, "").trim();
+                        if (name) {
+                          colList.push(name);
+                          const lower = name.toLowerCase();
+                          if (lower === "eqname" || lower === "equipment_name" || lower === "equipmentname") {
+                            if (!colList.includes("Eqname")) colList.push("Eqname");
+                            if (!colList.includes("equipment_name")) colList.push("equipment_name");
+                            if (!colList.includes("eqname")) colList.push("eqname");
+                            if (!colList.includes("equipmentName")) colList.push("equipmentName");
+                          }
+                          if (lower === "eqcode" || lower === "equipment_code" || lower === "equipmentcode") {
+                            if (!colList.includes("Eqcode")) colList.push("Eqcode");
+                            if (!colList.includes("equipment_code")) colList.push("equipment_code");
+                            if (!colList.includes("eqcode")) colList.push("eqcode");
+                            if (!colList.includes("equipmentCode")) colList.push("equipmentCode");
+                          }
+                        }
+                      });
+                    filterColumns = colList.join(",");
                   }
                   if (!filterColumns) {
                     filterColumns =
-                      "site,Process,Eqcode,Eqname,W/Ocode,report content,BOM,Sparepart,worked date,work description,purpose,situation,cause,HW as was,HW as is,SW as was,SW as is,rep_work,priority,category,equipment type,Wotype";
+                      "site,Process,Eqcode,equipment_code,eqcode,Eqname,equipment_name,eqname,W/Ocode,report content,BOM,Sparepart,worked date,work description,purpose,situation,cause,HW as was,HW as is,SW as was,SW as is,rep_work,priority,category,equipment type,Wotype";
                   }
 
                   const url = `${pocEndPoints?.UPLOAD_EXCEL || "api/Excel/Upload"}?FilterColumns=${encodeURIComponent(
@@ -2809,6 +2841,7 @@ export default function MPList({
                           "eqcode",
                           "equipmentCode",
                           "equipment_code",
+                          "eq_code",
                           "설비코드",
                         ),
                         woCode: getVal(row, "W/Ocode", "wocode", "woCode", "wo_code", "W/O 코드"),
@@ -2819,6 +2852,7 @@ export default function MPList({
                           "eqname",
                           "equipmentName",
                           "equipment_name",
+                          "eq_name",
                           "설비명",
                         ),
                         maintGroup: getVal(

@@ -527,10 +527,10 @@ function getColValue(row, col) {
     return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
   if (col === "equipmentCode") {
-    return row.equipment_code ?? row.equipmentCode ?? row["설비코드"] ?? "";
+    return row.equipment_code ?? row.equipmentCode ?? row.eqcode ?? row.Eqcode ?? row.eq_code ?? row["설비코드"] ?? "";
   }
   if (col === "equipmentName") {
-    return row.equipment_name ?? row.equipmentName ?? row["설비명"] ?? "";
+    return row.equipment_name ?? row.equipmentName ?? row.eqname ?? row.Eqname ?? row.eq_name ?? row["설비명"] ?? "";
   }
   if (col === "versionId") {
     return row.version_id ?? row.versionId ?? row.version_tag ?? 0;
@@ -1479,6 +1479,20 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   }, [isActive, getFilterData]);
 
   useEffect(() => {
+    const handleRefresh = () => {
+      getFilterData();
+    };
+    window.addEventListener("refreshMatrixData", handleRefresh);
+    window.addEventListener("refreshFilterData", handleRefresh);
+    window.addEventListener("refreshChangeHistoryData", handleRefresh);
+    return () => {
+      window.removeEventListener("refreshMatrixData", handleRefresh);
+      window.removeEventListener("refreshFilterData", handleRefresh);
+      window.removeEventListener("refreshChangeHistoryData", handleRefresh);
+    };
+  }, [getFilterData]);
+
+  useEffect(() => {
     if (!filterData) return;
     const savedProcId = Number(sessionStorage.getItem("eq_selected_process_id") || 0);
     const savedMaintId = Number(sessionStorage.getItem("eq_selected_maint_id") || 0);
@@ -2210,8 +2224,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
     if (apiEquipmentList && apiEquipmentList.length > 0) {
       apiEquipmentList.forEach((eq) => {
-        const eqCode = eq.equipment_code || eq.equipmentCode || String(eq.equipment_id || "");
-        const eqName = eq.equipment_name || eq.equipmentName || "";
+        const eqCode = eq.equipment_code || eq.equipmentCode || eq.eqcode || eq.Eqcode || eq.eq_code || String(eq.equipment_id || "");
+        const eqName = eq.equipment_name || eq.equipmentName || eq.eqname || eq.Eqname || eq.eq_name || "";
         const eqId = Number(eq.equipment_id || eq.equipmentId || 0);
         const rawStatusStr = String(eq.status ?? "")
           .toLowerCase()

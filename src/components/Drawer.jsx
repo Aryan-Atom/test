@@ -71,13 +71,13 @@ const CHANGE_DETAIL_FIELDS = [
       "대표작업명",
     ],
   },
-  { labelKey: "field.equipmentCode", keys: ["equipment_code", "equipmentCode", "equipmentId"] },
+  { labelKey: "field.equipmentCode", keys: ["equipment_code", "equipmentCode", "eqcode", "Eqcode", "eq_code", "equipmentId", "설비코드"] },
   {
     labelKey: "field.woCode",
     keys: ["wOCode", "woCode", "wo_code", "w/ocode", "wo_number"],
   },
   { labelKey: "field.process", keys: ["process_name", "processName", "process"] },
-  { labelKey: "field.equipmentName", keys: ["equipment_name", "equipmentName"] },
+  { labelKey: "field.equipmentName", keys: ["equipment_name", "equipmentName", "eqname", "Eqname", "eq_name", "설비명"] },
   {
     labelKey: "field.maintenance",
     keys: ["maintGroup", "maint_group", "maintenanceType", "equipmentType", "equipment_type_name", "equipmentTypeName", "maintenance_group_name", "equipment", "bojeon_part"],
@@ -325,8 +325,22 @@ export default function Drawer({
     "workOrderTypeName",
     "work_order_type_name",
   ]);
-  const equipmentName = firstValue(firstItem, ["equipmentName", "equipment_name"]);
-  const equipmentCode = firstValue(firstItem, ["equipmentCode", "equipment_code"]);
+  const equipmentName = firstValue(firstItem, [
+    "equipmentName",
+    "equipment_name",
+    "eqname",
+    "Eqname",
+    "eq_name",
+    "설비명",
+  ]);
+  const equipmentCode = firstValue(firstItem, [
+    "equipmentCode",
+    "equipment_code",
+    "eqcode",
+    "Eqcode",
+    "eq_code",
+    "설비코드",
+  ]);
 
   const isChangeHistoryView =
     variant === "changeHistory" || variant === "mpList" || (!showEdit && !showFooter);

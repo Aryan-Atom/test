@@ -65,12 +65,22 @@ function buildExcelToJsonKeyMap(columnDefs) {
     : Array.isArray(columnDefs?.data)
       ? columnDefs.data
       : [];
-  return list.reduce((acc, col) => {
+  const map = list.reduce((acc, col) => {
     if (col.excelColumnName && col.jsonKey) {
       acc[col.excelColumnName.trim()] = col.jsonKey;
     }
     return acc;
   }, {});
+  // Ensure both eqname and equipment_name aliases map to equipmentName
+  if (!map["equipment_name"]) map["equipment_name"] = "equipmentName";
+  if (!map["equipmentName"]) map["equipmentName"] = "equipmentName";
+  if (!map["eqname"]) map["eqname"] = "equipmentName";
+  if (!map["Eqname"]) map["Eqname"] = "equipmentName";
+  if (!map["equipment_code"]) map["equipment_code"] = "equipmentCode";
+  if (!map["equipmentCode"]) map["equipmentCode"] = "equipmentCode";
+  if (!map["eqcode"]) map["eqcode"] = "equipmentCode";
+  if (!map["Eqcode"]) map["Eqcode"] = "equipmentCode";
+  return map;
 }
 
 function remapRowKeys(row, excelToJsonKey, validKeys = null) {
@@ -84,6 +94,20 @@ function remapRowKeys(row, excelToJsonKey, validKeys = null) {
       validKeys.has(lowerTrimmed) ||
       validKeys.has(lowerMapped) ||
       mappedKey === "id" ||
+      lowerMapped === "equipmentname" ||
+      lowerMapped === "equipment_name" ||
+      lowerMapped === "eqname" ||
+      lowerTrimmed === "equipmentname" ||
+      lowerTrimmed === "equipment_name" ||
+      lowerTrimmed === "eqname" ||
+      lowerTrimmed === "설비명" ||
+      lowerMapped === "equipmentcode" ||
+      lowerMapped === "equipment_code" ||
+      lowerMapped === "eqcode" ||
+      lowerTrimmed === "equipmentcode" ||
+      lowerTrimmed === "equipment_code" ||
+      lowerTrimmed === "eqcode" ||
+      lowerTrimmed === "설비코드" ||
       lowerMapped === "wotype" ||
       lowerMapped === "wotypeid" ||
       lowerTrimmed === "wotype" ||
@@ -308,6 +332,8 @@ function rowKey(row, index) {
 }
 
 function getMissingMandatoryFields(row, columns, columnDefs) {
+  if (!row || typeof row !== "object") return [];
+
   const list = Array.isArray(columnDefs)
     ? columnDefs
     : Array.isArray(columnDefs?.data)
@@ -315,92 +341,145 @@ function getMissingMandatoryFields(row, columns, columnDefs) {
       : [];
 
   const missing = [];
-  const ALWAYS_MANDATORY_KEYS = [
-    "eqtype",
-    "equipmenttype",
-    "equipment_type",
-    "equipment type",
-    // "wotype",
-    // "wo_type",
-    // "wo type",
-    "site",
-    "process",
-    "equipmentcode",
-    "equipment_code",
-    "equipment code",
-    "equipmentname",
-    "equipment_name",
-    "equipment name",
-    "equipment",
-    "maintgroup",
-    "maint_group",
-    "representativework",
-    "representative_work",
-    "representative work",
-    "rep_work",
-    "rep work",
-  ];
 
-  // Track which row keys have already been checked via columnDefs
-  const checkedKeys = new Set();
+  const FIELD_ALIAS_GROUPS = {
+    site: ["site", "sitename", "site_name", "corporation", "법인"],
+    process: ["process", "processname", "process_name", "공정"],
+    maintgroup: [
+      "maintgroup",
+      "maint_group",
+      "equipment",
+      "equipment type",
+      "equipmenttype",
+      "equipment_type",
+      "eqtype",
+      "eq type",
+      "보전파트",
+      "보전그룹",
+      "보전part",
+    ],
+    equipmentcode: [
+      "equipmentcode",
+      "equipment_code",
+      "equipment code",
+      "eqcode",
+      "eq_code",
+      "설비코드",
+    ],
+    equipmentname: [
+      "equipmentname",
+      "equipment_name",
+      "equipment name",
+      "eqname",
+      "eq_name",
+      "설비명",
+    ],
+    representativework: [
+      "representativework",
+      "representative_work",
+      "representative work",
+      "rep_work",
+      "repwork",
+      "rep work",
+      "대표 작업명",
+      "대표작업명",
+    ],
+    priority: ["priority", "priorityname", "priority_name", "중요도", "우선순위"],
+    category: ["category", "categoryname", "category_name", "effecttype", "효과 유형", "효과유형", "구분"],
+  };
 
-  list.forEach((col) => {
-    const excelName = col.excelColumnName?.trim().toLowerCase();
-    const jsonKey = col.jsonKey?.trim().toLowerCase();
-    const krName = col.columnNameKr?.trim().toLowerCase();
+  const isValueValid = (val) => {
+    if (val === undefined || val === null) return false;
+    const strVal = String(val).trim().toLowerCase();
+    return (
+      strVal !== "" &&
+      strVal !== "required" &&
+      strVal !== "[required]" &&
+      strVal !== "필수"
+    );
+  };
 
-    const isMandatoryCol =
-      col.isMandatory ||
-      (jsonKey && ALWAYS_MANDATORY_KEYS.includes(jsonKey)) ||
-      (excelName && ALWAYS_MANDATORY_KEYS.includes(excelName));
-
-    if (isMandatoryCol) {
-      const matchedKey = Object.keys(row).find((k) => {
-        const lk = k.trim().toLowerCase();
-        return lk === excelName || lk === jsonKey || lk === krName;
-      });
-
-      // If the mandatory column doesn't exist in the row at all,
-      // skip it — user can't fill a field that has no column in the data.
-      if (matchedKey === undefined) return;
-
-      checkedKeys.add(matchedKey.trim().toLowerCase());
-
-      const val = row[matchedKey];
-      const strVal = val != null ? String(val).trim().toLowerCase() : "";
-      if (
-        val === undefined ||
-        val === null ||
-        strVal === "" ||
-        strVal === "required" ||
-        strVal === "[required]" ||
-        strVal === "필수"
-      ) {
-        missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey);
+  const getGroupValidValue = (aliases) => {
+    for (const alias of aliases) {
+      const targetLower = alias.toLowerCase();
+      const matchedKey = Object.keys(row).find(
+        (k) => k.trim().toLowerCase() === targetLower,
+      );
+      if (matchedKey !== undefined) {
+        const val = row[matchedKey];
+        if (isValueValid(val)) {
+          return String(val).trim();
+        }
       }
     }
-  });
+    return null;
+  };
 
-  // Fallback: also check row keys directly against ALWAYS_MANDATORY_KEYS
-  // This catches mandatory fields even when columnDefs is empty or incomplete
-  Object.keys(row).forEach((k) => {
-    const lk = k.trim().toLowerCase();
-    if (checkedKeys.has(lk)) return; // already checked via columnDefs
-    if (ALWAYS_MANDATORY_KEYS.includes(lk)) {
-      const val = row[k];
-      const strVal = val != null ? String(val).trim().toLowerCase() : "";
-      if (
-        val === undefined ||
-        val === null ||
-        strVal === "" ||
-        strVal === "required" ||
-        strVal === "[required]" ||
-        strVal === "필수"
-      ) {
-        missing.push(k);
+  const checkedGroups = new Set();
+
+  if (list.length > 0) {
+    list.forEach((col) => {
+      const excelName = col.excelColumnName?.trim().toLowerCase();
+      const jsonKey = col.jsonKey?.trim().toLowerCase();
+      const krName = col.columnNameKr?.trim().toLowerCase();
+
+      const groupEntry = Object.entries(FIELD_ALIAS_GROUPS).find(
+        ([gk, aliases]) =>
+          gk === jsonKey ||
+          gk === excelName ||
+          aliases.includes(jsonKey) ||
+          aliases.includes(excelName) ||
+          aliases.includes(krName),
+      );
+
+      const isMandatory =
+        col.isMandatory === true ||
+        Boolean(groupEntry && (groupEntry[0] === "equipmentname" || groupEntry[0] === "equipmentcode" || groupEntry[0] === "site" || groupEntry[0] === "process" || groupEntry[0] === "maintgroup" || groupEntry[0] === "representativework" || groupEntry[0] === "priority" || groupEntry[0] === "category"));
+
+      if (isMandatory) {
+        if (groupEntry) {
+          const [groupKey, aliases] = groupEntry;
+          if (checkedGroups.has(groupKey)) return;
+          checkedGroups.add(groupKey);
+
+          // Check if any alias column was present in columns/detectedColumns or row
+          const hasCol = Object.keys(row).some((k) =>
+            aliases.includes(k.trim().toLowerCase()),
+          );
+          if (!hasCol) return;
+
+          const validVal = getGroupValidValue(aliases);
+          if (!validVal) {
+            missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey || groupKey);
+          }
+        } else {
+          // Custom column
+          const matchedKey = Object.keys(row).find((k) => {
+            const lk = k.trim().toLowerCase();
+            return lk === excelName || lk === jsonKey || lk === krName;
+          });
+          if (matchedKey !== undefined) {
+            if (!isValueValid(row[matchedKey])) {
+              missing.push(col.excelColumnName || col.columnNameKr || col.jsonKey);
+            }
+          }
+        }
       }
-    }
-  });
+    });
+  } else {
+    // Fallback if list is empty
+    Object.entries(FIELD_ALIAS_GROUPS).forEach(([groupKey, aliases]) => {
+      const hasCol = Object.keys(row).some((k) =>
+        aliases.includes(k.trim().toLowerCase()),
+      );
+      if (hasCol) {
+        const validVal = getGroupValidValue(aliases);
+        if (!validVal) {
+          missing.push(groupKey);
+        }
+      }
+    });
+  }
 
   return missing;
 }
@@ -770,7 +849,24 @@ function EditableModalRow({
   const handleSave = useCallback(
     (e) => {
       e?.stopPropagation();
-      onSave(index, { ...row, ...draft });
+      const updatedRow = { ...row, ...draft };
+      const eqNameVal =
+        updatedRow.Eqname ?? updatedRow.eqname ?? updatedRow.equipment_name ?? updatedRow.equipmentName ?? updatedRow["설비명"];
+      if (eqNameVal !== undefined) {
+        updatedRow.Eqname = eqNameVal;
+        updatedRow.eqname = eqNameVal;
+        updatedRow.equipment_name = eqNameVal;
+        updatedRow.equipmentName = eqNameVal;
+      }
+      const eqCodeVal =
+        updatedRow.Eqcode ?? updatedRow.eqcode ?? updatedRow.equipment_code ?? updatedRow.equipmentCode ?? updatedRow["설비코드"];
+      if (eqCodeVal !== undefined) {
+        updatedRow.Eqcode = eqCodeVal;
+        updatedRow.eqcode = eqCodeVal;
+        updatedRow.equipment_code = eqCodeVal;
+        updatedRow.equipmentCode = eqCodeVal;
+      }
+      onSave(index, updatedRow);
     },
     [index, draft, row, onSave],
   );
@@ -1172,12 +1268,30 @@ export function UploadPreviewModal({
 
   const handleSaveRow = useCallback((filteredIndex, payload) => {
     const originalIndex = payload._originalIndex;
+    const syncedPayload = { ...payload };
+    const eqNameVal =
+      payload.Eqname ?? payload.eqname ?? payload.equipment_name ?? payload.equipmentName ?? payload["설비명"];
+    if (eqNameVal !== undefined) {
+      syncedPayload.Eqname = eqNameVal;
+      syncedPayload.eqname = eqNameVal;
+      syncedPayload.equipment_name = eqNameVal;
+      syncedPayload.equipmentName = eqNameVal;
+    }
+    const eqCodeVal =
+      payload.Eqcode ?? payload.eqcode ?? payload.equipment_code ?? payload.equipmentCode ?? payload["설비코드"];
+    if (eqCodeVal !== undefined) {
+      syncedPayload.Eqcode = eqCodeVal;
+      syncedPayload.eqcode = eqCodeVal;
+      syncedPayload.equipment_code = eqCodeVal;
+      syncedPayload.equipmentCode = eqCodeVal;
+    }
+
     setRows((prev) => {
       const next = [...prev];
       const realIndex = next.findIndex((r) => r._originalIndex === originalIndex);
       if (realIndex !== -1) {
-        next[realIndex] = payload;
-        updatePreviewRow(realIndex, payload).catch(console.error);
+        next[realIndex] = syncedPayload;
+        updatePreviewRow(realIndex, syncedPayload).catch(console.error);
       }
       return next;
     });
@@ -1316,7 +1430,7 @@ export function UploadPreviewModal({
       style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }}
     >
       <div
-        className="flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+        className="relative flex flex-col rounded-2xl shadow-2xl overflow-hidden"
         style={{
           background: "var(--color-surface-default, #fff)",
           border: "1px solid var(--color-border-base, #e5e7eb)",
@@ -1325,6 +1439,28 @@ export function UploadPreviewModal({
           maxHeight: "88vh",
         }}
       >
+        {/* Saving Overlay */}
+        {isSaving && (
+          <div
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700">
+              <i className="fas fa-spinner fa-spin text-3xl text-blue-600 dark:text-blue-400" />
+              <div className="text-center">
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {t("toast.saving", "Saving data...")}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t("toast.savingWait", "Please wait while the changes are being saved.")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 shrink-0 gap-4"
@@ -3010,7 +3146,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "process",
       "maintgroup",
       "equipmentcode",
+      "equipment_code",
+      "eqcode",
+      "eq_code",
       "equipmentname",
+      "equipment_name",
+      "eqname",
+      "eq_name",
       "wocode",
       "report",
       "bom",
@@ -3044,7 +3186,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       "process",
       "equipment",
       "equipment_code",
+      "eqcode",
+      "eq_code",
       "equipment_name",
+      "eqname",
+      "eq_name",
       "eqtype",
       "eq type",
       "equipmenttype",
@@ -3371,16 +3517,26 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           remapped.equipmentCode ??
             remapped.equipment_code ??
             remapped.eqcode ??
+            remapped.eqCode ??
+            remapped.Eqcode ??
             row.equipmentCode ??
+            row.equipment_code ??
+            row.eqcode ??
             row.Eqcode ??
+            row["설비코드"] ??
             "",
         ).trim(),
         equipmentName: String(
           remapped.equipmentName ??
             remapped.equipment_name ??
             remapped.eqname ??
+            remapped.eqName ??
+            remapped.Eqname ??
             row.equipmentName ??
+            row.equipment_name ??
+            row.eqname ??
             row.Eqname ??
+            row["설비명"] ??
             "",
         ).trim(),
         woCode: String(
@@ -3738,8 +3894,18 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         swIs: mergedRow.swAsIs || mergedRow.sw_is || mergedRow.swAfter || "",
         bom: mergedRow.bom || "",
         sparePart: mergedRow.sparePart || mergedRow.spare_part || mergedRow.materialList || "",
-        equipmentCode: mergedRow.equipmentCode || mergedRow.equipment_code || "-",
-        equipmentName: mergedRow.equipmentName || mergedRow.equipment_name || " Common",
+        equipmentCode:
+          mergedRow.equipmentCode ||
+          mergedRow.equipment_code ||
+          mergedRow.Eqcode ||
+          mergedRow.eqcode ||
+          "-",
+        equipmentName:
+          mergedRow.equipmentName ||
+          mergedRow.equipment_name ||
+          mergedRow.Eqname ||
+          mergedRow.eqname ||
+          " Common",
         woCode: woCodeVal,
         wOCode: woCodeVal,
         wo_code: woCodeVal,
@@ -3842,6 +4008,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           });
           onUpload?.("change_rows", payload);
           getFilterDataRef.current?.();
+          window.dispatchEvent(new Event("refreshMatrixData"));
+          window.dispatchEvent(new Event("refreshMPListData"));
+          window.dispatchEvent(new Event("refreshFilterData"));
+          window.dispatchEvent(new Event("refreshChangeHistoryData"));
         } else {
           console.error("행 저장 실패:", responseData);
           setOperationStatus({
@@ -3951,6 +4121,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
           autoClose: true,
         });
         getFilterDataRef.current?.();
+        window.dispatchEvent(new Event("refreshMatrixData"));
+        window.dispatchEvent(new Event("refreshMPListData"));
+        window.dispatchEvent(new Event("refreshFilterData"));
+        window.dispatchEvent(new Event("refreshChangeHistoryData"));
       } else {
         console.error("Delete failed:", responseData);
         setOperationStatus({
@@ -4003,40 +4177,76 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         return;
       }
 
+      setOperationStatus({
+        isVisible: true,
+        status: "loading",
+        message: `${changeDataList.length} ${t("app.rows", "건")} - ${t("toast.saving", "Saving data...")}`,
+        autoClose: false,
+      });
+
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-        if (status === 200) {
-          if (responseData?.statusCode === 409) {
-            // Parse is_duplicate flags from response data and highlight rows in modal
-            // Response data array corresponds 1:1 with updatedRows by index
-            const dupData = responseData?.data ?? [];
-            const dupKeySet = new Set();
-            dupData.forEach((item, idx) => {
-              if (item?.is_duplicate) {
-                const row = updatedRows[idx];
-                if (row) {
-                  const rowKey = getPreviewDuplicateKey(row);
-                  dupKeySet.add(rowKey);
-                }
+        const isDuplicateResponse =
+          status === 409 ||
+          responseData?.statusCode === 409 ||
+          (Array.isArray(responseData?.data) && responseData.data.some((item) => item?.is_duplicate === true)) ||
+          (typeof responseData?.message === "string" &&
+            responseData.message.toLowerCase().includes("duplicate"));
+
+        if (isDuplicateResponse) {
+          // Parse is_duplicate flags from response data and highlight rows in modal
+          const dupData = Array.isArray(responseData?.data)
+            ? responseData.data
+            : Array.isArray(responseData)
+              ? responseData
+              : [];
+          const dupKeySet = new Set();
+
+          dupData.forEach((item, idx) => {
+            if (item?.is_duplicate) {
+              const row = updatedRows[idx];
+              if (row) {
+                const rowKey = getPreviewDuplicateKey(row);
+                dupKeySet.add(rowKey);
               }
+            }
+          });
+
+          // Also check extractDuplicateKeysFromBackend
+          const extractedKeys = extractDuplicateKeysFromBackend(
+            responseData,
+            updatedRows,
+            getPreviewDuplicateKey,
+          );
+          extractedKeys.forEach((k) => dupKeySet.add(k));
+
+          // If no specific row was flagged but backend reported duplicate, flag all updated rows
+          if (dupKeySet.size === 0 && updatedRows.length > 0) {
+            updatedRows.forEach((row, idx) => {
+              const rowKey = getPreviewDuplicateKey ? getPreviewDuplicateKey(row) : (row._originalIndex ?? idx);
+              dupKeySet.add(rowKey);
             });
-            onResult?.({
-              success: false,
-              hasDuplicates: true,
-              duplicateKeys: dupKeySet,
-              message:
-                responseData?.message ||
-                t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
-            });
-            setOperationStatus({
-              isVisible: true,
-              status: "error",
-              message:
-                responseData?.message ||
-                t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
-              autoClose: false,
-            });
-            return;
           }
+
+          onResult?.({
+            success: false,
+            hasDuplicates: true,
+            duplicateKeys: dupKeySet,
+            message:
+              responseData?.message ||
+              t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+          });
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message:
+              responseData?.message ||
+              t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+            autoClose: false,
+          });
+          return;
+        }
+
+        if (status >= 200 && status < 300) {
           const extractedKeys = extractDuplicateKeysFromBackend(
             responseData,
             updatedRows,
@@ -4074,6 +4284,10 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
             });
             onUpload?.("change_rows", payload);
             getFilterDataRef.current?.();
+            window.dispatchEvent(new Event("refreshMatrixData"));
+            window.dispatchEvent(new Event("refreshMPListData"));
+            window.dispatchEvent(new Event("refreshFilterData"));
+            window.dispatchEvent(new Event("refreshChangeHistoryData"));
             onResult?.({ success: true });
           }
         } else {
@@ -4131,12 +4345,30 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       return;
     }
 
-    const filterColumns = changeDataColumns
+    const filterColsList = [];
+    changeDataColumns
       .filter((item) => item.isActive !== false)
       .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-      .map((item) => (item.excelColumnName || "").replace(/\r?\n/g, "").trim())
-      .filter(Boolean)
-      .join(",");
+      .forEach((item) => {
+        const colName = (item.excelColumnName || "").replace(/\r?\n/g, "").trim();
+        if (colName) {
+          filterColsList.push(colName);
+          const lower = colName.toLowerCase();
+          if (lower === "equipment_name" || lower === "eqname" || lower === "equipmentname") {
+            if (!filterColsList.includes("equipment_name")) filterColsList.push("equipment_name");
+            if (!filterColsList.includes("Eqname")) filterColsList.push("Eqname");
+            if (!filterColsList.includes("eqname")) filterColsList.push("eqname");
+            if (!filterColsList.includes("equipmentName")) filterColsList.push("equipmentName");
+          }
+          if (lower === "equipment_code" || lower === "eqcode" || lower === "equipmentcode") {
+            if (!filterColsList.includes("equipment_code")) filterColsList.push("equipment_code");
+            if (!filterColsList.includes("Eqcode")) filterColsList.push("Eqcode");
+            if (!filterColsList.includes("eqcode")) filterColsList.push("eqcode");
+            if (!filterColsList.includes("equipmentCode")) filterColsList.push("equipmentCode");
+          }
+        }
+      });
+    const filterColumns = filterColsList.join(",");
 
     const url = `${pocEndPoints?.UPLOAD_EXCEL}?FilterColumns=${encodeURIComponent(
       filterColumns,
@@ -4168,15 +4400,25 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
               .filter(Boolean);
 
             const KEY_ALIASES = {
-              equipmentcode: ["eqcode", "equipmentcode", "equipment code", "eq_code"],
-              equipmentname: ["eqname", "equipmentname", "equipment name", "eq_name"],
-              wocode: ["w/ocode", "wocode", "wo code", "wo_code"],
-              wotype: ["wotype", "wo type", "wo_type"],
+              equipmentcode: ["eqcode", "equipmentcode", "equipment code", "eq_code", "equipment_code", "설비코드"],
+              equipment_code: ["eqcode", "equipmentcode", "equipment code", "eq_code", "equipment_code", "설비코드"],
+              eqcode: ["eqcode", "equipmentcode", "equipment code", "eq_code", "equipment_code", "설비코드"],
+              eq_code: ["eqcode", "equipmentcode", "equipment code", "eq_code", "equipment_code", "설비코드"],
+              equipmentname: ["eqname", "equipmentname", "equipment name", "eq_name", "equipment_name", "설비명"],
+              equipment_name: ["eqname", "equipmentname", "equipment name", "eq_name", "equipment_name", "설비명"],
+              eqname: ["eqname", "equipmentname", "equipment name", "eq_name", "equipment_name", "설비명"],
+              eq_name: ["eqname", "equipmentname", "equipment name", "eq_name", "equipment_name", "설비명"],
+              wocode: ["w/ocode", "wocode", "wo code", "wo_code", "w_o_code", "작업지시서 코드", "w/o코드"],
+              wo_code: ["w/ocode", "wocode", "wo code", "wo_code", "w_o_code", "작업지시서 코드", "w/o코드"],
+              wotype: ["wotype", "wo type", "wo_type", "wo유형", "w/o유형"],
+              wo_type: ["wotype", "wo type", "wo_type", "wo유형", "w/o유형"],
               representativework: [
                 "rep_work",
                 "repwork",
                 "representative work",
                 "representative_work",
+                "대표 작업명",
+                "대표작업명",
               ],
               workedon: [
                 "worked date",
@@ -4186,24 +4428,26 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 "worked on",
                 "workdate",
                 "work_date",
-                "workeddate",
+                "작업완료일",
               ],
-              eqtype: ["equipment type", "equipmenttype", "equipment_type", "eqtype", "eq type"],
-              report: ["report content", "reportcontent", "report_content", "report"],
-              work: ["work description", "workdescription", "work_description", "work"],
-              hwasis: ["hw as is", "hwasis", "hw_as_is"],
-              swasis: ["sw as is", "swasis", "sw_as_is"],
-              hwaswas: ["hw as was", "hwaswas", "hw_as_was"],
-              swaswas: ["sw as was", "swaswas", "sw_as_was"],
+              eqtype: ["equipment type", "equipmenttype", "equipment_type", "eqtype", "eq type", "보전파트", "보전그룹"],
+              report: ["report content", "reportcontent", "report_content", "report", "보고서"],
+              work: ["work description", "workdescription", "work_description", "work", "개선 작업", "작업"],
+              hwasis: ["hw as is", "hwasis", "hw_as_is", "hw after", "hw_after", "hw변경후", "HW 변경 후"],
+              swasis: ["sw as is", "swasis", "sw_as_is", "sw after", "sw_after", "sw변경후", "SW 변경 후"],
+              hwaswas: ["hw as was", "hwaswas", "hw_as_was", "hw before", "hw_before", "hw변경전", "HW 변경 전"],
+              swaswas: ["sw as was", "swaswas", "sw_as_was", "sw before", "sw_before", "sw변경전", "SW 변경 전"],
               sparepart: [
                 "sparepart",
                 "spare part",
                 "spare_part",
                 "sparepartname",
                 "sparepart_name",
-                "sparepart",
                 "자재명",
                 "자재 명",
+                "자재목록",
+                "예비 부품",
+                "예비부품",
               ],
               sparepartname: [
                 "sparepart",
@@ -4211,9 +4455,11 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 "spare_part",
                 "sparepartname",
                 "sparepart_name",
-                "sparepart",
                 "자재명",
                 "자재 명",
+                "자재목록",
+                "예비 부품",
+                "예비부품",
               ],
             };
 
@@ -4246,7 +4492,53 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
                 }
               });
 
-              // Explicit fallbacks for sparePart, equipment type, Wotype, workedOn
+              // Explicit fallbacks for equipmentName, equipmentCode, sparePart, equipment type, Wotype, workedOn
+              const eqNameVal =
+                row["equipment_name"] ||
+                row["equipmentName"] ||
+                row["equipment name"] ||
+                row["equipmentname"] ||
+                row["eqname"] ||
+                row["Eqname"] ||
+                row["eq_name"] ||
+                row["설비명"] ||
+                cleanRow.equipmentName ||
+                cleanRow.equipment_name ||
+                cleanRow.Eqname ||
+                cleanRow.eqname;
+
+              if (eqNameVal !== undefined && eqNameVal !== null && String(eqNameVal).trim() !== "") {
+                const nVal = String(eqNameVal).trim();
+                cleanRow.equipmentName = nVal;
+                cleanRow.equipment_name = nVal;
+                cleanRow.Eqname = nVal;
+                cleanRow.eqname = nVal;
+                cleanRow["equipment_name"] = nVal;
+              }
+
+              const eqCodeVal =
+                row["equipment_code"] ||
+                row["equipmentCode"] ||
+                row["equipment code"] ||
+                row["equipmentcode"] ||
+                row["eqcode"] ||
+                row["Eqcode"] ||
+                row["eq_code"] ||
+                row["설비코드"] ||
+                cleanRow.equipmentCode ||
+                cleanRow.equipment_code ||
+                cleanRow.Eqcode ||
+                cleanRow.eqcode;
+
+              if (eqCodeVal !== undefined && eqCodeVal !== null && String(eqCodeVal).trim() !== "") {
+                const cVal = String(eqCodeVal).trim();
+                cleanRow.equipmentCode = cVal;
+                cleanRow.equipment_code = cVal;
+                cleanRow.Eqcode = cVal;
+                cleanRow.eqcode = cVal;
+                cleanRow["equipment_code"] = cVal;
+              }
+
               const sparePartVal =
                 row["sparePart"] ||
                 row["spare_part"] ||
@@ -4566,7 +4858,7 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
       const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
-          "Accept": "*/*",
+          Accept: "*/*",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -4824,7 +5116,13 @@ export default function ChangeHistory({ data, onUpload, onExport, onOpenDetail, 
         fetchChangedData();
       }
     }
-  }, [location.pathname, fetchMasterData, fetchChangedData, selectedProcessId, selectedMaintenanceId]);
+  }, [
+    location.pathname,
+    fetchMasterData,
+    fetchChangedData,
+    selectedProcessId,
+    selectedMaintenanceId,
+  ]);
 
   useEffect(() => {
     const handleRefresh = () => {

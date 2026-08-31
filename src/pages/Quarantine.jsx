@@ -11,6 +11,36 @@ const WHY = {
   too_short: "Fewer than the minimum characters once codes and dates were removed.",
 };
 
+function HighlightText({ text, query }) {
+  if (text === undefined || text === null || text === "") return null;
+  const strText = String(text);
+  if (!query || !query.trim()) {
+    return <>{strText}</>;
+  }
+
+  const trimmedQuery = query.trim();
+  const escapedQuery = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escapedQuery})`, "gi");
+  const parts = strText.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        regex.test(part) ? (
+          <mark
+            key={index}
+            className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-gray-100 rounded-xs px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 export default function Quarantine() {
   const [data, setData] = useState(null);
   const [reason, setReason] = useState("");
@@ -203,7 +233,6 @@ export default function Quarantine() {
                   <th className="px-4 py-3 min-w-[180px]">Process · Equipment</th>
                   <th className="px-4 py-3 min-w-[220px]">What the cell held</th>
                   <th className="px-4 py-3 min-w-[200px]">Why</th>
-                  <th className="px-4 py-3 min-w-[130px] text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base">
@@ -220,34 +249,50 @@ export default function Quarantine() {
                       {/* Source */}
                       <td className="px-4 py-3 font-mono text-xs">
                         <div className="font-medium text-text-default truncate max-w-[180px]" title={r.source_file}>
-                          {r.source_file || "-"}
+                          <HighlightText text={r.source_file || "-"} query={searchQuery} />
                         </div>
                         <div className="text-[11px] text-text-subtle">
-                          row {r.source_row ?? "-"}
+                          <HighlightText text={`row ${r.source_row ?? "-"}`} query={searchQuery} />
                         </div>
                       </td>
 
                       {/* W/O code */}
                       <td className="px-4 py-3 font-mono font-medium text-text-default">
-                        {r.wo_code || "—"}
+                        <HighlightText text={r.wo_code || "—"} query={searchQuery} />
                       </td>
 
                       {/* Process · Equipment */}
                       <td className="px-4 py-3 text-xs">
                         <div className="font-medium text-text-default">
-                          {r.process || "—"}
+                          <HighlightText text={r.process || "—"} query={searchQuery} />
                         </div>
-                        <div className="text-[11px] text-text-subtle truncate max-w-[200px]" title={`${r.equipment_name || r.equipment || ""}${r.equipment_code ? ` (${r.equipment_code})` : ""}`}>
-                          {r.equipment_name || r.equipment || ""}
-                          {r.equipment_code && ` (${r.equipment_code})`}
+                        <div
+                          className="text-[11px] text-text-subtle truncate max-w-[200px]"
+                          title={`${r.equipment_name || r.equipmentName || r.eqname || r.Eqname || r.equipment || ""}${
+                            r.equipment_code || r.equipmentCode || r.eqcode || r.Eqcode
+                              ? ` (${r.equipment_code || r.equipmentCode || r.eqcode || r.Eqcode})`
+                              : ""
+                          }`}
+                        >
+                          <HighlightText
+                            text={`${r.equipment_name || r.equipmentName || r.eqname || r.Eqname || r.equipment || ""}${
+                              r.equipment_code || r.equipmentCode || r.eqcode || r.Eqcode
+                                ? ` (${r.equipment_code || r.equipmentCode || r.eqcode || r.Eqcode})`
+                                : ""
+                            }`}
+                            query={searchQuery}
+                          />
                         </div>
                       </td>
 
                       {/* What the cell held */}
                       <td className="px-4 py-3 text-xs max-w-[260px]">
                         {r.raw_content ? (
-                          <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded font-mono text-[11px] block truncate" title={String(r.raw_content)}>
-                            {String(r.raw_content).slice(0, 120)}
+                          <code
+                            className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded font-mono text-[11px] block truncate"
+                            title={String(r.raw_content)}
+                          >
+                            <HighlightText text={String(r.raw_content).slice(0, 120)} query={searchQuery} />
                           </code>
                         ) : (
                           <span className="text-text-subtle italic">(blank)</span>
@@ -257,41 +302,11 @@ export default function Quarantine() {
                       {/* Why */}
                       <td className="px-4 py-3 text-xs">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 mb-1">
-                          {r.reason || "quarantined"}
+                          <HighlightText text={r.reason || "quarantined"} query={searchQuery} />
                         </span>
                         <div className="text-[11px] text-text-subtle leading-tight">
-                          {WHY[r.reason] || ""}
+                          <HighlightText text={WHY[r.reason] || ""} query={searchQuery} />
                         </div>
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {r.released_report_id ? (
-                          <span className="text-xs text-text-subtle font-mono">
-                            released as <span className="font-semibold text-emerald-600">#{r.released_report_id}</span>
-                          </span>
-                        ) : r.reason === "empty" ? (
-                          <span className="text-xs text-text-subtle italic">nothing to restore</span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy === r.id}
-                            onClick={() => handleRelease(r)}
-                            className="btn-base btn-primary text-xs px-3 py-1 flex items-center gap-1 ml-auto"
-                          >
-                            {busy === r.id ? (
-                              <>
-                                <i className="fas fa-spinner fa-spin" />
-                                <span>Restoring…</span>
-                              </>
-                            ) : (
-                              <>
-                                <i className="fas fa-undo text-[10px]" />
-                                <span>Restore</span>
-                              </>
-                            )}
-                          </button>
-                        )}
                       </td>
                     </tr>
                   );
@@ -300,14 +315,6 @@ export default function Quarantine() {
             </table>
           </div>
         )}
-
-        {/* Footer info tip */}
-        <div className="px-6 py-3 border-t border-border-base bg-gray-50/50 dark:bg-gray-800/40 text-xs text-text-subtle flex items-center gap-2 shrink-0">
-          <i className="fas fa-info-circle text-amber-500" />
-          <span>
-            <b>Restoring</b> puts the row back as a real report, keeping its own process, equipment and date.
-          </span>
-        </div>
       </div>
     </section>
   );

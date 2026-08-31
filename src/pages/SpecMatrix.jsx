@@ -64,8 +64,8 @@ function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = []
 
     const map = new Map();
     filtered.forEach((r) => {
-      const eqCode = r.equipmentCode ?? r.설비코드 ?? "";
-      const eqName = r.equipmentName ?? r.설비명 ?? "";
+      const eqCode = r.equipmentCode ?? r.equipment_code ?? r.eqcode ?? r.Eqcode ?? r.설비코드 ?? "";
+      const eqName = r.equipmentName ?? r.equipment_name ?? r.eqname ?? r.Eqname ?? r.설비명 ?? "";
       const ver = r.version ?? r.버전 ?? "";
       const key = `${eqCode}||${eqName}||${ver}`;
       if (!map.has(key)) map.set(key, true);
@@ -225,8 +225,8 @@ function View1Table({ rows }) {
   const pivoted = useMemo(() => {
     const map = new Map();
     rows.forEach((r) => {
-      const eqCode = r.equipmentCode ?? r.설비코드 ?? "";
-      const eqName = r.equipmentName ?? r.설비명 ?? "";
+      const eqCode = r.equipmentCode ?? r.equipment_code ?? r.eqcode ?? r.Eqcode ?? r.설비코드 ?? "";
+      const eqName = r.equipmentName ?? r.equipment_name ?? r.eqname ?? r.Eqname ?? r.설비명 ?? "";
       const ver = r.version ?? r.버전 ?? "";
       const key = `${eqCode}||${eqName}||${ver}`;
       if (!map.has(key)) map.set(key, { eqCode, eqName, ver, specs: {} });
@@ -354,7 +354,7 @@ function View2Table({ rows, changedOnly }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SpecMatrix component
 // ─────────────────────────────────────────────────────────────────────────────
-export default function SpecMatrix({ searchText }) {
+export default function SpecMatrix({ searchText, isActive }) {
   const { t } = useI18n();
   const [view, setView] = useState("view1");
   const [filterPayload, setFilterPayload] = useState(null);
@@ -557,6 +557,32 @@ export default function SpecMatrix({ searchText }) {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Re-fetch master data when page becomes active
+  const prevIsActiveRef = useRef(false);
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      prevIsActiveRef.current = true;
+      fetchData();
+    }
+    if (!isActive) {
+      prevIsActiveRef.current = false;
+    }
+  }, [isActive, fetchData]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchData();
+    };
+    window.addEventListener("refreshSpecData", handleRefresh);
+    window.addEventListener("refreshFilterData", handleRefresh);
+    window.addEventListener("refreshChangeHistoryData", handleRefresh);
+    return () => {
+      window.removeEventListener("refreshSpecData", handleRefresh);
+      window.removeEventListener("refreshFilterData", handleRefresh);
+      window.removeEventListener("refreshChangeHistoryData", handleRefresh);
+    };
   }, [fetchData]);
 
   // ── Filter option lists ───────────────────────────────────────────────────

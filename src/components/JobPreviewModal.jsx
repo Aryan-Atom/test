@@ -45,8 +45,22 @@ function mapExportedRowToChangeData(row) {
     site: row.site || "",
     process: row.process || "",
     maintGroup: maintVal,
-    equipmentCode: row.equipment_code || row.equipmentCode || "",
-    equipmentName: row.equipment_name || row.equipmentName || "",
+    equipmentCode:
+      row.equipment_code ||
+      row.equipmentCode ||
+      row.Eqcode ||
+      row.eqcode ||
+      row.eq_code ||
+      row["설비코드"] ||
+      "",
+    equipmentName:
+      row.equipment_name ||
+      row.equipmentName ||
+      row.Eqname ||
+      row.eqname ||
+      row.eq_name ||
+      row["설비명"] ||
+      "",
     woCode: woCodeVal,
     wOCode: woCodeVal,
     wo_code: woCodeVal,
@@ -270,9 +284,31 @@ export default function JobPreviewModal({ job, onClose }) {
   return (
     <div className="modal-overlay">
       <div
-        className="modal-content flex flex-col p-0 overflow-hidden shadow-2xl"
+        className="modal-content relative flex flex-col p-0 overflow-hidden shadow-2xl"
         style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", maxHeight: "88vh" }}
       >
+        {/* Saving Overlay */}
+        {saving && (
+          <div
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700">
+              <i className="fas fa-spinner fa-spin text-3xl text-blue-600 dark:text-blue-400" />
+              <div className="text-center">
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {t("toast.saving", "Saving data...")}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t("toast.savingWait", "Please wait while the changes are being saved.")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 shrink-0"

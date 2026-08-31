@@ -365,6 +365,7 @@ export default function Dashboard() {
                   onOpenDetail={setDrawerItem}
                   searchText={searchText}
                   changeDataColumns={changeDataColumns}
+                  isActive={activePage === "dm-change"}
                 />
               </div>
             )}
@@ -376,6 +377,7 @@ export default function Dashboard() {
                   onUpload={handleUpload}
                   onExport={() => exportCsv("spec")}
                   searchText={searchText}
+                  isActive={activePage === "dm-spec"}
                 />
               </div>
             )}
@@ -386,6 +388,7 @@ export default function Dashboard() {
                 searchText={searchText}
                 changeDataColumns={changeDataColumns}
                 onUpload={handleUpload}
+                isActive={activePage === "mx-matrix"}
               />
             </div>
 
@@ -398,11 +401,16 @@ export default function Dashboard() {
                 onOpenDetail={setDrawerItem}
                 drawerItem={drawerItem}
                 onUpload={handleUpload}
+                isActive={activePage === "mx-mplist"}
               />
             </div>
 
             <div className={`flex-1 flex flex-col min-h-0 ${activePage === "mx-mplist-mgmt" ? "" : "hidden"}`}>
-              <MPListManagement data={mpRows} searchText={searchText} />
+              <MPListManagement
+                data={mpRows}
+                searchText={searchText}
+                isActive={activePage === "mx-mplist-mgmt"}
+              />
             </div>
 
             {activePage === "ai-jobs" && (
@@ -425,7 +433,11 @@ export default function Dashboard() {
 
             {isPageAllowed("spec") && (
               <div className={`flex-1 flex flex-col min-h-0 ${activePage === "spec" ? "" : "hidden"}`}>
-                <SpecMatrix data={specData} searchText={searchText} />
+                <SpecMatrix
+                  data={specData}
+                  searchText={searchText}
+                  isActive={activePage === "spec"}
+                />
               </div>
             )}
 
@@ -434,6 +446,7 @@ export default function Dashboard() {
                 data={boardData}
                 onAddPost={addBoardPost}
                 searchText={searchText}
+                isActive={activePage === "board"}
               />
             </div>
 
@@ -443,6 +456,7 @@ export default function Dashboard() {
                   users={users}
                   onUpdateUsers={updateUsers}
                   searchText={searchText}
+                  isActive={activePage === "admin"}
                 />
               </div>
             )}

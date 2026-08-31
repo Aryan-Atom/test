@@ -4,6 +4,36 @@ import { useI18n } from "../i18n.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
 import JobPreviewModal from "../components/JobPreviewModal.jsx";
 
+function HighlightText({ text, query }) {
+  if (text === undefined || text === null || text === "") return null;
+  const strText = String(text);
+  if (!query || !query.trim()) {
+    return <>{strText}</>;
+  }
+
+  const trimmedQuery = query.trim();
+  const escapedQuery = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escapedQuery})`, "gi");
+  const parts = strText.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        regex.test(part) ? (
+          <mark
+            key={index}
+            className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-gray-100 rounded-xs px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 export default function Jobs() {
   const [jobs, setJobs] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,9 +74,10 @@ export default function Jobs() {
   }, []);
 
   const filteredJobs = (jobs || []).filter((j) => {
-    const matchesStatus =
+    const statusMatches =
       statusFilter === "all" ||
       String(j.status || "").toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus = statusMatches;
     const matchesSearch =
       !searchQuery.trim() ||
       String(j.id || "")
@@ -59,6 +90,9 @@ export default function Jobs() {
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       String(j.stage || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      String(j.status || "")
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
@@ -90,7 +124,7 @@ export default function Jobs() {
           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}
         >
           <i className={`fas ${icon} text-[10px]`} />
-          {j.status || "idle"}
+          <HighlightText text={j.status || "idle"} query={searchQuery} />
         </span>
         {j.columns_uncertain && (
           <span
@@ -211,20 +245,22 @@ export default function Jobs() {
                       className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
                     >
                       <td className="px-4 py-3 font-mono font-medium text-teal-600 dark:text-teal-400">
-                        {j.id}
+                        <HighlightText text={j.id} query={searchQuery} />
                       </td>
                       <td className="px-4 py-3 max-w-[280px] truncate" title={fileList}>
-                        {fileList}
+                        <HighlightText text={fileList} query={searchQuery} />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-text-default">
                         <div className="inline-flex items-center gap-1.5">
                           <i className="fas fa-user-circle text-gray-400 text-xs" />
-                          <span>{uploadedBy}</span>
+                          <span>
+                            <HighlightText text={uploadedBy} query={searchQuery} />
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3">{getStatusBadge(j)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-subtle font-mono">
-                        {createdAt}
+                        <HighlightText text={createdAt} query={searchQuery} />
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1.5">
@@ -245,7 +281,7 @@ export default function Jobs() {
                             className={`p-1.5 rounded-lg transition-colors ${
                               j.has_quarantine
                                 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
-                                : "text-gray-300 dark:text-gray-600 opacity-40 cursor-not-allowed"
+                                : "text-gray-400 dark:text-gray-500 opacity-50 cursor-not-allowed"
                             }`}
                             title={j.has_quarantine ? "View Quarantine Data" : "No Quarantine Data"}
                             onClick={() => {
