@@ -527,10 +527,26 @@ function getColValue(row, col) {
     return row.site_name ?? row.siteName ?? row.site ?? row["법인"] ?? "";
   }
   if (col === "equipmentCode") {
-    return row.equipment_code ?? row.equipmentCode ?? row.eqcode ?? row.Eqcode ?? row.eq_code ?? row["설비코드"] ?? "";
+    return (
+      row.equipment_code ??
+      row.equipmentCode ??
+      row.eqcode ??
+      row.Eqcode ??
+      row.eq_code ??
+      row["설비코드"] ??
+      ""
+    );
   }
   if (col === "equipmentName") {
-    return row.equipment_name ?? row.equipmentName ?? row.eqname ?? row.Eqname ?? row.eq_name ?? row["설비명"] ?? "";
+    return (
+      row.equipment_name ??
+      row.equipmentName ??
+      row.eqname ??
+      row.Eqname ??
+      row.eq_name ??
+      row["설비명"] ??
+      ""
+    );
   }
   if (col === "versionId") {
     return row.version_id ?? row.versionId ?? row.version_tag ?? 0;
@@ -554,7 +570,7 @@ const matrixDetailMap = {
   equipment_name: "equipmentName",
   rep_work_id: "repWorkId",
   representative_work_name: "representativeWork",
-  work_name: "representativeWork",
+  work_name: "workName",
   purpose: "purpose",
   situation: "situation",
   cause: "cause",
@@ -635,6 +651,26 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     setDrawerItem(item);
 
     const firstObj = Array.isArray(item) ? item[0] : item;
+    if (!firstObj) return;
+
+    const repWorkNameFromCell =
+      firstObj.representative_work_name ||
+      firstObj.representativeWork ||
+      firstObj.representativeWorkName ||
+      firstObj.repWorkName ||
+      firstObj.rep_work_name ||
+      "";
+    const repWorkIdFromCell =
+      firstObj.rep_work_id ||
+      firstObj.repWorkId ||
+      firstObj.repo_work_id ||
+      firstObj.repoWorkId ||
+      0;
+    const statusFromCell =
+      firstObj.status ??
+      firstObj.apply_status ??
+      firstObj.effectiveStatus;
+
     const rowId = Number(
       firstValue(firstObj, [
         "change_history_id",
@@ -654,11 +690,62 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         const detail = parseMatrixDetailResponse(responseData);
         if (detail) {
           if (Array.isArray(detail)) {
-            const mappedList = detail.map((d) => mapMatrixDetailToRow(d));
+            const mappedList = detail.map((d) => {
+              const m = mapMatrixDetailToRow(d);
+              return {
+                ...m,
+                ...firstObj,
+                representative_work_name:
+                  repWorkNameFromCell ||
+                  m.representative_work_name ||
+                  m.representativeWork ||
+                  "",
+                representativeWork:
+                  repWorkNameFromCell ||
+                  m.representativeWork ||
+                  m.representative_work_name ||
+                  "",
+                representativeWorkName:
+                  repWorkNameFromCell ||
+                  m.representativeWorkName ||
+                  m.representativeWork ||
+                  "",
+                rep_work_id:
+                  repWorkIdFromCell || m.rep_work_id || m.repWorkId || 0,
+                repWorkId:
+                  repWorkIdFromCell || m.repWorkId || m.rep_work_id || 0,
+                status: statusFromCell ?? m.status,
+                apply_status: statusFromCell ?? m.apply_status,
+              };
+            });
             setDrawerItem(mappedList);
           } else {
             const mapped = mapMatrixDetailToRow(detail);
-            const merged = { ...firstObj, ...mapped };
+            const merged = {
+              ...mapped,
+              ...firstObj,
+              representative_work_name:
+                repWorkNameFromCell ||
+                mapped.representative_work_name ||
+                mapped.representativeWork ||
+                "",
+              representativeWork:
+                repWorkNameFromCell ||
+                mapped.representativeWork ||
+                mapped.representative_work_name ||
+                "",
+              representativeWorkName:
+                repWorkNameFromCell ||
+                mapped.representativeWorkName ||
+                mapped.representativeWork ||
+                "",
+              rep_work_id:
+                repWorkIdFromCell || mapped.rep_work_id || mapped.repWorkId || 0,
+              repWorkId:
+                repWorkIdFromCell || mapped.repWorkId || mapped.rep_work_id || 0,
+              status: statusFromCell ?? mapped.status,
+              apply_status: statusFromCell ?? mapped.apply_status,
+            };
             setDrawerItem(merged);
           }
         }
@@ -979,30 +1066,174 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     not_applied: 0,
     hasFetched: false,
   });
+
+  // Helper to accurately extract repo_Work_Id, equipment_Id, and change_History_Id
+  const extractMatrixIdentifiers = useCallback(
+    (targetRec, fallbackRepoWorkId, fallbackRepWorkName) => {
+      if (!targetRec) return { repoWorkId: 0, equipmentId: 0, changeHistoryId: 0 };
+
+      const eqCode = getColValue(targetRec, "equipmentCode");
+      const eqName = getColValue(targetRec, "equipmentName");
+      const repName = getColValue(targetRec, "representativeWork") || fallbackRepWorkName || "";
+
+      // 1. Repo Work ID
+      let repoWorkId = Number(
+        firstValue(targetRec, [
+          "rep_work_id",
+          "repo_work_id",
+          "repo_Work_Id",
+          "repWorkId",
+          "repoWorkId",
+          "representativeWorkId",
+          "workOrderId",
+          "work_order_id",
+        ]) || 0,
+      );
+      if (!repoWorkId && fallbackRepoWorkId) {
+        repoWorkId = Number(fallbackRepoWorkId);
+      }
+      if (!repoWorkId && repName) {
+        const matchedByRep = (allRecords || []).find(
+          (r) =>
+            getColValue(r, "representativeWork") === repName &&
+            (r.rep_work_id || r.repWorkId || r.repo_work_id || r.repoWorkId),
+        );
+        if (matchedByRep) {
+          repoWorkId = Number(
+            matchedByRep.rep_work_id ||
+              matchedByRep.repWorkId ||
+              matchedByRep.repo_work_id ||
+              matchedByRep.repoWorkId ||
+              0,
+          );
+        }
+      }
+
+      // 2. Equipment ID
+      let equipmentId = Number(
+        firstValue(targetRec, [
+          "equipment_id",
+          "equipment_Id",
+          "equipmentId",
+        ]) || 0,
+      );
+      if (!equipmentId && eqCode) {
+        const matchApi = (apiEquipmentList || []).find(
+          (e) => (e.equipment_code || e.equipmentCode) === eqCode,
+        );
+        if (matchApi) {
+          equipmentId = Number(
+            matchApi.equipment_id || matchApi.equipmentId || matchApi.equipment_Id || 0,
+          );
+        }
+      }
+      if (!equipmentId && (eqCode || eqName)) {
+        const matchAll = (allRecords || []).find(
+          (r) =>
+            (getColValue(r, "equipmentCode") === eqCode || getColValue(r, "equipmentName") === eqName) &&
+            (r.equipment_id || r.equipmentId || r.equipment_Id),
+        );
+        if (matchAll) {
+          equipmentId = Number(
+            matchAll.equipment_id || matchAll.equipmentId || matchAll.equipment_Id || 0,
+          );
+        }
+      }
+
+      // 3. Change History ID
+      let changeHistoryId = Number(
+        firstValue(targetRec, [
+          "change_history_id",
+          "changeHistoryId",
+          "change_History_Id",
+          "changeId",
+        ]) || 0,
+      );
+      if (!changeHistoryId && (eqCode || eqName)) {
+        const matchApi = (apiEquipmentList || []).find(
+          (e) => (e.equipment_code || e.equipmentCode) === eqCode,
+        );
+        if (matchApi) {
+          changeHistoryId = Number(
+            matchApi.change_history_id ||
+              matchApi.changeHistoryId ||
+              matchApi.change_History_Id ||
+              0,
+          );
+        }
+      }
+      if (!changeHistoryId && (eqCode || eqName)) {
+        const matchAll = (allRecords || []).find(
+          (r) =>
+            (getColValue(r, "equipmentCode") === eqCode || getColValue(r, "equipmentName") === eqName) &&
+            (repoWorkId
+              ? Number(r.rep_work_id || r.repWorkId || r.repo_work_id || r.repoWorkId || 0) ===
+                repoWorkId
+              : repName
+                ? getColValue(r, "representativeWork") === repName
+                : true) &&
+            (r.change_history_id || r.changeHistoryId || r.change_History_Id),
+        );
+        if (matchAll) {
+          changeHistoryId = Number(
+            matchAll.change_history_id ||
+              matchAll.changeHistoryId ||
+              matchAll.change_History_Id ||
+              0,
+          );
+        }
+      }
+
+      return { repoWorkId, equipmentId, changeHistoryId };
+    },
+    [allRecords, apiEquipmentList],
+  );
+
   const openApplyStatusModal = useCallback(
     (repWork, rowDetail) => {
       const repWorkName =
         typeof repWork === "object"
-          ? repWork.representativeWork || repWork.workName || ""
+          ? repWork.repWorkName || repWork.representativeWork || repWork.workName || ""
           : repWork;
       let repWorkId =
         typeof repWork === "object"
-          ? repWork.id || repWork.repWorkId || repWork.representativeWorkId || 0
+          ? Number(
+              repWork.repWorkId ||
+                repWork.repoWorkId ||
+                repWork.rep_work_id ||
+                repWork.repo_work_id ||
+                repWork.id ||
+                repWork.representativeWorkId ||
+                0,
+            )
           : 0;
 
       // If repWork is a string (work name), look up rep_work_id from allRecords
       if (repWorkId === 0 && repWorkName) {
-        const match = allRecords.find((r) => getColValue(r, "representativeWork") === repWorkName);
+        const match = allRecords.find(
+          (r) =>
+            getColValue(r, "representativeWork") === repWorkName &&
+            (r.rep_work_id || r.repWorkId || r.repo_work_id || r.repoWorkId),
+        );
         if (match) {
-          repWorkId = match.rep_work_id ?? match.repWorkId ?? match.representativeWorkId ?? 0;
+          repWorkId = Number(
+            match.rep_work_id ??
+              match.repWorkId ??
+              match.repo_work_id ??
+              match.repoWorkId ??
+              match.representativeWorkId ??
+              0,
+          );
         }
       }
       setRowDetails(rowDetail);
-      setAsRepWork(repWorkName || repWork);
+      setAsRepWork(repWorkName || (typeof repWork === "string" ? repWork : ""));
       setAsRepoWorkId(repWorkId);
       setAsActiveTab("unconfirmed");
       setAsSelectedEqCodes(new Set());
       setAsStaging({});
+      setAsStagingReasons({});
+      setRejectReasonText("");
       setApiEquipmentList([]);
       setApiStatusCounts({
         wo_applied: 0,
@@ -1071,9 +1302,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
   useEffect(() => {
     const handleCustomOpen = (e) => {
-      const repWorkName =
-        e.detail && e.detail.repWork ? e.detail.repWork : "BET 산포 감소를 위한 로터 교체";
-      openApplyStatusModal(repWorkName);
+      const repWork = e.detail?.item || e.detail?.repWork || "BET 산포 감소를 위한 로터 교체";
+      openApplyStatusModal(repWork, e.detail?.item);
     };
 
     const handleReasonModalOpen = (e) => {
@@ -1101,55 +1331,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         const targetRec = e.detail.item;
         const itemCode = getColValue(targetRec, "equipmentCode");
 
-        const repoWorkId =
-          Number(
-            firstValue(targetRec, [
-              "rep_work_id",
-              "repo_Work_Id",
-              "repoWorkId",
-              "repWorkId",
-              "representativeWorkId",
-              "id",
-            ]) ||
-              asRepoWorkId ||
-              1,
-          ) || 1;
-
-        const rawEqVal = firstValue(targetRec, [
-          "equipment_id",
-          "equipment_Id",
-          "equipmentId",
-          "equipment_code",
-          "equipmentCode",
-          "change_history_id",
-          "id",
-        ]);
-
-        let equipmentId = Number(rawEqVal) || 0;
-        if (!equipmentId && rawEqVal) {
-          const digits = String(rawEqVal).replace(/\D/g, "");
-          equipmentId = digits ? Number(digits) : 1;
-        }
-        if (!equipmentId) equipmentId = 1;
-
-        // Fallback: look up change_history_id from allRecords by matching equipmentCode
-        const recEqCode = getColValue(targetRec, "equipmentCode");
-        const recEqName = getColValue(targetRec, "equipmentName");
-        const matchedRec = (allRecords || []).find(
-          (r) =>
-            getColValue(r, "equipmentCode") === recEqCode ||
-            getColValue(r, "equipmentName") === recEqName,
-        );
-        const changeHistoryIdVal = Number(
-          firstValue(targetRec, ["change_history_id", "changeHistoryId", "change_History_Id"]) ||
-            (matchedRec
-              ? firstValue(matchedRec, [
-                  "change_history_id",
-                  "changeHistoryId",
-                  "change_History_Id",
-                ])
-              : "") ||
-            0,
+        const { repoWorkId, equipmentId, changeHistoryId } = extractMatrixIdentifiers(
+          targetRec,
+          asRepoWorkId,
+          asRepWork,
         );
 
         const payload = {
@@ -1159,12 +1344,12 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               equipment_Id: equipmentId,
               status: 0,
               reason: "",
-              change_History_Id: changeHistoryIdVal,
+              change_History_Id: changeHistoryId,
             },
           ],
         };
 
-        // Directly call Save API: http://localhost:5248/api/MatrixInquiry/Save with status 0, reason ""
+        // Directly call Save API: api/MatrixInquiry/Save with status 0, reason ""
         APIcallPost(
           pocEndPoints.SAVE_MATRIX_INQUIRY || "api/MatrixInquiry/Save",
           payload,
@@ -2224,8 +2409,15 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
     if (apiEquipmentList && apiEquipmentList.length > 0) {
       apiEquipmentList.forEach((eq) => {
-        const eqCode = eq.equipment_code || eq.equipmentCode || eq.eqcode || eq.Eqcode || eq.eq_code || String(eq.equipment_id || "");
-        const eqName = eq.equipment_name || eq.equipmentName || eq.eqname || eq.Eqname || eq.eq_name || "";
+        const eqCode =
+          eq.equipment_code ||
+          eq.equipmentCode ||
+          eq.eqcode ||
+          eq.Eqcode ||
+          eq.eq_code ||
+          String(eq.equipment_id || "");
+        const eqName =
+          eq.equipment_name || eq.equipmentName || eq.eqname || eq.Eqname || eq.eq_name || "";
         const eqId = Number(eq.equipment_id || eq.equipmentId || 0);
         const rawStatusStr = String(eq.status ?? "")
           .toLowerCase()
@@ -2388,7 +2580,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
   const handleSaveApplyStatus = () => {
     if (Object.keys(asStaging).length === 0) {
-      setShowApplyStatusModal(false);
+      pushToast(
+        t("page.matrix.noChangesSelected", "설비를 선택 후 적용 또는 미적용으로 변경해 주세요."),
+        "error",
+      );
       return;
     }
 
@@ -2403,90 +2598,70 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
             (getColValue(r, "equipmentCode") === eqCode ||
               getColValue(r, "equipmentName") ===
                 (apiItem?.equipment_name || fallbackItem?.equipmentName)) &&
-            getColValue(r, "representativeWork") === asRepWork,
+            (asRepoWorkId
+              ? Number(r.rep_work_id || r.repWorkId || 0) === Number(asRepoWorkId)
+              : getColValue(r, "representativeWork") === asRepWork),
         );
 
-        const eqId = Number(
-          apiItem?.equipment_id ||
+        // Row's change history id
+        const chIdVal = Number(
+          (rowDetails && (rowDetails.equipmentCode === eqCode || rowDetails.equipment_code === eqCode)
+            ? rowDetails.changeHistoryId || rowDetails.change_history_id
+            : null) ||
+            apiItem?.change_history_id ||
+            apiItem?.changeHistoryId ||
+            fallbackItem?.changeHistoryId ||
+            fallbackItem?.change_history_id ||
+            matchedRecord?.change_history_id ||
+            matchedRecord?.changeHistoryId ||
+            0,
+        );
+
+        // Equipment id
+        const eqIdVal = Number(
+          (rowDetails && (rowDetails.equipmentCode === eqCode || rowDetails.equipment_code === eqCode)
+            ? rowDetails.equipmentId || rowDetails.equipment_id || rowDetails.id
+            : null) ||
+            apiItem?.equipment_id ||
             apiItem?.equipmentId ||
+            apiItem?.equipment_Id ||
+            fallbackItem?.equipmentId ||
+            fallbackItem?.id ||
             matchedRecord?.equipment_id ||
             matchedRecord?.equipmentId ||
-            fallbackItem?.id ||
-            fallbackItem?.equipmentId ||
             0,
         );
 
-        // Determine original status to check if item was actually changed by the user
-        const origRawStatus = String(
-          apiItem?.status ??
-            apiItem?.apply_status ??
-            matchedRecord?.status ??
-            matchedRecord?.apply_status ??
-            "",
-        )
-          .toLowerCase()
-          .trim();
-
-        let origEffectiveStatus = "unconfirmed";
-        if (
-          origRawStatus === "w/o applied" ||
-          origRawStatus === "wo_applied" ||
-          origRawStatus === "wo applied"
-        ) {
-          origEffectiveStatus = "wo_applied";
-        } else if (origRawStatus === "applied" || origRawStatus === "0") {
-          origEffectiveStatus = "applied";
-        } else if (
-          origRawStatus === "not_applied" ||
-          origRawStatus === "not applied" ||
-          origRawStatus === "rejected" ||
-          origRawStatus === "1" ||
-          origRawStatus === "2"
-        ) {
-          origEffectiveStatus = "rejected";
-        }
-
-        // If status was not modified by the user and no reason was provided, omit from save payload
-        if (
-          statusStr === origEffectiveStatus &&
-          !asStagingReasons[eqCode] &&
-          !rejectReasonText
-        ) {
-          return null;
-        }
+        // Column's repo_work_id
+        const repoWorkIdVal = Number(
+          asRepoWorkId ||
+            apiItem?.repo_work_id ||
+            apiItem?.repoWorkId ||
+            apiItem?.rep_work_id ||
+            apiItem?.repWorkId ||
+            matchedRecord?.rep_work_id ||
+            matchedRecord?.repWorkId ||
+            0,
+        );
 
         const isApplied = statusStr === "applied";
-        const reasonVal = isApplied
-          ? ""
-          : asStagingReasons[eqCode] || rejectReasonText || "";
-
-        const changeHistoryId = Number(
-          apiItem?.change_history_id ||
-            fallbackItem?.change_history_id ||
-            0,
-        );
+        const reasonVal = isApplied ? "" : asStagingReasons[eqCode] || rejectReasonText || "";
 
         return {
-          repo_Work_Id:
-            asRepoWorkId ||
-            (matchedRecord
-              ? Number(matchedRecord.rep_work_id || matchedRecord.repWorkId || 0)
-              : 1764),
-          equipment_Id: eqId,
+          repo_Work_Id: repoWorkIdVal,
+          equipment_Id: eqIdVal,
           status: isApplied ? 0 : 1,
           reason: reasonVal,
-          change_History_Id: changeHistoryId,
+          change_History_Id: chIdVal,
         };
       })
       .filter(Boolean);
 
     if (dataPayload.length === 0) {
-      pushToast(t("toast.saveSuccess", "저장 성공했습니다."), "success");
-      setShowApplyStatusModal(false);
-      setAsStaging({});
-      setAsStagingReasons({});
-      setRejectReasonText("");
-      setAsSelectedEqCodes(new Set());
+      pushToast(
+        t("page.matrix.noChangesSelected", "설비를 선택 후 적용 또는 미적용으로 변경해 주세요."),
+        "error",
+      );
       return;
     }
 
@@ -3053,12 +3228,29 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               String(eq.equipmentCode || "")
                           );
                         }
-                        const dChId = Number(d.change_history_id || d.changeHistoryId || 0);
-                        const eqChId = Number(eq.changeHistoryId || 0);
-                        if (dChId !== eqChId) return false;
-                        const dRepId = Number(d.rep_work_id || d.repWorkId || 0);
-                        const colRepId = Number(col.repWorkId || col || 0);
-                        return dRepId === colRepId;
+                        const matchEq =
+                          String(d.equipment_code || d.equipmentCode || "") ===
+                            String(eq.equipmentCode || "") ||
+                          (d.equipment_id &&
+                            eq.equipmentId &&
+                            Number(d.equipment_id || d.equipmentId) ===
+                              Number(eq.equipmentId || eq.id));
+                        if (!matchEq) return false;
+
+                        const dRepId = Number(
+                          d.rep_work_id || d.repWorkId || d.repo_work_id || d.repoWorkId || 0,
+                        );
+                        const colRepId = Number(
+                          col.repWorkId || col.id || (!isNaN(Number(col)) ? col : 0),
+                        );
+                        if (dRepId && colRepId && dRepId === colRepId) return true;
+
+                        const dRepName = getColValue(d, "representativeWork");
+                        const colRepName =
+                          col.repWorkName || (typeof col === "string" ? col : "");
+                        if (dRepName && colRepName && dRepName === colRepName) return true;
+
+                        return false;
                       });
 
                       if (matched.length === 0) {
@@ -3090,7 +3282,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               className="w-full flex items-center justify-center min-h-[36px]"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openApplyStatusModal(col.repWorkName || col, eq);
+                                openApplyStatusModal(col, eq);
                               }}
                             >
                               <div className="w-full max-w-[125px] h-8 flex items-center justify-center rounded-lg border-[1.5px] border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-xs transition-all cursor-pointer opacity-70 hover:opacity-100 hover:border-gray-400">
@@ -3658,8 +3850,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                     const isWoTab = asActiveTab === "wo_applied";
                     const isRejectedTab = asActiveTab === "rejected";
 
-                    const line1Equipment =
-                      item.equipmentName || item.equipmentCode || "-";
+                    const line1Equipment = item.equipmentName || item.equipmentCode || "-";
                     const line2SiteCode = [item.site, item.equipmentCode]
                       .filter(Boolean)
                       .join(" · ");
@@ -3799,7 +3990,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
               <button
                 type="button"
                 onClick={handleSaveApplyStatus}
-                className="flex-[2] py-3 px-4 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] rounded-full shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer h-11"
+                disabled={Object.keys(asStaging).length === 0}
+                className="flex-[2] py-3 px-4 text-xs font-bold text-white bg-[#1745c2] hover:bg-[#1239a5] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed rounded-full shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer h-11"
               >
                 <i className="fas fa-save text-xs" />
                 <span>{t("app.save", "저장하기")}</span>
@@ -3913,58 +4105,10 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                     const targetRec = activeReasonItem;
                     const itemCode = getColValue(targetRec, "equipmentCode");
 
-                    const repoWorkId =
-                      Number(
-                        firstValue(targetRec, [
-                          "rep_work_id",
-                          "repo_Work_Id",
-                          "repoWorkId",
-                          "repWorkId",
-                          "representativeWorkId",
-                          "id",
-                        ]) ||
-                          asRepoWorkId ||
-                          1,
-                      ) || 1;
-
-                    const rawEqVal = firstValue(targetRec, [
-                      "equipment_id",
-                      "equipment_Id",
-                      "equipmentId",
-                      "equipment_code",
-                      "equipmentCode",
-                      "change_history_id",
-                      "id",
-                    ]);
-
-                    let equipmentId = Number(rawEqVal) || 0;
-                    if (!equipmentId && rawEqVal) {
-                      const digits = String(rawEqVal).replace(/\D/g, "");
-                      equipmentId = digits ? Number(digits) : 1;
-                    }
-                    if (!equipmentId) equipmentId = 1;
-
-                    const recEqCode = getColValue(targetRec, "equipmentCode");
-                    const recEqName = getColValue(targetRec, "equipmentName");
-                    const matchedRec = (allRecords || []).find(
-                      (r) =>
-                        getColValue(r, "equipmentCode") === recEqCode ||
-                        getColValue(r, "equipmentName") === recEqName,
-                    );
-                    const changeHistoryIdVal = Number(
-                      firstValue(targetRec, [
-                        "change_history_id",
-                        "changeHistoryId",
-                        "change_History_Id",
-                      ]) ||
-                        (matchedRec
-                          ? firstValue(matchedRec, [
-                              "change_history_id",
-                              "changeHistoryId",
-                              "change_History_Id",
-                            ])
-                          : "") ||
-                        0,
+                    const { repoWorkId, equipmentId, changeHistoryId } = extractMatrixIdentifiers(
+                      targetRec,
+                      asRepoWorkId,
+                      asRepWork,
                     );
 
                     const payload = {
@@ -3974,7 +4118,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                           equipment_Id: equipmentId,
                           status: 1, // 1 = not applied / rejected
                           reason: reasonVal,
-                          change_History_Id: changeHistoryIdVal,
+                          change_History_Id: changeHistoryId,
                         },
                       ],
                     };

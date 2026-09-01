@@ -63,10 +63,9 @@ const CHANGE_DETAIL_FIELDS = [
       "representative_work_name",
       "representativeWork",
       "representativeWorkName",
-      "rep_work",
       "rep_work_name",
-      "work_name",
-      "workName",
+      "rep_work",
+      "representative_work",
       "대표 작업명",
       "대표작업명",
     ],
@@ -82,7 +81,7 @@ const CHANGE_DETAIL_FIELDS = [
     labelKey: "field.maintenance",
     keys: ["maintGroup", "maint_group", "maintenanceType", "equipmentType", "equipment_type_name", "equipmentTypeName", "maintenance_group_name", "equipment", "bojeon_part"],
   },
-  { labelKey: "field.improvement", keys: ["work", "improvement", "work_description"] },
+  { labelKey: "field.improvement", keys: ["work", "improvement", "work_name", "workName", "work_description"] },
   { labelKey: "field.workPurpose", keys: ["purpose", "workPurpose", "work_purpose"] },
   { labelKey: "field.situation", keys: ["situation", "problem", "problemSymptom"] },
   { labelKey: "field.cause", keys: ["cause", "problemCause"] },
@@ -541,10 +540,11 @@ export default function Drawer({
                       "representative_work_name",
                       "representativeWork",
                       "representativeWorkName",
-                      "rep_work",
                       "rep_work_name",
-                      "work_name",
-                      "workName",
+                      "rep_work",
+                      "representative_work",
+                      "대표 작업명",
+                      "대표작업명",
                     ]);
                     const siteVal = firstValue(firstItem, ["site_name", "site", "siteName", "corporation"]);
 
@@ -577,10 +577,14 @@ export default function Drawer({
               const atts = getAttachments(rec, idx);
               const recRepWork =
                 firstValue(rec, [
+                  "representative_work_name",
                   "representativeWork",
                   "representativeWorkName",
+                  "rep_work_name",
                   "rep_work",
-                  "workName",
+                  "representative_work",
+                  "대표 작업명",
+                  "대표작업명",
                 ]) || "";
               const recStatus = String(
                 rec.status || rec.apply_status || rec.effectiveStatus || rec.rawStatus || "",
@@ -766,21 +770,22 @@ export default function Drawer({
                           e.stopPropagation();
                           const repWork =
                             firstValue(rec, [
+                              "representative_work_name",
                               "representativeWork",
                               "representativeWorkName",
+                              "rep_work_name",
                               "rep_work",
-                              "work_name",
-                              "workName",
+                              "representative_work",
                               "대표 작업명",
                               "대표작업명",
-                              "work",
                             ]) ||
-                            rec["대표 작업명"] ||
-                            rec["대표작업명"] ||
+                            rec.representative_work_name ||
                             rec.representativeWork ||
                             rec.representativeWorkName ||
-                            rec.work_name ||
-                            rec.workName ||
+                            rec["대표 작업명"] ||
+                            rec["대표작업명"] ||
+                            rec.rep_work_name ||
+                            rec.rep_work ||
                             "BET 산포 감소를 위한 로터 교체";
 
                           onClose?.();
@@ -905,10 +910,14 @@ export default function Drawer({
                 onClick={() => {
                   onClose();
                   const repWork = firstValue(firstItem, [
+                    "representative_work_name",
                     "representativeWork",
                     "representativeWorkName",
+                    "rep_work_name",
                     "rep_work",
-                    "work_name",
+                    "representative_work",
+                    "대표 작업명",
+                    "대표작업명",
                   ]);
                   const ev = new CustomEvent("openLateralDeploymentModal", {
                     detail: { repWork, item: firstItem },
