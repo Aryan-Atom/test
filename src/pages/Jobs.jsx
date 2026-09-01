@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
@@ -35,43 +35,136 @@ function HighlightText({ text, query }) {
 }
 
 export default function Jobs() {
-  const [jobs, setJobs] = useState(null);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedJob, setSelectedJob] = useState(null);
   const [previewJob, setPreviewJob] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const tableContainerRef = useRef(null);
+  const jobsRef = useRef([]);
+  const isFetchingRef = useRef(false);
   const navigate = useNavigate();
   const { t } = useI18n();
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchJobs = async () => {
-      try {
-        const apiUrl = pocEndPoints.AI_PIPELINE_GET_JOBS;
-        const response = await fetch(apiUrl, {
-          headers: { accept: "application/json" },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (isMounted) {
-            setJobs(data?.jobs || (Array.isArray(data) ? data : []));
-          }
-        }
-      } catch (err) {
-        console.error("Jobs fetch error:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+  const fetchJobs = async (isPolling = false) => {
+    if (isPolling && isFetchingRef.current) return;
+    try {
+      if (!isPolling) setLoading(true);
+      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.108.32.188:8001/api/jobs";
+      const currentLimit = Math.max(jobsRef.current?.length || 50, 50);
+      const params = new URLSearchParams({
+        limit: String(currentLimit),
+        offset: "0",
+      });
+      const apiUrl = `${baseUrl}?${params.toString()}`;
+      const response = await fetch(apiUrl, {
+        headers: { accept: "application/json" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const rawJobs = data?.jobs || (Array.isArray(data) ? data : []);
 
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 4000);
+        // Avoid re-rendering if jobs haven't changed
+        setJobs((prev) => {
+          if (
+            prev.length === rawJobs.length &&
+            prev.every(
+              (item, idx) =>
+                item.id === rawJobs[idx]?.id &&
+                item.status === rawJobs[idx]?.status &&
+                item.stage === rawJobs[idx]?.stage,
+            )
+          ) {
+            return prev;
+          }
+          jobsRef.current = rawJobs;
+          return rawJobs;
+        });
+
+        jobsRef.current = rawJobs;
+        setOffset(rawJobs.length);
+        setHasMore(rawJobs.length >= currentLimit);
+      }
+    } catch (err) {
+      console.error("Jobs fetch error:", err);
+    } finally {
+      if (!isPolling) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs(false);
+    const interval = setInterval(() => {
+      fetchJobs(true);
+    }, 4000);
     return () => {
-      isMounted = false;
       clearInterval(interval);
     };
   }, []);
+
+  const loadMoreJobs = async () => {
+    if (isFetchingRef.current || !hasMore) return;
+    isFetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.108.32.188:8001/api/jobs";
+      const currentOffset = jobsRef.current.length;
+      const params = new URLSearchParams({
+        limit: "50",
+        offset: String(currentOffset),
+      });
+      const apiUrl = `${baseUrl}?${params.toString()}`;
+      const response = await fetch(apiUrl, {
+        headers: { accept: "application/json" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const rawJobs = data?.jobs || (Array.isArray(data) ? data : []);
+        if (rawJobs.length === 0) {
+          setHasMore(false);
+        } else {
+          setJobs((prev) => {
+            const existingIds = new Set(prev.map((j) => j.id));
+            const uniqueNew = rawJobs.filter((j) => !existingIds.has(j.id));
+            if (uniqueNew.length === 0) {
+              setHasMore(false);
+              return prev;
+            }
+            const updated = [...prev, ...uniqueNew];
+            jobsRef.current = updated;
+            return updated;
+          });
+          if (rawJobs.length < 50) {
+            setHasMore(false);
+          }
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error("Load more jobs error:", err);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+      setTimeout(() => {
+        isFetchingRef.current = false;
+      }, 300);
+    }
+  };
+
+  // Handle infinite scroll
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 60) {
+      if (hasMore && !isFetchingRef.current) {
+        loadMoreJobs();
+      }
+    }
+  };
 
   const filteredJobs = (jobs || []).filter((j) => {
     const statusMatches =
@@ -185,7 +278,7 @@ export default function Jobs() {
 
       {/* Main Table Card */}
       <div className="card flex-1 flex flex-col min-h-0 overflow-hidden">
-        {loading && !jobs ? (
+        {loading && (!jobs || jobs.length === 0) ? (
           <div className="p-8 space-y-4">
             {[1, 2, 3, 4, 5].map((idx) => (
               <div
@@ -218,7 +311,7 @@ export default function Jobs() {
             <p className="text-sm font-medium">No matching jobs found.</p>
           </div>
         ) : (
-          <div className="table-wrapper flex-1 overflow-auto">
+          <div ref={tableContainerRef} onScroll={handleScroll} className="table-wrapper flex-1 overflow-auto">
             <table className="table-base w-full text-left">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-border-base text-xs font-semibold uppercase tracking-wider text-text-subtle">
@@ -299,6 +392,12 @@ export default function Jobs() {
                 })}
               </tbody>
             </table>
+            {loadingMore && (
+              <div className="py-2.5 text-center text-xs text-teal-600 dark:text-teal-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
+                <i className="fas fa-spinner fa-spin text-sm" />
+                <span>Loading next 50 jobs...</span>
+              </div>
+            )}
           </div>
         )}
       </div>

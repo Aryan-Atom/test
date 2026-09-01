@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useI18n } from "../i18n.jsx";
 
 const navSections = [
@@ -80,6 +80,18 @@ export default function Sidebar({
     matrix: true,
     "ai-pipeline": true,
   });
+
+  // Auto-expand active parent group when active page changes
+  useEffect(() => {
+    navSections.forEach((section) => {
+      section.items.forEach((item) => {
+        if (item.children?.some((child) => child.id === activePage)) {
+          setOpenGroups((prev) => ({ ...prev, [item.id]: true }));
+        }
+      });
+    });
+  }, [activePage]);
+
   const showOnlyFourPages =
     String(import.meta.env.VITE_SHOW_ONLY_FOUR_PAGES ?? "")
       .trim()
@@ -149,9 +161,7 @@ export default function Sidebar({
                 const isGroup = item.children?.length > 0;
                 const isActive =
                   activePage === item.id || hasActiveChild(item, activePage);
-                const isOpen = isGroup
-                  ? Boolean(openGroups[item.id] ?? true) || hasActiveChild(item, activePage)
-                  : false;
+                const isOpen = isGroup ? Boolean(openGroups[item.id]) : false;
                 const label = t(item.labelKey);
 
                 if (!isGroup) {
@@ -174,13 +184,10 @@ export default function Sidebar({
                     <button
                       type="button"
                       onClick={() => {
-                        toggleGroup(item.id);
-                        if (
-                          item.children?.[0]?.id &&
-                          activePage !== item.id &&
-                          !hasActiveChild(item, activePage)
-                        ) {
+                        if (collapsed && item.children?.[0]?.id) {
                           onNavigate(item.children[0].id);
+                        } else {
+                          toggleGroup(item.id);
                         }
                       }}
                       className={`eq-nav-item ${isActive ? "active-parent" : ""}`}
@@ -189,7 +196,7 @@ export default function Sidebar({
                       <i className={`fas ${item.icon}`} />
                       <span>{label}</span>
                       <i
-                        className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron`}
+                        className={`fas fa-chevron-${isOpen ? "up" : "down"} eq-nav-chevron transition-transform duration-200`}
                       />
                     </button>
                     <div className={`eq-sub-menu ${isOpen ? "open" : ""}`}>

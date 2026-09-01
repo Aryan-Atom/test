@@ -103,12 +103,17 @@ function mapExportedRowToChangeData(row) {
 export default function JobPreviewModal({ job, onClose }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalRows, setTotalRows] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState(null); // { rowIdx, key }
   const [cellValue, setCellValue] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [masterColumns, setMasterColumns] = useState(null);
+  const [downloadingExport, setDownloadingExport] = useState(false);
 
   const navigate = useNavigate();
   const { pushToast } = useToast();
@@ -151,15 +156,21 @@ export default function JobPreviewModal({ job, onClose }) {
     return DEFAULT_PREVIEW_COLUMNS;
   }, [masterColumns]);
 
+  // Initial fetch: limit=50&offset=0
   useEffect(() => {
     let isMounted = true;
-    const fetchJobExportData = async () => {
+    const fetchInitialData = async () => {
       try {
         setLoading(true);
+        setError(null);
+        setRows([]);
+        setOffset(0);
+        setHasMore(true);
+
         const baseUrl =
           pocEndPoints.AI_PIPELINE_GET_JOB_EXPORTS ||
           "http://107.108.32.188:8001/api/exports/json";
-        const apiUrl = `${baseUrl}?limit=1000&offset=0&job_id=${job.id}`;
+        const apiUrl = `${baseUrl}?limit=50&offset=0&job_id=${job.id}`;
 
         const response = await fetch(apiUrl, {
           headers: { accept: "application/json" },
@@ -180,6 +191,11 @@ export default function JobPreviewModal({ job, onClose }) {
             : [];
           const mappedRows = rawRows.map(mapExportedRowToChangeData);
           setRows(mappedRows);
+          setOffset(50);
+          setHasMore(rawRows.length === 50);
+          if (data?.total != null) {
+            setTotalRows(data.total);
+          }
         }
       } catch (err) {
         console.error("Job export fetch error:", err);
@@ -190,9 +206,108 @@ export default function JobPreviewModal({ job, onClose }) {
     };
 
     if (job?.id) {
-      fetchJobExportData();
+      fetchInitialData();
     }
   }, [job]);
+
+  // Load next 50 records on scroll
+  const fetchMoreJobExportData = async () => {
+    if (loadingMore || loading || !hasMore || !job?.id) return;
+    try {
+      setLoadingMore(true);
+      const baseUrl =
+        pocEndPoints.AI_PIPELINE_GET_JOB_EXPORTS ||
+        "http://107.108.32.188:8001/api/exports/json";
+      const apiUrl = `${baseUrl}?limit=50&offset=${offset}&job_id=${job.id}`;
+
+      const response = await fetch(apiUrl, {
+        headers: { accept: "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more job export data (status: ${response.status})`);
+      }
+
+      const data = await response.json();
+      const rawRows = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.rows)
+        ? data.rows
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+      const mappedRows = rawRows.map(mapExportedRowToChangeData);
+
+      setRows((prev) => [...prev, ...mappedRows]);
+      setOffset((prev) => prev + 50);
+      setHasMore(rawRows.length === 50);
+      if (data?.total != null) {
+        setTotalRows(data.total);
+      }
+    } catch (err) {
+      console.error("Job export scroll fetch error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleTableScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 40) {
+      if (hasMore && !loadingMore && !loading) {
+        fetchMoreJobExportData();
+      }
+    }
+  };
+
+  const handleDownloadExport = async () => {
+    if (!job?.id || downloadingExport) return;
+    try {
+      setDownloadingExport(true);
+      const aiServer = (
+        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+      ).replace(/\/+$/, "");
+      const downloadUrl = `${aiServer}/api/exports/${job.id}`;
+
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download export file (status: ${response.status})`);
+      }
+
+      let filename = `job_${job.id}_export.xlsx`;
+      const disposition = response.headers.get("Content-Disposition");
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, "").trim();
+        }
+      } else if (job?.fileName || job?.files) {
+        const origName = Array.isArray(job?.files) ? job.files[0] : (job.fileName || job.files);
+        if (origName && typeof origName === "string") {
+          filename = origName.endsWith(".xlsx") || origName.endsWith(".csv")
+            ? origName
+            : `${origName}.xlsx`;
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      pushToast(t("toast.exportSuccess", "Export file downloaded successfully."), "success");
+    } catch (err) {
+      console.error("Export download error:", err);
+      pushToast(err.message || t("toast.exportFailed", "Failed to download export file."), "error");
+    } finally {
+      setDownloadingExport(false);
+    }
+  };
 
   const handleCellDoubleClick = (rowIdx, key, val) => {
     setEditingCell({ rowIdx, key });
@@ -344,7 +459,7 @@ export default function JobPreviewModal({ job, onClose }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Filters Segmented Control */}
             <div className="toggle-group text-xs flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
               <button
@@ -371,6 +486,28 @@ export default function JobPreviewModal({ job, onClose }) {
               </button>
             </div>
 
+            {/* Download Export Button */}
+            {job?.id != null && (
+              <button
+                type="button"
+                onClick={handleDownloadExport}
+                disabled={downloadingExport}
+                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                title={`Download export for Job #${job.id}`}
+              >
+                <i
+                  className={`fas ${
+                    downloadingExport ? "fa-spinner fa-spin text-teal-600" : "fa-download text-teal-600"
+                  } text-xs`}
+                />
+                <span>
+                  {downloadingExport
+                    ? t("app.downloading", "Downloading...")
+                    : t("app.download", "Download")}
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onClose}
@@ -383,7 +520,10 @@ export default function JobPreviewModal({ job, onClose }) {
         </div>
 
         {/* Body (Table Container) */}
-        <div className="overflow-auto bg-surface-default max-h-[calc(88vh-140px)]">
+        <div
+          className="overflow-auto bg-surface-default max-h-[calc(88vh-140px)]"
+          onScroll={handleTableScroll}
+        >
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
               <i className="fas fa-spinner fa-spin text-3xl text-teal-600 mb-3" />
@@ -472,6 +612,12 @@ export default function JobPreviewModal({ job, onClose }) {
                 ))}
               </tbody>
             </table>
+          )}
+          {loadingMore && (
+            <div className="py-2.5 text-center text-xs text-teal-600 dark:text-teal-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
+              <i className="fas fa-spinner fa-spin text-sm" />
+              <span>Loading next 50 records...</span>
+            </div>
           )}
         </div>
 

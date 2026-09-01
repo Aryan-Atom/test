@@ -939,7 +939,7 @@ tbody tr:not(.expanded-detail-row):hover {
 }
 
 .eq-sub-menu.open {
-  max-height: 220px;
+  max-height: 500px;
 }
 
 .eq-sub-item {

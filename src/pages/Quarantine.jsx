@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useI18n } from "../i18n.jsx";
@@ -43,6 +43,10 @@ function HighlightText({ text, query }) {
 
 export default function Quarantine() {
   const [data, setData] = useState(null);
+  const [items, setItems] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [reason, setReason] = useState("");
   const [showReleased, setShowReleased] = useState(false);
   const [error, setError] = useState(null);
@@ -50,19 +54,23 @@ export default function Quarantine() {
   const [note, setNote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const tableContainerRef = useRef(null);
   const { t } = useI18n();
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
+      setOffset(0);
+      setHasMore(true);
+
       const aiServer = (
         import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
       ).replace(/\/+$/, "");
 
       const params = new URLSearchParams({
         include_released: String(showReleased),
-        limit: "200",
+        limit: "50",
         offset: "0",
       });
       if (reason) {
@@ -81,6 +89,10 @@ export default function Quarantine() {
 
       const json = await response.json();
       setData(json);
+      const newItems = json?.items || (Array.isArray(json) ? json : []);
+      setItems(newItems);
+      setOffset(50);
+      setHasMore(newItems.length === 50);
     } catch (err) {
       console.error("Quarantine fetch error:", err);
       setError(err.message || "Failed to load quarantine data.");
@@ -92,6 +104,45 @@ export default function Quarantine() {
   useEffect(() => {
     loadData();
   }, [reason, showReleased]);
+
+  const loadMoreData = async () => {
+    if (loadingMore || loading || !hasMore) return;
+    try {
+      setLoadingMore(true);
+      const aiServer = (
+        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+      ).replace(/\/+$/, "");
+
+      const params = new URLSearchParams({
+        include_released: String(showReleased),
+        limit: "50",
+        offset: String(offset),
+      });
+      if (reason) {
+        params.append("reason", reason);
+      }
+
+      const apiUrl = `${aiServer}/api/quarantine?${params.toString()}`;
+
+      const response = await fetch(apiUrl, {
+        headers: { accept: "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load more quarantine data (status: ${response.status})`);
+      }
+
+      const json = await response.json();
+      const newItems = json?.items || (Array.isArray(json) ? json : []);
+      setItems((prev) => [...prev, ...newItems]);
+      setOffset((prev) => prev + 50);
+      setHasMore(newItems.length === 50);
+    } catch (err) {
+      console.error("Quarantine scroll fetch error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleRelease = async (row) => {
     setBusy(row.id);
@@ -127,11 +178,16 @@ export default function Quarantine() {
     }
   };
 
-  const byReason = data?.by_reason || {};
-  const reasonKinds = Object.keys(byReason);
-  const itemsList = data?.items || (Array.isArray(data) ? data : []);
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 40) {
+      if (hasMore && !loadingMore && !loading) {
+        loadMoreData();
+      }
+    }
+  };
 
-  const filteredItems = itemsList.filter((r) => {
+  const filteredItems = items.filter((r) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const str = JSON.stringify(r).toLowerCase();
@@ -224,7 +280,11 @@ export default function Quarantine() {
             </p>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[calc(88vh-160px)]">
+          <div
+            ref={tableContainerRef}
+            onScroll={handleScroll}
+            className="overflow-auto flex-1 max-h-[calc(88vh-160px)]"
+          >
             <table className="w-full text-xs text-left border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">
                 <tr className="font-semibold text-text-subtle whitespace-nowrap">
@@ -313,6 +373,12 @@ export default function Quarantine() {
                 })}
               </tbody>
             </table>
+            {loadingMore && (
+              <div className="py-2.5 text-center text-xs text-amber-600 dark:text-amber-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
+                <i className="fas fa-spinner fa-spin text-sm" />
+                <span>Loading next 50 items...</span>
+              </div>
+            )}
           </div>
         )}
       </div>
