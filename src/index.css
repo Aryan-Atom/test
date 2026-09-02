@@ -264,7 +264,7 @@ tbody tr td {
   color: var(--text-default);
 }
 
-tbody tr:not(.expanded-detail-row):hover td {
+tbody tr:not(.expanded-detail-row):hover > td {
   background-color: var(--fill-active) !important;
 }
 
@@ -274,6 +274,14 @@ tr.expanded-detail-row > td,
 tr.expanded-detail-row:hover > td {
   background-color: transparent !important;
   background: transparent !important;
+}
+
+.quarantine-subtable tbody tr:hover > td {
+  background-color: #eff6ff !important;
+}
+
+[data-theme="dark"] .quarantine-subtable tbody tr:hover > td {
+  background-color: rgba(30, 58, 138, 0.35) !important;
 }
 
 select.input-base {
@@ -1278,7 +1286,7 @@ tbody tr:not(.expanded-detail-row):hover {
   background: var(--surface-strong) !important;
 }
 
-[data-theme="dark"] tbody tr:not(.expanded-detail-row):hover td {
+[data-theme="dark"] tbody tr:not(.expanded-detail-row):hover > td {
   background-color: var(--fill-active) !important;
 }
 
@@ -2692,8 +2700,18 @@ html:not([data-theme="dark"]) .btn-secondary {
   border-color: #e2e8f0 !important;
 }
 
-html:not([data-theme="dark"]) tbody tr {
-  background-color: #ffffff !important;
+html:not([data-theme="dark"]) tbody tr:not(.expanded-detail-row) {
+  background-color: #ffffff;
+}
+
+html:not([data-theme="dark"]) tbody tr:not(.expanded-detail-row):hover,
+html:not([data-theme="dark"]) tbody tr:not(.expanded-detail-row):hover > td {
+  background-color: #eff6ff !important;
+}
+
+[data-theme="dark"] tbody tr:not(.expanded-detail-row):hover,
+[data-theme="dark"] tbody tr:not(.expanded-detail-row):hover > td {
+  background-color: rgba(30, 58, 138, 0.4) !important;
 }
 
 html:not([data-theme="dark"]) tbody tr td {

@@ -5443,8 +5443,16 @@ export default function ChangeHistory({
                 onClick={toggleSelectAll}
                 style={{ minHeight: "38px", padding: "8px 16px" }}
               >
-                <i className="fas fa-check-double" />
-                {t("app.selectAll", "전체선택")}
+                <i
+                  className={`fas ${
+                    selectedIds.size === filtered.length && filtered.length > 0
+                      ? "fa-square-minus text-blue-600 dark:text-blue-400"
+                      : "fa-check-double"
+                  }`}
+                />
+                {selectedIds.size === filtered.length && filtered.length > 0
+                  ? t("app.deselectAll", "전체해제")
+                  : t("app.selectAll", "전체선택")}
               </button>
               {selectedIds.size > 0 && (
                 <button

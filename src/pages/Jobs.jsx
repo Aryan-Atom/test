@@ -209,6 +209,10 @@ export default function Jobs() {
       badgeClass =
         "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
       icon = "fa-spinner fa-spin";
+    } else if (statusStr === "quarantined" || statusStr === "quarantine") {
+      badgeClass =
+        "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+      icon = "fa-shield-alt";
     }
 
     return (
@@ -271,6 +275,7 @@ export default function Jobs() {
             <option value="running">Running</option>
             <option value="done">Done</option>
             <option value="failed">Failed</option>
+            <option value="quarantined">Quarantined</option>
             <option value="idle">Idle</option>
           </select>
         </div>
@@ -288,27 +293,36 @@ export default function Jobs() {
             ))}
           </div>
         ) : !jobs || jobs.length === 0 ? (
-          <div className="p-12 text-center text-text-subtle">
-            <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3 block" />
-            <p className="text-base font-semibold text-text-default mb-1">
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-subtle min-h-[400px]">
+            <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-800/90 text-gray-400 dark:text-gray-500 flex items-center justify-center mb-4 border border-gray-200/80 dark:border-gray-700/80 shadow-xs">
+              <i className="fas fa-inbox text-2xl" />
+            </div>
+            <p className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1.5">
               Nothing has been run yet.
             </p>
-            <p className="text-xs text-text-subtle mb-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 max-w-sm">
               Upload a spreadsheet via AI Pipeline to start a job.
             </p>
             <button
               type="button"
-              className="btn-primary inline-flex items-center gap-2 text-xs"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#1745c2] hover:bg-[#1239a5] shadow-xs hover:shadow-md transition-all cursor-pointer"
               onClick={() => navigate("/data-management/change-history-data")}
             >
-              <i className="fas fa-file-import" />
+              <i className="fas fa-file-import text-xs" />
               <span>Go to Upload Spreadsheet</span>
             </button>
           </div>
         ) : filteredJobs.length === 0 ? (
-          <div className="p-12 text-center text-text-subtle">
-            <i className="fas fa-filter text-3xl text-gray-300 dark:text-gray-600 mb-2 block" />
-            <p className="text-sm font-medium">No matching jobs found.</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-text-subtle min-h-[300px]">
+            <div className="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-800/90 text-gray-400 dark:text-gray-500 flex items-center justify-center mb-3.5 border border-gray-200/80 dark:border-gray-700/80 shadow-xs">
+              <i className="fas fa-filter text-lg" />
+            </div>
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">
+              No matching jobs found.
+            </p>
+            <p className="text-xs text-gray-400">
+              Try adjusting your search query or status filter.
+            </p>
           </div>
         ) : (
           <div ref={tableContainerRef} onScroll={handleScroll} className="table-wrapper flex-1 overflow-auto">
@@ -331,6 +345,15 @@ export default function Jobs() {
                   const uploadedBy =
                     j.createdBy || j.created_by_user || j.uploadedBy || j.created_by || "-";
                   const createdAt = j.created_at || j.createdAt || "-";
+                  const isQuarantined =
+                    Boolean(j.has_quarantine) ||
+                    Boolean(j.is_quarantined) ||
+                    Boolean(j.quarantined) ||
+                    (typeof j.quarantine_count === "number" && j.quarantine_count > 0) ||
+                    String(j.status || "").toLowerCase() === "quarantined" ||
+                    String(j.status || "").toLowerCase() === "quarantine";
+                  const isRunning = String(j.status || "").toLowerCase() === "running";
+                  const isEyeDisabled = isRunning || isQuarantined;
 
                   return (
                     <tr
@@ -360,9 +383,24 @@ export default function Jobs() {
                           {/* Eye icon */}
                           <button
                             type="button"
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
-                            title="View Job Preview & Save"
-                            onClick={() => setPreviewJob(j)}
+                            disabled={isEyeDisabled}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isEyeDisabled
+                                ? "text-gray-400 dark:text-gray-500 opacity-70 cursor-not-allowed"
+                                : "text-gray-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 cursor-pointer"
+                            }`}
+                            title={
+                              isRunning
+                                ? "Job is currently running"
+                                : isQuarantined
+                                  ? "Quarantined job cannot be previewed"
+                                  : "View Job Preview & Save"
+                            }
+                            onClick={() => {
+                              if (!isEyeDisabled) {
+                                setPreviewJob(j);
+                              }
+                            }}
                           >
                             <i className="fas fa-eye text-sm" />
                           </button>
