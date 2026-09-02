@@ -431,14 +431,21 @@ export default function Quarantine() {
             onScroll={handleScroll}
             className="overflow-auto flex-1 max-h-[calc(88vh-160px)]"
           >
-            <table className="w-full text-xs text-left border-collapse">
-              <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">
+            <table className="w-full text-xs text-left border-collapse table-fixed">
+              <colgroup>
+                <col style={{ width: "48px" }} />
+                <col style={{ width: "64px" }} />
+                <col style={{ width: "42%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "180px" }} />
+              </colgroup>
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-20 border-b border-border-base shadow-xs">
                 <tr className="font-semibold text-text-subtle whitespace-nowrap">
-                  <th className="px-3 py-3 w-12 text-center" />
-                  <th className="px-3 py-3 w-16 text-center">S.No</th>
-                  <th className="px-4 py-3 min-w-[280px]">Source File</th>
-                  <th className="px-4 py-3 min-w-[180px]">Created At</th>
-                  <th className="px-4 py-3 min-w-[160px] text-center">Count of Quarantines</th>
+                  <th className="px-3 py-3 text-center" />
+                  <th className="px-3 py-3 text-center">S.No</th>
+                  <th className="px-4 py-3">Source File</th>
+                  <th className="px-4 py-3">Created At</th>
+                  <th className="px-4 py-3 text-center">Count of Quarantines</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base">
@@ -523,18 +530,25 @@ export default function Quarantine() {
                               </div>
 
                               <div className="rounded-xl border border-border-base bg-white dark:bg-gray-800/95 overflow-hidden shadow-xs">
-                                <table className="quarantine-subtable w-full text-xs text-left border-collapse">
-                                  <thead className="bg-gray-50 dark:bg-gray-750 border-b border-border-base text-[11px] font-semibold text-text-subtle uppercase tracking-wider">
+                                <table className="quarantine-subtable w-full text-xs text-left border-collapse table-fixed">
+                                  <colgroup>
+                                    <col style={{ width: "70px" }} />
+                                    <col style={{ width: "140px" }} />
+                                    <col style={{ width: "240px" }} />
+                                    <col style={{ width: "auto" }} />
+                                    <col style={{ width: "240px" }} />
+                                  </colgroup>
+                                  <thead className="bg-gray-50 dark:bg-gray-750 border-b border-border-base text-[11px] font-semibold text-text-subtle uppercase tracking-wider sticky top-0 z-10">
                                     <tr>
-                                      <th className="px-3.5 py-2.5 w-16 text-center">Row</th>
-                                      <th className="px-3.5 py-2.5 min-w-[130px]">W/O Code</th>
-                                      <th className="px-3.5 py-2.5 min-w-[200px]">
+                                      <th className="px-3.5 py-2.5 text-center">Row</th>
+                                      <th className="px-3.5 py-2.5">W/O Code</th>
+                                      <th className="px-3.5 py-2.5">
                                         Process · Equipment
                                       </th>
-                                      <th className="px-3.5 py-2.5 min-w-[240px]">
+                                      <th className="px-3.5 py-2.5">
                                         What the cell held
                                       </th>
-                                      <th className="px-3.5 py-2.5 min-w-[200px]">Why</th>
+                                      <th className="px-3.5 py-2.5">Why</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border-base text-xs bg-white dark:bg-gray-800">

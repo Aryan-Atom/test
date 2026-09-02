@@ -1850,6 +1850,122 @@ function getTableRowValue(row, col) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// renderCellBadge — renders badges for priority, woType, and woCode
+// ─────────────────────────────────────────────────────────────────────────────
+function renderCellBadge(col, rawVal) {
+  if (rawVal == null || rawVal === "" || rawVal === "null" || rawVal === "undefined") {
+    return "—";
+  }
+  const strVal = String(rawVal).trim();
+  const lowerKey = String(col || "").trim().toLowerCase();
+
+  // 1. Priority Badge (중요도 / 우선순위)
+  if (
+    lowerKey === "priority" ||
+    lowerKey === "priorityname" ||
+    lowerKey === "priority_name" ||
+    lowerKey === "중요도" ||
+    lowerKey === "우선순위" ||
+    col === "중요도" ||
+    col === "우선순위"
+  ) {
+    const isImportant =
+      strVal === "중요" ||
+      strVal.toLowerCase() === "high" ||
+      strVal.toLowerCase() === "urgent" ||
+      strVal.toLowerCase() === "critical";
+    const isNormal =
+      strVal === "일반" ||
+      strVal.toLowerCase() === "normal" ||
+      strVal.toLowerCase() === "medium" ||
+      strVal.toLowerCase() === "standard";
+
+    if (isImportant) {
+      return (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800 shadow-2xs">
+          {strVal}
+        </span>
+      );
+    }
+    if (isNormal) {
+      return (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 shadow-2xs">
+          {strVal}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 shadow-2xs">
+        {strVal}
+      </span>
+    );
+  }
+
+  // 2. WO Type Badge (WO 유형 / W/O 타입 / 보전유형)
+  if (
+    lowerKey === "wotype" ||
+    lowerKey === "wotypename" ||
+    lowerKey === "wo_type" ||
+    lowerKey === "work_order_type_name" ||
+    lowerKey === "workordertype" ||
+    lowerKey === "workordertypename" ||
+    lowerKey === "wo유형" ||
+    lowerKey === "w/o타입" ||
+    lowerKey === "보전유형" ||
+    col === "WO유형" ||
+    col === "W/O타입" ||
+    col === "보전유형"
+  ) {
+    const isCM = strVal.includes("CM") || strVal.includes("개량");
+    const isBM = strVal.includes("BM") || strVal.includes("고장");
+    const isPM = strVal.includes("PM") || strVal.includes("예방");
+
+    if (isCM) {
+      return (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 shadow-2xs">
+          {strVal}
+        </span>
+      );
+    }
+    if (isBM) {
+      return (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shadow-2xs">
+          {strVal}
+        </span>
+      );
+    }
+    if (isPM) {
+      return (
+        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-600 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 shadow-2xs">
+          {strVal}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-600 border border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 shadow-2xs">
+        {strVal}
+      </span>
+    );
+  }
+
+  // 3. Date formatting
+  if (
+    lowerKey === "workedon" ||
+    lowerKey === "workeddate" ||
+    lowerKey === "workdate" ||
+    col === "작업완료일" ||
+    col === "workedOn"
+  ) {
+    if (strVal.includes("T")) return strVal.split("T")[0];
+    if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) return strVal.slice(0, 10);
+    const d = new Date(rawVal);
+    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : strVal;
+  }
+
+  return strVal;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EditableRow — inline editable row in the main table
 // ─────────────────────────────────────────────────────────────────────────────
 function EditableRow({
@@ -2026,20 +2142,7 @@ function EditableRow({
             style={{ maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis" }}
             title={String(getTableRowValue(row, col))}
           >
-            {(() => {
-              const rawVal = getTableRowValue(row, col);
-              if (rawVal == null || rawVal === "" || rawVal === "null" || rawVal === "undefined") {
-                return "—";
-              }
-              if (col === "workedOn" || col === "workedDate" || col === "workDate") {
-                const valStr = String(rawVal).trim();
-                if (valStr.includes("T")) return valStr.split("T")[0];
-                if (/^\d{4}-\d{2}-\d{2}/.test(valStr)) return valStr.slice(0, 10);
-                const d = new Date(rawVal);
-                return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : valStr;
-              }
-              return String(rawVal);
-            })()}
+            {renderCellBadge(col, getTableRowValue(row, col))}
           </td>
         ),
       )}
@@ -2055,6 +2158,10 @@ const COLUMN_LABEL_KEYS = {
   representativeWork: "field.repWork",
   priority: "field.priority",
   category: "field.category",
+  woType: "field.woType",
+  WO유형: "field.woType",
+  "W/O타입": "field.woType",
+  "W/O 유형": "field.woType",
   period: "field.period",
   work: "field.work",
   report: "field.report",
@@ -5451,8 +5558,8 @@ export default function ChangeHistory({
                   }`}
                 />
                 {selectedIds.size === filtered.length && filtered.length > 0
-                  ? t("app.deselectAll", "전체해제")
-                  : t("app.selectAll", "전체선택")}
+                  ? t("app.unselectAll", "Unselect All")
+                  : t("app.selectAll", "Select All")}
               </button>
               {selectedIds.size > 0 && (
                 <button
