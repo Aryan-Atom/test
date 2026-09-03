@@ -825,7 +825,6 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
       // Fetch detail from GetMatrixData API, then populate modal
       setEditLoading(true);
-      pushToast(t("toast.loadingDetail", "Loading details..."), "info");
 
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         setEditLoading(false);
@@ -840,7 +839,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         }
       });
     },
-    [populateEditModal, pushToast, t],
+    [populateEditModal],
   );
 
   // ── Edit Modal: Save via SaveVoc API ─────────────────────────────────────
@@ -1384,6 +1383,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       }
     };
 
+    if (!isActive) return;
+
     window.addEventListener("openLateralDeploymentModal", handleCustomOpen);
     window.addEventListener("openChangeStatusReasonModal", handleReasonModalOpen);
     window.addEventListener("changeStatusDirectly", handleDirectStatusChange);
@@ -1397,7 +1398,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
       window.removeEventListener("changeStatusDirectlyToApplied", handleDirectToApplied);
       window.removeEventListener("openEditRecordFromDrawer", handleEditFromDrawer);
     };
-  }, [openApplyStatusModal, pushToast, t, handleEditFromDrawer]);
+  }, [openApplyStatusModal, pushToast, t, handleEditFromDrawer, isActive]);
 
   const [isFiltering, setIsFiltering] = useState(false);
   const [prevFilters, setPrevFilters] = useState({

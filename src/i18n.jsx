@@ -85,6 +85,12 @@ const translations = {
     "page.mp.modalTitle": "MP List 행 추가",
     "page.mp.modalDesc":
       "새로운 항목을 추가합니다. W/O코드는 자동으로 비워지며, 시스템 데이터와 구분됩니다.",
+    "page.mp.modalEditTitle": "항목 편집",
+    "page.mp.modalEditDesc": "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
+    "photo.pendingAddition": "추가 대기",
+    "photo.shared": "공유",
+    "photo.dropzoneHint": "사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)",
+    "photo.sheetCount": "장",
     "page.mp.requiredError":
       "대표작업명, 작업 목적, 문제 현상, 문제 원인, HW 변경 전/후, SW 변경 전/후, 작업완료일은 필수 입력입니다.",
     "page.mp.requiredFieldError": "필수 입력 항목입니다.",
@@ -503,6 +509,14 @@ const translations = {
     "page.mp.modalTitle": "Add MP List Row",
     "page.mp.modalDesc":
       "Add a new item. W/O code is left blank automatically and separated from system data.",
+    "page.mp.modalEditTitle": "Edit Item",
+    "page.mp.modalEditDesc":
+      "This is a Work Order item. Corporation and Completion Date cannot be modified.",
+    "photo.pendingAddition": "Pending Addition",
+    "photo.shared": "Shared",
+    "photo.dropzoneHint":
+      "Drag or click to upload photos (automatically shared with same group items)",
+    "photo.sheetCount": " photo(s)",
     "page.mp.requiredError":
       "Representative work, purpose, symptom, cause, HW before/after, SW before/after, and completion date are required.",
     "page.mp.requiredFieldError": "This field is required.",

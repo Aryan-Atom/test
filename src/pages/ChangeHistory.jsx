@@ -1670,24 +1670,32 @@ export function UploadPreviewModal({
 
         {/* Footer */}
         <div
-          className="flex items-center justify-between gap-3 px-6 py-4 shrink-0"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-3.5 shrink-0"
           style={{
             borderTop: "1px solid var(--color-border-base, #e5e7eb)",
             background: "var(--color-surface-raised, #f9fafb)",
           }}
         >
-          <p className="text-xs" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
-            <i className="fas fa-info-circle mr-1" />
-            {hasServerDuplicates && duplicateCount > 0
-              ? "Duplicate rows are marked red. Delete them before saving if needed."
-              : t("preview.tip")}
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs">
+              <i className="fas fa-layer-group text-xs text-blue-500" />
+              <span>
+                Loaded: {rows.length} / Total: {initialRows ? initialRows.length : rows.length} rows
+              </span>
+            </span>
+            <p className="text-xs hidden md:block" style={{ color: "var(--color-text-subtle, #6b7280)" }}>
+              <i className="fas fa-info-circle mr-1" />
+              {hasServerDuplicates && duplicateCount > 0
+                ? "Duplicate rows are marked red. Delete them before saving if needed."
+                : t("preview.tip")}
+            </p>
+          </div>
           <div className="flex gap-3">
             {hasServerDuplicates && duplicateCount > 0 && (
               <button
                 type="button"
                 onClick={handleRemoveDuplicates}
-                className="btn-base btn-secondary text-red-700"
+                className="btn-base btn-secondary text-red-700 cursor-pointer"
               >
                 <i className="fas fa-trash-alt mr-1.5" />
                 Remove duplicates ({duplicateCount})
@@ -1697,7 +1705,7 @@ export function UploadPreviewModal({
               type="button"
               onClick={handleClose}
               disabled={isSaving}
-              className="btn-base btn-secondary"
+              className="btn-base btn-secondary cursor-pointer"
             >
               <i className="fas fa-times mr-1.5" />
               {t("app.cancel")}
@@ -1707,7 +1715,7 @@ export function UploadPreviewModal({
                 type="button"
                 onClick={handleConfirm}
                 disabled={isSaving}
-                className="btn-base btn-primary min-w-[120px] justify-center"
+                className="btn-base btn-primary min-w-[120px] justify-center cursor-pointer"
               >
                 {isSaving ? (
                   <>
@@ -2240,7 +2248,7 @@ function extractPhotosFromRow(row) {
         previewUrl: src,
         fileContent: src,
         category: p.category || "After Improvements",
-        badge: p.badge || "Existing Attachment",
+        badge: p.badge || "공유",
       };
     });
   }
@@ -2283,7 +2291,7 @@ function extractPhotosFromRow(row) {
       previewUrl: src,
       category: cat,
       caption: name,
-      badge: "Existing Attachment",
+      badge: img.badge || "공유",
     };
   };
 
@@ -2393,7 +2401,7 @@ function RowEditModal({
       name: pendingPhoto.name,
       category: cat,
       caption: pendingPhoto.filename || pendingPhoto.name,
-      badge: "Additional Standby",
+      badge: "추가 대기",
     };
     setDraft((prev) => ({
       ...prev,
@@ -2467,14 +2475,16 @@ function RowEditModal({
         >
           <div className="modal-header shrink-0">
             <div className="flex items-start gap-3 min-w-0">
-              <span className="modal-icon-wrap">
-                <i className="fas fa-plus" />
+              <span className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">
+                <i className="fas fa-plus-circle text-base" />
               </span>
               <div className="min-w-0">
-                <h2 className="modal-title">Item Edit</h2>
+                <h2 className="modal-title">{t("page.mp.modalEditTitle", "항목 편집")}</h2>
                 <p className="modal-description">
-                  This is the Work Order item. The corporation and the completion date cannot be
-                  changed.
+                  {t(
+                    "page.mp.modalEditDesc",
+                    "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
+                  )}
                 </p>
               </div>
             </div>
@@ -2492,7 +2502,7 @@ function RowEditModal({
             {/* Row 1: Process & Equipment Type (Read-Only) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">Process</label>
+                <label className="modal-field-label mb-1.5">{t("field.process", "공정")}</label>
                 <input
                   type="text"
                   value={draft.process ?? ""}
@@ -2502,7 +2512,9 @@ function RowEditModal({
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">Equipment Type</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.equipmentType", "보전파트")}
+                </label>
                 <input
                   type="text"
                   value={draft.maintGroup ?? ""}
@@ -2516,8 +2528,7 @@ function RowEditModal({
             {/* Row 2: Representative Work Name * with Saved Info Suggestions Popover */}
             <div className="relative">
               <label className="modal-field-label mb-1.5">
-                {t("field.repWork", "Representative Work Name")}{" "}
-                <span className="text-rose-500">*</span>
+                {t("field.repWork", "대표 작업명")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -2590,7 +2601,7 @@ function RowEditModal({
 
             {/* Row 3: Purpose of the Work */}
             <div>
-              <label className="modal-field-label mb-1.5">Purpose of the Work</label>
+              <label className="modal-field-label mb-1.5">{t("field.workPurpose", "작업 목적")}</label>
               <input
                 type="text"
                 value={draft.purpose ?? draft.work ?? ""}
@@ -2611,7 +2622,7 @@ function RowEditModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="modal-field-label mb-1.5">
-                  Problem phenomenon <span className="text-rose-500">*</span>
+                  {t("field.situation", "문제 현상")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -2626,7 +2637,9 @@ function RowEditModal({
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">Cause of the problem</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.cause", "문제 원인")}
+                </label>
                 <input
                   type="text"
                   value={draft.cause ?? ""}
@@ -2644,20 +2657,22 @@ function RowEditModal({
             {/* Row 5: BOM & Material Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">BOM</label>
+                <label className="modal-field-label mb-1.5">{t("field.bom", "BOM")}</label>
                 <input
                   type="text"
-                  placeholder="BOM Entry"
+                  placeholder="Enter BOM (new line allowed)"
                   value={draft.bom ?? ""}
                   onChange={(e) => handleFieldChange("bom", e.target.value)}
                   className="modal-input"
                 />
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">Material Name</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.sparePart", "자재명")}
+                </label>
                 <input
                   type="text"
-                  placeholder="Enter material name"
+                  placeholder="Enter material name (new line allowed)"
                   value={draft.sparePart ?? ""}
                   onChange={(e) => handleFieldChange("sparePart", e.target.value)}
                   className="modal-input"
@@ -2665,10 +2680,12 @@ function RowEditModal({
               </div>
             </div>
 
-            {/* Row 6: Before changing the hardware & After changing the hardware */}
+            {/* Row 6: HW Before & HW After */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">Before changing the hardware</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.hwBefore", "HW 변경 전")}
+                </label>
                 <input
                   type="text"
                   value={draft.hwAsWas ?? ""}
@@ -2682,7 +2699,9 @@ function RowEditModal({
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">After changing the hardware</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.hwAfter", "HW 변경 후")}
+                </label>
                 <input
                   type="text"
                   value={draft.hwAsIs ?? ""}
@@ -2697,10 +2716,12 @@ function RowEditModal({
               </div>
             </div>
 
-            {/* Row 7: Before Software Change & After the software change */}
+            {/* Row 7: SW Before & SW After */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="modal-field-label mb-1.5">Before Software Change</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.swBefore", "SW 변경 전")}
+                </label>
                 <input
                   type="text"
                   value={draft.swAsWas ?? ""}
@@ -2714,7 +2735,9 @@ function RowEditModal({
                 )}
               </div>
               <div>
-                <label className="modal-field-label mb-1.5">After the software change</label>
+                <label className="modal-field-label mb-1.5">
+                  {t("field.swAfter", "SW 변경 후")}
+                </label>
                 <input
                   type="text"
                   value={draft.swAsIs ?? ""}
@@ -2733,7 +2756,7 @@ function RowEditModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="modal-field-label mb-1.5">
-                  {t("field.priority", "Priority")}
+                  {t("field.priority", "중요도")}
                 </label>
                 <select
                   value={draft.priority ?? (priorityList[0]?.priorityName || "일반")}
@@ -2755,7 +2778,7 @@ function RowEditModal({
 
               <div>
                 <label className="modal-field-label mb-1.5">
-                  {t("field.category", "Category")}
+                  {t("field.category", "효과 유형")}
                 </label>
                 <select
                   value={draft.category ?? (categoryList[0]?.categoryName || "기타")}
@@ -2780,7 +2803,7 @@ function RowEditModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="modal-field-label mb-1.5">
-                  {t("field.workedOn", "Date of Completion")}
+                  {t("field.workedOn", "작업완료일")}
                 </label>
                 <input
                   type="text"
@@ -2809,7 +2832,7 @@ function RowEditModal({
               </div>
               <div>
                 <label className="modal-field-label mb-1.5">
-                  {t("field.site", "Requesting Corporation")}
+                  {t("field.site", "요청 법인")}
                 </label>
                 <input
                   type="text"
@@ -2822,32 +2845,48 @@ function RowEditModal({
             </div>
 
             {/* Row 10: Metadata Stats Badges */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold py-1">
-              <span
-                className={`px-2.5 py-1 rounded-full transition-all ${problemCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
-              >
-                Problem Phenomenon Chapter {problemCount}
-              </span>
-              <span
-                className={`px-2.5 py-1 rounded-full transition-all ${afterCount > 0 ? "bg-emerald-100 text-emerald-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
-              >
-                {afterCount} Chapters After Improvement
-              </span>
-              <span
-                className={`px-2.5 py-1 rounded-full transition-all ${equipCount > 0 ? "bg-blue-100 text-blue-700 font-bold" : "text-gray-600 dark:text-gray-400"}`}
-              >
-                Equipment Reference {equipCount} sheets
-              </span>
-              <span
-                className={`px-2.5 py-1 rounded-full transition-all ${othersCount > 0 ? "bg-gray-200 text-gray-800 font-bold" : "text-gray-600 dark:text-gray-400"}`}
-              >
-                Others {othersCount} Cards
-              </span>
-            </div>
+            {(() => {
+              const getCat = (a) => {
+                const c = String(a.category || a.category_name || a.categoryName || "").trim();
+                if (c === "Problem phenomenon" || c === "problem" || c === "문제 현상" || c === "문제현상") {
+                  return "문제 현상";
+                }
+                if (c === "After Improvements" || c === "after" || c === "개선 후" || c === "개선후") {
+                  return "개선 후";
+                }
+                if (c === "Equipment Reference" || c === "equipment" || c === "설비 참고" || c === "설비참고") {
+                  return "설비 참고";
+                }
+                return "기타";
+              };
+
+              const pCount = photos.filter((p) => getCat(p) === "문제 현상").length;
+              const aCount = photos.filter((p) => getCat(p) === "개선 후").length;
+              const eCount = photos.filter((p) => getCat(p) === "설비 참고").length;
+              const oCount = photos.filter((p) => getCat(p) === "기타").length;
+              const sheetUnit = t("photo.sheetCount", "장");
+
+              return (
+                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold py-1 text-gray-500 dark:text-gray-400">
+                  <span className={pCount > 0 ? "text-blue-600 dark:text-blue-400 font-bold" : ""}>
+                    {t("category.problemPhenomenon", "문제 현상")} {pCount}{sheetUnit}
+                  </span>
+                  <span className={aCount > 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}>
+                    {t("category.afterImprovements", "개선 후")} {aCount}{sheetUnit}
+                  </span>
+                  <span className={eCount > 0 ? "text-blue-600 dark:text-blue-400 font-bold" : ""}>
+                    {t("category.equipmentReference", "설비 참고")} {eCount}{sheetUnit}
+                  </span>
+                  <span className={oCount > 0 ? "text-gray-700 dark:text-gray-200 font-bold" : ""}>
+                    {t("category.others", "기타")} {oCount}{sheetUnit}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Row 11: Upload Dropzone Card */}
             <div
-              className="border-2 border-dashed border-border-base rounded-2xl p-4 text-center bg-surface-strong cursor-pointer hover:bg-gray-100/60 dark:hover:bg-gray-700/50 transition-colors"
+              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-3.5 text-center bg-gray-50/50 dark:bg-gray-800/40 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-100/60 transition-colors"
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -2873,10 +2912,13 @@ function RowEditModal({
                   e.target.value = "";
                 }}
               />
-              <div className="flex items-center justify-center gap-2 text-xs font-medium text-text-subtlest">
+              <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
                 <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
                 <span>
-                  Drag or click to upload photos (automatically share to the same group items)
+                  {t(
+                    "photo.dropzoneHint",
+                    "사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)",
+                  )}
                 </span>
               </div>
               {uploadError && (
@@ -2887,56 +2929,96 @@ function RowEditModal({
             {/* Uploaded Photo Preview Cards */}
             {photos.length > 0 && (
               <div className="flex flex-wrap gap-3 pt-2">
-                {photos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="w-28 h-32 rounded-xl border border-border-base bg-surface-default relative overflow-hidden flex flex-col shadow-xs group"
-                  >
-                    {/* Top Status Bar */}
-                    <div className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 flex items-center justify-between shrink-0">
-                      <span className="truncate">✓ Additional Standby</span>
+                {photos.map((photo) => {
+                  const imgSrc =
+                    photo.url ||
+                    photo.previewUrl ||
+                    photo.fileContent ||
+                    photo.image_data ||
+                    photo.imageData ||
+                    "";
+                  const catName =
+                    (function (c) {
+                      if (!c) return t("category.others", "기타");
+                      const s = String(c).trim();
+                      if (s === "Problem phenomenon" || s === "problem" || s === "문제 현상" || s === "문제현상") {
+                        return t("category.problemPhenomenon", "문제 현상");
+                      }
+                      if (s === "After Improvements" || s === "after" || s === "개선 후" || s === "개선후") {
+                        return t("category.afterImprovements", "개선 후");
+                      }
+                      if (s === "Equipment Reference" || s === "equipment" || s === "설비 참고" || s === "설비참고") {
+                        return t("category.equipmentReference", "설비 참고");
+                      }
+                      return t("category.others", "기타");
+                    })(photo.category || photo.category_name || photo.categoryName);
+
+                  const isPending =
+                    photo.badge === "추가 대기" ||
+                    photo.badge === "Additional Standby" ||
+                    photo.isNew;
+
+                  return (
+                    <div
+                      key={photo.id}
+                      className="group relative w-28 h-32 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-2 hover:border-dashed hover:border-blue-500 overflow-hidden flex flex-col bg-white dark:bg-gray-800 shadow-2xs transition-all"
+                    >
+                      {/* Top-Left: Status Badge */}
+                      {isPending ? (
+                        <span className="absolute top-1.5 left-1.5 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 z-10 shadow-xs">
+                          <i className="fas fa-check text-[8px]" />
+                          <span>{t("photo.pendingAddition", "추가 대기")}</span>
+                        </span>
+                      ) : (
+                        <span className="absolute top-1.5 left-1.5 bg-[#4f46e5] text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 z-10 shadow-xs">
+                          <i className="fas fa-link text-[8px]" />
+                          <span>{t("photo.shared", "공유")}</span>
+                        </span>
+                      )}
+
+                      {/* Top-Right: Red circular cross delete button - hidden normally, shown on hover */}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemovePhoto(photo.id);
                         }}
-                        className="hover:text-rose-200 transition-colors ml-1 cursor-pointer"
-                        title="Remove photo"
+                        className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[10px] z-10 shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:scale-110 cursor-pointer"
+                        title={t("app.delete", "삭제")}
                       >
-                        <i className="fas fa-times text-[10px]" />
+                        <i className="fas fa-times text-[9px]" />
                       </button>
-                    </div>
 
-                    {/* Thumbnail Image */}
-                    <div className="flex-1 bg-gray-900/5 dark:bg-gray-900/30 overflow-hidden relative flex items-center justify-center">
-                      <img
-                        src={photo.previewUrl}
-                        alt={photo.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                      {/* Thumbnail Image */}
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 overflow-hidden relative flex items-center justify-center">
+                        <img
+                          src={imgSrc}
+                          alt={photo.name || photo.filename || t("field.photo", "사진")}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
 
-                    {/* Bottom Category Overlay */}
-                    <div className="bg-slate-800/90 text-white text-[10px] font-bold py-1 px-1 text-center shrink-0 truncate">
-                      {photo.category}
+                      {/* Bottom Category Bar */}
+                      <div className="bg-[#374151] dark:bg-gray-900 text-white text-[10px] font-bold py-1 px-1 text-center shrink-0 truncate">
+                        {catName}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           <div className="modal-footer">
             <button type="button" className="modal-cancel-btn" onClick={onClose}>
-              cancellation
+              {t("app.cancel", "취소")}
             </button>
             <button
               type="submit"
               className="bg-[#1745c2] hover:bg-[#1239a5] text-white font-bold text-sm px-8 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <i className="fas fa-check text-xs" />
-              Save
+              {t("app.save", "저장하기")}
             </button>
           </div>
         </form>
@@ -2957,9 +3039,9 @@ function RowEditModal({
                   <i className="fas fa-image" />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="modal-title">Select photo category</h2>
+                  <h2 className="modal-title">{t("category.selectPhotoCategory", "사진 카테고리 선택")}</h2>
                   <p className="modal-description">
-                    Select the category of the photo you want to upload
+                    {t("category.selectPhotoCategoryDesc", "업로드할 사진의 카테고리를 선택하세요")}
                   </p>
                 </div>
               </div>
@@ -2980,7 +3062,7 @@ function RowEditModal({
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-red-200 bg-red-50/70 hover:bg-red-100/80 text-red-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
               >
                 <i className="fas fa-exclamation-triangle text-base" />
-                <span className="text-center">Problem phenomenon</span>
+                <span className="text-center">{t("category.problemPhenomenon", "문제 현상")}</span>
               </button>
 
               {/* Category 2: After Improvements */}
@@ -2990,7 +3072,7 @@ function RowEditModal({
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
               >
                 <i className="fas fa-check-circle text-base" />
-                <span className="text-center">After Improvements</span>
+                <span className="text-center">{t("category.afterImprovements", "개선 후")}</span>
               </button>
 
               {/* Category 3: Equipment Reference */}
@@ -3000,7 +3082,7 @@ function RowEditModal({
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-blue-600 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
               >
                 <i className="fas fa-cog text-base" />
-                <span className="text-center">Equipment Reference</span>
+                <span className="text-center">{t("category.equipmentReference", "설비 참고")}</span>
               </button>
 
               {/* Category 4: Others */}
@@ -3010,7 +3092,7 @@ function RowEditModal({
                 className="flex flex-col items-center justify-center p-4 rounded-2xl border border-gray-200 bg-gray-50/80 hover:bg-gray-100 text-gray-700 font-bold text-xs transition-all shadow-xs gap-1.5 h-24 cursor-pointer"
               >
                 <i className="fas fa-ellipsis-h text-base" />
-                <span className="text-center">Others</span>
+                <span className="text-center">{t("category.others", "기타")}</span>
               </button>
             </div>
 
@@ -3020,7 +3102,7 @@ function RowEditModal({
                 className="modal-cancel-btn"
                 onClick={() => setShowCategoryModal(false)}
               >
-                cancellation
+                {t("app.cancel", "취소")}
               </button>
             </div>
           </div>
@@ -3866,12 +3948,6 @@ export default function ChangeHistory({
       }
 
       setEditModalLoading(true);
-      setOperationStatus({
-        isVisible: true,
-        status: "loading",
-        message: t("toast.loadingDetail", "Loading details..."),
-        autoClose: false,
-      });
 
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         setEditModalLoading(false);
@@ -3885,7 +3961,6 @@ export default function ChangeHistory({
             setEditModalRow(row);
           }
           setEditingIndex(index);
-          setOperationStatus({ isVisible: false, status: "loading", message: "", autoClose: true });
         } else {
           console.warn("[ChangeHistory] GetMatrixData for edit failed:", status, responseData);
           setEditModalRow(row);
@@ -4151,25 +4226,12 @@ export default function ChangeHistory({
         return;
       }
 
-      setOperationStatus({
-        isVisible: true,
-        status: "loading",
-        message: t("toast.loadingDetail", "Loading details..."),
-        autoClose: false,
-      });
-
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         if (status === 200 && responseData) {
           const detail = parseMatrixDetailResponse(responseData);
           const mappedDetail = detail ? mapMatrixResponseToRow(detail) : null;
           const merged = mappedDetail ? { ...row, ...mappedDetail } : row;
           setDrawerItem(merged);
-          setOperationStatus({
-            isVisible: false,
-            status: "loading",
-            message: "",
-            autoClose: true,
-          });
         } else {
           console.warn("[ChangeHistory] GetMatrixData failed:", status, responseData);
           setOperationStatus({

@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
 import JobPreviewModal from "../components/JobPreviewModal.jsx";
+import JobQuarantineModal from "../components/JobQuarantineModal.jsx";
 
 function HighlightText({ text, query }) {
   if (text === undefined || text === null || text === "") return null;
@@ -42,6 +44,7 @@ export default function Jobs() {
   const [hasMore, setHasMore] = useState(true);
   const [selectedJob, setSelectedJob] = useState(null);
   const [previewJob, setPreviewJob] = useState(null);
+  const [quarantineJob, setQuarantineJob] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const tableContainerRef = useRef(null);
@@ -417,7 +420,7 @@ export default function Jobs() {
                             title={j.has_quarantine ? "View Quarantine Data" : "No Quarantine Data"}
                             onClick={() => {
                               if (j.has_quarantine) {
-                                navigate("/ai-pipeline/quarantine");
+                                setQuarantineJob(j);
                               }
                             }}
                           >
@@ -441,90 +444,100 @@ export default function Jobs() {
       </div>
 
       {/* Eye Icon Job Detail Modal */}
-      {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="card w-full max-w-lg overflow-hidden shadow-2xl space-y-4">
-            <div className="p-4 border-b border-border-base flex items-center justify-between bg-gray-50 dark:bg-gray-800">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <i className="fas fa-eye text-teal-600" />
-                <span>Job Details (#{selectedJob.id})</span>
-              </h3>
-              <button
-                type="button"
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                onClick={() => setSelectedJob(null)}
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
+      {selectedJob &&
+        createPortal(
+          <div className="modal-overlay fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="card w-full max-w-lg overflow-hidden shadow-2xl space-y-4 z-[10001]">
+              <div className="p-4 border-b border-border-base flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                <h3 className="font-bold text-base flex items-center gap-2">
+                  <i className="fas fa-eye text-teal-600" />
+                  <span>Job Details (#{selectedJob.id})</span>
+                </h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                  onClick={() => setSelectedJob(null)}
+                >
+                  <i className="fas fa-times" />
+                </button>
+              </div>
 
-            <div className="p-4 space-y-3 text-xs max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                <span className="font-semibold text-text-subtle">Job ID:</span>
-                <span className="col-span-2 font-mono font-medium">{selectedJob.id}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                <span className="font-semibold text-text-subtle">Uploaded By:</span>
-                <span className="col-span-2 font-medium">
-                  {selectedJob.createdBy ||
-                    selectedJob.created_by_user ||
-                    selectedJob.uploadedBy ||
-                    selectedJob.created_by ||
-                    "-"}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                <span className="font-semibold text-text-subtle">Status:</span>
-                <span className="col-span-2">{getStatusBadge(selectedJob)}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                <span className="font-semibold text-text-subtle">Files:</span>
-                <span className="col-span-2 break-all">
-                  {Array.isArray(selectedJob.files)
-                    ? selectedJob.files.join(", ")
-                    : selectedJob.files || "-"}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                <span className="font-semibold text-text-subtle">Started At:</span>
-                <span className="col-span-2 font-mono">
-                  {selectedJob.created_at || selectedJob.createdAt || "-"}
-                </span>
-              </div>
-              {selectedJob.columns_uncertain && (
+              <div className="p-4 space-y-3 text-xs max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Uncertain Fields:</span>
-                  <span className="col-span-2 text-amber-600 dark:text-amber-400">
-                    {Array.isArray(selectedJob.uncertain_fields)
-                      ? selectedJob.uncertain_fields.join(", ")
-                      : "Yes"}
+                  <span className="font-semibold text-text-subtle">Job ID:</span>
+                  <span className="col-span-2 font-mono font-medium">{selectedJob.id}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                  <span className="font-semibold text-text-subtle">Uploaded By:</span>
+                  <span className="col-span-2 font-medium">
+                    {selectedJob.createdBy ||
+                      selectedJob.created_by_user ||
+                      selectedJob.uploadedBy ||
+                      selectedJob.created_by ||
+                      "-"}
                   </span>
                 </div>
-              )}
-              {selectedJob.error && (
-                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base text-red-600">
-                  <span className="font-semibold">Error:</span>
-                  <span className="col-span-2">{selectedJob.error}</span>
+                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                  <span className="font-semibold text-text-subtle">Status:</span>
+                  <span className="col-span-2">{getStatusBadge(selectedJob)}</span>
                 </div>
-              )}
-            </div>
+                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                  <span className="font-semibold text-text-subtle">Files:</span>
+                  <span className="col-span-2 break-all">
+                    {Array.isArray(selectedJob.files)
+                      ? selectedJob.files.join(", ")
+                      : selectedJob.files || "-"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                  <span className="font-semibold text-text-subtle">Started At:</span>
+                  <span className="col-span-2 font-mono">
+                    {selectedJob.created_at || selectedJob.createdAt || "-"}
+                  </span>
+                </div>
+                {selectedJob.columns_uncertain && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                    <span className="font-semibold text-text-subtle">Uncertain Fields:</span>
+                    <span className="col-span-2 text-amber-600 dark:text-amber-400">
+                      {Array.isArray(selectedJob.uncertain_fields)
+                        ? selectedJob.uncertain_fields.join(", ")
+                        : "Yes"}
+                    </span>
+                  </div>
+                )}
+                {selectedJob.error && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base text-red-600">
+                    <span className="font-semibold">Error:</span>
+                    <span className="col-span-2">{selectedJob.error}</span>
+                  </div>
+                )}
+              </div>
 
-            <div className="p-4 border-t border-border-base flex justify-end gap-2 bg-gray-50 dark:bg-gray-800">
-              <button
-                type="button"
-                className="btn-secondary text-xs px-4"
-                onClick={() => setSelectedJob(null)}
-              >
-                Close
-              </button>
+              <div className="p-4 border-t border-border-base flex justify-end gap-2 bg-gray-50 dark:bg-gray-800">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs px-4 cursor-pointer"
+                  onClick={() => setSelectedJob(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Preview Modal */}
       {previewJob && (
         <JobPreviewModal job={previewJob} onClose={() => setPreviewJob(null)} />
+      )}
+
+      {/* Quarantine Modal */}
+      {quarantineJob && (
+        <JobQuarantineModal
+          job={quarantineJob}
+          onClose={() => setQuarantineJob(null)}
+        />
       )}
     </section>
   );

@@ -807,84 +807,123 @@ export default function Drawer({
 
                   {/* Attachment Section */}
                   {isChangeHistoryView || showAttachments ? (
-                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 space-y-3">
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60">
                       {atts && atts.length > 0 ? (
-                        <div className="space-y-3">
-                          {Object.entries(
-                            atts.reduce((groups, att) => {
-                              const rawCat = att.category || "개선 후";
-                              const catStr = String(rawCat).trim().toLowerCase();
-                              let catKey = "category.afterImprovements";
-                              let fallbackText = "After Improvements";
+                        <div className="flex items-start justify-between gap-3">
+                          {/* Left: Photos grouped by category */}
+                          <div className="space-y-2 flex-1 min-w-0">
+                            {Object.entries(
+                              atts.reduce((groups, att) => {
+                                const rawCat = att.category || att.category_name || "개선 후";
+                                const catStr = String(rawCat).trim().toLowerCase();
+                                let catKey = "category.afterImprovements";
+                                let fallbackText = "After Improvements";
 
-                              if (catStr.includes("problem") || catStr.includes("phenomenon") || catStr.includes("문제")) {
-                                catKey = "category.problemPhenomenon";
-                                fallbackText = "Problem phenomenon";
-                              } else if (catStr.includes("equipment") || catStr.includes("reference") || catStr.includes("설비")) {
-                                catKey = "category.equipmentReference";
-                                fallbackText = "Equipment Reference";
-                              } else if (catStr.includes("other") || catStr.includes("기타")) {
-                                catKey = "category.others";
-                                fallbackText = "Others";
-                              }
+                                if (
+                                  catStr.includes("problem") ||
+                                  catStr.includes("phenomenon") ||
+                                  catStr.includes("문제")
+                                ) {
+                                  catKey = "category.problemPhenomenon";
+                                  fallbackText = "Problem phenomenon";
+                                } else if (
+                                  catStr.includes("equipment") ||
+                                  catStr.includes("reference") ||
+                                  catStr.includes("설비")
+                                ) {
+                                  catKey = "category.equipmentReference";
+                                  fallbackText = "Equipment Reference";
+                                } else if (catStr.includes("other") || catStr.includes("기타")) {
+                                  catKey = "category.others";
+                                  fallbackText = "Others";
+                                }
 
-                              const displayCat = t(catKey, fallbackText);
-                              if (!groups[displayCat]) groups[displayCat] = [];
-                              groups[displayCat].push(att);
-                              return groups;
-                            }, {}),
-                          ).map(([catName, catAtts]) => (
-                            <div key={catName} className="space-y-2">
-                              <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                {catName} ({catAtts.length})
+                                const displayCat = t(catKey, fallbackText);
+                                if (!groups[displayCat]) groups[displayCat] = [];
+                                groups[displayCat].push(att);
+                                return groups;
+                              }, {}),
+                            ).map(([catName, catAtts]) => (
+                              <div key={catName} className="space-y-1.5">
+                                <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                  {catName} ({catAtts.length})
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {catAtts.map((att, aIdx) => {
+                                    const imgUrl =
+                                      att.url ||
+                                      att.previewUrl ||
+                                      att.fileContent ||
+                                      att.image_data ||
+                                      att.imageData ||
+                                      "";
+                                    return (
+                                      <div
+                                        key={att.id || aIdx}
+                                        className="w-24 h-28 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 flex flex-col shadow-2xs hover:shadow-md transition-all bg-white dark:bg-gray-800"
+                                        onClick={() => setPreviewImage(att)}
+                                        title={`${att.name || att.filename || "사진"} (${catName})`}
+                                      >
+                                        <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
+                                          <img
+                                            src={imgUrl}
+                                            alt={att.name || att.filename || "Attachment Preview"}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                          />
+                                        </div>
+                                        <div className="bg-[#43474e] dark:bg-gray-900 text-white text-[10px] font-bold py-0.5 px-1 text-center truncate shrink-0">
+                                          {catName}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 flex-wrap">
-                                {catAtts.map((att, aIdx) => (
-                                  <div
-                                    key={att.id || aIdx}
-                                    className="w-32 h-36 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer group shrink-0 flex flex-col shadow-2xs hover:shadow-md transition-all bg-white dark:bg-gray-800"
-                                    onClick={() => setPreviewImage(att)}
-                                    title={`${att.name || "사진"} (${catName})`}
-                                  >
-                                    <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
-                                      <img
-                                        src={att.url}
-                                        alt={att.name || "Attachment Preview"}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                      />
-                                    </div>
-                                    <div className="bg-[#43474e] dark:bg-gray-900 text-white text-[11px] font-bold py-1 px-2 text-center truncate shrink-0">
-                                      {catName}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+
+                          {/* Right: Edit button aligned to top right */}
+                          {variant === "mpList" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose?.();
+                                const ev = new CustomEvent("openEditRecordFromDrawer", {
+                                  detail: { item: rec },
+                                });
+                                window.dispatchEvent(ev);
+                              }}
+                              className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                            >
+                              <i className="far fa-edit text-xs" />
+                              <span>{t("app.edit", "편집")}</span>
+                            </button>
+                          )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
-                          <i className="far fa-image text-gray-400 text-xs" />
-                          <span>첨부된 사진이 없습니다</span>
-                        </div>
-                      )}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                            <i className="far fa-image text-gray-400 text-xs" />
+                            <span>{t("app.noAttachedPhotos", "첨부된 사진이 없습니다")}</span>
+                          </div>
 
-                      {/* Edit button ONLY shown for MP List view */}
-                      {variant === "mpList" && (
-                        <div className="pt-2 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const ev = new CustomEvent("openEditRecordFromDrawer", {
-                                detail: { item: rec },
-                              });
-                              window.dispatchEvent(ev);
-                            }}
-                            className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <i className="far fa-edit text-xs" />
-                            <span>{t("app.edit", "편집")}</span>
-                          </button>
+                          {/* Edit button when no attachments exist */}
+                          {variant === "mpList" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose?.();
+                                const ev = new CustomEvent("openEditRecordFromDrawer", {
+                                  detail: { item: rec },
+                                });
+                                window.dispatchEvent(ev);
+                              }}
+                              className="px-3 py-1.5 text-xs font-bold text-[#1745c2] dark:text-blue-400 border border-[#1745c2] dark:border-blue-400 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                            >
+                              <i className="far fa-edit text-xs" />
+                              <span>{t("app.edit", "편집")}</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -895,7 +934,7 @@ export default function Drawer({
           </div>
 
           {/* Drawer Footer Buttons Bar */}
-          {showFooter && !isChangeHistoryView && variant !== "matrix" && (showEdit || allowEdit) && (
+          {showFooter && !isChangeHistoryView && variant !== "matrix" && variant !== "mpList" && (showEdit || allowEdit) && (
             <div className="eq-drawer-footer px-5 py-3.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 flex items-center justify-between gap-2 overflow-x-auto">
               <button
                 type="button"

@@ -901,11 +901,16 @@ export default function MPList({
   const [showModal, setShowModal] = useState(false);
   const [showRepSuggestions, setShowRepSuggestions] = useState(false);
   const [newRow, setNewRow] = useState(EMPTY_ROW);
+  const [initialModalRow, setInitialModalRow] = useState(null);
   const [editingRowLocalId, setEditingRowLocalId] = useState(null);
   const [modalError, setModalError] = useState("");
   const [errors, setErrors] = useState({});
   const [modalAttachments, setModalAttachments] = useState([]);
   const [activeModalTab, setActiveModalTab] = useState("problem");
+  const [pendingPhoto, setPendingPhoto] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
 
   // ── Unsaved edits tracking ────────────────────────────────────────────────
   const [isDirty, setIsDirty] = useState(false);
@@ -1663,6 +1668,7 @@ export default function MPList({
   // ── Edit row on click / double click ──────────────────────────────────────────
   const populateEditModal = (row) => {
     if (!row) return;
+    onOpenDetail?.(null);
     setNewRow({
       representativeWork: getColValue(row, "representativeWork"),
       work: getColValue(row, "work"),
@@ -1711,14 +1717,67 @@ export default function MPList({
       maintenanceGroupId: Number(row.maintenanceGroupId ?? row.maintenance_group_id ?? 0) || 0,
       createdBy: row.createdBy ?? row.created_by ?? getUserInfo()?.name ?? "Chirati Harish",
     });
-    const atts =
+
+    const normalizePhotoCategory = (cat) => {
+      if (!cat) return "기타";
+      const c = String(cat).trim();
+      if (c === "Problem phenomenon" || c === "problem" || c === "문제 현상" || c === "문제현상") {
+        return "문제 현상";
+      }
+      if (c === "After Improvements" || c === "after" || c === "개선 후" || c === "개선후") {
+        return "개선 후";
+      }
+      if (c === "Equipment Reference" || c === "equipment" || c === "설비 참고" || c === "설비참고") {
+        return "설비 참고";
+      }
+      return "기타";
+    };
+
+    const rawAtts =
+      row.images ||
       row.attachments ||
       row.photos ||
-      row.images ||
       (row.samplePhoto
         ? [{ id: "sample-1", name: "sample.jpg", url: row.samplePhoto, category: "기타" }]
         : []);
-    setModalAttachments(Array.isArray(atts) ? atts : []);
+
+    const normalizedAtts = (Array.isArray(rawAtts) ? rawAtts : []).map((img, idx) => {
+      const imgData =
+        img.image_data ||
+        img.imageData ||
+        img.fileContent ||
+        img.file_content ||
+        img.previewUrl ||
+        img.url ||
+        "";
+      const cat = normalizePhotoCategory(
+        img.category_name || img.categoryName || img.category || "기타",
+      );
+      const name =
+        img.image_name ||
+        img.imageName ||
+        img.filename ||
+        img.name ||
+        `image_${idx + 1}.png`;
+
+      return {
+        id: img.id || `att-${Date.now()}-${idx}`,
+        name: name,
+        filename: name,
+        url: imgData,
+        previewUrl: imgData,
+        fileContent: imgData,
+        image_data: imgData,
+        image_name: name,
+        category: cat,
+        category_name: cat,
+        caption: img.caption || name,
+        badge: img.badge || "공유",
+      };
+    });
+
+    setModalAttachments(normalizedAtts);
+    setInitialModalRow({ ...row });
     setActiveModalTab("problem");
     setEditingRowLocalId(row._localId || row.id || "temp");
     setModalError("");
@@ -1738,20 +1797,7 @@ export default function MPList({
     }
 
     // Fetch detail from GetMatrixData API, then populate modal
-    setOperationStatus({
-      isVisible: true,
-      status: "loading",
-      message: t("toast.loadingDetail", "Loading details..."),
-      autoClose: false,
-    });
-
     APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
-      setOperationStatus({
-        isVisible: false,
-        status: "loading",
-        message: "",
-        autoClose: true,
-      });
       if (status === 200 && responseData) {
         const detail = parseMatrixDetailResponse(responseData);
         const mapped = detail ? mapMatrixDetailToRow(detail) : null;
@@ -1764,38 +1810,57 @@ export default function MPList({
     });
   };
 
-  const handleFileUploadInModal = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    setUploadError("");
 
-    const activeTabLabel =
-      activeModalTab === "problem"
-        ? "문제 현상"
-        : activeModalTab === "after"
-          ? "개선 후"
-          : activeModalTab === "equipment"
-            ? "설비 참고"
-            : "기타";
+    if (file.type && !file.type.startsWith("image/")) {
+      setUploadError(
+        t("error.invalidImage", "Please select a valid image file (JPG, PNG, WEBP, GIF, etc.)."),
+      );
+      return;
+    }
 
-    files.forEach((file, i) => {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64Str = evt.target.result;
-        const newAtt = {
-          id: `modal-att-${Date.now()}-${i}`,
-          name: file.name,
-          url: base64Str,
-          fileContent: base64Str,
-          category: activeTabLabel,
-        };
-        setModalAttachments((prev) => [...prev, newAtt]);
-      };
-      reader.readAsDataURL(file);
-    });
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError(t("error.imageSizeLimit", "Image size exceeds maximum limit of 5MB."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64String = e.target.result || "";
+      setPendingPhoto({
+        file,
+        previewUrl: base64String,
+        fileContent: base64String,
+        filename: file.name,
+        name: file.name,
+      });
+      setShowCategoryModal(true);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleRemoveModalAttachment = (attId) => {
-    setModalAttachments((prev) => prev.filter((a) => a.id !== attId));
+  const handleAssignCategory = (cat) => {
+    if (!pendingPhoto) return;
+    const newPhoto = {
+      id: `att-${Date.now()}-${Math.random()}`,
+      filename: pendingPhoto.filename || pendingPhoto.name,
+      fileContent: pendingPhoto.fileContent || pendingPhoto.previewUrl || "",
+      previewUrl: pendingPhoto.previewUrl,
+      url: pendingPhoto.previewUrl,
+      name: pendingPhoto.name,
+      category: cat,
+      caption: pendingPhoto.filename || pendingPhoto.name,
+      badge: "추가 대기",
+    };
+    setModalAttachments((prev) => [...(prev || []), newPhoto]);
+    setPendingPhoto(null);
+    setShowCategoryModal(false);
+  };
+
+  const handleRemoveModalAttachment = (photoId) => {
+    setModalAttachments((prev) => (prev || []).filter((p) => p.id !== photoId));
   };
 
   useEffect(() => {
@@ -1890,10 +1955,19 @@ export default function MPList({
       return p.toISOString();
     };
 
-    const rowIdVal = isEditMode ? Number(newRow.id || editingRowLocalId) || 0 : 0;
+    const rowIdVal = isEditMode
+      ? Number(
+          newRow.id ||
+            newRow.changeHistoryId ||
+            newRow.change_history_id ||
+            editingRowLocalId,
+        ) || 0
+      : 0;
 
     const vocItem = {
       id: rowIdVal,
+      changeHistoryId: rowIdVal,
+      change_history_id: rowIdVal,
       repWorkId: Number(newRow.repWorkId ?? newRow.rep_work_id ?? 0) || 0,
       repMappingId: Number(newRow.repWorkId ?? newRow.rep_work_id ?? newRow.repMappingId ?? 0) || 0,
       workOrderId:
@@ -1931,7 +2005,7 @@ export default function MPList({
 
     const payload = {
       vocData: [vocItem],
-      isVoc: true,
+      isVoc: isEditMode ? false : true,
     };
 
     setOperationStatus({
@@ -1988,6 +2062,125 @@ export default function MPList({
       return;
     }
 
+    const attachmentsToSave = [...(modalAttachments || [])];
+
+    const isImageOnlyEdit =
+      isEditMode &&
+      (function () {
+        if (!initialModalRow) return false;
+        const fields = [
+          "representativeWork",
+          "purpose",
+          "situation",
+          "cause",
+          "bom",
+          "sparePart",
+          "hwAsWas",
+          "hwAsIs",
+          "swAsWas",
+          "swAsIs",
+          "priority",
+          "category",
+        ];
+        const hasTextDiff = fields.some(
+          (f) => String(newRow[f] || "").trim() !== String(initialModalRow[f] || "").trim(),
+        );
+        return !hasTextDiff;
+      })();
+
+    // Helper to send SaveImage API request
+    const performSaveImages = (historyIdToUse) => {
+      if (!pocEndPoints?.SAVE_IMAGE || attachmentsToSave.length === 0) return;
+
+      const saveImagePayload = {
+        historyId: historyIdToUse,
+        images: attachmentsToSave.map((photo, idx) => {
+          let cat = photo.category || photo.category_name || "Problem phenomenon";
+          if (cat === "문제 현상" || cat === "problem") cat = "Problem phenomenon";
+          else if (cat === "개선 후" || cat === "after") cat = "After Improvements";
+          else if (cat === "설비 참고" || cat === "equipment") cat = "Equipment Reference";
+          else if (cat === "기타" || cat === "others") cat = "Others";
+
+          const imgData =
+            photo.fileContent ||
+            photo.previewUrl ||
+            photo.url ||
+            photo.image_data ||
+            photo.imageData ||
+            "";
+          const name =
+            photo.filename ||
+            photo.name ||
+            photo.image_name ||
+            photo.imageName ||
+            `image_${idx + 1}.png`;
+
+          return {
+            filename: name,
+            fileContent: imgData,
+            category: cat,
+            caption: photo.caption || name,
+            sortOrder: idx,
+          };
+        }),
+      };
+
+      console.log("[MPList] Calling SaveImage with payload:", saveImagePayload);
+      APIcallPost(pocEndPoints.SAVE_IMAGE, saveImagePayload, {}, (imgRes, imgStatus) => {
+        if (imgStatus >= 200 && imgStatus < 300) {
+          console.log("[MPList] SaveImage API success:", imgRes);
+        } else {
+          console.error("[MPList] SaveImage API failed:", imgStatus, imgRes);
+        }
+      });
+    };
+
+    // If user only uploaded/modified images without altering text fields
+    if (isImageOnlyEdit && attachmentsToSave.length > 0) {
+      const historyIdVal = Number(
+        newRow.id ||
+          newRow.changeHistoryId ||
+          newRow.change_history_id ||
+          editingRowLocalId ||
+          0,
+      );
+
+      performSaveImages(historyIdVal);
+
+      setAllRecords((prev) =>
+        prev.map((r) => {
+          const isMatch =
+            r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+          if (isMatch) {
+            return {
+              ...r,
+              attachments: attachmentsToSave,
+              photos: attachmentsToSave,
+              photoCount: attachmentsToSave.length,
+            };
+          }
+          return r;
+        }),
+      );
+
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다."),
+        autoClose: true,
+      });
+      setNewRow(EMPTY_ROW);
+      setEditingRowLocalId(null);
+      setModalError("");
+      setShowModal(false);
+      fetchMPList();
+      window.dispatchEvent(new Event("refreshMatrixData"));
+      window.dispatchEvent(new Event("refreshMPListData"));
+      window.dispatchEvent(new Event("refreshFilterData"));
+      window.dispatchEvent(new Event("refreshChangeHistoryData"));
+      return;
+    }
+
     APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
       const isDuplicate =
         status === 409 ||
@@ -1997,8 +2190,65 @@ export default function MPList({
           responseData.message.toLowerCase().includes("duplicate"));
 
       if (isDuplicate) {
+        if (attachmentsToSave.length > 0) {
+          const historyIdVal = Number(
+            (responseData?.data?.[0]?.id && responseData?.data?.[0]?.id !== 0
+              ? responseData?.data?.[0]?.id
+              : null) ||
+              responseData?.data?.[0]?.change_history_id ||
+              responseData?.data?.[0]?.changeHistoryId ||
+              responseData?.data?.[0]?.historyId ||
+              responseData?.id ||
+              newRow.id ||
+              newRow.changeHistoryId ||
+              newRow.change_history_id ||
+              editingRowLocalId ||
+              0,
+          );
+
+          performSaveImages(historyIdVal);
+
+          if (isEditMode) {
+            setAllRecords((prev) =>
+              prev.map((r) => {
+                const isMatch =
+                  r._localId === editingRowLocalId || (r.id !== 0 && r.id === editingRowLocalId);
+                if (isMatch) {
+                  return {
+                    ...r,
+                    ...newRow,
+                    attachments: attachmentsToSave,
+                    photos: attachmentsToSave,
+                    photoCount: attachmentsToSave.length,
+                  };
+                }
+                return r;
+              }),
+            );
+          }
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: isEditMode
+              ? t("toast.rowEditedSuccess", "행이 성공적으로 수정되었습니다.")
+              : t("toast.saveSuccess", "저장 성공했습니다."),
+            autoClose: true,
+          });
+          setNewRow(EMPTY_ROW);
+          setEditingRowLocalId(null);
+          setModalError("");
+          setShowModal(false);
+          fetchMPList();
+          window.dispatchEvent(new Event("refreshMatrixData"));
+          window.dispatchEvent(new Event("refreshMPListData"));
+          window.dispatchEvent(new Event("refreshFilterData"));
+          window.dispatchEvent(new Event("refreshChangeHistoryData"));
+          return;
+        }
+
         const dupMsg =
           responseData?.message ||
+          responseData?.data?.message ||
           t("mp.duplicateFound", "1 duplicate record(s) found. Please review.");
 
         setOperationStatus({
@@ -2012,6 +2262,25 @@ export default function MPList({
       }
 
       if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+        // If photos are attached, call SaveImage API
+        if (pocEndPoints?.SAVE_IMAGE && attachmentsToSave.length > 0) {
+          const historyIdVal = Number(
+            (responseData?.data?.[0]?.id && responseData?.data?.[0]?.id !== 0
+              ? responseData?.data?.[0]?.id
+              : null) ||
+              responseData?.data?.[0]?.change_history_id ||
+              responseData?.data?.[0]?.changeHistoryId ||
+              responseData?.data?.[0]?.historyId ||
+              responseData?.id ||
+              newRow.id ||
+              newRow.changeHistoryId ||
+              newRow.change_history_id ||
+              editingRowLocalId ||
+              0,
+          );
+          performSaveImages(historyIdVal);
+        }
+
         if (isEditMode) {
           setAllRecords((prev) =>
             prev.map((r) => {
@@ -2021,9 +2290,9 @@ export default function MPList({
                 return {
                   ...r,
                   ...newRow,
-                  attachments: modalAttachments,
-                  photos: modalAttachments,
-                  photoCount: modalAttachments.length,
+                  attachments: attachmentsToSave,
+                  photos: attachmentsToSave,
+                  photoCount: attachmentsToSave.length,
                 };
               }
               return r;
@@ -2040,8 +2309,13 @@ export default function MPList({
         });
         setNewRow(EMPTY_ROW);
         setEditingRowLocalId(null);
+        setModalError("");
         setShowModal(false);
         fetchMPList();
+        window.dispatchEvent(new Event("refreshMatrixData"));
+        window.dispatchEvent(new Event("refreshMPListData"));
+        window.dispatchEvent(new Event("refreshFilterData"));
+        window.dispatchEvent(new Event("refreshChangeHistoryData"));
       } else {
         console.error("SaveVoc API response:", status, responseData);
         if (isEditMode) {
@@ -2568,34 +2842,15 @@ export default function MPList({
         return;
       }
 
-      setOperationStatus({
-        isVisible: true,
-        status: "loading",
-        message: t("toast.loadingDetail", "Loading details..."),
-        autoClose: false,
-      });
-
       APIcallGet(`${pocEndPoints.GET_MATRIX_DATA}?Id=${rowId}`, {}, (responseData, status) => {
         if (status === 200 && responseData) {
           const detail = parseMatrixDetailResponse(responseData);
           const mapped = detail ? mapMatrixDetailToRow(detail) : null;
           const merged = mapped ? { ...row, ...mapped } : row;
           onOpenDetail(merged);
-          setOperationStatus({
-            isVisible: false,
-            status: "loading",
-            message: "",
-            autoClose: true,
-          });
         } else {
           console.warn("[MPList] GetMatrixData failed:", status, responseData);
           onOpenDetail(row);
-          setOperationStatus({
-            isVisible: false,
-            status: "loading",
-            message: "",
-            autoClose: true,
-          });
         }
       });
     },
@@ -3601,7 +3856,10 @@ export default function MPList({
         }
         description={
           editingRowLocalId !== null
-            ? t("page.mp.modalEditDesc", "VoC 항목을 편집합니다.")
+            ? t(
+                "page.mp.modalEditDesc",
+                "Work Order 항목입니다. 법인과 작업완료일은 수정할 수 없습니다.",
+              )
             : t(
                 "page.mp.modalDesc",
                 "Add new items. The W/O code is automatically emptied and separated from system data.",
@@ -3611,10 +3869,13 @@ export default function MPList({
           setShowModal(false);
           setEditingRowLocalId(null);
           setErrors({});
+          setPendingPhoto(null);
+          setShowCategoryModal(false);
+          setUploadError("");
         }}
         titleIcon={
-          <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            <i className={`fas ${editingRowLocalId !== null ? "fa-pen-to-square" : "fa-plus"}`} />
+          <span className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">
+            <i className="fas fa-plus-circle text-base" />
           </span>
         }
         footer={
@@ -3626,6 +3887,9 @@ export default function MPList({
                 setShowModal(false);
                 setEditingRowLocalId(null);
                 setErrors({});
+                setPendingPhoto(null);
+                setShowCategoryModal(false);
+                setUploadError("");
               }}
             >
               {t("app.cancel", "취소")}
@@ -3644,7 +3908,15 @@ export default function MPList({
         }
       >
         <div className="space-y-3.5">
-          {/* Row 1: Fairness (Process) and Conservation Part (Maintenance Part) in read-only mode */}
+          {/* Error Banner */}
+          {modalError && (
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2 animate-fade-in">
+              <i className="fas fa-exclamation-circle text-sm shrink-0" />
+              <span>{modalError}</span>
+            </div>
+          )}
+
+          {/* Row 1: Process and Maintenance Part (Read-Only) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
@@ -3654,7 +3926,9 @@ export default function MPList({
                 type="text"
                 className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
-                  processList.find((p) => p.id === selectedProcessId)?.processName || "02.배치"
+                  newRow.process ||
+                  processList.find((p) => p.id === selectedProcessId)?.processName ||
+                  "02.배치"
                 }
                 disabled
                 readOnly
@@ -3668,8 +3942,10 @@ export default function MPList({
                 type="text"
                 className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
                 value={
+                  newRow.maintGroup ||
                   equipmentTypeList.find((e) => e.id === selectedEquipmentTypeId)
-                    ?.equipmentTypeName || ""
+                    ?.equipmentTypeName ||
+                  ""
                 }
                 disabled
                 readOnly
@@ -3822,7 +4098,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.bom}
                 onChange={(e) => setField("bom", e.target.value)}
-                placeholder={t("placeholder.bomInput", "BOM Entry")}
+                placeholder={t("placeholder.bomInput", "BOM 입력")}
               />
             </div>
             <div>
@@ -3834,7 +4110,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.sparePart}
                 onChange={(e) => setField("sparePart", e.target.value)}
-                placeholder={t("placeholder.sparePartInput", "Enter material name")}
+                placeholder={t("placeholder.sparePartInput", "자재명 입력")}
               />
             </div>
           </div>
@@ -3850,7 +4126,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsWas}
                 onChange={(e) => setField("hwAsWas", e.target.value)}
-                placeholder={t("placeholder.hwBefore", "Before changing the hardware")}
+                placeholder={t("placeholder.hwBefore", "정보 없음")}
               />
             </div>
             <div>
@@ -3862,7 +4138,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.hwAsIs}
                 onChange={(e) => setField("hwAsIs", e.target.value)}
-                placeholder={t("placeholder.hwAfter", "After changing the hardware")}
+                placeholder={t("placeholder.hwAfter", "정보 없음")}
               />
             </div>
           </div>
@@ -3878,7 +4154,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsWas}
                 onChange={(e) => setField("swAsWas", e.target.value)}
-                placeholder={t("placeholder.swBefore", "Before Software Change")}
+                placeholder={t("placeholder.swBefore", "정보 없음")}
               />
             </div>
             <div>
@@ -3890,7 +4166,7 @@ export default function MPList({
                 className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 value={newRow.swAsIs}
                 onChange={(e) => setField("swAsIs", e.target.value)}
-                placeholder={t("placeholder.swAfter", "After the software change")}
+                placeholder={t("placeholder.swAfter", "정보 없음")}
               />
             </div>
           </div>
@@ -3947,137 +4223,297 @@ export default function MPList({
             </div>
           </div>
 
-          {/* Row 9: Date of Completion and Requesting Corporation */}
+          {/* Row 9: Date of Completion and Requesting Corporation (Read-Only) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.workedOn", "작업완료일")}
               </label>
               <input
-                type="date"
-                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                value={newRow.workedOn}
-                onChange={(e) => setField("workedOn", e.target.value)}
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                value={
+                  (function (val) {
+                    if (!val || String(val).startsWith("0000") || String(val).startsWith("0001"))
+                      return " — ";
+                    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) return val;
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                      const [y, m, d] = val.split("-");
+                      return `${d}-${m}-${y}`;
+                    }
+                    const d = new Date(val);
+                    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return String(val);
+                    return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+                  })(newRow.workedOn || newRow.workDate)
+                }
+                disabled
+                readOnly
               />
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.site", "요청 법인")}
               </label>
-              <select
-                className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                value={newRow.site || ""}
-                onChange={(e) => {
-                  const sName = e.target.value;
-                  const sObj = siteList.find((s) => s.siteName === sName);
-                  setNewRow((prev) => ({
-                    ...prev,
-                    site: sName,
-                    siteId: sObj?.id ?? prev.siteId ?? 1,
-                  }));
-                }}
-              >
-                <option value="">{t("site.selection", "Selection")}</option>
-                {siteList.map((s) => (
-                  <option key={s.id} value={s.siteName}>
-                    {s.siteName}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                value={
+                  newRow.site ||
+                  siteList.find((s) => s.id === selectedSiteId)?.siteName ||
+                  " — "
+                }
+                disabled
+                readOnly
+              />
             </div>
           </div>
 
-          {/* Photo Attachments & Category Tabs */}
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 mt-3 space-y-2">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2 overflow-x-auto">
-              {[
-                { id: "problem", label: "문제 현상" },
-                { id: "after", label: "개선 후" },
-                { id: "equipment", label: "설비 참고" },
-                { id: "others", label: "기타" },
-              ].map((tab) => {
-                const tabCount = modalAttachments.filter((a) => a.category === tab.label).length;
-                const isActive = activeModalTab === tab.id;
+          {/* Row 10: Photo Category Count Badges (Neutral Badges, not Tabs) */}
+          {(() => {
+            const getCat = (a) => {
+              const c = String(a.category || a.category_name || a.categoryName || "").trim();
+              if (c === "Problem phenomenon" || c === "problem" || c === "문제 현상" || c === "문제현상") {
+                return "문제 현상";
+              }
+              if (c === "After Improvements" || c === "after" || c === "개선 후" || c === "개선후") {
+                return "개선 후";
+              }
+              if (c === "Equipment Reference" || c === "equipment" || c === "설비 참고" || c === "설비참고") {
+                return "설비 참고";
+              }
+              return "기타";
+            };
+
+            const problemCount = modalAttachments.filter((a) => getCat(a) === "문제 현상").length;
+            const afterCount = modalAttachments.filter((a) => getCat(a) === "개선 후").length;
+            const equipCount = modalAttachments.filter((a) => getCat(a) === "설비 참고").length;
+            const othersCount = modalAttachments.filter((a) => getCat(a) === "기타").length;
+            const sheetUnit = t("photo.sheetCount", "장");
+
+            return (
+              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold py-1 text-gray-500 dark:text-gray-400">
+                <span className={problemCount > 0 ? "text-blue-600 dark:text-blue-400 font-bold" : ""}>
+                  {t("category.problemPhenomenon", "문제 현상")} {problemCount}{sheetUnit}
+                </span>
+                <span className={afterCount > 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}>
+                  {t("category.afterImprovements", "개선 후")} {afterCount}{sheetUnit}
+                </span>
+                <span className={equipCount > 0 ? "text-blue-600 dark:text-blue-400 font-bold" : ""}>
+                  {t("category.equipmentReference", "설비 참고")} {equipCount}{sheetUnit}
+                </span>
+                <span className={othersCount > 0 ? "text-gray-700 dark:text-gray-200 font-bold" : ""}>
+                  {t("category.others", "기타")} {othersCount}{sheetUnit}
+                </span>
+              </div>
+            );
+          })()}
+
+          {/* Row 11: Photo Dropzone Card */}
+          <div
+            className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-3.5 text-center bg-gray-50/50 dark:bg-gray-800/40 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-100/60 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileSelect(e.dataTransfer.files[0]);
+              }
+            }}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(e.target.files[0]);
+                }
+                e.target.value = "";
+              }}
+            />
+            <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+              <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
+              <span>
+                {t(
+                  "photo.dropzoneHint",
+                  "사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)",
+                )}
+              </span>
+            </div>
+            {uploadError && (
+              <p className="mt-1.5 text-xs font-semibold text-red-500">{uploadError}</p>
+            )}
+          </div>
+
+          {/* Row 12: Uploaded Photo Preview Cards */}
+          {modalAttachments.length > 0 && (
+            <div className="flex flex-wrap gap-3 pt-1">
+              {modalAttachments.map((photo) => {
+                const imgSrc =
+                  photo.url ||
+                  photo.previewUrl ||
+                  photo.fileContent ||
+                  photo.image_data ||
+                  photo.imageData ||
+                  "";
+                const catName =
+                  (function (c) {
+                    if (!c) return t("category.others", "기타");
+                    const s = String(c).trim();
+                    if (s === "Problem phenomenon" || s === "problem" || s === "문제 현상" || s === "문제현상") {
+                      return t("category.problemPhenomenon", "문제 현상");
+                    }
+                    if (s === "After Improvements" || s === "after" || s === "개선 후" || s === "개선후") {
+                      return t("category.afterImprovements", "개선 후");
+                    }
+                    if (s === "Equipment Reference" || s === "equipment" || s === "설비 참고" || s === "설비참고") {
+                      return t("category.equipmentReference", "설비 참고");
+                    }
+                    return t("category.others", "기타");
+                  })(photo.category || photo.category_name || photo.categoryName);
+
+                const isPending = photo.badge === "추가 대기" || photo.isNew;
 
                 return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveModalTab(tab.id)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                      isActive
-                        ? "bg-blue-50 dark:bg-blue-900/40 text-[#1745c2] dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800"
-                        : "text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    }`}
+                  <div
+                    key={photo.id}
+                    className="group relative w-28 h-32 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-2 hover:border-dashed hover:border-blue-500 overflow-hidden flex flex-col bg-white dark:bg-gray-800 shadow-2xs transition-all"
                   >
-                    {tab.label} {tabCount}장
-                  </button>
+                    {/* Top-Left: Status Badge (추가 대기 for new, 공유 for existing) */}
+                    {isPending ? (
+                      <span className="absolute top-1.5 left-1.5 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 z-10 shadow-xs">
+                        <i className="fas fa-check text-[8px]" />
+                        <span>{t("photo.pendingAddition", "추가 대기")}</span>
+                      </span>
+                    ) : (
+                      <span className="absolute top-1.5 left-1.5 bg-[#4f46e5] text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 z-10 shadow-xs">
+                        <i className="fas fa-link text-[8px]" />
+                        <span>{t("photo.shared", "공유")}</span>
+                      </span>
+                    )}
+
+                    {/* Top-Right: Red circular cross delete button - hidden normally, shown on hover */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveModalAttachment(photo.id);
+                      }}
+                      className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[10px] z-10 shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:scale-110 cursor-pointer"
+                      title={t("app.delete", "삭제")}
+                    >
+                      <i className="fas fa-times text-[9px]" />
+                    </button>
+
+                    {/* Thumbnail Image */}
+                    <div className="flex-1 bg-gray-100 dark:bg-gray-900 overflow-hidden relative flex items-center justify-center">
+                      <img
+                        src={imgSrc}
+                        alt={photo.name || photo.filename || photo.image_name || t("field.photo", "사진")}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Bottom Category Bar */}
+                    <div className="bg-[#374151] dark:bg-gray-900 text-white text-[10px] font-bold py-1 px-1 text-center shrink-0 truncate">
+                      {catName}
+                    </div>
+                  </div>
                 );
               })}
             </div>
+          )}
+        </div>
+      </Modal>
 
-            {/* Dropzone & Preview */}
-            <div className="space-y-2">
-              <label className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col items-center justify-center gap-1 hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer bg-gray-50/50 dark:bg-gray-800/40">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileUploadInModal}
-                />
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                  <i className="fas fa-upload text-gray-400 text-xs" />
-                  <span>사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)</span>
+      {/* Category Select Modal */}
+      {showCategoryModal && (
+        <div
+          className="modal-overlay fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          onMouseDown={() => setShowCategoryModal(false)}
+        >
+          <div
+            className="card w-full max-w-sm rounded-2xl p-5 shadow-2xl bg-surface-default border border-border-base space-y-4 animate-scale-up"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between pb-3 border-b border-border-base">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">
+                  <i className="fas fa-image" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-text-default">사진 카테고리 선택</h3>
+                  <p className="text-xs text-text-subtle">업로드할 사진의 카테고리를 선택하세요</p>
                 </div>
-              </label>
+              </div>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                onClick={() => setShowCategoryModal(false)}
+              >
+                <i className="fas fa-times" />
+              </button>
+            </div>
 
-              {/* Thumbnails of current category */}
-              {(() => {
-                const activeLabel =
-                  activeModalTab === "problem"
-                    ? "문제 현상"
-                    : activeModalTab === "after"
-                      ? "개선 후"
-                      : activeModalTab === "equipment"
-                        ? "설비 참고"
-                        : "기타";
-                const catAtts = modalAttachments.filter((a) => a.category === activeLabel);
+            <div className="grid grid-cols-2 gap-3">
+              {/* Category 1: 문제 현상 */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("문제 현상")}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50/70 dark:bg-red-950/40 hover:bg-red-100/80 text-red-600 dark:text-red-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
+              >
+                <i className="fas fa-exclamation-triangle text-base" />
+                <span>문제 현상</span>
+              </button>
 
-                if (catAtts.length === 0) return null;
+              {/* Category 2: 개선 후 */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("개선 후")}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100/80 text-emerald-600 dark:text-emerald-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
+              >
+                <i className="fas fa-check-circle text-base" />
+                <span>개선 후</span>
+              </button>
 
-                return (
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {catAtts.map((att) => (
-                      <div
-                        key={att.id}
-                        className="relative group rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden h-20 bg-gray-100"
-                      >
-                        <img
-                          src={att.url}
-                          alt={att.name || "Attachment"}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveModalAttachment(att.id)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] opacity-90 hover:opacity-100 cursor-pointer"
-                          title="삭제"
-                        >
-                          <i className="fas fa-times" />
-                        </button>
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
-                          {att.name || "사진"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+              {/* Category 3: 설비 참고 */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("설비 참고")}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-blue-200 dark:border-blue-800/60 bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 text-blue-600 dark:text-blue-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
+              >
+                <i className="fas fa-cog text-base" />
+                <span>설비 참고</span>
+              </button>
+
+              {/* Category 4: 기타 */}
+              <button
+                type="button"
+                onClick={() => handleAssignCategory("기타")}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 text-gray-700 dark:text-gray-300 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
+              >
+                <i className="fas fa-ellipsis-h text-base" />
+                <span>기타</span>
+              </button>
+            </div>
+
+            <div className="pt-2 border-t border-border-base flex justify-center">
+              <button
+                type="button"
+                className="btn-base btn-secondary text-xs px-5 py-1.5 cursor-pointer"
+                onClick={() => setShowCategoryModal(false)}
+              >
+                취소
+              </button>
             </div>
           </div>
         </div>
-      </Modal>
+      )}
 
       {/* ── Batch addition of VoC Modal ── */}
       {showBatchModal && (

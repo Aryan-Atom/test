@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
@@ -396,10 +397,23 @@ export default function JobPreviewModal({ job, onClose }) {
     });
   };
 
-  return (
-    <div className="modal-overlay">
+  const isFullyLoaded = totalRows == null ? !hasMore : rows.length >= totalRows || !hasMore;
+  const isSaveDisabled = saving || loading || rows.length === 0 || !isFullyLoaded;
+
+  const saveTooltip = !isFullyLoaded
+    ? `Please scroll down to load all records before saving (${rows.length}/${totalRows != null ? totalRows : rows.length} loaded)`
+    : saving
+    ? "Saving data in progress..."
+    : loading
+    ? "Loading preview data..."
+    : rows.length === 0
+    ? "No rows to save"
+    : `Save all ${rows.length} records`;
+
+  return createPortal(
+    <div className="modal-overlay fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen z-[10000] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in">
       <div
-        className="modal-content relative flex flex-col p-0 overflow-hidden shadow-2xl"
+        className="modal-content relative flex flex-col p-0 overflow-hidden shadow-2xl z-[10001]"
         style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", maxHeight: "88vh" }}
       >
         {/* Saving Overlay */}
@@ -453,8 +467,11 @@ export default function JobPreviewModal({ job, onClose }) {
                 className="text-xs mt-0.5"
                 style={{ color: "var(--color-text-subtle, #6b7280)" }}
               >
-                Total <span className="font-semibold">{rows.length}rows</span> ·{" "}
-                {previewColumns.length + 1}columns · double click on the field to edit
+                Loaded <span className="font-semibold text-text-default">{rows.length}</span> of{" "}
+                <span className="font-semibold text-text-default">
+                  {totalRows != null ? totalRows : rows.length}
+                </span>{" "}
+                rows · {previewColumns.length + 1} columns · double click on the field to edit
               </p>
             </div>
           </div>
@@ -471,7 +488,7 @@ export default function JobPreviewModal({ job, onClose }) {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                All ({rows.length})
+                All ({rows.length}{totalRows != null && totalRows !== rows.length ? ` / ${totalRows}` : ""})
               </button>
               <button
                 type="button"
@@ -623,50 +640,62 @@ export default function JobPreviewModal({ job, onClose }) {
 
         {/* Footer */}
         <div
-          className="flex items-center justify-between gap-3 px-6 py-4 shrink-0"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-3.5 shrink-0"
           style={{
             borderTop: "1px solid var(--color-border-base, #e5e7eb)",
             background: "var(--color-surface-raised, #f9fafb)",
           }}
         >
-          <p className="text-xs text-text-subtle flex items-center gap-1.5">
-            <i className="fas fa-info-circle text-gray-400" />
-            <span>
-              Double click on the field to edit, then click the Save button to save the entire data.
-            </span>
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-text-subtle flex items-center gap-1.5">
+              <i className="fas fa-info-circle text-gray-400" />
+              <span>
+                Double click on the field to edit, then click Save.
+              </span>
+            </p>
+          </div>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="btn-base btn-secondary flex items-center gap-1.5 text-xs px-4 py-2"
+              className="btn-base btn-secondary flex items-center gap-1.5 text-xs px-4 py-2 cursor-pointer"
             >
               <i className="fas fa-times" />
               <span>Cancel</span>
             </button>
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              disabled={saving || loading || rows.length === 0}
-              className="btn-base btn-primary min-w-[130px] justify-center flex items-center gap-1.5 text-xs px-5 py-2"
-            >
-              {saving ? (
-                <>
-                  <i className="fas fa-spinner fa-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-check" />
-                  <span>Save ({rows.length} rows)</span>
-                </>
-              )}
-            </button>
+            <div title={saveTooltip} className="inline-block">
+              <button
+                type="button"
+                onClick={handleSaveAll}
+                disabled={isSaveDisabled}
+                title={saveTooltip}
+                className={`btn-base btn-primary min-w-[140px] justify-center flex items-center gap-1.5 text-xs px-5 py-2 ${
+                  isSaveDisabled
+                    ? "opacity-60 cursor-not-allowed pointer-events-none"
+                    : "cursor-pointer"
+                }`}
+              >
+                {saving ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-check" />
+                    <span>
+                      Save ({rows.length} of {totalRows != null ? totalRows : rows.length} rows)
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
