@@ -39,6 +39,8 @@ const pocEndPoints = {
   AI_PIPELINE_GET_JOBS: `${aiPipelineServer}/api/jobs`,
   AI_PIPELINE_GET_JOB_EXPORTS: `${aiPipelineServer}/api/exports/json`,
   AI_PIPELINE_GET_QUARANTINE: `${aiPipelineServer}/api/quarantine`,
+  AI_PIPELINE_GET_REVIEW: `${aiPipelineServer}/api/review`,
+  AI_PIPELINE_GET_WORK_ITEMS: `${aiPipelineServer}/api/work-items`,
 };
 
 const auth = {

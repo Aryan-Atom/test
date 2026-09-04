@@ -332,6 +332,7 @@ export default function Jobs() {
             <table className="table-base w-full text-left">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-border-base text-xs font-semibold uppercase tracking-wider text-text-subtle">
+                  <th className="px-4 py-3 w-14 text-center">S.No</th>
                   <th className="px-4 py-3">Job ID</th>
                   <th className="px-4 py-3">Files</th>
                   <th className="px-4 py-3">Uploaded By</th>
@@ -341,7 +342,7 @@ export default function Jobs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base text-xs">
-                {filteredJobs.map((j) => {
+                {filteredJobs.map((j, index) => {
                   const fileList = Array.isArray(j.files)
                     ? j.files.join(", ")
                     : j.files || j.fileName || "-";
@@ -363,6 +364,9 @@ export default function Jobs() {
                       key={j.id}
                       className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
                     >
+                      <td className="px-4 py-3 text-center font-mono font-bold text-xs text-text-subtlest">
+                        {index + 1}
+                      </td>
                       <td className="px-4 py-3 font-mono font-medium text-teal-600 dark:text-teal-400">
                         <HighlightText text={j.id} query={searchQuery} />
                       </td>
