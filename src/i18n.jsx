@@ -122,6 +122,8 @@ const translations = {
     "page.matrix.replaceSuggestionTip":
       "기존 작업명 중 선택하거나 새로운 이름을 입력할 수 있습니다.",
     "page.matrix.noChange": "변경 없음",
+    "page.matrix.importance": "중요도",
+    "page.matrix.typesOfEffects": "효과 유형",
     "page.matrix.cancellation": "취소",
     "page.matrix.changeApplied": "변경 적용",
     "page.matrix.applyScopeTitle": "적용 범위",
@@ -536,7 +538,7 @@ const translations = {
     "page.matrix.replaceContentWarning": "Please enter or select content to change.",
     "page.matrix.replaceModalTitle": "Representative Work Name Change",
     "page.matrix.replaceModalDesc":
-      "Batch changes of representative task names, importance, and effect types",
+      "Batch changes of representative work names, priority, and category",
     "page.matrix.jobNameFind": "Before Representative Work Name",
     "page.matrix.changesGroup": "CHANGES",
     "page.matrix.newRepWorkName": "New Representative Work Name",
@@ -549,6 +551,8 @@ const translations = {
     "page.matrix.replaceSuggestionTip":
       "You can select from existing work names or enter a new one.",
     "page.matrix.noChange": "No changes",
+    "page.matrix.importance": "Priority",
+    "page.matrix.typesOfEffects": "Category",
     "page.matrix.cancellation": "cancellation",
     "page.matrix.changeApplied": "Change Applied",
     "page.matrix.applyScopeTitle": "Application Scope",

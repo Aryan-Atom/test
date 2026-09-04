@@ -3055,9 +3055,14 @@ export default function MPList({
                 disabled={!isProcessAndEquipSelected}
                 onClick={() => {
                   if (!isProcessAndEquipSelected) return;
+                  const currentSiteObj =
+                    siteList.find((s) => s.id === selectedSiteId) || siteList[0];
                   setNewRow({
                     ...EMPTY_ROW,
                     workedOn: new Date().toISOString().slice(0, 10),
+                    workDate: new Date().toISOString().slice(0, 10),
+                    site: currentSiteObj?.siteName || "site 1",
+                    siteId: currentSiteObj?.id || selectedSiteId || 1,
                   });
                   setEditingRowLocalId(null);
                   setModalError("");
@@ -3667,23 +3672,37 @@ export default function MPList({
                                 row.photos ||
                                 row.attachments ||
                                 (row.samplePhoto ? [row.samplePhoto] : []);
+                              const rawCount =
+                                row.photos_count !== undefined && row.photos_count !== null
+                                  ? row.photos_count
+                                  : row.photosCount !== undefined && row.photosCount !== null
+                                    ? row.photosCount
+                                    : row.photo_count !== undefined && row.photo_count !== null
+                                      ? row.photo_count
+                                      : row.photoCount !== undefined && row.photoCount !== null
+                                        ? row.photoCount
+                                        : row.attachmentCount;
+                              const numCount =
+                                rawCount !== undefined && rawCount !== null
+                                  ? Number(rawCount)
+                                  : null;
                               const photoCount =
-                                Array.isArray(photoList) && photoList.length > 0
-                                  ? photoList.length
-                                  : row.photoCount ||
-                                    row.attachmentCount ||
-                                    (row.wOCode === "WC09114213" ||
-                                    row.woCode === "WC09114213" ||
-                                    row.samplePhoto
-                                      ? 1
-                                      : 0);
+                                numCount !== null && !isNaN(numCount)
+                                  ? numCount
+                                  : Array.isArray(photoList) && photoList.length > 0
+                                    ? photoList.length
+                                    : (row.wOCode === "WC09114213" ||
+                                      row.woCode === "WC09114213" ||
+                                      row.samplePhoto
+                                        ? 1
+                                        : 0);
 
                               return (
                                 <td key={col} className="px-3 py-2 text-center whitespace-nowrap">
                                   {photoCount > 0 ? (
-                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
                                       <i className="fas fa-camera text-[11px]" />
-                                      <span>{String(photoCount).padStart(2, "0")}</span>
+                                      <span>{photoCount}</span>
                                     </span>
                                   ) : (
                                     <span className="text-gray-300 dark:text-gray-600 text-xs">
@@ -4223,48 +4242,106 @@ export default function MPList({
             </div>
           </div>
 
-          {/* Row 9: Date of Completion and Requesting Corporation (Read-Only) */}
+          {/* Row 9: Date of Completion and Requesting Corporation */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.workedOn", "작업완료일")}
               </label>
-              <input
-                type="text"
-                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
-                value={
-                  (function (val) {
-                    if (!val || String(val).startsWith("0000") || String(val).startsWith("0001"))
-                      return " — ";
-                    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) return val;
-                    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-                      const [y, m, d] = val.split("-");
-                      return `${d}-${m}-${y}`;
-                    }
-                    const d = new Date(val);
-                    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return String(val);
-                    return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-                  })(newRow.workedOn || newRow.workDate)
-                }
-                disabled
-                readOnly
-              />
+              {editingRowLocalId !== null ? (
+                <input
+                  type="text"
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                  value={
+                    (function (val) {
+                      if (!val || String(val).startsWith("0000") || String(val).startsWith("0001"))
+                        return " — ";
+                      if (/^\d{2}-\d{2}-\d{4}$/.test(val)) return val;
+                      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                        const [y, m, d] = val.split("-");
+                        return `${d}-${m}-${y}`;
+                      }
+                      const d = new Date(val);
+                      if (isNaN(d.getTime()) || d.getFullYear() < 2000) return String(val);
+                      return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+                    })(newRow.workedOn || newRow.workDate)
+                  }
+                  disabled
+                  readOnly
+                />
+              ) : (
+                <input
+                  type="date"
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                  value={
+                    (function (val) {
+                      if (!val) return new Date().toISOString().slice(0, 10);
+                      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+                      if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+                        const [d, m, y] = val.split("-");
+                        return `${y}-${m}-${d}`;
+                      }
+                      const d = new Date(val);
+                      if (isNaN(d.getTime()) || d.getFullYear() < 2000)
+                        return new Date().toISOString().slice(0, 10);
+                      return d.toISOString().slice(0, 10);
+                    })(newRow.workedOn || newRow.workDate)
+                  }
+                  onChange={(e) => {
+                    setField("workedOn", e.target.value);
+                    setField("workDate", e.target.value);
+                  }}
+                />
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold text-text-subtle mb-1 block">
                 {t("field.site", "요청 법인")}
               </label>
-              <input
-                type="text"
-                className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
-                value={
-                  newRow.site ||
-                  siteList.find((s) => s.id === selectedSiteId)?.siteName ||
-                  " — "
-                }
-                disabled
-                readOnly
-              />
+              {editingRowLocalId !== null ? (
+                <input
+                  type="text"
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-medium cursor-not-allowed text-xs"
+                  value={
+                    newRow.site ||
+                    siteList.find((s) => s.id === selectedSiteId)?.siteName ||
+                    " — "
+                  }
+                  disabled
+                  readOnly
+                />
+              ) : (
+                <select
+                  className="w-full p-2.5 rounded-xl border border-border-base bg-surface-default text-gray-800 dark:text-gray-100 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                  value={
+                    newRow.site ||
+                    siteList.find((s) => s.id === selectedSiteId)?.siteName ||
+                    siteList[0]?.siteName ||
+                    ""
+                  }
+                  onChange={(e) => {
+                    const sName = e.target.value;
+                    const sObj = (siteList || []).find((s) => s.siteName === sName);
+                    setNewRow((prev) => ({
+                      ...prev,
+                      site: sName,
+                      siteId: sObj?.id ?? prev.siteId ?? 1,
+                    }));
+                  }}
+                >
+                  {siteList && siteList.length > 0 ? (
+                    siteList.map((s) => (
+                      <option key={s.id} value={s.siteName}>
+                        {s.siteName}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={newRow.site || "site 1"}>
+                      {newRow.site || "site 1"}
+                    </option>
+                  )}
+                </select>
+              )}
             </div>
           </div>
 

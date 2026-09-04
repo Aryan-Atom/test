@@ -2096,7 +2096,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
   }, [filtered, mode, columns, equipmentRows]);
 
   // Open replace modal prefilled
-  const openReplaceModal = (taskName, colKey, record = null) => {
+  const openReplaceModal = (taskName, colKey, record = null, tasksListOverride = null) => {
     if (selectedProcess === "전체" || selectedMaintenance === "전체") {
       alert(t("page.matrix.selectWarning", "공정과 보전파트를 먼저 선택하세요."));
       return;
@@ -2110,61 +2110,110 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         getColValue(r, "maintGroup") === selectedMaintenance,
     );
 
-    const eqCode = record ? getColValue(record, "equipmentCode") : null;
-    const eqName = record ? getColValue(record, "equipmentName") : null;
-    const targetDate =
-      colKey || (record ? getFormattedDateString(getColValue(record, "workedOn")) : null);
+    let resolvedTaskName = "";
+    let resolvedTasksList = [];
 
-    let cellRecords = currentMaintRecords;
-    if (eqCode || eqName) {
-      const eqMatched = cellRecords.filter(
-        (r) =>
-          (!eqCode || getColValue(r, "equipmentCode") === eqCode) &&
-          (!eqName || getColValue(r, "equipmentName") === eqName),
-      );
-      if (eqMatched.length > 0) {
-        cellRecords = eqMatched;
+    if (mode === X_AXIS_MODE.DATE || mode === "date") {
+      // In Date mode:
+      let cellTasks = [];
+      if (Array.isArray(tasksListOverride) && tasksListOverride.length > 0) {
+        cellTasks = [...new Set(tasksListOverride.filter(Boolean))];
+      } else {
+        const eqCode = record ? getColValue(record, "equipmentCode") : null;
+        const eqName = record ? getColValue(record, "equipmentName") : null;
+        const targetDate =
+          colKey || (record ? getFormattedDateString(getColValue(record, "workedOn")) : null);
+
+        let cellRecords = currentMaintRecords;
+        if (eqCode || eqName) {
+          const eqMatched = cellRecords.filter(
+            (r) =>
+              (!eqCode || getColValue(r, "equipmentCode") === eqCode) &&
+              (!eqName || getColValue(r, "equipmentName") === eqName),
+          );
+          if (eqMatched.length > 0) {
+            cellRecords = eqMatched;
+          }
+        }
+
+        if (targetDate) {
+          const dateMatched = cellRecords.filter(
+            (r) => getFormattedDateString(getColValue(r, "workedOn")) === targetDate,
+          );
+          if (dateMatched.length > 0) {
+            cellRecords = dateMatched;
+          }
+        }
+
+        cellTasks = [
+          ...new Set(cellRecords.map((r) => getColValue(r, "representativeWork")).filter(Boolean)),
+        ];
       }
-    }
 
-    if (targetDate && mode === "date") {
-      const dateMatched = cellRecords.filter(
-        (r) => getFormattedDateString(getColValue(r, "workedOn")) === targetDate,
-      );
-      if (dateMatched.length > 0) {
-        cellRecords = dateMatched;
+      if (cellTasks.length > 1) {
+        resolvedTasksList = cellTasks;
+        resolvedTaskName =
+          taskName && cellTasks.includes(taskName) ? taskName : cellTasks[0];
+      } else if (cellTasks.length === 1) {
+        resolvedTasksList = [];
+        resolvedTaskName = cellTasks[0];
+      } else {
+        resolvedTasksList = [];
+        resolvedTaskName = taskName || "";
       }
+    } else {
+      // In Work Name mode:
+      const colRepName =
+        (typeof colKey === "object" ? colKey?.repWorkName : colKey) ||
+        taskName ||
+        (record ? getColValue(record, "representativeWork") : "") ||
+        "";
+      resolvedTaskName = colRepName;
+      resolvedTasksList = []; // Single specific representative name for that column
     }
-
-    const matchedTasks = [
-      ...new Set(cellRecords.map((r) => getColValue(r, "representativeWork")).filter(Boolean)),
-    ];
-
-    let resolvedTaskName = taskName || matchedTasks[0] || "";
-    let resolvedTasksList = matchedTasks.length > 1 ? matchedTasks : [];
 
     setReplaceTargetTask(resolvedTaskName);
     setReplaceTargetTasksList(resolvedTasksList);
 
-    // Prepopulate priority and effect type if they already exist in the matched records / clicked record
+    // Prepopulate priority and effect type if they already exist in representations / matched records / clicked record
     let existingPriority = "";
     let existingCategory = "";
 
-    if (record) {
+    if (record && getColValue(record, "representativeWork") === resolvedTaskName) {
       existingPriority = getColValue(record, "priority");
       existingCategory = getColValue(record, "category");
     }
 
     if (!existingPriority && !existingCategory && resolvedTaskName) {
-      const matchedRecords = currentMaintRecords.filter(
-        (r) => getColValue(r, "representativeWork") === resolvedTaskName,
+      const repObj = (filterPayload?.representations || []).find(
+        (r) => (r.representativeWorkName || r.workName) === resolvedTaskName,
       );
-      if (matchedRecords.length > 0) {
-        const firstWithPriority =
-          matchedRecords.find((r) => getColValue(r, "priority") || getColValue(r, "category")) ||
-          matchedRecords[0];
-        existingPriority = getColValue(firstWithPriority, "priority");
-        existingCategory = getColValue(firstWithPriority, "category");
+      if (repObj) {
+        if (repObj.priorityName || repObj.priority) {
+          existingPriority = repObj.priorityName || repObj.priority;
+        } else if (repObj.priorityId) {
+          const priObj = priorityList.find((p) => p.id === repObj.priorityId);
+          if (priObj) existingPriority = priObj.priorityName;
+        }
+        if (repObj.categoryName || repObj.category) {
+          existingCategory = repObj.categoryName || repObj.category;
+        } else if (repObj.categoryId) {
+          const catObj = categoryList.find((c) => c.id === repObj.categoryId);
+          if (catObj) existingCategory = catObj.categoryName;
+        }
+      }
+
+      if (!existingPriority || !existingCategory) {
+        const matchedRecords = currentMaintRecords.filter(
+          (r) => getColValue(r, "representativeWork") === resolvedTaskName,
+        );
+        if (matchedRecords.length > 0) {
+          const firstWithVal =
+            matchedRecords.find((r) => getColValue(r, "priority") || getColValue(r, "category")) ||
+            matchedRecords[0];
+          if (!existingPriority) existingPriority = getColValue(firstWithVal, "priority");
+          if (!existingCategory) existingCategory = getColValue(firstWithVal, "category");
+        }
       }
     }
 
@@ -3473,8 +3522,32 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                               className="absolute top-[2px] right-[4px] text-[9px] opacity-0 group-hover:opacity-100 transition-all duration-200 text-text-subtle bg-white border border-[#e2e8f0] rounded-[4px] px-1 py-0.5 shadow-sm hover:text-[#4f46e5] hover:scale-105 active:scale-95 z-20 cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const firstTask = getColValue(matched[0], "representativeWork");
-                                openReplaceModal(firstTask, col.repWorkName || col, matched[0]);
+                                if (mode === X_AXIS_MODE.DATE || mode === "date") {
+                                  const cellTasks = [
+                                    ...new Set(
+                                      matched
+                                        .map((r) => getColValue(r, "representativeWork"))
+                                        .filter(Boolean),
+                                    ),
+                                  ];
+                                  openReplaceModal(
+                                    cellTasks[0] || "",
+                                    colKey,
+                                    matched[0],
+                                    cellTasks,
+                                  );
+                                } else {
+                                  const colRepName =
+                                    col.repWorkName ||
+                                    (typeof col === "string" ? col : "") ||
+                                    getColValue(matched[0], "representativeWork");
+                                  openReplaceModal(
+                                    colRepName,
+                                    colRepName,
+                                    matched[0],
+                                    [colRepName],
+                                  );
+                                }
                               }}
                             >
                               <i className="fas fa-pen text-[8px]" />
@@ -3507,7 +3580,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                   <p className="modal-description">
                     {t(
                       "page.matrix.replaceModalDesc",
-                      "Batch changes of representative task names, importance, and effect types",
+                      "Batch changes of representative work names, priority, and category",
                     )}
                   </p>
                 </div>
@@ -3553,10 +3626,28 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                             );
                           }
 
-                          if (foundRecord) {
-                            setNewPriority(getColValue(foundRecord, "priority"));
-                            setNewCategory(getColValue(foundRecord, "category"));
-                          } else {
+                          let pVal = foundRecord ? getColValue(foundRecord, "priority") : "";
+                          let cVal = foundRecord ? getColValue(foundRecord, "category") : "";
+
+                          if (!pVal && !cVal) {
+                            const repObj = (filterPayload?.representations || []).find(
+                              (r) => (r.representativeWorkName || r.workName) === nextTask,
+                            );
+                            if (repObj) {
+                              pVal =
+                                repObj.priorityName ||
+                                repObj.priority ||
+                                priorityList.find((p) => p.id === repObj.priorityId)?.priorityName ||
+                                "";
+                              cVal =
+                                repObj.categoryName ||
+                                repObj.category ||
+                                categoryList.find((c) => c.id === repObj.categoryId)?.categoryName ||
+                                "";
+                            }
+                          }
+
+                          if (!pVal && !cVal) {
                             const matchedRecords = currentMaintRecords.filter(
                               (r) => getColValue(r, "representativeWork") === nextTask,
                             );
@@ -3565,13 +3656,13 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                                 matchedRecords.find(
                                   (r) => getColValue(r, "priority") || getColValue(r, "category"),
                                 ) || matchedRecords[0];
-                              setNewPriority(getColValue(firstWithVal, "priority"));
-                              setNewCategory(getColValue(firstWithVal, "category"));
-                            } else {
-                              setNewPriority("");
-                              setNewCategory("");
+                              pVal = getColValue(firstWithVal, "priority");
+                              cVal = getColValue(firstWithVal, "category");
                             }
                           }
+
+                          setNewPriority(pVal || "");
+                          setNewCategory(cVal || "");
                         } else {
                           setNewPriority("");
                           setNewCategory("");
@@ -3632,7 +3723,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
                     <label className="modal-field-label mb-1.5">
-                      {t("page.matrix.importance", "Importance")}
+                      {t("page.matrix.importance", "Priority")}
                     </label>
                     <select
                       className="modal-select"
@@ -3653,7 +3744,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
 
                   <div>
                     <label className="modal-field-label mb-1.5">
-                      {t("page.matrix.typesOfEffects", "Types of effects")}
+                      {t("page.matrix.typesOfEffects", "Category")}
                     </label>
                     <select
                       className="modal-select"
