@@ -1,0 +1,415 @@
+/* Modal Overlay */
+.ai-prompt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Container */
+.ai-prompt-modal-card {
+  width: min(100%, 860px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-default, #ffffff);
+  border: 1px solid var(--border-base, #e2e8f0);
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  color: var(--text-default, #0f172a);
+}
+
+/* Modal Header */
+.ai-prompt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border-base, #e2e8f0);
+  background: var(--surface-subtle, #f8fafc);
+}
+
+.ai-prompt-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-prompt-modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-default, #0f172a);
+}
+
+.ai-prompt-header-sub {
+  font-size: 13px;
+  color: var(--text-subtle, #64748b);
+  font-weight: 400;
+}
+
+.ai-prompt-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  color: var(--text-subtle, #64748b);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.ai-prompt-close-btn:hover {
+  background: var(--border-base, #e2e8f0);
+  color: var(--text-default, #0f172a);
+}
+
+/* Status Pill */
+.prompt-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 9px;
+  border-radius: 9999px;
+}
+
+.prompt-pill.original {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.prompt-pill.edited {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+[data-theme="dark"] .prompt-pill.original {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .prompt-pill.edited {
+  background: #1e3a8a;
+  color: #93c5fd;
+  border-color: #1e40af;
+}
+
+/* Modal Body */
+.ai-prompt-modal-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+/* Banner */
+.prompt-banner {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #1e40af;
+  line-height: 1.5;
+}
+
+[data-theme="dark"] .prompt-banner {
+  background: rgba(30, 58, 138, 0.25);
+  border-left-color: #60a5fa;
+  color: #bfdbfe;
+}
+
+/* Alerts */
+.prompt-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 9px 13px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.prompt-saved {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 9px 13px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.prompt-warning {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #b45309;
+  padding: 9px 13px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+[data-theme="dark"] .prompt-error {
+  background: rgba(153, 27, 27, 0.25);
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .prompt-saved {
+  background: rgba(22, 101, 52, 0.25);
+  border-color: #14532d;
+  color: #86efac;
+}
+
+[data-theme="dark"] .prompt-warning {
+  background: rgba(146, 64, 14, 0.25);
+  border-color: #78350f;
+  color: #fde047;
+}
+
+/* Segments Container */
+.prompt-segments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prompt-segment-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle, #64748b);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Textarea */
+.prompt-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 12px 14px;
+  background: var(--surface-default, #ffffff);
+  border: 1px solid var(--border-base, #cbd5e1);
+  border-radius: 8px;
+  color: var(--text-default, #0f172a);
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="dark"] .prompt-textarea {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+/* Locked Block */
+.prompt-locked {
+  background: var(--surface-subtle, #f8fafc);
+  border: 1px solid var(--border-base, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.prompt-locked-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-default, #334155);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prompt-locked-head .muted {
+  color: var(--text-subtle, #64748b);
+  font-weight: 400;
+}
+
+.prompt-locked-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-default, #334155);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--border-base, #cbd5e1);
+}
+
+[data-theme="dark"] .prompt-locked {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+[data-theme="dark"] .prompt-locked-pre {
+  background: #111827;
+  border-color: #374151;
+  color: #94a3b8;
+}
+
+/* Prompt Sub-Footer */
+.prompt-sub-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-subtle, #f8fafc);
+  border: 1px solid var(--border-base, #e2e8f0);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.prompt-blurb {
+  font-size: 12px;
+  color: var(--text-subtle, #64748b);
+}
+
+.prompt-blurb .m {
+  font-weight: 600;
+  color: var(--text-default, #334155);
+}
+
+.prompt-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Buttons */
+.prompt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-base, #cbd5e1);
+  background: var(--surface-default, #ffffff);
+  color: var(--text-default, #334155);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.prompt-btn:hover:not(:disabled) {
+  background: var(--surface-subtle, #f1f5f9);
+}
+
+.prompt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prompt-btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.prompt-btn.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+/* Modal Bottom Footer (Upload Section) */
+.ai-prompt-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border-base, #e2e8f0);
+  background: var(--surface-subtle, #f8fafc);
+}
+
+.upload-instruction {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-default, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.upload-subtitle {
+  font-size: 11.5px;
+  color: var(--text-subtle, #64748b);
+}
+
+.upload-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-upload-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: #10b981;
+  border: 1px solid #059669;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s;
+}
+
+.btn-upload-file:hover:not(:disabled) {
+  background: #059669;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.btn-upload-file:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

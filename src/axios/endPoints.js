@@ -3,7 +3,7 @@ const redirection = {
 };
 
 const aiPipelineServer = (
-  import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || ""
+  import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
 ).replace(/\/+$/, "");
 
 const pocEndPoints = {
@@ -41,6 +41,9 @@ const pocEndPoints = {
   AI_PIPELINE_GET_QUARANTINE: `${aiPipelineServer}/api/quarantine`,
   AI_PIPELINE_GET_REVIEW: `${aiPipelineServer}/api/review`,
   AI_PIPELINE_GET_WORK_ITEMS: `${aiPipelineServer}/api/work-items`,
+  AI_PIPELINE_PROMPTS: `${aiPipelineServer}/api/prompts`,
+  AI_PIPELINE_SAVE_PROMPT: (name) => `${aiPipelineServer}/api/prompts/${encodeURIComponent(name)}`,
+  AI_PIPELINE_RESET_PROMPT: (name) => `${aiPipelineServer}/api/prompts/${encodeURIComponent(name)}/reset`,
 };
 
 const auth = {

@@ -13,6 +13,7 @@ import Pagination from "../components/Pagination.jsx";
 import SortableTh from "../components/SortableTh.jsx";
 import Modal from "../components/Modal.jsx";
 import Drawer from "../components/Drawer.jsx";
+import AiPipelinePromptModal from "../components/AiPipelinePromptModal.jsx";
 import { useI18n } from "../i18n.jsx";
 import { isStaticDataMode, isLoadTableDataOnload } from "../utils/staticDataMode.js";
 import {
@@ -3165,6 +3166,7 @@ export default function ChangeHistory({
   });
   const fileInput = useRef(null);
   const aiFileInput = useRef(null);
+  const [isAiPromptModalOpen, setIsAiPromptModalOpen] = useState(false);
   const getFilterDataRef = useRef(null);
 
   const filterLoading = filterPayload === null && filterError === null;
@@ -4810,10 +4812,8 @@ export default function ChangeHistory({
     }
   };
 
-  const handleAiPipelineUpload = async (event) => {
-    const file = event.target.files?.[0];
+  const uploadAiPipelineFile = async (file) => {
     if (!file) return;
-    event.target.value = "";
     setAiImportBusy(true);
 
     setOperationStatus({
@@ -4829,7 +4829,7 @@ export default function ChangeHistory({
 
       const userInfo = getUserInfo();
       const createdBy = userInfo?.name || getUserDisplayName(userInfo) || "admin";
-      const baseUrl = pocEndPoints.AI_PIPELINE_UPLOAD;
+      const baseUrl = pocEndPoints.AI_PIPELINE_UPLOAD || "http://107.108.32.188:8001/api/uploads/auto";
       const separator = baseUrl.includes("?") ? "&" : "?";
       const apiUrl = `${baseUrl}${separator}created_by=${encodeURIComponent(createdBy)}`;
 
@@ -4879,6 +4879,13 @@ export default function ChangeHistory({
     } finally {
       setAiImportBusy(false);
     }
+  };
+
+  const handleAiPipelineUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+    await uploadAiPipelineFile(file);
   };
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -5472,7 +5479,7 @@ export default function ChangeHistory({
             </AnimatedActionButton>
             <AnimatedActionButton
               className="btn-secondary"
-              onClick={() => aiFileInput.current?.click()}
+              onClick={() => setIsAiPromptModalOpen(true)}
               busy={aiImportBusy}
               busyLabel="AI Pipeline..."
               icon="fas fa-robot"
@@ -5486,6 +5493,17 @@ export default function ChangeHistory({
               className="hidden"
               onChange={handleAiPipelineUpload}
             />
+            {isAiPromptModalOpen && (
+              <AiPipelinePromptModal
+                isOpen={isAiPromptModalOpen}
+                onClose={() => setIsAiPromptModalOpen(false)}
+                onUploadFile={async (file) => {
+                  setIsAiPromptModalOpen(false);
+                  await uploadAiPipelineFile(file);
+                }}
+                isUploading={aiImportBusy}
+              />
+            )}
             <AnimatedActionButton
               className="btn-secondary"
               onClick={() => fileInput.current?.click()}
