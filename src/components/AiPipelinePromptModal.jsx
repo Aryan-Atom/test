@@ -20,7 +20,11 @@ export default function AiPipelinePromptModal({
   const [busy, setBusy] = useState(false);
   const [drafts, setDrafts] = useState({}); // segment index -> edited text
   const [saved, setSaved] = useState(null); // transient confirmation
+  const [isExpanded, setIsExpanded] = useState(false); // Collapsed by default
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+  const promptSectionRef = useRef(null);
+  const modalBodyRef = useRef(null);
 
   // Load prompts directly from API
   const loadPrompts = useCallback(async () => {
@@ -40,6 +44,7 @@ export default function AiPipelinePromptModal({
   useEffect(() => {
     if (isOpen) {
       loadPrompts();
+      setIsExpanded(false); // Default collapsed on open
     }
   }, [isOpen, loadPrompts]);
 
@@ -150,6 +155,30 @@ export default function AiPipelinePromptModal({
     }
   }
 
+  // Drag and drop handlers
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (onUploadFile) {
+      onUploadFile(file);
+    }
+  }
+
   if (!isOpen) return null;
 
   const modalContent = (
@@ -165,17 +194,20 @@ export default function AiPipelinePromptModal({
         role="dialog"
         aria-modal="true"
       >
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.csv,.xls"
+          style={{ display: "none" }}
+          onChange={handleFileSelected}
+        />
+
         {/* Modal Header */}
         <div className="ai-prompt-modal-header">
-          <div className="ai-prompt-header-left">
-            <h3 className="ai-prompt-modal-title">
-              <i className="fas fa-robot text-[#1745c2]" />
-              <span>{LABEL_BOLD}</span>
-              <span className="ai-prompt-header-sub">{LABEL_MUTED}</span>
-            </h3>
-            <span className={`prompt-pill ${isEdited ? "edited" : "original"}`}>
-              {isEdited ? "edited" : "original"}
-            </span>
+          <div className="ai-prompt-header-title">
+            <i className="fas fa-robot text-[#1745c2]" />
+            <span>AI Pipeline Import</span>
           </div>
 
           <button
@@ -190,170 +222,235 @@ export default function AiPipelinePromptModal({
         </div>
 
         {/* Modal Body */}
-        <div className="ai-prompt-modal-body">
-          <div className="prompt-banner">
-            <b>An edit applies to the next run only.</b> Nothing already loaded
-            is reprocessed — existing work items keep the fields they have, so a
-            change here will not correct output you are unhappy with.
+        <div ref={modalBodyRef} className="ai-prompt-modal-body">
+          {/* Top: Drag & Drop Spreadsheet Area */}
+          <div
+            className={`prompt-dropzone ${isDragging ? "dragging" : ""} ${isExpanded ? "collapsed-dropzone" : ""}`}
+            onClick={handleTriggerFileInput}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="prompt-dropzone-icon">
+              <svg
+                width="34"
+                height="42"
+                viewBox="0 0 34 42"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 5C2 3.34315 3.34315 2 5 2H22L32 12V37C32 38.6569 30.6569 40 29 40H5C3.34315 40 2 38.6569 2 37V5Z"
+                  stroke="#94a3b8"
+                  strokeWidth="2.2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M21 2V13H32"
+                  stroke="#94a3b8"
+                  strokeWidth="2.2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8 20H26"
+                  stroke="#94a3b8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M8 26H26"
+                  stroke="#94a3b8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M8 32H18"
+                  stroke="#94a3b8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="prompt-dropzone-title">
+              {t("app.dropSpreadsheet", "Drop a work-report spreadsheet")}
+            </div>
+            <div className="prompt-dropzone-subtitle">
+              or{" "}
+              <span
+                className="prompt-dropzone-browse"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTriggerFileInput();
+                }}
+              >
+                browse
+              </span>{" "}
+              — .xlsx exported from the data portal
+            </div>
           </div>
 
-          {error && <div className="prompt-error">{error}</div>}
-          {saved && <div className="prompt-saved">{saved}</div>}
-
-          {/* Integrity warnings — advisory only, never blocks a save */}
-          {(prompt?.warnings || []).map((w, i) => (
-            <div key={i} className="prompt-warning">
-              <i className="fas fa-exclamation-triangle mr-1" /> {w}
-            </div>
-          ))}
-
-          {/* Render the segments IN ORDER:
-              Editable pieces are textareas; locked block is read-only preformatted block */}
-          <div className="prompt-segments-list">
-            {prompt ? (
-              prompt.segments.map((seg, i) =>
-                seg.locked ? (
-                  <div key={i} className="prompt-locked">
-                    <div className="prompt-locked-head">
-                      <i className="fas fa-lock text-xs text-gray-500" />
-                      <span>
-                        Fixed — the output fields and their allowed values
-                      </span>
-                      <span className="muted">
-                        · read by the pipeline, so not editable
-                      </span>
-                    </div>
-                    <pre className="prompt-locked-pre">{seg.text}</pre>
-                  </div>
-                ) : (
-                  <div key={i} className="prompt-editable-segment">
-                    <div className="prompt-segment-label">
-                      <i className="fas fa-edit text-xs text-blue-500" />
-                      <span>Editable Segment {i + 1}</span>
-                    </div>
-                    <textarea
-                      className="prompt-textarea"
-                      value={drafts[i] ?? seg.text}
-                      onChange={(e) => setDraft(i, e.target.value)}
-                      rows={Math.min(
-                        14,
-                        Math.max(6, (drafts[i] ?? seg.text).split("\n").length + 1)
-                      )}
-                      spellCheck={false}
-                    />
-                  </div>
-                )
-              )
-            ) : loading ? (
-              <div className="p-8 text-center text-sm text-text-subtle">
-                <i className="fas fa-spinner fa-spin mr-2 text-base text-[#1745c2]" />
-                <span>Loading prompt from API...</span>
+          {/* Bottom: Prompt wording (Collapsed by default, expand on click) */}
+          <section ref={promptSectionRef} className="prompt-editor-section">
+            <button
+              type="button"
+              className="prompt-toggle-btn"
+              aria-expanded={isExpanded}
+              onClick={() => {
+                setIsExpanded((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setTimeout(() => {
+                      if (modalBodyRef.current) {
+                        modalBodyRef.current.scrollTo({
+                          top: 140,
+                          behavior: "smooth",
+                        });
+                      }
+                    }, 100);
+                  }
+                  return next;
+                });
+              }}
+            >
+              <div className="prompt-toggle-left">
+                <b>{LABEL_BOLD}</b>{" "}
+                <span className="prompt-toggle-sub">{LABEL_MUTED}</span>
               </div>
-            ) : (
-              <div className="p-6 text-center text-sm text-gray-500">
-                <p className="mb-3 text-red-600 dark:text-red-400">
-                  {error || "Could not load prompt data from API."}
-                </p>
-                <button
-                  type="button"
-                  className="prompt-btn"
-                  onClick={loadPrompts}
-                >
-                  <i className="fas fa-redo mr-1" /> Retry
-                </button>
+              <div className="prompt-toggle-right">
+                <span className={`prompt-pill ${isEdited ? "edited" : "original"}`}>
+                  {isEdited ? "edited" : "original"}
+                </span>
+                <span className="prompt-chevron" aria-hidden="true">
+                  {isExpanded ? "▲" : "▼"}
+                </span>
+              </div>
+            </button>
+
+            {/* Expanded Prompt Details */}
+            {isExpanded && (
+              <div className="prompt-expanded-content">
+                <div className="prompt-banner">
+                  <b>An edit applies to the next run only.</b> Nothing already
+                  loaded is reprocessed — existing work items keep the fields
+                  they have, so a change here will not correct output you are
+                  unhappy with.
+                </div>
+
+                {error && <div className="prompt-error">{error}</div>}
+                {saved && <div className="prompt-saved">{saved}</div>}
+
+                {/* Integrity warnings */}
+                {(prompt?.warnings || []).map((w, i) => (
+                  <div key={i} className="prompt-warning">
+                    <i className="fas fa-exclamation-triangle mr-1" /> {w}
+                  </div>
+                ))}
+
+                {/* Segments: Editable textareas & locked code block */}
+                <div className="prompt-segments-list">
+                  {loading && !prompt ? (
+                    <div className="p-8 text-center text-sm text-text-subtle">
+                      <i className="fas fa-spinner fa-spin mr-2 text-base text-[#1745c2]" />
+                      <span>Loading prompt from API...</span>
+                    </div>
+                  ) : prompt ? (
+                    prompt.segments.map((seg, i) =>
+                      seg.locked ? (
+                        <div key={i} className="prompt-locked">
+                          <div className="prompt-locked-head">
+                            <i className="fas fa-lock text-xs text-amber-500" />
+                            <span>
+                              Fixed Output Schema (Locked)
+                            </span>
+                            <span className="muted">
+                              · read by the pipeline, non-editable
+                            </span>
+                          </div>
+                          <pre className="prompt-locked-pre">{seg.text}</pre>
+                        </div>
+                      ) : (
+                        <div key={i} className="prompt-editable-segment">
+                          <div className="prompt-segment-label">
+                            <i className="fas fa-edit text-xs text-blue-500" />
+                            <span>
+                              {i === 0
+                                ? "Editable Segment 1 (Preamble & Statistics Rules)"
+                                : `Editable Segment 2 (Classification & Naming Rules)`}
+                            </span>
+                          </div>
+                          <textarea
+                            className="prompt-textarea"
+                            value={drafts[i] ?? seg.text}
+                            onChange={(e) => setDraft(i, e.target.value)}
+                            rows={Math.min(
+                              10,
+                              Math.max(
+                                5,
+                                (drafts[i] ?? seg.text).split("\n").length + 1
+                              )
+                            )}
+                            spellCheck={false}
+                          />
+                        </div>
+                      )
+                    )
+                  ) : (
+                    <div className="p-6 text-center text-sm text-gray-500">
+                      <p className="mb-3 text-red-600 dark:text-red-400">
+                        {error || "Could not load prompt data from API."}
+                      </p>
+                      <button
+                        type="button"
+                        className="prompt-btn"
+                        onClick={loadPrompts}
+                      >
+                        <i className="fas fa-redo mr-1" /> Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sub-footer for Prompt Save / Reset */}
+                {prompt && (
+                  <div className="prompt-sub-footer">
+                    <span className="prompt-blurb">
+                      {prompt.blurb}{" "}
+                      <span className="m">· version {prompt.version}</span>
+                    </span>
+                    <div className="prompt-actions">
+                      <button
+                        type="button"
+                        className="prompt-btn"
+                        onClick={handleResetPrompt}
+                        disabled={busy || !isEdited || isUploading}
+                      >
+                        <i className="fas fa-undo text-xs" />
+                        <span>Reset to original</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="prompt-btn primary"
+                        onClick={handleSavePrompt}
+                        disabled={busy || !dirty || isUploading}
+                      >
+                        {busy ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin text-xs" />
+                            <span>Saving…</span>
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-save text-xs" />
+                            <span>Save wording</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-
-          {/* Sub-footer for Prompt Save / Reset */}
-          {prompt && (
-            <div className="prompt-sub-footer">
-              <span className="prompt-blurb">
-                {prompt.blurb}{" "}
-                <span className="m">· version {prompt.version}</span>
-              </span>
-              <div className="prompt-actions">
-                <button
-                  type="button"
-                  className="prompt-btn"
-                  onClick={handleResetPrompt}
-                  disabled={busy || !isEdited || isUploading}
-                >
-                  <i className="fas fa-undo text-xs" />
-                  <span>Reset to original</span>
-                </button>
-                <button
-                  type="button"
-                  className="prompt-btn primary"
-                  onClick={handleSavePrompt}
-                  disabled={busy || !dirty || isUploading}
-                >
-                  {busy ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin text-xs" />
-                      <span>Saving…</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-save text-xs" />
-                      <span>Save wording</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal Bottom: Upload Section */}
-        <div className="ai-prompt-modal-footer">
-          {/* Hidden File Input for CSV and Excel (.xlsx, .xls) */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            style={{ display: "none" }}
-            onChange={handleFileSelected}
-          />
-
-          <div className="upload-instruction">
-            <span className="upload-title">
-              <i className="fas fa-file-excel text-emerald-600" />
-              <span>Import Dataset</span>
-            </span>
-            <span className="upload-subtitle">
-              Click Upload to choose a CSV or XLSX file and run the AI Pipeline.
-            </span>
-          </div>
-
-          <div className="upload-footer-actions">
-            <button
-              type="button"
-              className="prompt-btn"
-              onClick={onClose}
-              disabled={isUploading}
-            >
-              {t("app.cancel", "Cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn-upload-file"
-              onClick={handleTriggerFileInput}
-              disabled={isUploading || busy}
-            >
-              {isUploading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin" />
-                  <span>{t("app.uploading", "Uploading…")}</span>
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-folder-open" />
-                  <span>{t("app.aiPipelineUploadBtn", "Upload CSV / XLSX")}</span>
-                </>
-              )}
-            </button>
-          </div>
+          </section>
         </div>
       </div>
     </div>

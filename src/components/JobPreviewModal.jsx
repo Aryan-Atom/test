@@ -42,6 +42,7 @@ function mapExportedRowToChangeData(row) {
   const sparePartVal = row.sparepart || row.sparePart || row["자재목록"] || row["예비 부품"] || "";
 
   return {
+    ...row,
     id: 0,
     site: row.site || "",
     process: row.process || "",
@@ -115,6 +116,8 @@ export default function JobPreviewModal({ job, onClose }) {
   const [filterType, setFilterType] = useState("all");
   const [masterColumns, setMasterColumns] = useState(null);
   const [downloadingExport, setDownloadingExport] = useState(false);
+  const [duplicateAlert, setDuplicateAlert] = useState(null);
+  const [duplicateRowsCount, setDuplicateRowsCount] = useState(0);
 
   const navigate = useNavigate();
   const { pushToast } = useToast();
@@ -315,38 +318,67 @@ export default function JobPreviewModal({ job, onClose }) {
     setCellValue(String(val ?? ""));
   };
 
-  const handleCellSave = (rowIdx, key) => {
-    if (editingCell) {
-      setRows((prev) => {
-        const next = [...prev];
-        const updatedRow = { ...next[rowIdx], [key]: cellValue };
-        const lowerKey = String(key).toLowerCase();
-        if (lowerKey === "wocode") {
-          updatedRow.woCode = cellValue;
-          updatedRow.wOCode = cellValue;
-          updatedRow.wo_code = cellValue;
-        } else if (lowerKey === "wotype") {
-          updatedRow.woType = cellValue;
-          updatedRow.Wotype = cellValue;
-          updatedRow.wo_type = cellValue;
-          updatedRow.woTypeName = cellValue;
-        } else if (lowerKey === "maintgroup" || lowerKey === "eqtype") {
-          updatedRow.maintGroup = cellValue;
-          updatedRow.eqType = cellValue;
-        } else if (lowerKey === "sparepart" || key === "자재목록") {
-          updatedRow.sparePart = cellValue;
-          updatedRow["자재목록"] = cellValue;
-        }
+  const handleCellSave = (rowIdx, key, overrideVal) => {
+    const valToSave = overrideVal !== undefined ? overrideVal : cellValue;
+    setRows((prev) => {
+      const next = [...prev];
+      if (!next[rowIdx]) return prev;
+      const updatedRow = { ...next[rowIdx], [key]: valToSave };
+      const lowerKey = String(key).toLowerCase();
+      if (lowerKey === "wocode" || lowerKey === "wo_code") {
+        updatedRow.woCode = valToSave;
+        updatedRow.wOCode = valToSave;
+        updatedRow.wo_code = valToSave;
+      } else if (lowerKey === "wotype" || lowerKey === "wo_type") {
+        updatedRow.woType = valToSave;
+        updatedRow.Wotype = valToSave;
+        updatedRow.wo_type = valToSave;
+        updatedRow.woTypeName = valToSave;
+      } else if (lowerKey === "maintgroup" || lowerKey === "eqtype") {
+        updatedRow.maintGroup = valToSave;
+        updatedRow.eqType = valToSave;
+      } else if (lowerKey === "sparepart" || key === "자재목록") {
+        updatedRow.sparePart = valToSave;
+        updatedRow["자재목록"] = valToSave;
+      } else if (lowerKey === "equipmentcode" || lowerKey === "eqcode" || lowerKey === "equipment_code") {
+        updatedRow.equipmentCode = valToSave;
+        updatedRow.equipment_code = valToSave;
+        updatedRow.Eqcode = valToSave;
+      } else if (lowerKey === "equipmentname" || lowerKey === "eqname" || lowerKey === "equipment_name") {
+        updatedRow.equipmentName = valToSave;
+        updatedRow.equipment_name = valToSave;
+        updatedRow.Eqname = valToSave;
+      } else if (lowerKey === "representativework" || lowerKey === "rep_name") {
+        updatedRow.representativeWork = valToSave;
+        updatedRow.representative_work_name = valToSave;
+        updatedRow.rep_name = valToSave;
+      }
 
-        next[rowIdx] = updatedRow;
-        return next;
-      });
-      setEditingCell(null);
-    }
+      next[rowIdx] = updatedRow;
+      return next;
+    });
+    setEditingCell(null);
   };
 
   const handleDeleteRow = (rowIdx) => {
-    setRows((prev) => prev.filter((_, idx) => idx !== rowIdx));
+    setRows((prev) => {
+      const next = prev.filter((_, idx) => idx !== rowIdx);
+      const remainingDups = next.filter((r) => r.is_duplicate).length;
+      setDuplicateRowsCount(remainingDups);
+      if (remainingDups === 0) {
+        setDuplicateAlert(null);
+        if (filterType === "duplicate") setFilterType("all");
+      }
+      return next;
+    });
+  };
+
+  const handleRemoveAllDuplicates = () => {
+    setRows((prev) => prev.filter((r) => !r.is_duplicate));
+    setDuplicateRowsCount(0);
+    setDuplicateAlert(null);
+    setFilterType("all");
+    pushToast(t("toast.duplicatesRemoved", "All duplicate records have been removed."), "info");
   };
 
   const missingMandatoryCount = useMemo(() => {
@@ -358,6 +390,9 @@ export default function JobPreviewModal({ job, onClose }) {
   }, [rows, previewColumns]);
 
   const filteredRows = useMemo(() => {
+    if (filterType === "duplicate") {
+      return rows.filter((r) => r.is_duplicate);
+    }
     if (filterType === "missing") {
       return rows.filter((r) =>
         previewColumns.some(
@@ -368,7 +403,7 @@ export default function JobPreviewModal({ job, onClose }) {
     return rows;
   }, [rows, filterType, previewColumns]);
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     if (!rows || rows.length === 0) {
       pushToast(t("toast.noRecordsExport", "저장할 데이터가 없습니다."), "error");
       return;
@@ -381,20 +416,185 @@ export default function JobPreviewModal({ job, onClose }) {
       id: 0,
     };
 
-    APIcallPost(pocEndPoints.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-      setSaving(false);
-      if (status === 200 || status === 201) {
-        pushToast(
-          t("toast.saveSuccess", "데이터가 성공적으로 저장되었습니다."),
-          "success",
-        );
-        window.dispatchEvent(new Event("refreshChangeHistoryData"));
-        onClose();
-        navigate("/data-management/change-history-data");
-      } else {
-        pushToast(t("toast.saveError", "데이터 저장에 실패했습니다."), "error");
+    try {
+      // 1. Initial Save API
+      const saveResponse = await new Promise((resolve) => {
+        APIcallPost(pocEndPoints.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
+          resolve({ responseData, status });
+        });
+      });
+
+      // Duplicate detection directly from API response
+      const resData = saveResponse.responseData;
+      const is409 = saveResponse.status === 409 || resData?.statusCode === 409;
+      const dupList = Array.isArray(resData?.data)
+        ? resData.data.filter((d) => d?.is_duplicate === true)
+        : [];
+
+      if (is409 || dupList.length > 0) {
+        setSaving(false);
+        const updated = rows.map((r) => {
+          const isDup = dupList.some(
+            (d) =>
+              (d.equipment_code && d.equipment_code === (r.equipmentCode || r.equipment_code)) &&
+              (d.wo_code && d.wo_code === (r.woCode || r.wo_code)),
+          ) || (dupList.length === rows.length && dupList[rows.indexOf(r)]?.is_duplicate);
+          return { ...r, is_duplicate: isDup };
+        });
+
+        const count = updated.filter((r) => r.is_duplicate).length || dupList.length;
+        setRows(updated);
+        setDuplicateRowsCount(count);
+        setFilterType("duplicate");
+        const msg = resData?.message || `${count} duplicate record(s) found. Please review.`;
+        setDuplicateAlert(msg);
+        pushToast(msg, "error");
+        return;
       }
-    });
+
+      if (saveResponse.status !== 200 && saveResponse.status !== 201) {
+        setSaving(false);
+        const errMsg =
+          saveResponse.responseData?.message ||
+          (typeof saveResponse.responseData === "string" ? saveResponse.responseData : null) ||
+          t("toast.saveError", "데이터 저장에 실패했습니다.");
+        pushToast(errMsg, "error");
+        return;
+      }
+
+      // 2. On success save API, call the cursor and changes sync pipeline
+      try {
+        // Step 2a: New AI_POC_API call -> getCursor() from api/ChangeData/GetCursor
+        const cursorResponse = await new Promise((resolve) => {
+          APIcallGet(pocEndPoints.GET_CURSOR, {}, (data, status) => {
+            resolve({ data, status });
+          });
+        });
+
+        let cursorData = null;
+        if (cursorResponse.status === 200 || cursorResponse.status === 201) {
+          const raw = cursorResponse.data;
+          if (typeof raw === "string") {
+            cursorData = raw.trim() || null;
+          } else if (raw && typeof raw === "object") {
+            cursorData = raw.cursor ?? raw.data ?? raw.value ?? null;
+            if (typeof cursorData === "string") {
+              cursorData = cursorData.trim() || null;
+            }
+          }
+        }
+
+        // Step 2b: Call FAST API exports/changes (if data is null don't pass since)
+        const baseChangesUrl =
+          pocEndPoints.AI_PIPELINE_GET_CHANGES ||
+          "http://107.108.32.188:8001/api/exports/changes";
+        const changesUrl = new URL(baseChangesUrl);
+
+        if (cursorData && cursorData !== "null" && cursorData !== "undefined") {
+          changesUrl.searchParams.set("since", cursorData);
+        }
+        changesUrl.searchParams.set("limit", "500");
+        changesUrl.searchParams.set("offset", "0");
+
+        const fastApiRes = await fetch(changesUrl.toString(), {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        });
+
+        if (fastApiRes.ok) {
+          const fastApiData = await fastApiRes.json();
+
+          // Step 2c: Extract rows from FastAPI response. If response rows is null or empty, don't call SaveReviewedChangedData
+          const rawRows = fastApiData?.rows;
+          if (rawRows && Array.isArray(rawRows) && rawRows.length > 0) {
+            const changeDataList = rawRows.map((r) => mapExportedRowToChangeData(r));
+
+            const reviewedPayload = {
+              changeDataList,
+              id: 0,
+            };
+
+            // Send to api/ChangeData/SaveReviewedChangedData
+            const reviewedResponse = await new Promise((resolve) => {
+              APIcallPost(
+                pocEndPoints.SAVE_REVIEWED_CHANGED_DATA,
+                reviewedPayload,
+                {},
+                (reviewedRes, status) => {
+                  resolve({ reviewedRes, status });
+                },
+              );
+            });
+
+            const isReviewedSuccess =
+              (reviewedResponse.status === 200 || reviewedResponse.status === 201) &&
+              reviewedResponse.reviewedRes?.statusCode !== 400 &&
+              (reviewedResponse.reviewedRes?.statusCode == null ||
+                reviewedResponse.reviewedRes?.statusCode === 200 ||
+                reviewedResponse.reviewedRes?.statusCode === 201);
+
+            // Step 2d: If the response from SaveReviewedChangedData is 200 then only call Save Cursor else don't call
+            if (isReviewedSuccess) {
+              const newCursor =
+                fastApiData?.cursor ??
+                fastApiData?.next_cursor ??
+                fastApiData?.nextCursor ??
+                fastApiData?.cursor_id ??
+                cursorData ??
+                "";
+
+              const cursorPayload = {
+                cursor: String(newCursor || ""),
+              };
+
+              await new Promise((resolve) => {
+                APIcallPost(
+                  pocEndPoints.SAVE_CURSOR,
+                  cursorPayload,
+                  {},
+                  (saveCursorRes, status) => {
+                    resolve({ saveCursorRes, status });
+                  },
+                );
+              });
+            } else {
+              console.warn(
+                "SaveReviewedChangedData did not return 200 (status: " +
+                  reviewedResponse.status +
+                  ", code: " +
+                  reviewedResponse.reviewedRes?.statusCode +
+                  "). SaveCursor was not called.",
+                reviewedResponse.reviewedRes,
+              );
+            }
+          } else {
+            console.log(
+              "No rows to review (rows is null or empty). Skipping SaveReviewedChangedData.",
+              fastApiData,
+            );
+          }
+        } else {
+          console.error("FastAPI changes export error:", fastApiRes.status, fastApiRes.statusText);
+        }
+      } catch (pipelineErr) {
+        console.error("Cursor & changes sync error:", pipelineErr);
+      }
+
+      setSaving(false);
+      pushToast(
+        t("toast.saveSuccess", "데이터가 성공적으로 저장되었습니다."),
+        "success",
+      );
+      window.dispatchEvent(new Event("refreshChangeHistoryData"));
+      onClose();
+      navigate("/data-management/change-history-data");
+    } catch (err) {
+      console.error("Save error:", err);
+      setSaving(false);
+      pushToast(t("toast.saveError", "데이터 저장에 실패했습니다."), "error");
+    }
   };
 
   const isFullyLoaded = totalRows == null ? !hasMore : rows.length >= totalRows || !hasMore;
@@ -490,6 +690,19 @@ export default function JobPreviewModal({ job, onClose }) {
               >
                 All ({rows.length}{totalRows != null && totalRows !== rows.length ? ` / ${totalRows}` : ""})
               </button>
+              {duplicateRowsCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilterType("duplicate")}
+                  className={`toggle-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    filterType === "duplicate"
+                      ? "bg-white dark:bg-gray-700 text-red-600 shadow-sm"
+                      : "text-red-500 hover:text-red-700"
+                  }`}
+                >
+                  Duplicates ({duplicateRowsCount})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setFilterType("missing")}
@@ -536,6 +749,34 @@ export default function JobPreviewModal({ job, onClose }) {
           </div>
         </div>
 
+        {/* Duplicate Alert Banner */}
+        {duplicateAlert && (
+          <div className="mx-6 mt-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center justify-between gap-3 animate-fade-in shadow-xs">
+            <div className="flex items-center gap-2 font-medium">
+              <i className="fas fa-exclamation-circle text-base shrink-0 text-red-600" />
+              <span>{duplicateAlert}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRemoveAllDuplicates}
+                className="btn-base bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              >
+                <i className="fas fa-trash-alt text-xs" />
+                <span>Remove All Duplicates ({duplicateRowsCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDuplicateAlert(null)}
+                className="text-red-400 hover:text-red-600 dark:hover:text-red-200 p-1 cursor-pointer"
+                title="Dismiss"
+              >
+                <i className="fas fa-times" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Body (Table Container) */}
         <div
           className="overflow-auto bg-surface-default max-h-[calc(88vh-140px)]"
@@ -570,63 +811,96 @@ export default function JobPreviewModal({ job, onClose }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base">
-                {filteredRows.map((r, rIdx) => (
-                  <tr
-                    key={rIdx}
-                    className="hover:bg-gray-50/80 dark:hover:bg-gray-800/60 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-center text-text-subtle font-mono">
-                      {rIdx + 1}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <button
-                        type="button"
-                        className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
-                        title="Delete row"
-                        onClick={() => handleDeleteRow(rIdx)}
-                      >
-                        <i className="fas fa-trash-alt text-xs" />
-                      </button>
-                    </td>
-                    {previewColumns.map((col) => {
-                      const val = r[col.key] ?? "";
-                      const isEditing =
-                        editingCell?.rowIdx === rIdx && editingCell?.key === col.key;
-                      const isMissing =
-                        col.required && (!val || String(val).trim() === "");
+                {filteredRows.map((r, rIdx) => {
+                  const actualRowIdx = rows.indexOf(r);
+                  const targetRowIdx = actualRowIdx !== -1 ? actualRowIdx : rIdx;
+                  const isDup = Boolean(r.is_duplicate);
 
-                      return (
-                        <td
-                          key={col.key}
-                          className={`px-4 py-3 whitespace-nowrap max-w-[220px] truncate cursor-pointer transition-colors ${
-                            isMissing
-                              ? "bg-red-50/60 dark:bg-red-950/40 text-red-700 dark:text-red-300 font-medium"
-                              : "hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
+                  return (
+                    <tr
+                      key={targetRowIdx}
+                      className={`transition-colors ${
+                        isDup
+                          ? "bg-red-50/90 dark:bg-red-950/60 border-l-4 border-l-red-600"
+                          : "hover:bg-gray-50/80 dark:hover:bg-gray-800/60"
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-center text-text-subtle font-mono">
+                        {isDup ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-red-600 dark:text-red-400">
+                            <span>{targetRowIdx + 1}</span>
+                            <span className="px-1 py-0.2 rounded bg-red-200 dark:bg-red-900 text-red-800 dark:text-red-100 text-[9px] uppercase font-bold">
+                              DUP
+                            </span>
+                          </span>
+                        ) : (
+                          targetRowIdx + 1
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <button
+                          type="button"
+                          className={`p-1 rounded transition-colors ${
+                            isDup
+                              ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 hover:bg-red-600 hover:text-white"
+                              : "text-gray-400 hover:text-red-600"
                           }`}
-                          onDoubleClick={() => handleCellDoubleClick(rIdx, col.key, val)}
-                          title={String(val)}
+                          title={isDup ? "Delete duplicate row" : "Delete row"}
+                          onClick={() => handleDeleteRow(targetRowIdx)}
                         >
+                          <i className="fas fa-trash-alt text-xs" />
+                        </button>
+                      </td>
+                      {previewColumns.map((col) => {
+                        const val = r[col.key] ?? "";
+                        const isEditing =
+                          editingCell?.rowIdx === targetRowIdx && editingCell?.key === col.key;
+                        const isMissing =
+                          col.required && (!val || String(val).trim() === "");
+
+                        return (
+                          <td
+                            key={col.key}
+                            className={`px-4 py-3 whitespace-nowrap max-w-[220px] truncate cursor-pointer transition-colors ${
+                              isDup
+                                ? "bg-red-100/80 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-b border-red-200 dark:border-red-900 font-semibold"
+                                : isMissing
+                                ? "bg-red-50/60 dark:bg-red-950/40 text-red-700 dark:text-red-300 font-medium"
+                                : "hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
+                            }`}
+                            onDoubleClick={() => handleCellDoubleClick(targetRowIdx, col.key, val)}
+                            title={isDup ? `[Duplicate Record] ${String(val)}` : String(val)}
+                          >
                           {isEditing ? (
                             <input
                               type="text"
-                              className="input-base text-xs py-0.5 px-1.5 w-full"
+                              className="input-base text-xs py-0.5 px-1.5 w-full bg-white dark:bg-gray-800 text-text-default border border-blue-500 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
                               value={cellValue}
                               autoFocus
                               onChange={(e) => setCellValue(e.target.value)}
-                              onBlur={() => handleCellSave(rIdx, col.key)}
+                              onBlur={(e) => handleCellSave(targetRowIdx, col.key, e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleCellSave(rIdx, col.key);
-                                if (e.key === "Escape") setEditingCell(null);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleCellSave(targetRowIdx, col.key, e.target.value);
+                                }
+                                if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingCell(null);
+                                }
                               }}
                             />
                           ) : (
                             <span>{String(val || "")}</span>
                           )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

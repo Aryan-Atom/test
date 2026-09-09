@@ -401,11 +401,11 @@ export default function Review() {
             type="button"
             onClick={load}
             disabled={loading || busy}
-            className="btn-base px-3 py-1.5 text-xs rounded-xl border border-border-base bg-surface-default hover:bg-gray-100 dark:hover:bg-gray-800 text-text-default flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+            className="btn-base w-8 h-8 rounded-xl border border-border-base bg-surface-default hover:bg-gray-100 dark:hover:bg-gray-800 text-text-default flex items-center justify-center cursor-pointer disabled:opacity-50 shadow-2xs shrink-0"
             title={t("app.refresh", "Refresh")}
+            aria-label={t("app.refresh", "Refresh")}
           >
-            <i className={`fas fa-sync-alt ${loading ? "fa-spin" : ""}`} />
-            <span>{t("app.refresh", "Refresh")}</span>
+            <i className={`fas fa-sync-alt text-xs ${loading ? "fa-spin" : ""}`} />
           </button>
         </div>
       </header>

@@ -926,12 +926,13 @@ function EditableModalRow({
         background: isEditingAnyCell
           ? "#eff6ff"
           : isDuplicate
-            ? "#fff1f2"
+            ? "#fee2e2"
             : hasMissingMandatory
               ? "#fff7ed"
               : index % 2 === 0
                 ? "var(--color-surface-default, #fff)"
                 : "var(--color-surface-raised, #f9fafb)",
+        borderLeft: isDuplicate ? "4px solid #ef4444" : undefined,
         outline: isEditingAnyCell ? "2px solid #2563eb" : "none",
         outlineOffset: "-1px",
         transition: "background 0.1s",
@@ -954,9 +955,26 @@ function EditableModalRow({
           style={{
             color: isDuplicate ? "#dc2626" : "inherit",
             fontWeight: isDuplicate ? 700 : undefined,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
           }}
         >
-          {(row._originalIndex ?? index) + 1}
+          <span>{(row._originalIndex ?? index) + 1}</span>
+          {isDuplicate && (
+            <span
+              style={{
+                fontSize: "9px",
+                padding: "1px 4px",
+                background: "#fecaca",
+                borderRadius: "4px",
+                color: "#991b1b",
+                fontWeight: 700,
+              }}
+            >
+              DUP
+            </span>
+          )}
         </span>
       </div>
 
@@ -980,7 +998,7 @@ function EditableModalRow({
             }}
             title={isDuplicate ? "Delete duplicate" : "Delete row"}
             className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border-0 transition-transform hover:scale-110 ${
-              isDuplicate ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"
+              isDuplicate ? "bg-red-200 text-red-800 hover:bg-red-600 hover:text-white" : "bg-slate-100 text-slate-500"
             }`}
           >
             <i className="fas fa-trash-alt" style={{ fontSize: "10px" }} />
@@ -1016,8 +1034,16 @@ function EditableModalRow({
               overflow: editing ? "visible" : "hidden",
               textOverflow: "ellipsis",
               boxSizing: "border-box",
-              background: isEmptyMandatory ? "#fef2f2" : undefined,
-              border: isEmptyMandatory ? "1px solid #f87171" : undefined,
+              background: isDuplicate
+                ? "#fee2e2"
+                : isEmptyMandatory
+                ? "#fef2f2"
+                : undefined,
+              border: isDuplicate
+                ? "1px solid #f87171"
+                : isEmptyMandatory
+                ? "1px solid #f87171"
+                : undefined,
               position: "relative",
             }}
           >
@@ -1099,61 +1125,22 @@ function EditableModalRow({
 // UploadPreviewModal
 // ─────────────────────────────────────────────────────────────────────────────
 export function extractDuplicateKeysFromBackend(responseData, rows, getDuplicateKey) {
-  const dupes =
-    responseData?.duplicateKey ||
-    responseData?.duplicateKeys ||
-    responseData?.duplicates ||
-    responseData?.duplicateData ||
-    responseData?.duplicateRecords ||
-    responseData?.duplicateList ||
-    responseData?.key ||
-    (responseData?.hasDuplicates
-      ? responseData?.duplicates || responseData?.message || true
-      : null);
-
-  if (!dupes) return new Set();
-
-  const keySet = new Set();
-  const dupList = Array.isArray(dupes) ? dupes : [dupes];
-
-  dupList.forEach((dupItem) => {
-    if (typeof dupItem === "string" || typeof dupItem === "number") {
-      const strItem = String(dupItem).trim().toLowerCase();
-      rows.forEach((row, idx) => {
-        const key = getDuplicateKey ? getDuplicateKey(row) : "";
-        const rowString = JSON.stringify(row).toLowerCase();
-        if ((key && key.toLowerCase().includes(strItem)) || rowString.includes(strItem)) {
-          keySet.add(key || row._originalIndex || idx);
-        }
-      });
-    } else if (typeof dupItem === "object" && dupItem !== null) {
-      rows.forEach((row, idx) => {
-        const rowKey = getDuplicateKey ? getDuplicateKey(row) : (row._originalIndex ?? idx);
-        let isMatch = false;
-        if (dupItem.id && row.id === dupItem.id) isMatch = true;
-        if (
-          dupItem.equipmentCode &&
-          (row.equipmentCode === dupItem.equipmentCode ||
-            row.equipment_code === dupItem.equipmentCode)
-        )
-          isMatch = true;
-        if (dupItem.woCode && (row.woCode === dupItem.woCode || row.wo_code === dupItem.woCode))
-          isMatch = true;
-        if (isMatch) {
-          keySet.add(rowKey);
-        }
-      });
+  const dupList = Array.isArray(responseData?.data)
+    ? responseData.data.filter((d) => d?.is_duplicate === true)
+    : [];
+  const keys = new Set();
+  (rows || []).forEach((r, idx) => {
+    const isDup = dupList.some(
+      (d) =>
+        (d.equipment_code && d.equipment_code === (r.equipmentCode || r.equipment_code || r.Eqcode || r["설비코드"])) &&
+        (d.wo_code && d.wo_code === (r.woCode || r.wo_code || r["W/O코드"])),
+    );
+    if (isDup) {
+      keys.add(getDuplicateKey ? getDuplicateKey(r) : idx);
+      keys.add(r._originalIndex ?? idx);
     }
   });
-
-  if (keySet.size === 0 && rows.length > 0) {
-    rows.forEach((row, idx) => {
-      const key = getDuplicateKey ? getDuplicateKey(row) : (row._originalIndex ?? idx);
-      keySet.add(key);
-    });
-  }
-
-  return keySet;
+  return keys;
 }
 export function UploadPreviewModal({
   rows: initialRows,
@@ -1220,21 +1207,25 @@ export function UploadPreviewModal({
 
   const isDuplicateRow = useCallback(
     (row) => {
-      if (!getDuplicateKey) return false;
-      const key = getDuplicateKey(row);
+      if (!row) return false;
+      if (row._isDuplicate || row.is_duplicate) return true;
 
-      try {
-        const parsedKey = JSON.parse(key);
-        const isEmptyRow = Object.values(parsedKey).every(
-          (v) => v === undefined || v === null || String(v).trim() === "",
-        );
-        if (isEmptyRow) return false;
-      } catch (e) {
-        // Safe fallback
+      const key = getDuplicateKey ? getDuplicateKey(row) : null;
+      if (key) {
+        try {
+          const parsedKey = JSON.parse(key);
+          const isEmptyRow = Object.values(parsedKey).every(
+            (v) => v === undefined || v === null || String(v).trim() === "",
+          );
+          if (isEmptyRow) return false;
+        } catch {
+          // Safe fallback
+        }
+        if (serverDuplicateKeys.has(key)) return true;
+        if (hasServerDuplicates && duplicateRowKeys.has(key)) return true;
       }
 
-      if (serverDuplicateKeys.has(key) || serverDuplicateKeys.has(row._originalIndex)) return true;
-      if (hasServerDuplicates && duplicateRowKeys.has(key)) return true;
+      if (row._originalIndex !== undefined && serverDuplicateKeys.has(row._originalIndex)) return true;
       return false;
     },
     [duplicateRowKeys, getDuplicateKey, serverDuplicateKeys, hasServerDuplicates],
@@ -1384,8 +1375,12 @@ export function UploadPreviewModal({
           } else if (res?.hasDuplicates) {
             setHasServerDuplicates(true);
             setServerDuplicateKeys(res.duplicateKeys || new Set());
+            if (Array.isArray(res.updatedRows) && res.updatedRows.length > 0) {
+              setRows(res.updatedRows);
+            }
             setFilterType("duplicate");
             alert(
+              res.message ||
               t(
                 "preview.backendDuplicatesNotice",
                 "Backend API detected duplicate records. Duplicates filter is now showing.",
@@ -4364,111 +4359,64 @@ export default function ChangeHistory({
       });
 
       APIcallPost(pocEndPoints?.SAVE_DATA_CHANGES, payload, {}, (responseData, status) => {
-        const isDuplicateResponse =
-          status === 409 ||
-          responseData?.statusCode === 409 ||
-          (Array.isArray(responseData?.data) && responseData.data.some((item) => item?.is_duplicate === true)) ||
-          (typeof responseData?.message === "string" &&
-            responseData.message.toLowerCase().includes("duplicate"));
+        const is409 = status === 409 || responseData?.statusCode === 409;
+        const dupList = Array.isArray(responseData?.data)
+          ? responseData.data.filter((d) => d?.is_duplicate === true)
+          : [];
 
-        if (isDuplicateResponse) {
-          // Parse is_duplicate flags from response data and highlight rows in modal
-          const dupData = Array.isArray(responseData?.data)
-            ? responseData.data
-            : Array.isArray(responseData)
-              ? responseData
-              : [];
-          const dupKeySet = new Set();
+        if (is409 || dupList.length > 0) {
+          const dupKeys = new Set();
+          const updated = updatedRows.map((r, idx) => {
+            const isDup = dupList.some(
+              (d) =>
+                (d.equipment_code && d.equipment_code === (r.equipmentCode || r.equipment_code || r.Eqcode || r["설비코드"])) &&
+                (d.wo_code && d.wo_code === (r.woCode || r.wo_code || r["W/O코드"])),
+            ) || (dupList.length === updatedRows.length && dupList[idx]?.is_duplicate);
 
-          dupData.forEach((item, idx) => {
-            if (item?.is_duplicate) {
-              const row = updatedRows[idx];
-              if (row) {
-                const rowKey = getPreviewDuplicateKey(row);
-                dupKeySet.add(rowKey);
-              }
+            if (isDup) {
+              const k = getPreviewDuplicateKey ? getPreviewDuplicateKey(r) : idx;
+              dupKeys.add(k);
+              dupKeys.add(r._originalIndex ?? idx);
             }
+            return { ...r, is_duplicate: isDup };
           });
 
-          // Also check extractDuplicateKeysFromBackend
-          const extractedKeys = extractDuplicateKeysFromBackend(
-            responseData,
-            updatedRows,
-            getPreviewDuplicateKey,
-          );
-          extractedKeys.forEach((k) => dupKeySet.add(k));
-
-          // If no specific row was flagged but backend reported duplicate, flag all updated rows
-          if (dupKeySet.size === 0 && updatedRows.length > 0) {
-            updatedRows.forEach((row, idx) => {
-              const rowKey = getPreviewDuplicateKey ? getPreviewDuplicateKey(row) : (row._originalIndex ?? idx);
-              dupKeySet.add(rowKey);
-            });
-          }
+          const count = updated.filter((r) => r.is_duplicate).length || dupList.length;
+          const msg = responseData?.message || `${count} duplicate record(s) found. Please review.`;
 
           onResult?.({
             success: false,
             hasDuplicates: true,
-            duplicateKeys: dupKeySet,
-            message:
-              responseData?.message ||
-              t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+            duplicateCount: count,
+            duplicateKeys: dupKeys,
+            updatedRows: updated,
+            message: msg,
           });
           setOperationStatus({
             isVisible: true,
             status: "error",
-            message:
-              responseData?.message ||
-              t("toast.duplicateFoundApi", "Duplicate records detected by backend validation."),
+            message: msg,
             autoClose: false,
           });
           return;
         }
 
-        if (status >= 200 && status < 300) {
-          const extractedKeys = extractDuplicateKeysFromBackend(
-            responseData,
-            updatedRows,
-            getPreviewDuplicateKey,
-          );
-
-          if (extractedKeys && extractedKeys.size > 0) {
-            console.warn("Backend API returned duplicate validation keys:", extractedKeys);
-            onResult?.({
-              success: false,
-              hasDuplicates: true,
-              duplicateKeys: extractedKeys,
-              message: t(
-                "toast.duplicateFoundApi",
-                "Duplicate records detected by backend validation.",
-              ),
-            });
-            setOperationStatus({
-              isVisible: true,
-              status: "error",
-              message: t(
-                "toast.duplicateFoundApi",
-                "Duplicate records detected by backend validation.",
-              ),
-              autoClose: false,
-            });
-          } else {
-            setPreviewRows(null);
-            setPreviewColumns(null);
-            setOperationStatus({
-              isVisible: true,
-              status: "success",
-              message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
-              autoClose: true,
-            });
-            onUpload?.("change_rows", payload);
-            getFilterDataRef.current?.();
-            window.dispatchEvent(new Event("refreshMatrixData"));
-            window.dispatchEvent(new Event("refreshMPListData"));
-            window.dispatchEvent(new Event("refreshFilterData"));
-            window.dispatchEvent(new Event("refreshChangeHistoryData"));
-            onResult?.({ success: true });
-          }
+        if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+          setPreviewRows(null);
+          setPreviewColumns(null);
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: `${changeDataList.length} ${t("app.rows")} - ${t("toast.saveSuccess")}`,
+            autoClose: true,
+          });
+          onUpload?.("change_rows", payload);
+          getFilterDataRef.current?.();
+          window.dispatchEvent(new Event("refreshMatrixData"));
+          window.dispatchEvent(new Event("refreshMPListData"));
+          window.dispatchEvent(new Event("refreshFilterData"));
+          window.dispatchEvent(new Event("refreshChangeHistoryData"));
+          onResult?.({ success: true });
         } else {
           console.error("일괄 저장 실패:", responseData);
           let errorMsg = responseData?.message || responseData?.error || responseData?.title;
