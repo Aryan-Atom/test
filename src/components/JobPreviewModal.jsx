@@ -9,36 +9,221 @@ import { useI18n } from "../i18n.jsx";
 
 // Standard Master Data column sequence fallback
 const DEFAULT_PREVIEW_COLUMNS = [
-  { key: "site", label: "Site", required: true },
-  { key: "process", label: "Process", required: true },
-  { key: "maintGroup", label: "Maintenance Part", required: true },
-  { key: "equipmentCode", label: "Eqcode", required: true },
-  { key: "equipmentName", label: "Eqname", required: true },
-  { key: "woCode", label: "W/Ocode", required: false },
-  { key: "report", label: "report content", required: false },
-  { key: "bom", label: "BOM", required: false },
-  { key: "sparePart", label: "Sparepart", required: false },
-  { key: "workedOn", label: "Work Date", required: false },
-  { key: "work", label: "Improvement Work", required: false },
-  { key: "purpose", label: "Work Purpose", required: false },
-  { key: "situation", label: "Problem Symptom", required: false },
-  { key: "cause", label: "Problem Cause", required: false },
-  { key: "hwAsWas", label: "HW Before", required: false },
-  { key: "hwAsIs", label: "HW After", required: false },
-  { key: "swAsWas", label: "SW Before", required: false },
-  { key: "swAsIs", label: "SW After", required: false },
-  { key: "representativeWork", label: "Rep Work Name", required: true },
-  { key: "priority", label: "Priority", required: true },
-  { key: "category", label: "Effect Type", required: true },
-  { key: "woType", label: "Wotype", required: false },
+  { key: "site", label: "Site", labelKr: "법인", required: true },
+  { key: "process", label: "Process", labelKr: "공정", required: true },
+  { key: "maintGroup", label: "Maintenance Part", labelKr: "보전파트", required: true },
+  { key: "equipmentCode", label: "Equipment Code", labelKr: "설비코드", required: true },
+  { key: "equipmentName", label: "Equipment Name", labelKr: "설비명", required: true },
+  { key: "woCode", label: "W/O Code", labelKr: "W/O코드", required: false },
+  { key: "report", label: "Report", labelKr: "보고서 원문", required: false },
+  { key: "bom", label: "BOM", labelKr: "BOM", required: false },
+  { key: "sparePart", label: "Sparepart", labelKr: "자재목록", required: false },
+  { key: "workedOn", label: "Work Date", labelKr: "작업완료일", required: false },
+  { key: "work", label: "Improvement Work", labelKr: "개선 작업", required: false },
+  { key: "purpose", label: "Work Purpose", labelKr: "작업목적", required: false },
+  { key: "situation", label: "Problem Symptom", labelKr: "문제 현상", required: false },
+  { key: "cause", label: "Problem Cause", labelKr: "문제 원인", required: false },
+  { key: "hwAsWas", label: "HW Before", labelKr: "HW 변경 전", required: false },
+  { key: "hwAsIs", label: "HW After", labelKr: "HW 변경 후", required: false },
+  { key: "swAsWas", label: "SW Before", labelKr: "SW 변경 전", required: false },
+  { key: "swAsIs", label: "SW After", labelKr: "SW 변경 후", required: false },
+  { key: "representativeWork", label: "Rep Work Name", labelKr: "대표 작업명", required: true },
+  { key: "priority", label: "Priority", labelKr: "중요도", required: true },
+  { key: "category", label: "Effect Type", labelKr: "효과 유형", required: true },
+  { key: "woType", label: "Wotype", labelKr: "작업타입", required: false },
 ];
+
+const COLUMN_I18N_MAP = {
+  equipmentCode: { en: "Equipment Code", ko: "설비코드" },
+  equipment_code: { en: "Equipment Code", ko: "설비코드" },
+  eqcode: { en: "Equipment Code", ko: "설비코드" },
+  wOCode: { en: "W/O Code", ko: "W/O코드" },
+  woCode: { en: "W/O Code", ko: "W/O코드" },
+  wo_code: { en: "W/O Code", ko: "W/O코드" },
+  process: { en: "Process", ko: "공정" },
+  equipmentName: { en: "Equipment Name", ko: "설비명" },
+  equipment_name: { en: "Equipment Name", ko: "설비명" },
+  eqname: { en: "Equipment Name", ko: "설비명" },
+  eqType: { en: "Maintenance Part", ko: "보전파트" },
+  maintGroup: { en: "Maintenance Part", ko: "보전파트" },
+  maintenance_part: { en: "Maintenance Part", ko: "보전파트" },
+  workDate: { en: "Work Date", ko: "작업완료일" },
+  workedOn: { en: "Work Date", ko: "작업완료일" },
+  work_date: { en: "Work Date", ko: "작업완료일" },
+  workedDate: { en: "Work Date", ko: "작업완료일" },
+  site: { en: "Site", ko: "법인" },
+  bom: { en: "BOM", ko: "BOM" },
+  sparePart: { en: "Sparepart", ko: "자재목록" },
+  sparepart: { en: "Sparepart", ko: "자재목록" },
+  spare_part: { en: "Sparepart", ko: "자재목록" },
+  woType: { en: "Wotype", ko: "작업타입" },
+  wo_type: { en: "Wotype", ko: "작업타입" },
+  representativeWork: { en: "Rep Work Name", ko: "대표 작업명" },
+  representative_work_name: { en: "Rep Work Name", ko: "대표 작업명" },
+  rep_name: { en: "Rep Work Name", ko: "대표 작업명" },
+  report: { en: "Report", ko: "보고서 원문" },
+  report_content: { en: "Report", ko: "보고서 원문" },
+  work: { en: "Improvement Work", ko: "개선 작업" },
+  purpose: { en: "Work Purpose", ko: "작업목적" },
+  situation: { en: "Problem Symptom", ko: "문제 현상" },
+  cause: { en: "Problem Cause", ko: "문제 원인" },
+  hwAsWas: { en: "HW Before", ko: "HW 변경 전" },
+  hwAsIs: { en: "HW After", ko: "HW 변경 후" },
+  swAsWas: { en: "SW Before", ko: "SW 변경 전" },
+  swAsIs: { en: "SW After", ko: "SW 변경 후" },
+  priority: { en: "Priority", ko: "중요도" },
+  category: { en: "Effect Type", ko: "효과 유형" },
+};
+
+function formatColumnHeader(col, language = "en") {
+  if (!col) return "";
+  const rawLabel = typeof col === "string" ? col : (col.label || col.key || "");
+  const colKey = typeof col === "object" ? col.key : col;
+
+  // 1. If rawLabel has format "Korean (English)" or "English (Korean)"
+  const parenMatch = String(rawLabel).match(/^([^(]+)\s*\(([^)]+)\)$/);
+  if (parenMatch) {
+    const part1 = parenMatch[1].trim();
+    const part2 = parenMatch[2].trim();
+    const hasKorean1 = /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(part1);
+    const hasKorean2 = /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(part2);
+
+    let koText = part1;
+    let enText = part2;
+    if (hasKorean2 && !hasKorean1) {
+      koText = part2;
+      enText = part1;
+    } else if (!hasKorean1 && !hasKorean2) {
+      return language === "ko" ? (part1 || part2) : (part2 || part1);
+    }
+
+    return language === "ko" ? koText : enText;
+  }
+
+  // 2. Check COLUMN_I18N_MAP by colKey
+  if (colKey && COLUMN_I18N_MAP[colKey]) {
+    return language === "ko" ? COLUMN_I18N_MAP[colKey].ko : COLUMN_I18N_MAP[colKey].en;
+  }
+
+  // 3. Check by lowercase colKey
+  const lowerKey = String(colKey || "").toLowerCase();
+  for (const [k, v] of Object.entries(COLUMN_I18N_MAP)) {
+    if (k.toLowerCase() === lowerKey) {
+      return language === "ko" ? v.ko : v.en;
+    }
+  }
+
+  // 4. Check if col has explicit labelKr or labelEn
+  if (language === "ko" && col.labelKr) return col.labelKr;
+  if (language === "en" && col.labelEn) return col.labelEn;
+
+  return rawLabel;
+}
+
+function excelSerialToDate(serial) {
+  if (!serial && serial !== 0) return "";
+  if (typeof serial === "string") {
+    const trimmed = serial.trim();
+    if (!trimmed) return "";
+    if (trimmed.includes("T")) return trimmed.split("T")[0];
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+    const num = Number(trimmed);
+    if (isNaN(num)) return trimmed;
+    serial = num;
+  }
+  if (typeof serial === "number" && !isNaN(serial) && serial > 0) {
+    const utcDays = Math.floor(serial - 25569);
+    const utcValue = utcDays * 86400;
+    const dateInfo = new Date(utcValue * 1000);
+    const year = dateInfo.getUTCFullYear();
+    const month = String(dateInfo.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(dateInfo.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  return String(serial);
+}
+
+function getFormattedDateString(raw) {
+  if (!raw) return "";
+  const dateStr = excelSerialToDate(raw);
+  if (!dateStr) return "";
+  return dateStr.slice(0, 10);
+}
+
+function formatValidDateIso(rawDate) {
+  if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
+    return new Date().toISOString();
+  }
+  const p = new Date(rawDate);
+  if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
+    return new Date().toISOString();
+  }
+  return p.toISOString();
+}
+
+function getPreviewCellValue(row, key) {
+  if (!row) return "";
+  const lowerKey = String(key || "").toLowerCase();
+  if (
+    lowerKey === "workedon" ||
+    lowerKey === "workdate" ||
+    lowerKey === "work_date" ||
+    lowerKey === "workeddate" ||
+    lowerKey === "worked_date" ||
+    key === "작업완료일" ||
+    key === "작업일자" ||
+    (typeof key === "string" && key.includes("작업완료일"))
+  ) {
+    const raw =
+      row.workDate ??
+      row.workedOn ??
+      row.work_date ??
+      row.workedDate ??
+      row.worked_date ??
+      row["작업완료일"] ??
+      row["작업일자"] ??
+      "";
+    return getFormattedDateString(raw) || String(raw || "");
+  }
+  if (lowerKey === "wocode" || lowerKey === "wo_code" || key === "W/O코드") {
+    return row.woCode ?? row.wOCode ?? row.wo_code ?? row["W/O코드"] ?? "";
+  }
+  if (lowerKey === "wotype" || lowerKey === "wo_type" || key === "W/O타입") {
+    return row.woType ?? row.Wotype ?? row.wotype ?? row.wo_type ?? row.woTypeName ?? "";
+  }
+  if (lowerKey === "maintgroup" || lowerKey === "eqtype" || key === "보전파트") {
+    return row.maintGroup ?? row.eqType ?? row.maintenance_part ?? row["보전파트"] ?? "";
+  }
+  if (lowerKey === "equipmentcode" || lowerKey === "eqcode" || lowerKey === "equipment_code" || key === "설비코드") {
+    return row.equipmentCode ?? row.equipment_code ?? row.Eqcode ?? row.eqcode ?? row["설비코드"] ?? "";
+  }
+  if (lowerKey === "equipmentname" || lowerKey === "eqname" || lowerKey === "equipment_name" || key === "설비명") {
+    return row.equipmentName ?? row.equipment_name ?? row.Eqname ?? row.eqname ?? row["설비명"] ?? "";
+  }
+  if (lowerKey === "representativework" || lowerKey === "rep_name" || key === "대표 작업명") {
+    return row.representativeWork ?? row.rep_name ?? row.representative_work_name ?? row["대표 작업명"] ?? "";
+  }
+  if (lowerKey === "sparepart" || lowerKey === "spare_part" || key === "자재목록") {
+    return row.sparePart ?? row.sparepart ?? row["자재목록"] ?? "";
+  }
+  return row[key] ?? "";
+}
 
 function mapExportedRowToChangeData(row) {
   const currentUserName = getUserInfo()?.name || "Chirati Harish";
   const maintVal = row.maintenance_part || row.maintGroup || row.eqType || row["보전파트"] || "";
   const woTypeVal = row.Wotype || row.wotype || row.woType || row.wo_type || row["W/O타입"] || "";
   const woCodeVal = row.wOCode || row.woCode || row.wo_code || row["W/O코드"] || row["작업지시서 코드"] || "";
-  const workedDate = row.work_date || row.workedOn || row["작업완료일"] || row["작업일자"] || "";
+  const rawWorkDate =
+    row.workDate ||
+    row.work_date ||
+    row.workedOn ||
+    row.workedDate ||
+    row.worked_date ||
+    row["작업완료일"] ||
+    row["작업일자"] ||
+    "";
+  const workedDate = getFormattedDateString(rawWorkDate) || rawWorkDate;
   const sparePartVal = row.sparepart || row.sparePart || row["자재목록"] || row["예비 부품"] || "";
 
   return {
@@ -71,6 +256,9 @@ function mapExportedRowToChangeData(row) {
     sparePart: sparePartVal,
     "자재목록": sparePartVal,
     workedOn: workedDate,
+    workDate: workedDate,
+    work_date: workedDate,
+    workedDate: workedDate,
     work: row.improvements || row.work || row.work_description || row["개선 작업"] || row["작업"] || "",
     purpose: row.task_purpose || row.purpose || row["작업 목적"] || "",
     situation: row.problem_phenomenon || row.situation || row["문제 현상"] || row["상황"] || "",
@@ -115,13 +303,14 @@ export default function JobPreviewModal({ job, onClose }) {
   const [cellValue, setCellValue] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [masterColumns, setMasterColumns] = useState(null);
+  const [apiColumns, setApiColumns] = useState(null);
   const [downloadingExport, setDownloadingExport] = useState(false);
   const [duplicateAlert, setDuplicateAlert] = useState(null);
   const [duplicateRowsCount, setDuplicateRowsCount] = useState(0);
 
   const navigate = useNavigate();
   const { pushToast } = useToast();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
 
   // Fetch Master Data column sequence from API
   useEffect(() => {
@@ -145,20 +334,44 @@ export default function JobPreviewModal({ job, onClose }) {
       const mapped = masterColumns
         .map((mc) => {
           const key = mc.jsonKey || mc.excelColumnName;
-          const match = DEFAULT_PREVIEW_COLUMNS.find(
-            (c) => c.key.toLowerCase() === key?.toLowerCase(),
-          );
+          const match = DEFAULT_PREVIEW_COLUMNS.find((c) => {
+            const ck = c.key.toLowerCase();
+            const k = (key || "").toLowerCase();
+            if (ck === k) return true;
+            if (
+              ck === "workedon" &&
+              (k === "workdate" ||
+                k === "work_date" ||
+                k === "workeddate" ||
+                k === "worked_date" ||
+                k === "작업완료일" ||
+                k === "작업일자")
+            ) {
+              return true;
+            }
+            if (ck === "wocode" && (k === "wo_code" || k === "작업지시서 코드")) return true;
+            if (ck === "wotype" && (k === "wo_type" || k === "w/o타입")) return true;
+            if (ck === "maintgroup" && (k === "eqtype" || k === "maintenance_part" || k === "보전파트")) return true;
+            if (ck === "sparepart" && (k === "spare_part" || k === "자재목록")) return true;
+            if (ck === "representativework" && (k === "rep_name" || k === "representative_work_name" || k === "대표 작업명")) return true;
+            return false;
+          });
           return {
             key: match ? match.key : key,
             label: match ? match.label : (mc.columnNameKr || mc.columnName || key),
+            labelKr: match?.labelKr || mc.columnNameKr || key,
+            labelEn: match?.label || mc.columnName || key,
             required: mc.isMandatory !== undefined ? Boolean(mc.isMandatory) : (match ? Boolean(match.required) : false),
           };
         })
         .filter(Boolean);
       if (mapped.length > 0) return mapped;
     }
+    if (apiColumns && apiColumns.length > 0) {
+      return apiColumns;
+    }
     return DEFAULT_PREVIEW_COLUMNS;
-  }, [masterColumns]);
+  }, [masterColumns, apiColumns]);
 
   // Initial fetch: limit=50&offset=0
   useEffect(() => {
@@ -186,6 +399,28 @@ export default function JobPreviewModal({ job, onClose }) {
 
         const data = await response.json();
         if (isMounted) {
+          if (Array.isArray(data?.column_keys) && data.column_keys.length > 0) {
+            const colsFromApi = data.column_keys.map((k, i) => {
+              const labelFromData = Array.isArray(data?.columns) ? data.columns[i] : k;
+              const match = DEFAULT_PREVIEW_COLUMNS.find((c) => {
+                const ck = c.key.toLowerCase();
+                const lk = (k || "").toLowerCase();
+                return (
+                  ck === lk ||
+                  (ck === "workedon" &&
+                    (lk === "workdate" || lk === "work_date" || lk === "workeddate"))
+                );
+              });
+              return {
+                key: k,
+                label: labelFromData || match?.label || k,
+                labelKr: match?.labelKr,
+                labelEn: match?.label,
+                required: match ? Boolean(match.required) : false,
+              };
+            });
+            setApiColumns(colsFromApi);
+          }
           const rawRows = Array.isArray(data)
             ? data
             : Array.isArray(data?.rows)
@@ -318,6 +553,22 @@ export default function JobPreviewModal({ job, onClose }) {
     setCellValue(String(val ?? ""));
   };
 
+  // Close editing cell on click outside
+  useEffect(() => {
+    if (!editingCell) return;
+    const handleClickOutside = (e) => {
+      if (e.target.closest(".editing-cell-container")) return;
+      setEditingCell(null);
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingCell]);
+
   const handleCellSave = (rowIdx, key, overrideVal) => {
     const valToSave = overrideVal !== undefined ? overrideVal : cellValue;
     setRows((prev) => {
@@ -352,6 +603,20 @@ export default function JobPreviewModal({ job, onClose }) {
         updatedRow.representativeWork = valToSave;
         updatedRow.representative_work_name = valToSave;
         updatedRow.rep_name = valToSave;
+      } else if (
+        lowerKey === "workedon" ||
+        lowerKey === "workdate" ||
+        lowerKey === "work_date" ||
+        lowerKey === "workeddate" ||
+        lowerKey === "worked_date" ||
+        key === "작업완료일" ||
+        key === "작업일자"
+      ) {
+        const formatted = getFormattedDateString(valToSave) || valToSave;
+        updatedRow.workedOn = formatted;
+        updatedRow.workDate = formatted;
+        updatedRow.work_date = formatted;
+        updatedRow.workedDate = formatted;
       }
 
       next[rowIdx] = updatedRow;
@@ -383,9 +648,10 @@ export default function JobPreviewModal({ job, onClose }) {
 
   const missingMandatoryCount = useMemo(() => {
     return rows.filter((r) =>
-      previewColumns.some(
-        (col) => col.required && (!r[col.key] || String(r[col.key]).trim() === ""),
-      ),
+      previewColumns.some((col) => {
+        const val = getPreviewCellValue(r, col.key);
+        return col.required && (!val || String(val).trim() === "");
+      }),
     ).length;
   }, [rows, previewColumns]);
 
@@ -395,9 +661,10 @@ export default function JobPreviewModal({ job, onClose }) {
     }
     if (filterType === "missing") {
       return rows.filter((r) =>
-        previewColumns.some(
-          (col) => col.required && (!r[col.key] || String(r[col.key]).trim() === ""),
-        ),
+        previewColumns.some((col) => {
+          const val = getPreviewCellValue(r, col.key);
+          return col.required && (!val || String(val).trim() === "");
+        }),
       );
     }
     return rows;
@@ -412,7 +679,15 @@ export default function JobPreviewModal({ job, onClose }) {
     setSaving(true);
 
     const payload = {
-      changeDataList: rows,
+      changeDataList: rows.map((r) => {
+        const rawDate = r.workDate || r.workedOn || r.work_date || "";
+        const isoDate = formatValidDateIso(rawDate);
+        return {
+          ...r,
+          workDate: isoDate,
+          workedOn: r.workedOn || r.workDate || isoDate.slice(0, 10),
+        };
+      }),
       id: 0,
     };
 
@@ -512,7 +787,15 @@ export default function JobPreviewModal({ job, onClose }) {
             const changeDataList = rawRows.map((r) => mapExportedRowToChangeData(r));
 
             const reviewedPayload = {
-              changeDataList,
+              changeDataList: changeDataList.map((r) => {
+                const rawDate = r.workDate || r.workedOn || r.work_date || "";
+                const isoDate = formatValidDateIso(rawDate);
+                return {
+                  ...r,
+                  workDate: isoDate,
+                  workedOn: r.workedOn || r.workDate || isoDate.slice(0, 10),
+                };
+              }),
               id: 0,
             };
 
@@ -805,7 +1088,7 @@ export default function JobPreviewModal({ job, onClose }) {
                   <th className="px-3 py-3 w-16 text-center">Action</th>
                   {previewColumns.map((col) => (
                     <th key={col.key} className="px-4 py-3 min-w-[140px]">
-                      {col.label}
+                      {formatColumnHeader(col, language)}
                     </th>
                   ))}
                 </tr>
@@ -852,7 +1135,7 @@ export default function JobPreviewModal({ job, onClose }) {
                         </button>
                       </td>
                       {previewColumns.map((col) => {
-                        const val = r[col.key] ?? "";
+                        const val = getPreviewCellValue(r, col.key);
                         const isEditing =
                           editingCell?.rowIdx === targetRowIdx && editingCell?.key === col.key;
                         const isMissing =
@@ -861,7 +1144,9 @@ export default function JobPreviewModal({ job, onClose }) {
                         return (
                           <td
                             key={col.key}
-                            className={`px-4 py-3 whitespace-nowrap max-w-[220px] truncate cursor-pointer transition-colors ${
+                            className={`px-4 py-3 whitespace-nowrap max-w-[220px] cursor-pointer transition-colors ${
+                              isEditing ? "overflow-visible relative" : "truncate overflow-hidden"
+                            } ${
                               isDup
                                 ? "bg-red-100/80 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-b border-red-200 dark:border-red-900 font-semibold"
                                 : isMissing
@@ -872,26 +1157,90 @@ export default function JobPreviewModal({ job, onClose }) {
                             title={isDup ? `[Duplicate Record] ${String(val)}` : String(val)}
                           >
                           {isEditing ? (
-                            <input
-                              type="text"
-                              className="input-base text-xs py-0.5 px-1.5 w-full bg-white dark:bg-gray-800 text-text-default border border-blue-500 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                              value={cellValue}
-                              autoFocus
-                              onChange={(e) => setCellValue(e.target.value)}
-                              onBlur={(e) => handleCellSave(targetRowIdx, col.key, e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleCellSave(targetRowIdx, col.key, e.target.value);
-                                }
-                                if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setEditingCell(null);
-                                }
-                              }}
-                            />
+                            <div className="relative editing-cell-container" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                className="input-base text-xs py-0.5 px-1.5 w-full bg-white dark:bg-gray-800 text-text-default border border-blue-500 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                value={cellValue}
+                                autoFocus
+                                onChange={(e) => setCellValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCellSave(targetRowIdx, col.key, cellValue);
+                                  }
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              />
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  right: "0px",
+                                  top: "100%",
+                                  marginTop: "4px",
+                                  display: "flex",
+                                  gap: "4px",
+                                  zIndex: 40,
+                                  background: "#fff",
+                                  boxShadow:
+                                    "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "6px",
+                                  padding: "4px",
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCellSave(targetRowIdx, col.key, cellValue);
+                                  }}
+                                  title="저장 (Enter)"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: "22px",
+                                    height: "22px",
+                                    borderRadius: "4px",
+                                    border: "none",
+                                    background: "#16a34a",
+                                    color: "#fff",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <i className="fas fa-check" style={{ fontSize: "9px" }} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCell(null);
+                                  }}
+                                  title="취소 (Esc)"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: "22px",
+                                    height: "22px",
+                                    borderRadius: "4px",
+                                    border: "none",
+                                    background: "#e5e7eb",
+                                    color: "#6b7280",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <i className="fas fa-times" style={{ fontSize: "9px" }} />
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             <span>{String(val || "")}</span>
                           )}
