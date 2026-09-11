@@ -150,6 +150,13 @@ export default function AiPipelinePromptModal({
   function handleFileSelected(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.name?.toLowerCase().endsWith(".xlsx")) {
+      setError(
+        t("toast.unsupportedFormat", "Unsupported file format. Only XLSX format is supported."),
+      );
+      return;
+    }
+    setError(null);
     if (onUploadFile) {
       onUploadFile(file);
     }
@@ -174,6 +181,13 @@ export default function AiPipelinePromptModal({
     setIsDragging(false);
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
+    if (!file.name?.toLowerCase().endsWith(".xlsx")) {
+      setError(
+        t("toast.unsupportedFormat", "Unsupported file format. Only XLSX format is supported."),
+      );
+      return;
+    }
+    setError(null);
     if (onUploadFile) {
       onUploadFile(file);
     }
@@ -198,7 +212,7 @@ export default function AiPipelinePromptModal({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.csv,.xls"
+          accept=".xlsx"
           style={{ display: "none" }}
           onChange={handleFileSelected}
         />
@@ -207,7 +221,7 @@ export default function AiPipelinePromptModal({
         <div className="ai-prompt-modal-header">
           <div className="ai-prompt-header-title">
             <i className="fas fa-robot text-[#1745c2]" />
-            <span>AI Pipeline Import</span>
+            <span>{t("app.aiPipelineImportExcel", "AI Pipeline Import Excel")}</span>
           </div>
 
           <button
@@ -223,6 +237,12 @@ export default function AiPipelinePromptModal({
 
         {/* Modal Body */}
         <div ref={modalBodyRef} className="ai-prompt-modal-body">
+          {error && (
+            <div className="p-3 mb-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300 flex items-center gap-2">
+              <i className="fas fa-exclamation-circle text-sm shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           {/* Top: Drag & Drop Spreadsheet Area */}
           <div
             className={`prompt-dropzone ${isDragging ? "dragging" : ""} ${isExpanded ? "collapsed-dropzone" : ""}`}

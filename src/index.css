@@ -2744,3 +2744,86 @@ html:not([data-theme="dark"]) .attachment-thumb-caption {
   background-color: var(--surface-stronger);
   color: var(--text-default);
 }
+
+/* Jobs count cell styles */
+.muted {
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+[data-theme="dark"] .muted {
+  color: #64748b;
+}
+
+.qcount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.qcount.warn {
+  color: #b45309;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+}
+.qcount.warn:hover {
+  background-color: #fde68a;
+  color: #92400e;
+}
+
+.qcount.crit {
+  color: #b91c1c;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+}
+.qcount.crit:hover {
+  background-color: #fecaca;
+  color: #991b1b;
+}
+
+.qcount.ok {
+  color: #047857;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+.qcount.ok:hover {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+[data-theme="dark"] .qcount.warn {
+  color: #fbbf24;
+  background-color: rgba(217, 119, 6, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+[data-theme="dark"] .qcount.warn:hover {
+  background-color: rgba(217, 119, 6, 0.35);
+  color: #fef08a;
+}
+
+[data-theme="dark"] .qcount.crit {
+  color: #f87171;
+  background-color: rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+[data-theme="dark"] .qcount.crit:hover {
+  background-color: rgba(220, 38, 38, 0.35);
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .qcount.ok {
+  color: #34d399;
+  background-color: rgba(5, 150, 105, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+[data-theme="dark"] .qcount.ok:hover {
+  background-color: rgba(5, 150, 105, 0.35);
+  color: #6ee7b7;
+}

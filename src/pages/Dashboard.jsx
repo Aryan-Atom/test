@@ -230,54 +230,40 @@ export default function Dashboard() {
     const name = file.name || "";
     const ext = name.split(".").pop().toLowerCase();
 
-    if (ext === "csv") {
-      const text = await file.text();
-      const parsed = parseCsv(text);
-      if (!parsed.length) {
-        pushToast(t("toast.csvReadError"), "error");
+    if (ext !== "xlsx") {
+      pushToast(
+        t(
+          "toast.unsupportedFormat",
+          "Unsupported file format. Only XLSX format is supported.",
+        ),
+        "error",
+      );
+      return;
+    }
+
+    try {
+      const uploadResponse = await uploadExcel(file);
+      const rows = Array.isArray(uploadResponse?.rows)
+        ? uploadResponse.rows
+        : [];
+      if (!rows.length) {
+        pushToast(t("toast.excelEmptyRows"), "error");
         return;
       }
+
       if (type === "change") {
-        setChangeData(parsed);
+        setChangeData(rows);
         setPersistChange(false);
         pushToast(t("toast.changeHistoryUploaded"), "success");
       }
       if (type === "spec") {
-        setSpecData(parsed);
+        setSpecData(rows);
         setPersistSpec(false);
         pushToast(t("toast.specDataUploaded"), "success");
       }
-      return;
+    } catch (err) {
+      pushToast(t("toast.excelError"), "error");
     }
-
-    if (ext === "xlsx" || ext === "xls") {
-      try {
-        const uploadResponse = await uploadExcel(file);
-        const rows = Array.isArray(uploadResponse?.rows)
-          ? uploadResponse.rows
-          : [];
-        if (!rows.length) {
-          pushToast(t("toast.excelEmptyRows"), "error");
-          return;
-        }
-
-        if (type === "change") {
-          setChangeData(rows);
-          setPersistChange(false);
-          pushToast(t("toast.changeHistoryUploaded"), "success");
-        }
-        if (type === "spec") {
-          setSpecData(rows);
-          setPersistSpec(false);
-          pushToast(t("toast.specDataUploaded"), "success");
-        }
-      } catch (err) {
-        pushToast(t("toast.excelError"), "error");
-      }
-      return;
-    }
-
-    pushToast(t("toast.unsupportedFormat"), "error");
   };
 
   const exportCsv = (type) => {

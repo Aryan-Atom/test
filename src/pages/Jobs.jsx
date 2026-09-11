@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useI18n } from "../i18n.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
 import JobPreviewModal from "../components/JobPreviewModal.jsx";
@@ -33,6 +33,67 @@ function HighlightText({ text, query }) {
         ),
       )}
     </>
+  );
+}
+
+// One count cell in the Jobs table (ROWS / QUARANTINED). Absent — a queued or
+// running job, or one that failed before reading — renders "—", not 0: zero is
+// a confident answer to a question that has no answer yet. 0 renders muted
+// grey: colour has to mean "look at this", and a plain 0 in amber teaches
+// people to ignore the colour. >0 is amber; red only when NOTHING was
+// ingested, which is the silent-success case this column exists to surface.
+function CountCell({ value, ingested, total, to, onClick }) {
+  if (value == null) {
+    return (
+      <td className="px-4 py-3 text-right">
+        <span className="muted">—</span>
+      </td>
+    );
+  }
+  if (value === 0) {
+    return (
+      <td className="px-4 py-3 text-right">
+        <span className="muted">0</span>
+      </td>
+    );
+  }
+  const allRejected = (total > 0 || value > 0) && ingested === 0;
+  const tone = allRejected ? "crit" : "warn";
+  const title = allRejected
+    ? "Every row was rejected — nothing from this file reached the corpus."
+    : `${(ingested ?? 0).toLocaleString()} of ${(total ?? value).toLocaleString()} rows were added.`;
+
+  if (onClick) {
+    return (
+      <td className="px-4 py-3 text-right">
+        <button
+          type="button"
+          onClick={onClick}
+          className={`qcount ${tone} cursor-pointer`}
+          title={title}
+        >
+          {value.toLocaleString()}
+        </button>
+      </td>
+    );
+  }
+
+  if (to) {
+    return (
+      <td className="px-4 py-3 text-right">
+        <Link className={`qcount ${tone}`} to={to} title={title}>
+          {value.toLocaleString()}
+        </Link>
+      </td>
+    );
+  }
+
+  return (
+    <td className="px-4 py-3 text-right">
+      <span className={`qcount ${tone}`} title={title}>
+        {value.toLocaleString()}
+      </span>
+    </td>
   );
 }
 
@@ -226,6 +287,11 @@ export default function Jobs() {
           <i className={`fas ${icon} text-[10px]`} />
           <HighlightText text={j.status || "idle"} query={searchQuery} />
         </span>
+        {j.stage && (
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-mono">
+            <HighlightText text={j.stage} query={searchQuery} />
+          </span>
+        )}
         {j.columns_uncertain && (
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help"
@@ -250,10 +316,10 @@ export default function Jobs() {
         <div>
           <h1 className="page-title flex items-center gap-2.5">
             <i className="fas fa-robot text-[#1745c2] text-xl md:text-[22px]" />
-            <span>Jobs</span>
+            <span>{t("jobs.title", "Jobs")}</span>
           </h1>
           <p className="page-subtitle">
-            Runs happen one at a time — a second upload waits its turn.
+            {t("jobs.subtitle", "Runs happen one at a time — a second upload waits its turn.")}
           </p>
         </div>
 
@@ -264,7 +330,7 @@ export default function Jobs() {
               type="text"
               className="input-base text-xs w-full py-1.5"
               style={{ paddingLeft: "2.25rem" }}
-              placeholder="Search job ID, files..."
+              placeholder={t("jobs.searchPlaceholder", "Search job ID, files...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -274,12 +340,12 @@ export default function Jobs() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="all">All Status</option>
-            <option value="running">Running</option>
-            <option value="done">Done</option>
-            <option value="failed">Failed</option>
-            <option value="quarantined">Quarantined</option>
-            <option value="idle">Idle</option>
+            <option value="all">{t("jobs.statusAll", "All Status")}</option>
+            <option value="running">{t("jobs.statusRunning", "Running")}</option>
+            <option value="done">{t("jobs.statusDone", "Done")}</option>
+            <option value="failed">{t("jobs.statusFailed", "Failed")}</option>
+            <option value="quarantined">{t("jobs.statusQuarantined", "Quarantined")}</option>
+            <option value="idle">{t("jobs.statusIdle", "Idle")}</option>
           </select>
         </div>
       </header>
@@ -301,10 +367,10 @@ export default function Jobs() {
               <i className="fas fa-inbox text-2xl" />
             </div>
             <p className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1.5">
-              Nothing has been run yet.
+              {t("jobs.emptyTitle", "Nothing has been run yet.")}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 max-w-sm">
-              Upload a spreadsheet via AI Pipeline to start a job.
+              {t("jobs.emptyDesc", "Upload a spreadsheet via AI Pipeline to start a job.")}
             </p>
             <button
               type="button"
@@ -312,7 +378,7 @@ export default function Jobs() {
               onClick={() => navigate("/data-management/change-history-data")}
             >
               <i className="fas fa-file-import text-xs" />
-              <span>Go to Upload Spreadsheet</span>
+              <span>{t("jobs.goUpload", "Go to Upload Spreadsheet")}</span>
             </button>
           </div>
         ) : filteredJobs.length === 0 ? (
@@ -321,10 +387,10 @@ export default function Jobs() {
               <i className="fas fa-filter text-lg" />
             </div>
             <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">
-              No matching jobs found.
+              {t("jobs.noMatching", "No matching jobs found.")}
             </p>
             <p className="text-xs text-gray-400">
-              Try adjusting your search query or status filter.
+              {t("jobs.tryAdjusting", "Try adjusting your search query or status filter.")}
             </p>
           </div>
         ) : (
@@ -332,13 +398,15 @@ export default function Jobs() {
             <table className="table-base w-full text-left">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-border-base text-xs font-semibold uppercase tracking-wider text-text-subtle">
-                  <th className="px-4 py-3 w-14 text-center">S.No</th>
-                  <th className="px-4 py-3">Job ID</th>
-                  <th className="px-4 py-3">Files</th>
-                  <th className="px-4 py-3">Uploaded By</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Started</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3 w-14 text-center">{t("jobs.sNo", "S.No")}</th>
+                  <th className="px-4 py-3">{t("jobs.jobId", "Job ID")}</th>
+                  <th className="px-4 py-3">{t("jobs.files", "Files")}</th>
+                  <th className="px-4 py-3">{t("field.createdBy", "Uploaded By")}</th>
+                  <th className="px-4 py-3 text-right">{t("jobs.rows", "Rows")}</th>
+                  <th className="px-4 py-3 text-right">{t("jobs.quarantined", "Quarantined")}</th>
+                  <th className="px-4 py-3">{t("jobs.status", "Status")}</th>
+                  <th className="px-4 py-3">{t("jobs.started", "Started")}</th>
+                  <th className="px-4 py-3 text-center">{t("jobs.actions", "Actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base text-xs">
@@ -349,11 +417,25 @@ export default function Jobs() {
                   const uploadedBy =
                     j.createdBy || j.created_by_user || j.uploadedBy || j.created_by || "-";
                   const createdAt = j.created_at || j.createdAt || "-";
+                  const totalRows =
+                    j.total_rows != null ? j.total_rows : (j.totalRows ?? j.rows_count ?? j.rows ?? null);
+                  const quarantined =
+                    j.quarantined != null
+                      ? j.quarantined
+                      : (j.quarantine_count != null
+                        ? j.quarantine_count
+                        : (j.has_quarantine ? 1 : (j.status === "done" ? 0 : null)));
+                  const ingested =
+                    j.ingested != null
+                      ? j.ingested
+                      : (totalRows != null && quarantined != null
+                        ? Math.max(0, totalRows - quarantined)
+                        : null);
+
                   const isQuarantined =
                     Boolean(j.has_quarantine) ||
                     Boolean(j.is_quarantined) ||
-                    Boolean(j.quarantined) ||
-                    (typeof j.quarantine_count === "number" && j.quarantine_count > 0) ||
+                    (typeof quarantined === "number" && quarantined > 0) ||
                     String(j.status || "").toLowerCase() === "quarantined" ||
                     String(j.status || "").toLowerCase() === "quarantine";
                   const isRunning = String(j.status || "").toLowerCase() === "running";
@@ -368,7 +450,14 @@ export default function Jobs() {
                         {index + 1}
                       </td>
                       <td className="px-4 py-3 font-mono font-medium text-teal-600 dark:text-teal-400">
-                        <HighlightText text={j.id} query={searchQuery} />
+                        <button
+                          type="button"
+                          className="hover:underline cursor-pointer font-mono"
+                          onClick={() => setSelectedJob(j)}
+                          title="View job details"
+                        >
+                          <HighlightText text={j.id} query={searchQuery} />
+                        </button>
                       </td>
                       <td className="px-4 py-3 max-w-[280px] truncate" title={fileList}>
                         <HighlightText text={fileList} query={searchQuery} />
@@ -381,6 +470,22 @@ export default function Jobs() {
                           </span>
                         </div>
                       </td>
+                      <CountCell
+                        value={totalRows}
+                        ingested={ingested}
+                        total={totalRows}
+                      />
+                      <CountCell
+                        value={quarantined}
+                        ingested={ingested}
+                        total={totalRows}
+                        to="/ai-pipeline/quarantine"
+                        onClick={
+                          j.has_quarantine || (quarantined != null && quarantined > 0)
+                            ? () => setQuarantineJob(j)
+                            : undefined
+                        }
+                      />
                       <td className="px-4 py-3">{getStatusBadge(j)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-subtle font-mono">
                         <HighlightText text={createdAt} query={searchQuery} />
@@ -499,6 +604,30 @@ export default function Jobs() {
                     {selectedJob.created_at || selectedJob.createdAt || "-"}
                   </span>
                 </div>
+                {selectedJob.total_rows != null && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                    <span className="font-semibold text-text-subtle">Rows:</span>
+                    <span className="col-span-2 font-mono font-medium">
+                      {selectedJob.total_rows.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {selectedJob.ingested != null && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                    <span className="font-semibold text-text-subtle">Ingested:</span>
+                    <span className="col-span-2 font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                      {selectedJob.ingested.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {selectedJob.quarantined != null && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                    <span className="font-semibold text-text-subtle">Quarantined:</span>
+                    <span className="col-span-2 font-mono font-medium text-amber-600 dark:text-amber-400">
+                      {selectedJob.quarantined.toLocaleString()}
+                    </span>
+                  </div>
+                )}
                 {selectedJob.columns_uncertain && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
                     <span className="font-semibold text-text-subtle">Uncertain Fields:</span>

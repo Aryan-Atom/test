@@ -3934,7 +3934,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                 {currentTabItems.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-xs">
                     <i className="fas fa-inbox text-2xl mb-2 block opacity-40" />
-                    해당 항목의 설비가 없습니다.
+                    {t("matrix.noEquipmentForRecord", "해당 항목의 설비가 없습니다.")}
                   </div>
                 ) : (
                   currentTabItems.map((item) => {
@@ -3981,7 +3981,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
                             <span>{line1Equipment}</span>
                             {isRejectedTab && (
                               <span className="px-1.5 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded">
-                                사유
+                                {t("field.reason", "사유")}
                               </span>
                             )}
                           </div>

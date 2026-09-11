@@ -3079,16 +3079,22 @@ export default function MPList({
             <input
               ref={batchFileInputRef}
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".xlsx"
               className="hidden"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 e.target.value = "";
                 setBatchModalError("");
+                if (!file.name?.toLowerCase().endsWith(".xlsx")) {
+                  setBatchModalError(
+                    t("toast.unsupportedFormat", "Unsupported file format. Only XLSX format is supported."),
+                  );
+                  return;
+                }
                 if (file.size > 5 * 1024 * 1024) {
                   setBatchModalError(
-                    t("mp.fileSizeLimit", "Up to 5MB, supports only CSV/Excel format"),
+                    t("mp.fileSizeLimit", "Up to 5MB, supports only XLSX format"),
                   );
                   return;
                 }
@@ -4524,8 +4530,12 @@ export default function MPList({
                   <i className="fas fa-image" />
                 </span>
                 <div>
-                  <h3 className="text-sm font-bold text-text-default">사진 카테고리 선택</h3>
-                  <p className="text-xs text-text-subtle">업로드할 사진의 카테고리를 선택하세요</p>
+                  <h3 className="text-sm font-bold text-text-default">
+                    {t("category.selectPhotoCategory", "사진 카테고리 선택")}
+                  </h3>
+                  <p className="text-xs text-text-subtle">
+                    {t("category.selectPhotoCategoryDesc", "업로드할 사진의 카테고리를 선택하세요")}
+                  </p>
                 </div>
               </div>
               <button
@@ -4545,7 +4555,7 @@ export default function MPList({
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50/70 dark:bg-red-950/40 hover:bg-red-100/80 text-red-600 dark:text-red-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
               >
                 <i className="fas fa-exclamation-triangle text-base" />
-                <span>문제 현상</span>
+                <span>{t("category.problemPhenomenon", "문제 현상")}</span>
               </button>
 
               {/* Category 2: 개선 후 */}
@@ -4555,7 +4565,7 @@ export default function MPList({
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100/80 text-emerald-600 dark:text-emerald-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
               >
                 <i className="fas fa-check-circle text-base" />
-                <span>개선 후</span>
+                <span>{t("category.afterImprovements", "개선 후")}</span>
               </button>
 
               {/* Category 3: 설비 참고 */}
@@ -4565,7 +4575,7 @@ export default function MPList({
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-blue-200 dark:border-blue-800/60 bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 text-blue-600 dark:text-blue-400 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
               >
                 <i className="fas fa-cog text-base" />
-                <span>설비 참고</span>
+                <span>{t("category.equipmentReference", "설비 참고")}</span>
               </button>
 
               {/* Category 4: 기타 */}
@@ -4575,7 +4585,7 @@ export default function MPList({
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 text-gray-700 dark:text-gray-300 font-bold text-xs transition-all shadow-xs gap-1.5 h-20 cursor-pointer"
               >
                 <i className="fas fa-ellipsis-h text-base" />
-                <span>기타</span>
+                <span>{t("category.others", "기타")}</span>
               </button>
             </div>
 
@@ -4585,7 +4595,7 @@ export default function MPList({
                 className="btn-base btn-secondary text-xs px-5 py-1.5 cursor-pointer"
                 onClick={() => setShowCategoryModal(false)}
               >
-                취소
+                {t("app.cancellation", "취소")}
               </button>
             </div>
           </div>
@@ -4621,7 +4631,7 @@ export default function MPList({
                     {t("page.mp.batchModalTitle", "Batch addition of VoC")}
                   </h3>
                   <p className="text-xs text-text-subtlest mt-0.5">
-                    {t("page.mp.batchModalDesc", "Batch register VoC items as CSV files")}
+                    {t("page.mp.batchModalDesc", "Batch register VoC items as Excel files")}
                   </p>
                 </div>
               </div>
@@ -4679,7 +4689,7 @@ export default function MPList({
               </button>
             </div>
 
-            {/* Dropzone Card: Select the CSV file */}
+            {/* Dropzone Card: Select the Excel file */}
             <div
               className="border-2 border-dashed border-border-base rounded-2xl p-6 flex flex-col items-center justify-center text-center bg-surface-default/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all cursor-pointer mb-5"
               onClick={() => batchFileInputRef.current?.click()}
@@ -4688,6 +4698,12 @@ export default function MPList({
                 e.preventDefault();
                 const file = e.dataTransfer.files?.[0];
                 if (file) {
+                  if (!file.name?.toLowerCase().endsWith(".xlsx")) {
+                    setBatchModalError(
+                      t("toast.unsupportedFormat", "Unsupported file format. Only XLSX format is supported."),
+                    );
+                    return;
+                  }
                   if (batchFileInputRef.current) {
                     const dataTransfer = new DataTransfer();
                     dataTransfer.items.add(file);
@@ -4701,10 +4717,10 @@ export default function MPList({
                 <i className="fas fa-cloud-upload-alt" />
               </div>
               <h4 className="text-xs font-bold text-text-default">
-                {t("page.mp.selectCsvTitle", "Select the CSV file")}
+                {t("page.mp.selectExcelTitle", "Select the Excel file")}
               </h4>
               <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                {t("page.mp.selectCsvDesc", "Up to 5MB, supports only CSV format")}
+                {t("page.mp.selectExcelDesc", "Up to 5MB, supports only XLSX format")}
               </p>
               <button
                 type="button"

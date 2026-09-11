@@ -416,6 +416,7 @@ function EditableModalRow({
   isDuplicateRow,
   onDelete,
 }) {
+  const { t } = useI18n();
   const row = rows[index];
   if (!row) return null;
   const isDuplicate = isDuplicateRow(row);
@@ -623,7 +624,7 @@ function EditableModalRow({
                 <button
                   type="button"
                   onClick={handleSave}
-                  title="저장 (Enter)"
+                  title={t("tooltip.saveEnter", "저장 (Enter)")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -642,7 +643,7 @@ function EditableModalRow({
                 <button
                   type="button"
                   onClick={handleCancel}
-                  title="취소 (Esc)"
+                  title={t("tooltip.cancelEsc", "취소 (Esc)")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -2107,6 +2108,15 @@ export default function SpecData({ data, onUpload, onExport, searchText, isActiv
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = "";
+    if (!file.name?.toLowerCase().endsWith(".xlsx")) {
+      setOperationStatus({
+        isVisible: true,
+        status: "error",
+        message: t("toast.unsupportedFormat", "Unsupported file format. Only XLSX format is supported."),
+        autoClose: true,
+      });
+      return;
+    }
     setImportFileName(file.name);
     setImportBusy(true);
 
@@ -2625,16 +2635,16 @@ export default function SpecData({ data, onUpload, onExport, searchText, isActiv
               className="btn-secondary"
               onClick={() => fileInput.current?.click()}
               busy={importBusy}
-              busyLabel="Loading..."
+              busyLabel={t("app.loadingExcel", "Loading Excel...")}
               icon="fas fa-file-import"
             >
-              {t("app.importCsv")}
+              {t("app.importExcel", "Import Excel")}
             </AnimatedActionButton>
 
             <input
               ref={fileInput}
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".xlsx"
               className="hidden"
               onChange={handleUploadExcel}
             />
@@ -2878,7 +2888,7 @@ export default function SpecData({ data, onUpload, onExport, searchText, isActiv
                 }}
               />
               <i
-                className="fas fa-file-csv absolute text-xl text-blue-600 animate-pulse"
+                className="fas fa-file-excel absolute text-xl text-emerald-600 animate-pulse"
                 style={{ animationDuration: "1.5s" }}
               />
             </div>

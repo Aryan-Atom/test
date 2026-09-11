@@ -48,6 +48,7 @@ const pocEndPoints = {
   SAVE_REVIEWED_CHANGED_DATA: "api/ChangeData/SaveReviewedChangedData",
   SAVE_CURSOR: "api/ChangeData/SaveCursor",
   AI_PIPELINE_GET_CHANGES: `${aiPipelineServer}/api/exports/changes`,
+  AI_PIPELINE_MODELS: `${aiPipelineServer}/api/models`,
 };
 
 const auth = {

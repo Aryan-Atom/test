@@ -290,7 +290,23 @@ function mapExportedRowToChangeData(row) {
   };
 }
 
-export default function JobPreviewModal({ job, onClose }) {
+export default function JobPreviewModal({
+  job,
+  onClose,
+  isEditAndDeleteOptionIsRequired: propIsRequired,
+}) {
+  const isEditAndDeleteOptionIsRequired =
+    propIsRequired !== undefined
+      ? Boolean(propIsRequired)
+      : (() => {
+          const envVal =
+            import.meta.env.VITE_IS_EDIT_AND_DELETE_OPTION_IS_REQUIRED_FOR_JOB_PREVIEW_MODAL ??
+            "false";
+          return (
+            String(envVal).trim().replace(/^['"]|['"]$/g, "").toLowerCase() === "true"
+          );
+        })();
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -549,6 +565,7 @@ export default function JobPreviewModal({ job, onClose }) {
   };
 
   const handleCellDoubleClick = (rowIdx, key, val) => {
+    if (!isEditAndDeleteOptionIsRequired) return;
     setEditingCell({ rowIdx, key });
     setCellValue(String(val ?? ""));
   };
@@ -570,6 +587,7 @@ export default function JobPreviewModal({ job, onClose }) {
   }, [editingCell]);
 
   const handleCellSave = (rowIdx, key, overrideVal) => {
+    if (!isEditAndDeleteOptionIsRequired) return;
     const valToSave = overrideVal !== undefined ? overrideVal : cellValue;
     setRows((prev) => {
       const next = [...prev];
@@ -626,6 +644,7 @@ export default function JobPreviewModal({ job, onClose }) {
   };
 
   const handleDeleteRow = (rowIdx) => {
+    if (!isEditAndDeleteOptionIsRequired) return;
     setRows((prev) => {
       const next = prev.filter((_, idx) => idx !== rowIdx);
       const remainingDups = next.filter((r) => r.is_duplicate).length;
@@ -639,6 +658,7 @@ export default function JobPreviewModal({ job, onClose }) {
   };
 
   const handleRemoveAllDuplicates = () => {
+    if (!isEditAndDeleteOptionIsRequired) return;
     setRows((prev) => prev.filter((r) => !r.is_duplicate));
     setDuplicateRowsCount(0);
     setDuplicateAlert(null);
@@ -944,7 +964,7 @@ export default function JobPreviewModal({ job, onClose }) {
                 className="text-base font-bold"
                 style={{ color: "var(--color-text-default, #111827)" }}
               >
-                Upload Data Preview
+                {t("preview.title", "Upload Data Preview")}
               </h2>
               <p
                 className="text-xs mt-0.5"
@@ -954,7 +974,11 @@ export default function JobPreviewModal({ job, onClose }) {
                 <span className="font-semibold text-text-default">
                   {totalRows != null ? totalRows : rows.length}
                 </span>{" "}
-                rows · {previewColumns.length + 1} columns · double click on the field to edit
+                rows · {previewColumns.length + (isEditAndDeleteOptionIsRequired ? 1 : 0)} columns
+                {isEditAndDeleteOptionIsRequired &&
+                  (language === "ko"
+                    ? " · 셀을 더블 클릭하여 수정하세요"
+                    : " · double click on the field to edit")}
               </p>
             </div>
           </div>
@@ -971,7 +995,7 @@ export default function JobPreviewModal({ job, onClose }) {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                All ({rows.length}{totalRows != null && totalRows !== rows.length ? ` / ${totalRows}` : ""})
+                {t("preview.filterAll", "All")} ({rows.length}{totalRows != null && totalRows !== rows.length ? ` / ${totalRows}` : ""})
               </button>
               {duplicateRowsCount > 0 && (
                 <button
@@ -983,7 +1007,7 @@ export default function JobPreviewModal({ job, onClose }) {
                       : "text-red-500 hover:text-red-700"
                   }`}
                 >
-                  Duplicates ({duplicateRowsCount})
+                  {t("preview.filterDuplicate", "Duplicates")} ({duplicateRowsCount})
                 </button>
               )}
               <button
@@ -995,7 +1019,7 @@ export default function JobPreviewModal({ job, onClose }) {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                Missing Required ({missingMandatoryCount})
+                {t("preview.filterMissing", "Missing Required")} ({missingMandatoryCount})
               </button>
             </div>
 
@@ -1040,14 +1064,16 @@ export default function JobPreviewModal({ job, onClose }) {
               <span>{duplicateAlert}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleRemoveAllDuplicates}
-                className="btn-base bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              >
-                <i className="fas fa-trash-alt text-xs" />
-                <span>Remove All Duplicates ({duplicateRowsCount})</span>
-              </button>
+              {isEditAndDeleteOptionIsRequired && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAllDuplicates}
+                  className="btn-base bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                >
+                  <i className="fas fa-trash-alt text-xs" />
+                  <span>Remove All Duplicates ({duplicateRowsCount})</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setDuplicateAlert(null)}
@@ -1085,7 +1111,11 @@ export default function JobPreviewModal({ job, onClose }) {
               <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">
                 <tr className="font-semibold text-text-subtle whitespace-nowrap">
                   <th className="px-4 py-3 w-12 text-center">#</th>
-                  <th className="px-3 py-3 w-16 text-center">Action</th>
+                  {isEditAndDeleteOptionIsRequired && (
+                    <th className="px-3 py-3 w-16 text-center">
+                      {t("preview.edit", "Action")}
+                    </th>
+                  )}
                   {previewColumns.map((col) => (
                     <th key={col.key} className="px-4 py-3 min-w-[140px]">
                       {formatColumnHeader(col, language)}
@@ -1120,20 +1150,22 @@ export default function JobPreviewModal({ job, onClose }) {
                           targetRowIdx + 1
                         )}
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        <button
-                          type="button"
-                          className={`p-1 rounded transition-colors ${
-                            isDup
-                              ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 hover:bg-red-600 hover:text-white"
-                              : "text-gray-400 hover:text-red-600"
-                          }`}
-                          title={isDup ? "Delete duplicate row" : "Delete row"}
-                          onClick={() => handleDeleteRow(targetRowIdx)}
-                        >
-                          <i className="fas fa-trash-alt text-xs" />
-                        </button>
-                      </td>
+                      {isEditAndDeleteOptionIsRequired && (
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            type="button"
+                            className={`p-1 rounded transition-colors ${
+                              isDup
+                                ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 hover:bg-red-600 hover:text-white"
+                                : "text-gray-400 hover:text-red-600"
+                            }`}
+                            title={isDup ? "Delete duplicate row" : "Delete row"}
+                            onClick={() => handleDeleteRow(targetRowIdx)}
+                          >
+                            <i className="fas fa-trash-alt text-xs" />
+                          </button>
+                        </td>
+                      )}
                       {previewColumns.map((col) => {
                         const val = getPreviewCellValue(r, col.key);
                         const isEditing =
@@ -1144,16 +1176,24 @@ export default function JobPreviewModal({ job, onClose }) {
                         return (
                           <td
                             key={col.key}
-                            className={`px-4 py-3 whitespace-nowrap max-w-[220px] cursor-pointer transition-colors ${
+                            className={`px-4 py-3 whitespace-nowrap max-w-[220px] transition-colors ${
+                              isEditAndDeleteOptionIsRequired ? "cursor-pointer" : "cursor-default"
+                            } ${
                               isEditing ? "overflow-visible relative" : "truncate overflow-hidden"
                             } ${
                               isDup
                                 ? "bg-red-100/80 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-b border-red-200 dark:border-red-900 font-semibold"
                                 : isMissing
                                 ? "bg-red-50/60 dark:bg-red-950/40 text-red-700 dark:text-red-300 font-medium"
-                                : "hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
+                                : isEditAndDeleteOptionIsRequired
+                                ? "hover:bg-teal-50/50 dark:hover:bg-teal-950/30"
+                                : ""
                             }`}
-                            onDoubleClick={() => handleCellDoubleClick(targetRowIdx, col.key, val)}
+                            onDoubleClick={
+                              isEditAndDeleteOptionIsRequired
+                                ? () => handleCellDoubleClick(targetRowIdx, col.key, val)
+                                : undefined
+                            }
                             title={isDup ? `[Duplicate Record] ${String(val)}` : String(val)}
                           >
                           {isEditing ? (
@@ -1270,12 +1310,16 @@ export default function JobPreviewModal({ job, onClose }) {
           }}
         >
           <div className="flex items-center gap-3">
-            <p className="text-xs text-text-subtle flex items-center gap-1.5">
-              <i className="fas fa-info-circle text-gray-400" />
-              <span>
-                Double click on the field to edit, then click Save.
-              </span>
-            </p>
+            {isEditAndDeleteOptionIsRequired && (
+              <p className="text-xs text-text-subtle flex items-center gap-1.5">
+                <i className="fas fa-info-circle text-gray-400" />
+                <span>
+                  {language === "ko"
+                    ? "셀을 더블 클릭하여 수정한 후, 저장 버튼을 클릭하세요."
+                    : "Double click on the field to edit, then click Save."}
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -1286,7 +1330,7 @@ export default function JobPreviewModal({ job, onClose }) {
               className="btn-base btn-secondary flex items-center gap-1.5 text-xs px-4 py-2 cursor-pointer"
             >
               <i className="fas fa-times" />
-              <span>Cancel</span>
+              <span>{t("common.cancel", "Cancel")}</span>
             </button>
             <div title={saveTooltip} className="inline-block">
               <button
@@ -1303,13 +1347,15 @@ export default function JobPreviewModal({ job, onClose }) {
                 {saving ? (
                   <>
                     <i className="fas fa-spinner fa-spin" />
-                    <span>Saving...</span>
+                    <span>{t("common.saving", "Saving...")}</span>
                   </>
                 ) : (
                   <>
                     <i className="fas fa-check" />
                     <span>
-                      Save ({rows.length} of {totalRows != null ? totalRows : rows.length} rows)
+                      {language === "ko"
+                        ? `저장 (${rows.length} / ${totalRows != null ? totalRows : rows.length}행)`
+                        : `Save (${rows.length} of ${totalRows != null ? totalRows : rows.length} rows)`}
                     </span>
                   </>
                 )}

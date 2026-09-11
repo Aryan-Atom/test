@@ -528,11 +528,11 @@ export default function Drawer({
               >
                 {variant === "matrix" ? (
                   <span className="text-gray-500 dark:text-gray-400 font-medium">
-                    {`날짜: ${getFormattedDateString(firstValue(firstItem, ["work_date", "workedOn", "worked_date", "workDate"])) || "2026-05-13"} | ${firstValue(firstItem, ["site_name", "site", "siteName", "corporation"]) || "B3.천진"} (${equipmentName || equipmentCode || ""})`}
+                    {`${t("field.date", "날짜")}: ${getFormattedDateString(firstValue(firstItem, ["work_date", "workedOn", "worked_date", "workDate"])) || "2026-05-13"} | ${firstValue(firstItem, ["site_name", "site", "siteName", "corporation"]) || "B3.천진"} (${equipmentName || equipmentCode || ""})`}
                   </span>
                 ) : isChangeHistoryView ? (
                   <span className="text-gray-500 dark:text-gray-400 font-medium">
-                    W/O코드: {woCode || "N/A"} | 설비: {equipmentName || ""}{equipmentCode ? ` (${equipmentCode})` : ""}
+                    {t("field.woCode", "W/O코드")}: {woCode || "N/A"} | {t("field.equipment", "설비")}: {equipmentName || ""}{equipmentCode ? ` (${equipmentCode})` : ""}
                   </span>
                 ) : (
                   (() => {
@@ -550,7 +550,7 @@ export default function Drawer({
 
                     return (
                       <span className="text-gray-500 dark:text-gray-400 font-medium">
-                        {repWorkVal ? `작업명 : ${repWorkVal}` : ""}
+                        {repWorkVal ? `${t("field.repWork", "작업명")}: ${repWorkVal}` : ""}
                         {repWorkVal && (siteVal || equipmentName || equipmentCode) ? " | " : ""}
                         {siteVal ? `${siteVal} ` : ""}
                         {equipmentName || ""}
@@ -606,14 +606,14 @@ export default function Drawer({
                   {variant === "matrix" ? (
                     <div className="space-y-2 mb-3">
                       <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                        항목 {idx + 1}
+                        {t("app.item", "항목")} {idx + 1}
                       </div>
                       {isWoApplied ? (
                         <div className="w-full p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-2 flex-wrap">
                           <span className="flex items-center gap-1 shrink-0 text-blue-600 dark:text-blue-400">
                             <i className="fas fa-check-square" />
                           </span>
-                          <span className="font-bold text-blue-600 dark:text-blue-400">W/O 적용완료</span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{t("status.woApplied", "W/O 적용완료")}</span>
                           {recRepWork && (
                             <span className="text-gray-500 dark:text-gray-400 font-normal">
                               {recRepWork}
@@ -625,7 +625,7 @@ export default function Drawer({
                           <span className="flex items-center gap-1 shrink-0 text-emerald-600 dark:text-emerald-400">
                             <i className="fas fa-check-square" />
                           </span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">적용 확인</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{t("status.appliedConfirmed", "적용 확인")}</span>
                           {recRepWork && (
                             <span className="text-gray-500 dark:text-gray-400 font-normal">
                               {recRepWork}
@@ -638,7 +638,7 @@ export default function Drawer({
                             <span className="flex items-center gap-1 shrink-0 text-rose-600 dark:text-rose-400">
                               <i className="fas fa-square-xmark" />
                             </span>
-                            <span className="font-bold text-rose-600 dark:text-rose-400">미적용 확인</span>
+                            <span className="font-bold text-rose-600 dark:text-rose-400">{t("status.unappliedConfirmed", "미적용 확인")}</span>
                             {recRepWork && (
                               <span className="text-gray-500 dark:text-gray-400 font-normal">
                                 {recRepWork}
@@ -671,28 +671,28 @@ export default function Drawer({
                   ) : (
                     <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700/60">
                       <span className="px-2 py-0.5 text-[11px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
-                        {t("detail.record", "항목")} {idx + 1}
+                        {t("app.item", "항목")} {idx + 1}
                       </span>
                       <div className="flex items-center gap-1.5 text-xs font-bold min-w-0">
                         {isWoApplied ? (
                           <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0">
                             <i className="fas fa-check-square" />
-                            <span>W/O 적용완료</span>
+                            <span>{t("status.woApplied", "W/O 적용완료")}</span>
                           </span>
                         ) : isApplied ? (
                           <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
                             <i className="fas fa-check-square" />
-                            <span>적용 확인</span>
+                            <span>{t("status.appliedConfirmed", "적용 확인")}</span>
                           </span>
                         ) : isNotApplied ? (
                           <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
                             <i className="fas fa-square-xmark" />
-                            <span>미적용 확인</span>
+                            <span>{t("status.unappliedConfirmed", "미적용 확인")}</span>
                           </span>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1 shrink-0">
                             <i className="far fa-square" />
-                            <span>미확인</span>
+                            <span>{t("status.unconfirmed", "미확인")}</span>
                           </span>
                         )}
                         {recRepWork && (
@@ -759,7 +759,7 @@ export default function Drawer({
                         >
                           <i className="fas fa-arrow-right text-[11px]" />
                           <span>
-                            {isApplied ? "미적용으로 변경" : "적용 확인"}
+                            {isApplied ? t("action.changeToUnapplied", "미적용으로 변경") : t("status.appliedConfirmed", "적용 확인")}
                           </span>
                         </button>
                       )}
@@ -1066,7 +1066,7 @@ export default function Drawer({
 
               <div>
                 <label className="modal-field-label">
-                  대표 작업명 <span className="text-text-danger">*</span>
+                  {t("field.repWork", "대표 작업명")} <span className="text-text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -1081,7 +1081,7 @@ export default function Drawer({
               </div>
 
               <div>
-                <label className="modal-field-label">작업 목적</label>
+                <label className="modal-field-label">{t("field.workPurpose", "작업 목적")}</label>
                 <input
                   type="text"
                   value={editingRecord.purpose || editingRecord.workPurpose || editingRecord.work || ""}
@@ -1093,7 +1093,7 @@ export default function Drawer({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="modal-field-label">
-                    문제 현상 <span className="text-text-danger">*</span>
+                    {t("field.situation", "문제 현상")} <span className="text-text-danger">*</span>
                   </label>
                   <input
                     type="text"
@@ -1110,7 +1110,7 @@ export default function Drawer({
                   />
                 </div>
                 <div>
-                  <label className="modal-field-label">문제 원인</label>
+                  <label className="modal-field-label">{t("field.cause", "문제 원인")}</label>
                   <input
                     type="text"
                     value={editingRecord.cause || editingRecord.problemCause || ""}
@@ -1125,17 +1125,17 @@ export default function Drawer({
                   <label className="modal-field-label">BOM</label>
                   <input
                     type="text"
-                    placeholder="BOM 입력"
+                    placeholder={t("placeholder.enterBom", "BOM 입력")}
                     value={editingRecord.bom || editingRecord.BOM || ""}
                     onChange={(e) => setEditingRecord({ ...editingRecord, bom: e.target.value })}
                     className="modal-input"
                   />
                 </div>
                 <div>
-                  <label className="modal-field-label">자재명</label>
+                  <label className="modal-field-label">{t("field.sparePart", "자재명")}</label>
                   <input
                     type="text"
-                    placeholder="자재명 입력"
+                    placeholder={t("placeholder.enterMaterialName", "자재명 입력")}
                     value={editingRecord.sparePart || editingRecord.materialName || ""}
                     onChange={(e) =>
                       setEditingRecord({
@@ -1151,10 +1151,10 @@ export default function Drawer({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">HW 변경 전</label>
+                  <label className="modal-field-label">{t("field.hwBefore", "HW 변경 전")}</label>
                   <input
                     type="text"
-                    value={editingRecord.hwBefore || editingRecord.hwAsWas || "정보 없음"}
+                    value={editingRecord.hwBefore || editingRecord.hwAsWas || t("app.noInfo", "정보 없음")}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
@@ -1166,10 +1166,10 @@ export default function Drawer({
                   />
                 </div>
                 <div>
-                  <label className="modal-field-label">HW 변경 후</label>
+                  <label className="modal-field-label">{t("field.hwAfter", "HW 변경 후")}</label>
                   <input
                     type="text"
-                    value={editingRecord.hwAfter || editingRecord.hwAsIs || "정보 없음"}
+                    value={editingRecord.hwAfter || editingRecord.hwAsIs || t("app.noInfo", "정보 없음")}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
@@ -1184,10 +1184,10 @@ export default function Drawer({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">SW 변경 전</label>
+                  <label className="modal-field-label">{t("field.swBefore", "SW 변경 전")}</label>
                   <input
                     type="text"
-                    value={editingRecord.swBefore || editingRecord.swAsWas || "정보 없음"}
+                    value={editingRecord.swBefore || editingRecord.swAsWas || t("app.noInfo", "정보 없음")}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
@@ -1199,10 +1199,10 @@ export default function Drawer({
                   />
                 </div>
                 <div>
-                  <label className="modal-field-label">SW 변경 후</label>
+                  <label className="modal-field-label">{t("field.swAfter", "SW 변경 후")}</label>
                   <input
                     type="text"
-                    value={editingRecord.swAfter || editingRecord.swAsIs || "정보 없음"}
+                    value={editingRecord.swAfter || editingRecord.swAsIs || t("app.noInfo", "정보 없음")}
                     onChange={(e) =>
                       setEditingRecord({
                         ...editingRecord,
@@ -1217,7 +1217,7 @@ export default function Drawer({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">중요도</label>
+                  <label className="modal-field-label">{t("field.priority", "중요도")}</label>
                   <select
                     value={editingRecord.priority || editingRecord.priorityName || "중요"}
                     onChange={(e) =>
@@ -1229,12 +1229,12 @@ export default function Drawer({
                     }
                     className="modal-select"
                   >
-                    <option value="중요">중요</option>
-                    <option value="일반">일반</option>
+                    <option value="중요">{t("priority.high", "중요")}</option>
+                    <option value="일반">{t("priority.normal", "일반")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="modal-field-label">효과 유형</label>
+                  <label className="modal-field-label">{t("field.effectType", "효과 유형")}</label>
                   <select
                     value={editingRecord.category || editingRecord.effectCategory || editingRecord.effectType || "보전성"}
                     onChange={(e) =>
@@ -1247,17 +1247,17 @@ export default function Drawer({
                     }
                     className="modal-select"
                   >
-                    <option value="보전성">보전성</option>
-                    <option value="품질">품질</option>
-                    <option value="생산성">생산성</option>
-                    <option value="기타">기타</option>
+                    <option value="보전성">{t("category.maintenance", "보전성")}</option>
+                    <option value="품질">{t("category.quality", "품질")}</option>
+                    <option value="생산성">{t("category.productivity", "생산성")}</option>
+                    <option value="기타">{t("category.etc", "기타")}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">작업완료일</label>
+                  <label className="modal-field-label">{t("field.workedOn", "작업완료일")}</label>
                   <input
                     type="text"
                     disabled
@@ -1267,7 +1267,7 @@ export default function Drawer({
                   />
                 </div>
                 <div>
-                  <label className="modal-field-label">요청 법인</label>
+                  <label className="modal-field-label">{t("field.requestedSite", "요청 법인")}</label>
                   <input
                     type="text"
                     disabled
@@ -1281,10 +1281,10 @@ export default function Drawer({
               <div className="pt-2 space-y-2">
                 <div className="drawer-tab-bar">
                   {[
-                    { id: "problem", label: "문제 현상" },
-                    { id: "after", label: "개선 후" },
-                    { id: "equipment", label: "설비 참고" },
-                    { id: "others", label: "기타" },
+                    { id: "problem", labelKey: "category.problemPhenomenon", label: "문제 현상" },
+                    { id: "after", labelKey: "category.afterImprovements", label: "개선 후" },
+                    { id: "equipment", labelKey: "category.equipmentReference", label: "설비 참고" },
+                    { id: "others", labelKey: "category.others", label: "기타" },
                   ].map((tab) => {
                     const recKey =
                       editingRecord.id || editingRecord.wOCode || editingRecord.woCode || `rec-0`;
@@ -1298,7 +1298,7 @@ export default function Drawer({
                         onClick={() => setActiveTab(tab.id)}
                         className={`drawer-tab-btn ${activeTab === tab.id ? "active" : ""}`}
                       >
-                        {tab.label} {tabCount}장
+                        {t(tab.labelKey, tab.label)} {tabCount}{t("photo.sheetCount", "장")}
                       </button>
                     );
                   })}
@@ -1321,7 +1321,7 @@ export default function Drawer({
                     <i className="fas fa-cloud-upload-alt text-base text-gray-400" />
                   </div>
                   <span className="drawer-upload-hint">
-                    사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)
+                    {t("photo.dropzoneHint", "사진을 드래그하거나 클릭하여 업로드 (같은 그룹 항목에 자동 공유)")}
                   </span>
                 </label>
               </div>
