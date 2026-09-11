@@ -295,42 +295,36 @@ export default function Sidebar({
       </nav>
 
       {/* AI Models & System Status Card */}
-      <div className="eq-system-card !p-3 space-y-2 mt-auto">
+      <div className="eq-sidebar-models mt-auto space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 tracking-wider uppercase flex items-center gap-1.5">
+          <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 tracking-wider uppercase flex items-center gap-1.5">
             <i className="fas fa-microchip text-[11px] text-[#1745c2] dark:text-blue-400" />
             <span>{t("sidebar.aiModels", "AI Models")}</span>
-          </span>
+          </div>
           {modelsData ? (
             <button
               type="button"
               onClick={() => setShowModelsModal(true)}
-              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-85 transition-opacity ${
-                modelsData.all_ready
-                  ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                  : "bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
-              }`}
+              className="p-1 rounded-full hover:bg-gray-200/70 dark:hover:bg-gray-700/60 transition-colors cursor-pointer flex items-center justify-center"
               title={
                 modelsData.all_ready
-                  ? "All models ready (Click for details)"
-                  : "Issues detected (Click for details)"
+                  ? "All models ready (Click to view details)"
+                  : "Issues detected in one or more models (Click to view details)"
               }
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${
+                className={`w-2.5 h-2.5 rounded-full inline-block ${
                   modelsData.all_ready
-                    ? "bg-emerald-500 animate-pulse"
-                    : "bg-red-500"
+                    ? "bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-950 animate-pulse"
+                    : "bg-red-500 ring-2 ring-red-200 dark:ring-red-950"
                 }`}
               />
-              <span>
-                {modelsData.all_ready
-                  ? t("sidebar.ready", "Ready")
-                  : t("sidebar.unreachable", "Issues")}
-              </span>
             </button>
           ) : (
-            <span className="text-[10px] text-gray-400">Loading...</span>
+            <span
+              className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-600 inline-block animate-pulse"
+              title="Checking models..."
+            />
           )}
         </div>
 
@@ -340,33 +334,39 @@ export default function Sidebar({
           {languageModel ? (
             <div
               onClick={() => setShowModelsModal(true)}
-              className="p-2 rounded-lg bg-white/85 dark:bg-gray-800/85 border border-gray-200/80 dark:border-gray-700/80 hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer group shadow-2xs"
-              title={`${languageModel.name} (${languageModel.status})${
-                languageModel.detail ? `\n${languageModel.detail}` : ""
-              }\nClick to view full details`}
+              className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700/80 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-all cursor-pointer group shadow-2xs"
+              title={`Language Model: ${
+                languageModel.status === "ready" ? "Ready" : "Unreachable"
+              }\nModel: ${languageModel.name}${
+                languageModel.endpoint ? `\nEndpoint: ${languageModel.endpoint}` : ""
+              }${
+                languageModel.detail ? `\nDetail: ${languageModel.detail}` : ""
+              }\n(Click to view details)`}
             >
               <div className="flex items-center justify-between text-[11px] leading-tight">
-                <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 group-hover:text-[#1745c2] dark:group-hover:text-blue-400 transition-colors">
                   <i className="fas fa-brain text-[10px] text-blue-600 dark:text-blue-400" />
                   <span>{t("sidebar.languageModel", "Language")}</span>
                 </span>
-                {(() => {
-                  const sInfo = getStatusInfo(languageModel.status);
-                  return (
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-semibold ${sInfo.badgeClass} px-1.5 py-0.2 rounded`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${sInfo.dotClass}`} />
-                      <span>{sInfo.label}</span>
-                    </span>
-                  );
-                })()}
+                {/* Circle only, tooltip on hover */}
+                <span
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    languageModel.status === "ready"
+                      ? "bg-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-950/60"
+                      : "bg-red-500 ring-2 ring-red-100 dark:ring-red-950/60"
+                  }`}
+                  title={
+                    languageModel.status === "ready"
+                      ? "Ready"
+                      : `Unreachable: ${languageModel.detail || "Error"}`
+                  }
+                />
               </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate mt-1 flex items-center justify-between">
                 <span className="truncate" title={languageModel.name}>
                   {cleanModelName(languageModel.name)}
                 </span>
-                <i className="fas fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity ml-1 flex-shrink-0" />
+                <i className="fas fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity ml-1 shrink-0" />
               </div>
             </div>
           ) : (
@@ -375,7 +375,7 @@ export default function Sidebar({
                 <i className="fas fa-brain text-[10px] text-gray-400" />
                 <span>{t("sidebar.languageModel", "Language")}</span>
               </span>
-              <span className="text-[10px] text-gray-400 font-mono">--</span>
+              <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" title="Loading..." />
             </div>
           )}
 
@@ -383,33 +383,39 @@ export default function Sidebar({
           {embeddingModel ? (
             <div
               onClick={() => setShowModelsModal(true)}
-              className="p-2 rounded-lg bg-white/85 dark:bg-gray-800/85 border border-gray-200/80 dark:border-gray-700/80 hover:border-purple-400 dark:hover:border-purple-500 transition-all cursor-pointer group shadow-2xs"
-              title={`${embeddingModel.name} (${embeddingModel.status})${
-                embeddingModel.detail ? `\n${embeddingModel.detail}` : ""
-              }\nClick to view full details`}
+              className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700/80 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition-all cursor-pointer group shadow-2xs"
+              title={`Embedding Model: ${
+                embeddingModel.status === "ready" ? "Ready" : "Unreachable"
+              }\nModel: ${embeddingModel.name}${
+                embeddingModel.version ? `\nVersion: ${embeddingModel.version}` : ""
+              }${
+                embeddingModel.detail ? `\nDetail: ${embeddingModel.detail}` : ""
+              }\n(Click to view details)`}
             >
               <div className="flex items-center justify-between text-[11px] leading-tight">
-                <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                   <i className="fas fa-vector-square text-[10px] text-purple-600 dark:text-purple-400" />
                   <span>{t("sidebar.embeddingModel", "Embedding")}</span>
                 </span>
-                {(() => {
-                  const sInfo = getStatusInfo(embeddingModel.status);
-                  return (
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-semibold ${sInfo.badgeClass} px-1.5 py-0.2 rounded`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${sInfo.dotClass}`} />
-                      <span>{sInfo.label}</span>
-                    </span>
-                  );
-                })()}
+                {/* Circle only, tooltip on hover */}
+                <span
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    embeddingModel.status === "ready"
+                      ? "bg-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-950/60"
+                      : "bg-red-500 ring-2 ring-red-100 dark:ring-red-950/60"
+                  }`}
+                  title={
+                    embeddingModel.status === "ready"
+                      ? "Ready"
+                      : `Unreachable: ${embeddingModel.detail || "Error"}`
+                  }
+                />
               </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate mt-1 flex items-center justify-between">
                 <span className="truncate" title={embeddingModel.name}>
                   {cleanModelName(embeddingModel.name)}
                 </span>
-                <i className="fas fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity ml-1 flex-shrink-0" />
+                <i className="fas fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity ml-1 shrink-0" />
               </div>
             </div>
           ) : (
@@ -418,7 +424,7 @@ export default function Sidebar({
                 <i className="fas fa-vector-square text-[10px] text-gray-400" />
                 <span>{t("sidebar.embeddingModel", "Embedding")}</span>
               </span>
-              <span className="text-[10px] text-gray-400 font-mono">--</span>
+              <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" title="Loading..." />
             </div>
           )}
         </div>

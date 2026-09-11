@@ -503,10 +503,12 @@ function MultiSelect({
   selectedValues,
   onChange,
   placeholder,
-  t,
+  t: propT,
   disabled,
   minWidth = "120px",
 }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -643,10 +645,12 @@ function SelectSkeleton({ width = "120px" }) {
 function TableSkeleton({
   rowsCount = 8,
   columns = [],
-  t,
+  t: propT,
   getColumnHeaderLabel,
   COLUMN_LABEL_KEYS = {},
 }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   return (
     <div className="overflow-auto flex-1 min-h-0">
       <table className="min-w-full text-left text-sm">
@@ -1984,6 +1988,7 @@ function EditableRow({
   isSelected,
   onToggleSelect,
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState({});
   const rowRef = useRef(null);
 

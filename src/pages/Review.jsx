@@ -787,10 +787,11 @@ export default function Review() {
                           <div className="font-bold text-text-default text-xs leading-snug">
                             {w.rep_name || `Work Item #${w.id}`}
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-text-subtlest">
-                            <span className="font-mono">#{w.id}</span>
-                            {w.partition_key && <span>· {w.partition_key}</span>}
-                          </div>
+                          {w.partition_key && (
+                            <div className="mt-1 text-[11px] text-text-subtlest">
+                              <span>{w.partition_key}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
