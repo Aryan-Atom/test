@@ -8,11 +8,16 @@ export default function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   const pushToast = (message, type = "info") => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3200);
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === message)) {
+        return prev;
+      }
+      const id = `${Date.now()}-${Math.random()}`;
+      window.setTimeout(() => {
+        setToasts((current) => current.filter((toast) => toast.id !== id));
+      }, 3200);
+      return [...prev, { id, message, type }];
+    });
   };
 
   return (

@@ -3,7 +3,7 @@ const redirection = {
 };
 
 const aiPipelineServer = (
-  import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+  import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.99.131.150:8002"
 ).replace(/\/+$/, "");
 
 const pocEndPoints = {
@@ -37,6 +37,7 @@ const pocEndPoints = {
   EXPORT_ZIP_BY_IDS: "api/ChangeData/ExportZipByIds",
   AI_PIPELINE_UPLOAD: `${aiPipelineServer}/api/uploads/auto`,
   AI_PIPELINE_GET_JOBS: `${aiPipelineServer}/api/jobs`,
+  AI_PIPELINE_CANCEL_JOB: (jobId) => `${aiPipelineServer}/api/jobs/${encodeURIComponent(jobId)}/cancel`,
   AI_PIPELINE_GET_JOB_EXPORTS: `${aiPipelineServer}/api/exports/json`,
   AI_PIPELINE_GET_QUARANTINE: `${aiPipelineServer}/api/quarantine`,
   AI_PIPELINE_GET_REVIEW: `${aiPipelineServer}/api/review`,
@@ -47,6 +48,7 @@ const pocEndPoints = {
   GET_CURSOR: "api/ChangeData/GetCursor",
   SAVE_REVIEWED_CHANGED_DATA: "api/ChangeData/SaveReviewedChangedData",
   SAVE_CURSOR: "api/ChangeData/SaveCursor",
+  GET_ALL_WO_CODES: "api/ChangeData/GetAllWoCodes",
   AI_PIPELINE_GET_CHANGES: `${aiPipelineServer}/api/exports/changes`,
   AI_PIPELINE_MODELS: `${aiPipelineServer}/api/models`,
 };

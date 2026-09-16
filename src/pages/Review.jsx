@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { pocEndPoints } from "../axios/endPoints.js";
+import { APIcallGet } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
 import Modal from "../components/Modal.jsx";
 
@@ -57,6 +58,9 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProcess, setSelectedProcess] = useState("all");
+  // Set of wo_codes that exist in change_data_history (from GetAllWoCodes API).
+  // null = not loaded yet -> filtering is skipped (fail-open).
+  const [validWoCodes, setValidWoCodes] = useState(null);
 
   // Keep Confirmation Modal State
   const [keepConfirmReport, setKeepConfirmReport] = useState(null);
@@ -68,7 +72,7 @@ export default function Review() {
   const [moveConfirmState, setMoveConfirmState] = useState(null); // { report, targetId, targetName }
 
   const aiServer = (
-    import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+    import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.99.131.150:8002"
   ).replace(/\/+$/, "");
 
   // API wrappers
@@ -165,10 +169,61 @@ export default function Review() {
     [aiServer],
   );
 
+  const fetchValidWoCodes = useCallback(() => {
+    APIcallGet(
+      pocEndPoints.GET_ALL_WO_CODES,
+      {},
+      (responseData, status) => {
+        if (status === 200 && responseData) {
+          const list =
+            responseData?.data ??
+            responseData?.result ??
+            responseData?.items ??
+            responseData?.woCodes ??
+            responseData?.wOCodes ??
+            responseData;
+
+          if (Array.isArray(list)) {
+            const codeSet = new Set();
+            list.forEach((item) => {
+              if (item == null) return;
+              let code = "";
+              if (typeof item === "string" || typeof item === "number") {
+                code = String(item).trim();
+              } else if (typeof item === "object") {
+                code = String(
+                  item.woCode ??
+                    item.wo_code ??
+                    item.WoCode ??
+                    item.wOCode ??
+                    item.WO_CODE ??
+                    item.code ??
+                    item.value ??
+                    "",
+                ).trim();
+              }
+              if (code) {
+                codeSet.add(code);
+                codeSet.add(code.toLowerCase());
+              }
+            });
+            setValidWoCodes(codeSet);
+          } else {
+            setValidWoCodes(null); // unexpected shape -> fail-open
+          }
+        } else {
+          console.warn("GetAllWoCodes failed:", status, responseData);
+          setValidWoCodes(null); // fail-open on API error
+        }
+      },
+    );
+  }, []);
+
   const load = async () => {
     try {
       setLoading(true);
       setError(null);
+      fetchValidWoCodes();
       const res = await api.review();
       setData(res);
     } catch (e) {
@@ -191,7 +246,7 @@ export default function Review() {
         console.error("Work items fetch error:", e);
         setItemsError(e.message || "Failed to load destination work items");
       });
-  }, [api]);
+  }, [api, fetchValidWoCodes]);
 
   // Filter legal target work items within same partition / process
   function targetsFor(report) {
@@ -232,14 +287,28 @@ export default function Review() {
   const processOptions = useMemo(() => {
     const set = new Set();
     rawRows.forEach((r) => {
+      if (validWoCodes) {
+        const wo = (r.wo_code || "").toString().trim();
+        if (!wo || (!validWoCodes.has(wo) && !validWoCodes.has(wo.toLowerCase()))) {
+          return;
+        }
+      }
       if (r.process) set.add(r.process);
       if (r.partition_key) set.add(r.partition_key);
     });
     return Array.from(set).sort();
-  }, [rawRows]);
+  }, [rawRows, validWoCodes]);
 
   const filteredRows = useMemo(() => {
     return rawRows.filter((r) => {
+      // Only show rows whose wo_code exists in change_data_history.
+      // Rows without a wo_code are hidden; skip filtering until the list is loaded (fail-open).
+      if (validWoCodes) {
+        const wo = (r.wo_code || "").toString().trim();
+        if (!wo || (!validWoCodes.has(wo) && !validWoCodes.has(wo.toLowerCase()))) {
+          return false;
+        }
+      }
       if (
         selectedProcess !== "all" &&
         r.process !== selectedProcess &&
@@ -260,7 +329,7 @@ export default function Review() {
         String(r.rep_work_id || "").includes(q)
       );
     });
-  }, [rawRows, selectedProcess, searchQuery]);
+  }, [rawRows, selectedProcess, searchQuery, validWoCodes]);
 
   // Handler for Confirming Keep Action
   const handleConfirmKeep = () => {

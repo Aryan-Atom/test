@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
@@ -294,6 +294,7 @@ export default function JobPreviewModal({
   job,
   onClose,
   isEditAndDeleteOptionIsRequired: propIsRequired,
+  onOpenQuarantine,
 }) {
   const isEditAndDeleteOptionIsRequired =
     propIsRequired !== undefined
@@ -323,6 +324,40 @@ export default function JobPreviewModal({
   const [downloadingExport, setDownloadingExport] = useState(false);
   const [duplicateAlert, setDuplicateAlert] = useState(null);
   const [duplicateRowsCount, setDuplicateRowsCount] = useState(0);
+  const hasShownQuarantineToastRef = useRef(false);
+
+  const isAllQuarantined = useMemo(() => {
+    const qCount =
+      job?.quarantined != null
+        ? job.quarantined
+        : (job?.quarantine_count != null
+            ? job.quarantine_count
+            : (job?.has_quarantine ? 1 : 0));
+    const totalCount =
+      totalRows != null
+        ? totalRows
+        : (job?.total_rows != null
+            ? job.total_rows
+            : (job?.totalRows ?? job?.rows_count ?? job?.rows ?? 0));
+    const ingestedCount =
+      job?.ingested != null
+        ? job.ingested
+        : (totalCount > 0 && qCount > 0 ? Math.max(0, totalCount - qCount) : null);
+
+    const hasQuarantineFlag =
+      Boolean(job?.has_quarantine) ||
+      Boolean(job?.is_quarantined) ||
+      qCount > 0 ||
+      String(job?.status || "").toLowerCase() === "quarantined" ||
+      String(job?.status || "").toLowerCase() === "quarantine";
+
+    return (
+      rows.length === 0 &&
+      (hasQuarantineFlag ||
+        (totalCount > 0 && ingestedCount === 0) ||
+        String(job?.status || "").toLowerCase() === "quarantined")
+    );
+  }, [rows.length, totalRows, job]);
 
   const navigate = useNavigate();
   const { pushToast } = useToast();
@@ -451,6 +486,24 @@ export default function JobPreviewModal({
           if (data?.total != null) {
             setTotalRows(data.total);
           }
+
+          if (
+            !hasShownQuarantineToastRef.current &&
+            mappedRows.length === 0 &&
+            (Boolean(job?.has_quarantine) ||
+              Boolean(job?.is_quarantined) ||
+              (job?.quarantined != null && job?.quarantined > 0) ||
+              String(job?.status || "").toLowerCase().includes("quarantine"))
+          ) {
+            hasShownQuarantineToastRef.current = true;
+            pushToast(
+              t(
+                "preview.allMovedToQuarantineToast",
+                "No preview items available. All records were moved to quarantine.",
+              ),
+              "info",
+            );
+          }
         }
       } catch (err) {
         console.error("Job export fetch error:", err);
@@ -461,9 +514,10 @@ export default function JobPreviewModal({
     };
 
     if (job?.id) {
+      hasShownQuarantineToastRef.current = false;
       fetchInitialData();
     }
-  }, [job]);
+  }, [job?.id]);
 
   // Load next 50 records on scroll
   const fetchMoreJobExportData = async () => {
@@ -515,12 +569,19 @@ export default function JobPreviewModal({
     }
   };
 
+  const isDownloadDisabled =
+    downloadingExport ||
+    loading ||
+    rows.length === 0 ||
+    isAllQuarantined ||
+    (totalRows != null && totalRows === 0);
+
   const handleDownloadExport = async () => {
-    if (!job?.id || downloadingExport) return;
+    if (!job?.id || isDownloadDisabled) return;
     try {
       setDownloadingExport(true);
       const aiServer = (
-        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.108.32.188:8001"
+        import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.99.131.150:8002"
       ).replace(/\/+$/, "");
       const downloadUrl = `${aiServer}/api/exports/${job.id}`;
 
@@ -911,6 +972,8 @@ export default function JobPreviewModal({
     ? (language === "ko" ? "데이터 저장 진행 중..." : "Saving data in progress...")
     : loading
     ? (language === "ko" ? "미리보기 데이터 불러오는 중..." : "Loading preview data...")
+    : isAllQuarantined
+    ? (language === "ko" ? "모든 레코드가 격리 보관소로 이동되어 저장할 데이터가 없습니다." : "All records moved to quarantine — no rows to save")
     : rows.length === 0
     ? (language === "ko" ? "저장할 행이 없습니다" : "No rows to save")
     : (language === "ko" ? `전체 ${rows.length}개 레코드 저장` : `Save all ${rows.length} records`);
@@ -972,7 +1035,17 @@ export default function JobPreviewModal({
                 className="text-xs mt-0.5"
                 style={{ color: "var(--color-text-subtle, #6b7280)" }}
               >
-                {language === "ko" ? (
+                {isAllQuarantined ? (
+                  <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold">
+                    <i className="fas fa-shield-alt text-xs" />
+                    <span>
+                      {t(
+                        "preview.allMovedToQuarantineShort",
+                        "All records moved to quarantine · 0 preview records",
+                      )}
+                    </span>
+                  </span>
+                ) : language === "ko" ? (
                   <>
                     총 <span className="font-semibold text-text-default">{totalRows != null ? totalRows : rows.length}</span>개 행 중 <span className="font-semibold text-text-default">{rows.length}</span>개 행 로드됨 · {previewColumns.length + (isEditAndDeleteOptionIsRequired ? 1 : 0)}개 열
                   </>
@@ -986,6 +1059,7 @@ export default function JobPreviewModal({
                   </>
                 )}
                 {isEditAndDeleteOptionIsRequired &&
+                  !isAllQuarantined &&
                   (language === "ko"
                     ? " · 셀을 더블 클릭하여 수정하세요"
                     : " · double click on the field to edit")}
@@ -1038,13 +1112,26 @@ export default function JobPreviewModal({
               <button
                 type="button"
                 onClick={handleDownloadExport}
-                disabled={downloadingExport}
-                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                title={`Download export for Job #${job.id}`}
+                disabled={isDownloadDisabled}
+                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title={
+                  isAllQuarantined
+                    ? t(
+                        "preview.downloadRestrictedQuarantine",
+                        "All records moved to quarantine — download not available",
+                      )
+                    : rows.length === 0
+                    ? t("preview.downloadNoData", "No data available to download")
+                    : downloadingExport
+                    ? t("app.downloading", "Downloading...")
+                    : `Download export for Job #${job.id}`
+                }
               >
                 <i
                   className={`fas ${
-                    downloadingExport ? "fa-spinner fa-spin text-teal-600" : "fa-download text-teal-600"
+                    downloadingExport
+                      ? "fa-spinner fa-spin text-teal-600"
+                      : "fa-download text-teal-600"
                   } text-xs`}
                 />
                 <span>
@@ -1116,10 +1203,57 @@ export default function JobPreviewModal({
               <p className="text-sm font-medium">{error}</p>
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
-              <i className="fas fa-inbox text-4xl opacity-30 mb-2" />
-              <p className="text-sm">{t("preview.noData", "No data available for preview.")}</p>
-            </div>
+            isAllQuarantined ? (
+              <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-800/80 shadow-xs">
+                  <i className="fas fa-shield-alt text-2xl" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1.5">
+                  {t(
+                    "preview.allMovedToQuarantineTitle",
+                    "All records have been moved to quarantine",
+                  )}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mb-6 leading-relaxed">
+                  {t(
+                    "preview.allMovedToQuarantineDesc",
+                    "Every row from this file was flagged during processing and moved to quarantine. No records are available in preview.",
+                  )}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {onOpenQuarantine && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenQuarantine(job)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-xs hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <i className="fas fa-shield-alt text-xs" />
+                      <span>
+                        {t("preview.viewQuarantineData", "View Quarantine Data")}
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      navigate("/ai-pipeline/quarantine");
+                    }}
+                    className="btn-base btn-secondary text-xs px-4 py-2 cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <i className="fas fa-external-link-alt text-xs" />
+                    <span>
+                      {t("preview.goToQuarantinePage", "Go to Quarantine Page")}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
+                <i className="fas fa-inbox text-4xl opacity-30 mb-2" />
+                <p className="text-sm">{t("preview.noData", "No data available for preview.")}</p>
+              </div>
+            )
           ) : (
             <table className="w-full text-xs text-left border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10 border-b border-border-base">

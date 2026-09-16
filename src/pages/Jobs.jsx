@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
 import { useI18n } from "../i18n.jsx";
+import { useToast } from "../components/ToastContext.jsx";
 import { pocEndPoints } from "../axios/endPoints.js";
 import JobPreviewModal from "../components/JobPreviewModal.jsx";
 import JobQuarantineModal from "../components/JobQuarantineModal.jsx";
@@ -114,17 +115,67 @@ export default function Jobs() {
   const [quarantineJob, setQuarantineJob] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [busyJobId, setBusyJobId] = useState(null);
+  const [error, setError] = useState(null);
+  const [note, setNote] = useState(null);
   const tableContainerRef = useRef(null);
   const jobsRef = useRef([]);
   const isFetchingRef = useRef(false);
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { pushToast } = useToast();
+
+  const handleCancelJob = async (j) => {
+    if (!j?.id) return;
+    setBusyJobId(j.id);
+    setError(null);
+    setNote(null);
+    try {
+      const cancelUrl =
+        pocEndPoints.AI_PIPELINE_CANCEL_JOB?.(j.id) ||
+        `http://107.99.131.150:8002/api/jobs/${encodeURIComponent(j.id)}/cancel`;
+      const response = await fetch(cancelUrl, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const successMsg = t(
+          "jobs.cancelSuccess",
+          "Job {id} was cancelled before it started.",
+        ).replace("{id}", j.id);
+        setNote(successMsg);
+        pushToast(successMsg, "success");
+        fetchJobs(true);
+      } else {
+        let errMsg = `Failed to cancel job ${j.id} (${response.status})`;
+        try {
+          const errData = await response.json();
+          errMsg = errData.detail || errData.message || errMsg;
+        } catch {
+          const text = await response.text();
+          if (text) errMsg = text;
+        }
+        setError(errMsg);
+        pushToast(errMsg, "error");
+      }
+    } catch (err) {
+      console.error("Cancel job error:", err);
+      const errMsg = err.message || "Failed to cancel job";
+      setError(errMsg);
+      pushToast(errMsg, "error");
+    } finally {
+      setBusyJobId(null);
+    }
+  };
 
   const fetchJobs = async (isPolling = false) => {
     if (isPolling && isFetchingRef.current) return;
     try {
       if (!isPolling) setLoading(true);
-      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.108.32.188:8001/api/jobs";
+      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.99.131.150:8002/api/jobs";
       const currentLimit = Math.max(jobsRef.current?.length || 50, 50);
       const params = new URLSearchParams({
         limit: String(currentLimit),
@@ -146,7 +197,10 @@ export default function Jobs() {
               (item, idx) =>
                 item.id === rawJobs[idx]?.id &&
                 item.status === rawJobs[idx]?.status &&
-                item.stage === rawJobs[idx]?.stage,
+                item.stage === rawJobs[idx]?.stage &&
+                item.has_quarantine === rawJobs[idx]?.has_quarantine &&
+                item.quarantined === rawJobs[idx]?.quarantined &&
+                item.ingested === rawJobs[idx]?.ingested,
             )
           ) {
             return prev;
@@ -181,7 +235,7 @@ export default function Jobs() {
     isFetchingRef.current = true;
     setLoadingMore(true);
     try {
-      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.108.32.188:8001/api/jobs";
+      const baseUrl = pocEndPoints.AI_PIPELINE_GET_JOBS || "http://107.99.131.150:8002/api/jobs";
       const currentOffset = jobsRef.current.length;
       const params = new URLSearchParams({
         limit: "50",
@@ -237,10 +291,26 @@ export default function Jobs() {
   };
 
   const filteredJobs = (jobs || []).filter((j) => {
-    const statusMatches =
-      statusFilter === "all" ||
-      String(j.status || "").toLowerCase() === statusFilter.toLowerCase();
-    const matchesStatus = statusMatches;
+    const isQuarantined =
+      Boolean(j.has_quarantine) ||
+      Boolean(j.is_quarantined) ||
+      (typeof j.quarantined === "number" && j.quarantined > 0) ||
+      String(j.status || "").toLowerCase() === "quarantined" ||
+      String(j.status || "").toLowerCase() === "quarantine";
+
+    let statusMatches = false;
+    if (statusFilter === "all") {
+      statusMatches = true;
+    } else if (statusFilter === "quarantined" || statusFilter === "quarantine") {
+      statusMatches = isQuarantined;
+    } else if (statusFilter === "done") {
+      statusMatches =
+        String(j.status || "").toLowerCase() === "done" &&
+        (!isQuarantined || (typeof j.ingested === "number" && j.ingested > 0));
+    } else {
+      statusMatches = String(j.status || "").toLowerCase() === statusFilter.toLowerCase();
+    }
+
     const matchesSearch =
       !searchQuery.trim() ||
       String(j.id || "")
@@ -257,32 +327,51 @@ export default function Jobs() {
         .includes(searchQuery.toLowerCase()) ||
       String(j.status || "")
         .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+        .includes(searchQuery.toLowerCase()) ||
+      (isQuarantined && "quarantined".includes(searchQuery.toLowerCase()));
+
+    return statusMatches && matchesSearch;
   });
 
   const getStatusBadge = (j) => {
     const statusStr = String(j.status || "").toLowerCase();
+    const isQuarantined =
+      Boolean(j.has_quarantine) ||
+      Boolean(j.is_quarantined) ||
+      (typeof j.quarantined === "number" && j.quarantined > 0) ||
+      statusStr === "quarantined" ||
+      statusStr === "quarantine";
+
     let badgeClass =
       "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700";
     let icon = "fa-circle-notch";
+    let displayStatus = j.status || "idle";
 
-    if (statusStr === "done") {
+    if (statusStr === "running") {
       badgeClass =
-        "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
-      icon = "fa-check-circle";
+        "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+      icon = "fa-spinner fa-spin";
     } else if (statusStr === "failed") {
       badgeClass =
         "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
       icon = "fa-times-circle";
-    } else if (statusStr === "running") {
-      badgeClass =
-        "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
-      icon = "fa-spinner fa-spin";
-    } else if (statusStr === "quarantined" || statusStr === "quarantine") {
+    } else if (isQuarantined && (j.ingested === 0 || statusStr === "quarantined" || statusStr === "quarantine")) {
       badgeClass =
         "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
       icon = "fa-shield-alt";
+      displayStatus = "quarantined";
+    } else if (statusStr === "done") {
+      badgeClass =
+        "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+      icon = "fa-check-circle";
+    } else if (statusStr === "queued") {
+      badgeClass =
+        "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+      icon = "fa-clock";
+    } else if (statusStr === "cancelled" || statusStr === "canceled") {
+      badgeClass =
+        "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600";
+      icon = "fa-ban";
     }
 
     return (
@@ -291,12 +380,47 @@ export default function Jobs() {
           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}
         >
           <i className={`fas ${icon} text-[10px]`} />
-          <HighlightText text={j.status || "idle"} query={searchQuery} />
+          <HighlightText text={displayStatus} query={searchQuery} />
         </span>
+        {isQuarantined && (j.ingested ?? 0) > 0 && displayStatus !== "quarantined" && (
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+            title={`${j.quarantined} quarantined rows`}
+          >
+            <i className="fas fa-shield-alt text-[10px]" />
+            <span>quarantined</span>
+          </span>
+        )}
         {j.stage && (
           <span className="text-gray-500 dark:text-gray-400 text-xs font-mono">
             <HighlightText text={j.stage} query={searchQuery} />
           </span>
+        )}
+        {statusStr === "queued" && (
+          <button
+            type="button"
+            disabled={busyJobId === j.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCancelJob(j);
+            }}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 hover:bg-red-100 dark:bg-red-950/60 dark:hover:bg-red-900/60 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800 transition-colors cursor-pointer disabled:opacity-60"
+            title={t(
+              "jobs.cancelQueuedTip",
+              "Remove this job from the queue. A running job cannot be stopped part-way.",
+            )}
+          >
+            <i
+              className={`fas ${
+                busyJobId === j.id ? "fa-spinner fa-spin" : "fa-times"
+              } text-[10px]`}
+            />
+            <span>
+              {busyJobId === j.id
+                ? t("jobs.cancelling", "Cancelling…")
+                : t("jobs.cancel", "Cancel")}
+            </span>
+          </button>
         )}
         {j.columns_uncertain && (
           <span
@@ -348,13 +472,49 @@ export default function Jobs() {
           >
             <option value="all">{t("jobs.statusAll", "All Status")}</option>
             <option value="running">{t("jobs.statusRunning", "Running")}</option>
+            <option value="queued">{t("jobs.statusQueued", "Queued")}</option>
             <option value="done">{t("jobs.statusDone", "Done")}</option>
             <option value="failed">{t("jobs.statusFailed", "Failed")}</option>
             <option value="quarantined">{t("jobs.statusQuarantined", "Quarantined")}</option>
+            <option value="cancelled">{t("jobs.statusCancelled", "Cancelled")}</option>
             <option value="idle">{t("jobs.statusIdle", "Idle")}</option>
           </select>
         </div>
       </header>
+
+      {/* Notice & Error Banners */}
+      {error && (
+        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center justify-between gap-2 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <i className="fas fa-exclamation-circle text-sm shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-600 dark:hover:text-red-200 cursor-pointer p-0.5"
+            title={t("app.close", "Close")}
+          >
+            <i className="fas fa-times" />
+          </button>
+        </div>
+      )}
+      {note && (
+        <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs flex items-center justify-between gap-2 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <i className="fas fa-info-circle text-sm shrink-0" />
+            <span>{note}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNote(null)}
+            className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-200 cursor-pointer p-0.5"
+            title={t("app.close", "Close")}
+          >
+            <i className="fas fa-times" />
+          </button>
+        </div>
+      )}
 
       {/* Main Table Card */}
       <div className="card flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -445,7 +605,7 @@ export default function Jobs() {
                     String(j.status || "").toLowerCase() === "quarantined" ||
                     String(j.status || "").toLowerCase() === "quarantine";
                   const isRunning = String(j.status || "").toLowerCase() === "running";
-                  const isEyeDisabled = isRunning || isQuarantined;
+                  const isEyeDisabled = isRunning;
 
                   return (
                     <tr
@@ -487,7 +647,7 @@ export default function Jobs() {
                         total={totalRows}
                         to="/ai-pipeline/quarantine"
                         onClick={
-                          j.has_quarantine || (quarantined != null && quarantined > 0)
+                          isQuarantined
                             ? () => setQuarantineJob(j)
                             : undefined
                         }
@@ -498,7 +658,7 @@ export default function Jobs() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1.5">
-                          {/* Eye icon */}
+                          {/* Eye icon - enabled for all jobs including quarantined */}
                           <button
                             type="button"
                             disabled={isEyeDisabled}
@@ -510,9 +670,7 @@ export default function Jobs() {
                             title={
                               isRunning
                                 ? t("jobs.tipRunning", "Job is currently running")
-                                : isQuarantined
-                                  ? t("jobs.tipQuarantinedNoPreview", "Quarantined job cannot be previewed")
-                                  : t("jobs.tipViewPreview", "View Job Preview & Save")
+                                : t("jobs.tipViewPreview", "View Job Preview & Save")
                             }
                             onClick={() => {
                               if (!isEyeDisabled) {
@@ -526,25 +684,49 @@ export default function Jobs() {
                           {/* Quarantine icon */}
                           <button
                             type="button"
-                            disabled={!j.has_quarantine}
+                            disabled={!isQuarantined}
                             className={`p-1.5 rounded-lg transition-colors ${
-                              j.has_quarantine
+                              isQuarantined
                                 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
                                 : "text-gray-400 dark:text-gray-500 opacity-50 cursor-not-allowed"
                             }`}
                             title={
-                              j.has_quarantine
+                              isQuarantined
                                 ? t("jobs.tipViewQuarantine", "View Quarantine Data")
                                 : t("jobs.tipNoQuarantine", "No Quarantine Data")
                             }
                             onClick={() => {
-                              if (j.has_quarantine) {
+                              if (isQuarantined) {
                                 setQuarantineJob(j);
                               }
                             }}
                           >
                             <i className="fas fa-shield-alt text-sm" />
                           </button>
+
+                          {/* Cancel icon for queued or running jobs */}
+                          {(String(j.status || "").toLowerCase() === "queued" ||
+                            String(j.status || "").toLowerCase() === "running") && (
+                            <button
+                              type="button"
+                              disabled={busyJobId === j.id}
+                              className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer disabled:opacity-50"
+                              title={
+                                busyJobId === j.id
+                                  ? t("jobs.cancelling", "Cancelling…")
+                                  : String(j.status || "").toLowerCase() === "queued"
+                                  ? t("jobs.cancelJobQueued", "Cancel queued job")
+                                  : t("jobs.cancelJob", "Cancel job")
+                              }
+                              onClick={() => handleCancelJob(j)}
+                            >
+                              <i
+                                className={`fas ${
+                                  busyJobId === j.id ? "fa-spinner fa-spin" : "fa-ban"
+                                } text-sm`}
+                              />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -657,6 +839,29 @@ export default function Jobs() {
               </div>
 
               <div className="p-4 border-t border-border-base flex justify-end gap-2 bg-gray-50 dark:bg-gray-800">
+                {(String(selectedJob.status || "").toLowerCase() === "queued" ||
+                  String(selectedJob.status || "").toLowerCase() === "running") && (
+                  <button
+                    type="button"
+                    disabled={busyJobId === selectedJob.id}
+                    className="btn-base bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                    onClick={() => {
+                      handleCancelJob(selectedJob);
+                      setSelectedJob(null);
+                    }}
+                  >
+                    <i
+                      className={`fas ${
+                        busyJobId === selectedJob.id ? "fa-spinner fa-spin" : "fa-ban"
+                      } text-xs`}
+                    />
+                    <span>
+                      {busyJobId === selectedJob.id
+                        ? t("jobs.cancelling", "Cancelling…")
+                        : t("jobs.cancelJob", "Cancel Job")}
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-secondary text-xs px-4 cursor-pointer"
@@ -672,7 +877,14 @@ export default function Jobs() {
 
       {/* Preview Modal */}
       {previewJob && (
-        <JobPreviewModal job={previewJob} onClose={() => setPreviewJob(null)} />
+        <JobPreviewModal
+          job={previewJob}
+          onClose={() => setPreviewJob(null)}
+          onOpenQuarantine={(j) => {
+            setPreviewJob(null);
+            setQuarantineJob(j);
+          }}
+        />
       )}
 
       {/* Quarantine Modal */}
