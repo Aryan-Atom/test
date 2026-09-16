@@ -605,7 +605,12 @@ export default function Jobs() {
                     String(j.status || "").toLowerCase() === "quarantined" ||
                     String(j.status || "").toLowerCase() === "quarantine";
                   const isRunning = String(j.status || "").toLowerCase() === "running";
-                  const isEyeDisabled = isRunning;
+                  const isSameCount =
+                    (totalRows != null &&
+                      quarantined != null &&
+                      Number(totalRows) === Number(quarantined)) ||
+                    (totalRows != null && totalRows > 0 && ingested === 0);
+                  const isEyeDisabled = isRunning || isSameCount;
 
                   return (
                     <tr
@@ -658,19 +663,24 @@ export default function Jobs() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1.5">
-                          {/* Eye icon - enabled for all jobs including quarantined */}
+                          {/* Eye icon - disabled if running or row count and quarantined count are the same */}
                           <button
                             type="button"
                             disabled={isEyeDisabled}
                             className={`p-1.5 rounded-lg transition-colors ${
                               isEyeDisabled
-                                ? "text-gray-400 dark:text-gray-500 opacity-70 cursor-not-allowed"
+                                ? "text-gray-300 dark:text-gray-600 opacity-50 cursor-not-allowed"
                                 : "text-gray-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 cursor-pointer"
                             }`}
                             title={
                               isRunning
                                 ? t("jobs.tipRunning", "Job is currently running")
-                                : t("jobs.tipViewPreview", "View Job Preview & Save")
+                                : isSameCount
+                                  ? t(
+                                      "jobs.tipAllQuarantined",
+                                      "All records quarantined — preview unavailable",
+                                    )
+                                  : t("jobs.tipViewPreview", "View Job Preview & Save")
                             }
                             onClick={() => {
                               if (!isEyeDisabled) {

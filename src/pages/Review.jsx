@@ -1,8 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { pocEndPoints } from "../axios/endPoints.js";
-import { APIcallGet } from "../axios/apiCall.js";
+import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
 import Modal from "../components/Modal.jsx";
+import {
+  mapExportedRowToChangeData,
+  formatValidDateIso,
+} from "../components/JobPreviewModal.jsx";
 
 function HighlightText({ text, query }) {
   if (text === undefined || text === null || text === "") return null;
@@ -53,6 +57,7 @@ export default function Review() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [busyMessage, setBusyMessage] = useState("");
+  const [countdown, setCountdown] = useState(null); // 60s countdown timer
   const [note, setNote] = useState(null); // { text, bad }
   const [selectedReportId, setSelectedReportId] = useState(null); // focused / selected row
   const [loading, setLoading] = useState(true);
@@ -366,26 +371,238 @@ export default function Review() {
   };
 
   // Handler for Confirming Move Action
-  const handleConfirmMove = () => {
+  const handleConfirmMove = async () => {
     if (!moveConfirmState) return;
     const { report, targetId, targetName } = moveConfirmState;
     setMoveConfirmState(null);
-    act(
-      () => api.moveReport(report.report_id, targetId),
-      (resp) => {
-        const outcome = resynthesisNote(resp?.resynthesis?.[targetId]);
-        const archived = resp?.archived_source
-          ? " This work item had no reports left and was archived."
-          : "";
-        return {
-          text: `Moved report ${report.wo_code || `#${report.report_id}`} to ${targetName}.${archived}${
-            outcome ? " " + outcome.text : ""
-          }`,
-          bad: outcome?.bad ?? false,
-        };
-      },
-      `Moving report ${report.wo_code || `#${report.report_id}`} to ${targetName}...`,
+    setError(null);
+    setBusy(true);
+    setCountdown(null);
+    setBusyMessage(
+      t(
+        "review.movingMsg",
+        `Moving report ${report.wo_code || `#${report.report_id}`} to ${targetName}...`,
+      ),
     );
+
+    let moveResp = null;
+    try {
+      // Step 1: Execute Move API
+      moveResp = await api.moveReport(report.report_id, targetId);
+    } catch (moveErr) {
+      console.error("Move error:", moveErr);
+      setError(moveErr.message || t("review.moveFailed", "Failed to move report"));
+      setBusy(false);
+      setBusyMessage("");
+      return; // Do NOT call any cursor or sync API if move failed!
+    }
+
+    const outcome = resynthesisNote(moveResp?.resynthesis?.[targetId]);
+    const archived = moveResp?.archived_source
+      ? " This work item had no reports left and was archived."
+      : "";
+
+    // Step 2: On successful move, execute cursor and changes sync pipeline
+    try {
+      setBusyMessage(t("review.gettingCursor", "Fetching cursor..."));
+
+      // Step 2a: New AI_POC_API call -> getCursor() from api/ChangeData/GetCursor
+      const cursorResponse = await new Promise((resolve) => {
+        APIcallGet(pocEndPoints.GET_CURSOR, {}, (data, status) => {
+          resolve({ data, status });
+        });
+      });
+
+      let cursorData = null;
+      if (cursorResponse.status === 200 || cursorResponse.status === 201) {
+        const raw = cursorResponse.data;
+        if (typeof raw === "string") {
+          cursorData = raw.trim() || null;
+        } else if (raw && typeof raw === "object") {
+          cursorData = raw.cursor ?? raw.data ?? raw.value ?? null;
+          if (typeof cursorData === "string") {
+            cursorData = cursorData.trim() || null;
+          }
+        }
+      }
+
+      // Step 2b: FAST API exports/changes (if data is null don't pass since, else pass since)
+      const baseChangesUrl =
+        pocEndPoints.AI_PIPELINE_GET_CHANGES ||
+        `${aiServer}/api/exports/changes`;
+      const changesUrl = new URL(baseChangesUrl);
+
+      if (cursorData && cursorData !== "null" && cursorData !== "undefined") {
+        changesUrl.searchParams.set("since", cursorData);
+      }
+      changesUrl.searchParams.set("limit", "500");
+      changesUrl.searchParams.set("offset", "0");
+
+      // 60-second timeout with UI block and countdown timer (60 -> 0)
+      let remaining = 60;
+      setCountdown(remaining);
+      setBusyMessage(
+        t(
+          "review.syncingChangesWithTimer",
+          `Syncing pipeline changes... (${remaining}s)`,
+        ),
+      );
+
+      const abortController = new AbortController();
+      const timerInterval = setInterval(() => {
+        remaining -= 1;
+        if (remaining >= 0) {
+          setCountdown(remaining);
+          setBusyMessage(
+            t(
+              "review.syncingChangesWithTimer",
+              `Syncing pipeline changes... (${remaining}s)`,
+            ),
+          );
+        }
+      }, 1000);
+
+      const timeoutId = setTimeout(() => {
+        abortController.abort();
+      }, 60000);
+
+      let fastApiRes;
+      try {
+        fastApiRes = await fetch(changesUrl.toString(), {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+          signal: abortController.signal,
+        });
+      } catch (fetchErr) {
+        if (fetchErr.name === "AbortError" || abortController.signal.aborted) {
+          throw new Error(
+            t(
+              "review.timeoutError",
+              "Request timed out: No response from server after 60 seconds.",
+            ),
+          );
+        }
+        throw fetchErr;
+      } finally {
+        clearInterval(timerInterval);
+        clearTimeout(timeoutId);
+        setCountdown(null);
+      }
+
+      if (fastApiRes.ok) {
+        const fastApiData = await fastApiRes.json();
+
+        // Step 2c: Extract rows from FastAPI response. If response rows is null or empty, don't call SaveReviewedChangedData
+        const rawRows = fastApiData?.rows;
+        if (rawRows && Array.isArray(rawRows) && rawRows.length > 0) {
+          setBusyMessage(
+            t("review.savingReviewedData", "Saving reviewed changed data..."),
+          );
+          const changeDataList = rawRows.map((r) =>
+            mapExportedRowToChangeData(r),
+          );
+
+          const reviewedPayload = {
+            changeDataList: changeDataList.map((r) => {
+              const rawDate = r.workDate || r.workedOn || r.work_date || "";
+              const isoDate = formatValidDateIso(rawDate);
+              return {
+                ...r,
+                workDate: isoDate,
+                workedOn: r.workedOn || r.workDate || isoDate.slice(0, 10),
+              };
+            }),
+            id: 0,
+          };
+
+          // Send to api/ChangeData/SaveReviewedChangedData
+          const reviewedResponse = await new Promise((resolve) => {
+            APIcallPost(
+              pocEndPoints.SAVE_REVIEWED_CHANGED_DATA,
+              reviewedPayload,
+              {},
+              (reviewedRes, status) => {
+                resolve({ reviewedRes, status });
+              },
+            );
+          });
+
+          const isReviewedSuccess =
+            (reviewedResponse.status === 200 || reviewedResponse.status === 201) &&
+            reviewedResponse.reviewedRes?.statusCode !== 400 &&
+            (reviewedResponse.reviewedRes?.statusCode == null ||
+              reviewedResponse.reviewedRes?.statusCode === 200 ||
+              reviewedResponse.reviewedRes?.statusCode === 201);
+
+          // Step 2d: If the response from SaveReviewedChangedData is 200 then only call Save Cursor else don't call
+          if (isReviewedSuccess) {
+            setBusyMessage(t("review.savingCursor", "Saving cursor..."));
+            const newCursor =
+              fastApiData?.cursor ??
+              fastApiData?.next_cursor ??
+              fastApiData?.nextCursor ??
+              fastApiData?.cursor_id ??
+              cursorData ??
+              "";
+
+            const cursorPayload = {
+              cursor: String(newCursor || ""),
+            };
+
+            await new Promise((resolve) => {
+              APIcallPost(
+                pocEndPoints.SAVE_CURSOR,
+                cursorPayload,
+                {},
+                (saveCursorRes, status) => {
+                  resolve({ saveCursorRes, status });
+                },
+              );
+            });
+          } else {
+            console.warn(
+              "SaveReviewedChangedData did not return 200 (status: " +
+                reviewedResponse.status +
+                ", code: " +
+                reviewedResponse.reviewedRes?.statusCode +
+                "). SaveCursor was not called.",
+              reviewedResponse.reviewedRes,
+            );
+          }
+        } else {
+          console.log(
+            "No rows to review (rows is null or empty). Skipping SaveReviewedChangedData.",
+            fastApiData,
+          );
+        }
+      } else {
+        console.error(
+          "FastAPI changes export error:",
+          fastApiRes.status,
+          fastApiRes.statusText,
+        );
+      }
+
+      setNote({
+        text: `Moved report ${report.wo_code || `#${report.report_id}`} to ${targetName}.${archived}${
+          outcome ? " " + outcome.text : ""
+        } Changes synchronized successfully.`,
+        bad: outcome?.bad ?? false,
+      });
+      window.dispatchEvent(new Event("refreshChangeHistoryData"));
+    } catch (syncErr) {
+      console.error("Sync error after move:", syncErr);
+      setError(
+        `Moved report to ${targetName}, but sync failed: ${syncErr.message || "Unknown sync error"}`,
+      );
+    } finally {
+      setBusy(false);
+      setBusyMessage("");
+      setCountdown(null);
+      await load();
+    }
   };
 
   const counts = data?.counts || { borderline: 0 };
@@ -931,7 +1148,7 @@ export default function Review() {
                 disabled={busy}
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer disabled:opacity-50"
               >
-                {busy ? t("review.moving", "Moving…") : t("review.confirmMoveBtn", "Confirm Move")}
+                {busy ? t("review.saving", "Saving…") : t("review.confirmMoveBtn", "Save")}
               </button>
             </div>
           }
@@ -966,15 +1183,20 @@ export default function Review() {
             <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/70 text-[#1745c2] dark:text-blue-400 flex items-center justify-center shadow-xs">
               <i className="fas fa-circle-notch fa-spin text-2xl" />
             </div>
+            {countdown !== null && (
+              <div className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-700 text-[#1745c2] dark:text-blue-300 font-mono text-sm font-bold shadow-2xs">
+                <i className="fas fa-stopwatch text-xs" />
+                <span>{countdown}s</span>
+              </div>
+            )}
             <div>
               <h3 className="text-sm font-bold text-text-default">
                 {busyMessage || t("review.processing", "Processing Request...")}
               </h3>
               <p className="text-xs text-text-subtle mt-1.5 leading-relaxed">
-                {t(
-                  "review.waitMsg",
-                  "Please wait while the changes are being applied and resynthesized.",
-                )}
+                {countdown !== null
+                  ? t("review.syncWaitMsg", "Synchronizing pipeline changes. This may take up to 60 seconds...")
+                  : t("review.waitMsg", "Please wait while the changes are being applied and resynthesized.")}
               </p>
             </div>
           </div>

@@ -150,7 +150,7 @@ function getFormattedDateString(raw) {
   return dateStr.slice(0, 10);
 }
 
-function formatValidDateIso(rawDate) {
+export function formatValidDateIso(rawDate) {
   if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
     return new Date().toISOString();
   }
@@ -209,7 +209,7 @@ function getPreviewCellValue(row, key) {
   return row[key] ?? "";
 }
 
-function mapExportedRowToChangeData(row) {
+export function mapExportedRowToChangeData(row) {
   const currentUserName = getUserInfo()?.name || "Chirati Harish";
   const maintVal = row.maintenance_part || row.maintGroup || row.eqType || row["보전파트"] || "";
   const woTypeVal = row.Wotype || row.wotype || row.woType || row.wo_type || row["W/O타입"] || "";
@@ -321,7 +321,8 @@ export default function JobPreviewModal({
   const [filterType, setFilterType] = useState("all");
   const [masterColumns, setMasterColumns] = useState(null);
   const [apiColumns, setApiColumns] = useState(null);
-  const [downloadingExport, setDownloadingExport] = useState(false);
+  const [downloadingScope, setDownloadingScope] = useState(null); // 'run' | 'corpus' | null
+  const downloadingExport = Boolean(downloadingScope);
   const [duplicateAlert, setDuplicateAlert] = useState(null);
   const [duplicateRowsCount, setDuplicateRowsCount] = useState(0);
   const hasShownQuarantineToastRef = useRef(false);
@@ -576,21 +577,27 @@ export default function JobPreviewModal({
     isAllQuarantined ||
     (totalRows != null && totalRows === 0);
 
-  const handleDownloadExport = async () => {
+  const handleDownloadExport = async (scope = "run") => {
     if (!job?.id || isDownloadDisabled) return;
     try {
-      setDownloadingExport(true);
+      setDownloadingScope(scope);
       const aiServer = (
         import.meta.env.VITE_APP_AI_POC_PIPELINE_SERVER || "http://107.99.131.150:8002"
       ).replace(/\/+$/, "");
-      const downloadUrl = `${aiServer}/api/exports/${job.id}`;
+      const downloadUrl =
+        scope === "run"
+          ? `${aiServer}/api/exports/${job.id}?scope=run`
+          : `${aiServer}/api/exports/${job.id}?scope=corpus`;
 
       const response = await fetch(downloadUrl);
       if (!response.ok) {
         throw new Error(`Failed to download export file (status: ${response.status})`);
       }
 
-      let filename = `job_${job.id}_export.xlsx`;
+      let filename =
+        scope === "run"
+          ? `job_${job.id}_run_export.xlsx`
+          : `job_${job.id}_corpus_export.xlsx`;
       const disposition = response.headers.get("Content-Disposition");
       if (disposition && disposition.includes("filename=")) {
         const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -600,9 +607,11 @@ export default function JobPreviewModal({
       } else if (job?.fileName || job?.files) {
         const origName = Array.isArray(job?.files) ? job.files[0] : (job.fileName || job.files);
         if (origName && typeof origName === "string") {
-          filename = origName.endsWith(".xlsx") || origName.endsWith(".csv")
-            ? origName
-            : `${origName}.xlsx`;
+          const baseName = origName.replace(/\.(xlsx|csv|xls)$/i, "");
+          filename =
+            scope === "run"
+              ? `${baseName}_run.xlsx`
+              : `${baseName}_corpus.xlsx`;
         }
       }
 
@@ -616,12 +625,17 @@ export default function JobPreviewModal({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      pushToast(t("toast.exportSuccess", "Export file downloaded successfully."), "success");
+      pushToast(
+        scope === "run"
+          ? t("toast.exportRunSuccess", "Current job export downloaded successfully.")
+          : t("toast.exportCorpusSuccess", "Full corpus export downloaded successfully."),
+        "success",
+      );
     } catch (err) {
       console.error("Export download error:", err);
       pushToast(err.message || t("toast.exportFailed", "Failed to download export file."), "error");
     } finally {
-      setDownloadingExport(false);
+      setDownloadingScope(null);
     }
   };
 
@@ -1107,39 +1121,81 @@ export default function JobPreviewModal({
               </button>
             </div>
 
-            {/* Download Export Button */}
+            {/* Download Export Buttons */}
             {job?.id != null && (
-              <button
-                type="button"
-                onClick={handleDownloadExport}
-                disabled={isDownloadDisabled}
-                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                title={
-                  isAllQuarantined
-                    ? t(
-                        "preview.downloadRestrictedQuarantine",
-                        "All records moved to quarantine — download not available",
-                      )
-                    : rows.length === 0
-                    ? t("preview.downloadNoData", "No data available to download")
-                    : downloadingExport
-                    ? t("app.downloading", "Downloading...")
-                    : `Download export for Job #${job.id}`
-                }
-              >
-                <i
-                  className={`fas ${
-                    downloadingExport
-                      ? "fa-spinner fa-spin text-teal-600"
-                      : "fa-download text-teal-600"
-                  } text-xs`}
-                />
-                <span>
-                  {downloadingExport
-                    ? t("app.downloading", "Downloading...")
-                    : t("app.download", "Download")}
-                </span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Download Current Job Button */}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadExport("run")}
+                  disabled={isDownloadDisabled}
+                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  title={
+                    isAllQuarantined
+                      ? t(
+                          "preview.downloadRestrictedQuarantine",
+                          "All records moved to quarantine — download not available",
+                        )
+                      : rows.length === 0
+                      ? t("preview.downloadNoData", "No data available to download")
+                      : downloadingScope === "run"
+                      ? t("app.downloading", "Downloading...")
+                      : t(
+                          "preview.tipDownloadRun",
+                          "Download run-scoped live-generated export containing only this job's reports",
+                        )
+                  }
+                >
+                  <i
+                    className={`fas ${
+                      downloadingScope === "run"
+                        ? "fa-spinner fa-spin text-teal-600"
+                        : "fa-file-excel text-teal-600"
+                    } text-xs`}
+                  />
+                  <span>
+                    {downloadingScope === "run"
+                      ? t("app.downloading", "Downloading...")
+                      : t("preview.downloadCurrentJob", "Download Current Job")}
+                  </span>
+                </button>
+
+                {/* Download All Button */}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadExport("corpus")}
+                  disabled={isDownloadDisabled}
+                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-gray-600 font-semibold text-xs px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  title={
+                    isAllQuarantined
+                      ? t(
+                          "preview.downloadRestrictedQuarantine",
+                          "All records moved to quarantine — download not available",
+                        )
+                      : rows.length === 0
+                      ? t("preview.downloadNoData", "No data available to download")
+                      : downloadingScope === "corpus"
+                      ? t("app.downloading", "Downloading...")
+                      : t(
+                          "preview.tipDownloadAll",
+                          "Download full-corpus export — the frozen .xlsx the pipeline wrote at run time",
+                        )
+                  }
+                >
+                  <i
+                    className={`fas ${
+                      downloadingScope === "corpus"
+                        ? "fa-spinner fa-spin text-blue-600"
+                        : "fa-download text-blue-600"
+                    } text-xs`}
+                  />
+                  <span>
+                    {downloadingScope === "corpus"
+                      ? t("app.downloading", "Downloading...")
+                      : t("preview.downloadAll", "Download All")}
+                  </span>
+                </button>
+              </div>
             )}
 
             <button
