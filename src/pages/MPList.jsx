@@ -22,10 +22,12 @@ function SearchableSelect({
   selectedValue,
   onChange,
   placeholder,
-  t,
+  t: propT,
   disabled,
   minWidth = "180px",
 }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);

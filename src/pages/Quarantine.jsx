@@ -3,16 +3,44 @@ import { Link } from "react-router-dom";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { useI18n } from "../i18n.jsx";
 
-const WHY = {
-  empty: "The report cell was blank, or held nothing but codes and dates.",
-  literal_noise: "The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).",
-  numeric_only: "The text was only digits.",
-  non_content: "The text was only punctuation or symbols.",
-  too_short: "Fewer than the minimum characters once codes and dates were removed.",
-  duplicate_row: "This exact report was already loaded under the same W/O code.",
-  missing_mandatory_field:
-    "A required column was blank — W/O code, process, equipment name, equipment code, work date, or site.",
-};
+function getWhyDescription(reasonKey, t) {
+  switch (reasonKey) {
+    case "empty":
+      return t(
+        "quarantine.whyEmpty",
+        "The report cell was blank, or held nothing but codes and dates.",
+      );
+    case "literal_noise":
+      return t(
+        "quarantine.whyLiteralNoise",
+        "The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).",
+      );
+    case "numeric_only":
+      return t("quarantine.whyNumericOnly", "The text was only digits.");
+    case "non_content":
+      return t(
+        "quarantine.whyNonContent",
+        "The text was only punctuation or symbols.",
+      );
+    case "too_short":
+      return t(
+        "quarantine.whyTooShort",
+        "Fewer than the minimum characters once codes and dates were removed.",
+      );
+    case "duplicate_row":
+      return t(
+        "quarantine.whyDuplicateRow",
+        "This exact report was already loaded under the same W/O code.",
+      );
+    case "missing_mandatory_field":
+      return t(
+        "quarantine.whyMissingMandatoryField",
+        "A required column was blank — W/O code, process, equipment name, equipment code, work date, or site.",
+      );
+    default:
+      return reasonKey || t("quarantine.whyDefault", "Quarantined record");
+  }
+}
 
 function HighlightText({ text, query }) {
   if (text === undefined || text === null || text === "") return null;
@@ -321,11 +349,13 @@ export default function Quarantine() {
         <div>
           <h1 className="page-title flex items-center gap-2.5">
             <i className="fas fa-shield-alt text-amber-600 text-xl md:text-[22px]" />
-            <span>Quarantine</span>
+            <span>{t("quarantine.title", "Quarantine")}</span>
           </h1>
           <p className="page-subtitle">
-            Rows that were read but judged to have no usable report text. They are kept, not deleted
-            — but they do <b>not</b> appear in the export.
+            {t(
+              "quarantine.subtitle",
+              "Rows that were read but judged to have no usable report text. They are kept, not deleted — but they do not appear in the export.",
+            )}
           </p>
         </div>
 
@@ -336,7 +366,7 @@ export default function Quarantine() {
               type="text"
               className="input-base text-xs w-full py-1.5"
               style={{ paddingLeft: "2.25rem" }}
-              placeholder="Search file, W/O code, text..."
+              placeholder={t("quarantine.searchPlaceholder", "Search file, W/O code, text...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -347,7 +377,7 @@ export default function Quarantine() {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           >
-            <option value="">All reasons</option>
+            <option value="">{t("quarantine.allReasons", "All reasons")}</option>
             {Object.entries(reasonCounts).map(([rKey, count]) => (
               <option key={rKey} value={rKey}>
                 {rKey} ({count})
@@ -359,8 +389,8 @@ export default function Quarantine() {
             type="button"
             onClick={loadData}
             className="btn-base btn-secondary w-8 h-8 flex items-center justify-center p-0 rounded-lg text-xs shrink-0"
-            title="Refresh"
-            aria-label="Refresh"
+            title={t("app.refresh", "Refresh")}
+            aria-label={t("app.refresh", "Refresh")}
           >
             <i className={`fas fa-sync-alt text-xs ${loading ? "fa-spin" : ""}`} />
           </button>
@@ -398,14 +428,24 @@ export default function Quarantine() {
                     isAllExpanded ? "fa-compress-alt" : "fa-expand-alt"
                   } text-[11px]`}
                 />
-                <span>{isAllExpanded ? "Collapse All" : "Expand All"}</span>
+                <span>
+                  {isAllExpanded
+                    ? t("quarantine.collapseAll", "Collapse All")
+                    : t("quarantine.expandAll", "Expand All")}
+                </span>
               </button>
             )}
           </div>
 
           <div className="text-xs text-text-subtle font-mono">
-            {groupedData.length} group{groupedData.length === 1 ? "" : "s"} ({filteredItems.length}{" "}
-            quarantined row{filteredItems.length === 1 ? "" : "s"})
+            {groupedData.length}{" "}
+            {groupedData.length === 1
+              ? t("quarantine.group", "group")
+              : t("quarantine.groups", "groups")}{" "}
+            ({filteredItems.length}{" "}
+            {filteredItems.length === 1
+              ? t("quarantine.quarantinedRow", "quarantined row")
+              : t("quarantine.quarantinedRows", "quarantined rows")})
           </div>
         </div>
 
@@ -413,16 +453,19 @@ export default function Quarantine() {
         {loading && !data ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
             <i className="fas fa-spinner fa-spin text-3xl text-amber-600 mb-3" />
-            <p className="text-sm font-medium">Loading quarantine items...</p>
+            <p className="text-sm font-medium">{t("quarantine.loading", "Loading quarantine items...")}</p>
           </div>
         ) : data?.total === 0 || filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
             <i className="fas fa-shield-alt text-5xl opacity-30 mb-3 text-amber-500" />
             <h3 className="text-base font-semibold text-text-default mb-1">
-              Nothing is quarantined
+              {t("quarantine.nothingQuarantined", "Nothing is quarantined")}
             </h3>
             <p className="text-xs text-text-subtle max-w-sm text-center">
-              Every row that was read had usable report text or matches your filter criteria.
+              {t(
+                "quarantine.nothingDesc",
+                "Every row that was read had usable report text or matches your filter criteria.",
+              )}
             </p>
           </div>
         ) : (
@@ -442,10 +485,10 @@ export default function Quarantine() {
               <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-20 border-b border-border-base shadow-xs">
                 <tr className="font-semibold text-text-subtle whitespace-nowrap">
                   <th className="px-3 py-3 text-center" />
-                  <th className="px-3 py-3 text-center">S.No</th>
-                  <th className="px-4 py-3">Source File</th>
-                  <th className="px-4 py-3">Created At</th>
-                  <th className="px-4 py-3 text-center">Count of Quarantines</th>
+                  <th className="px-3 py-3 text-center">{t("jobs.sNo", "S.No")}</th>
+                  <th className="px-4 py-3">{t("quarantine.sourceFile", "Source File")}</th>
+                  <th className="px-4 py-3">{t("quarantine.createdAt", "Created At")}</th>
+                  <th className="px-4 py-3 text-center">{t("quarantine.countOfQuarantines", "Count of Quarantines")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base">
@@ -522,10 +565,10 @@ export default function Quarantine() {
                               <div className="flex items-center justify-between pb-0.5">
                                 <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                                   <i className="fas fa-list-ul text-amber-600 text-xs" />
-                                  <span>Quarantined Items in {group.source_file}</span>
+                                  <span>{t("quarantine.itemsInFile", "Quarantined Items in")} {group.source_file}</span>
                                 </span>
                                 <span className="text-[10px] text-gray-400 font-mono">
-                                  {group.items.length} records
+                                  {group.items.length} {t("quarantine.records", "records")}
                                 </span>
                               </div>
 
@@ -540,15 +583,15 @@ export default function Quarantine() {
                                   </colgroup>
                                   <thead className="bg-gray-50 dark:bg-gray-750 border-b border-border-base text-[11px] font-semibold text-text-subtle uppercase tracking-wider sticky top-0 z-10">
                                     <tr>
-                                      <th className="px-3.5 py-2.5 text-center">Row</th>
-                                      <th className="px-3.5 py-2.5">W/O Code</th>
+                                      <th className="px-3.5 py-2.5 text-center">{t("quarantine.row", "Row")}</th>
+                                      <th className="px-3.5 py-2.5">{t("quarantine.woCode", "W/O Code")}</th>
                                       <th className="px-3.5 py-2.5">
-                                        Process · Equipment
+                                        {t("quarantine.processEquipment", "Process · Equipment")}
                                       </th>
                                       <th className="px-3.5 py-2.5">
-                                        What the cell held
+                                        {t("quarantine.whatCellHeld", "What the cell held")}
                                       </th>
-                                      <th className="px-3.5 py-2.5">Why</th>
+                                      <th className="px-3.5 py-2.5">{t("quarantine.why", "Why")}</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border-base text-xs bg-white dark:bg-gray-800">
@@ -569,7 +612,7 @@ export default function Quarantine() {
                                           {/* Row */}
                                           <td className="px-3.5 py-2.5 font-mono text-center text-text-subtle font-medium">
                                             <HighlightText
-                                              text={`row ${r.source_row ?? "-"}`}
+                                              text={`${t("quarantine.rowPrefix", "row")} ${r.source_row ?? "-"}`}
                                               query={searchQuery}
                                             />
                                           </td>
@@ -653,7 +696,7 @@ export default function Quarantine() {
                                               </code>
                                             ) : (
                                               <span className="text-text-subtle italic">
-                                                (blank)
+                                                {t("quarantine.blank", "(blank)")}
                                               </span>
                                             )}
                                           </td>
@@ -668,7 +711,7 @@ export default function Quarantine() {
                                             </span>
                                             <div className="text-[11px] text-text-subtle leading-tight">
                                               <HighlightText
-                                                text={WHY[r.reason] || ""}
+                                                text={getWhyDescription(r.reason, t)}
                                                 query={searchQuery}
                                               />
                                             </div>
@@ -691,7 +734,7 @@ export default function Quarantine() {
             {loadingMore && (
               <div className="py-2.5 text-center text-xs text-amber-600 dark:text-amber-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
                 <i className="fas fa-spinner fa-spin text-sm" />
-                <span>Loading more quarantine items...</span>
+                <span>{t("quarantine.loadingMore", "Loading more quarantine items...")}</span>
               </div>
             )}
             {hasMore && !loadingMore && (
@@ -702,7 +745,7 @@ export default function Quarantine() {
                   className="btn-base btn-secondary text-xs py-1.5 px-4 font-semibold inline-flex items-center gap-1.5"
                 >
                   <i className="fas fa-arrow-down text-[11px]" />
-                  <span>Load More Records</span>
+                  <span>{t("quarantine.loadMoreRecords", "Load More Records")}</span>
                 </button>
               </div>
             )}

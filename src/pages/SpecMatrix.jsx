@@ -52,7 +52,9 @@ function SelectSkeleton({ width = "100%" }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = [], t }) {
+function TableSkeleton({ view, filtered = [], view2Rows = [], view2Versions = [], t: propT }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   if (view === "view1") {
     const specCols = [];
     const set = new Set();

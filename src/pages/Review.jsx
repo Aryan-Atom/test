@@ -344,14 +344,14 @@ export default function Review() {
         <div>
           <h1 className="page-title flex items-center gap-2.5">
             <i className="fas fa-clipboard-check text-[#1745c2] text-xl md:text-[22px]" />
-            <span>{t("nav.aiReview", "Review")}</span>
+            <span>{t("review.title", "Review")}</span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-              {filteredRows.length} {t("app.items", "items")}
+              {filteredRows.length} {t("review.items", "items")}
             </span>
           </h1>
           <p className="page-subtitle mt-1">
             {t(
-              "page.review.subtitle",
+              "review.subtitle",
               "Matches the system was unsure about, and groups it distrusts. Nothing here has been hidden — confirming is as much an answer as moving.",
             )}
           </p>
@@ -364,7 +364,7 @@ export default function Review() {
             <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
             <input
               type="text"
-              placeholder={t("app.searchPlaceholder", "Search reports, WO, equipment...")}
+              placeholder={t("review.searchPlaceholder", "Search reports, WO, equipment...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-border-base bg-surface-default text-text-default focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs"
@@ -387,7 +387,7 @@ export default function Review() {
               onChange={(e) => setSelectedProcess(e.target.value)}
               className="px-2.5 py-1.5 text-xs rounded-xl border border-border-base bg-surface-default text-text-default focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer"
             >
-              <option value="all">{t("app.allProcesses", "All Processes")}</option>
+              <option value="all">{t("review.allProcesses", "All Processes")}</option>
               {processOptions.map((proc) => (
                 <option key={proc} value={proc}>
                   {proc}
@@ -468,28 +468,26 @@ export default function Review() {
             <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
               <i className="fas fa-check-circle text-2xl" />
               <h2 className="text-base font-bold text-text-default">
-                Nothing is waiting for you.
+                {t("review.nothingWaiting", "Nothing is waiting for you.")}
               </h2>
             </div>
             <p className="text-xs text-text-subtle">
-              What that means depends on which checks have run:
+              {t("review.whatThatMeans", "What that means depends on which checks have run:")}
             </p>
             <ul className="space-y-2 text-xs text-text-default pl-4 border-l-2 border-border-base">
               <li className="flex items-start gap-2">
                 <i className="fas fa-circle text-[6px] mt-1.5 text-blue-500" />
                 <span>
                   {chk.matched_reports > 0 ? (
-                    <>
-                      Borderline matches — <b>{chk.matched_reports}</b> report
-                      {chk.matched_reports === 1 ? " was" : "s were"} scored against existing
-                      groups, none landed near the boundary.
-                    </>
+                    t(
+                      "review.borderlineChecked",
+                      "Borderline matches — {count} report(s) were scored against existing groups, none landed near the boundary.",
+                    ).replace("{count}", chk.matched_reports)
                   ) : (
-                    <>
-                      Borderline matches —{" "}
-                      <span className="text-amber-600 font-semibold">not checked yet</span>. This
-                      check only runs when a report is matched against groups that already exist.
-                    </>
+                    t(
+                      "review.borderlineNotChecked",
+                      "Borderline matches — not checked yet. This check only runs when a report is matched against groups that already exist.",
+                    )
                   )}
                 </span>
               </li>
@@ -501,11 +499,11 @@ export default function Review() {
               {/* Sticky Table Header (No vertical borders) */}
               <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-border-base text-text-subtle font-semibold uppercase tracking-wider text-[11px] shadow-xs">
                 <tr>
-                  <th className="py-3 px-3.5 w-14 text-center border-0">S.No</th>
-                  <th className="py-3 px-4 border-0">Report</th>
-                  <th className="py-3 px-3.5 min-w-[220px] border-0">Attached to</th>
-                  <th className="py-3 px-3.5 text-right w-24 border-0">Score</th>
-                  <th className="py-3 px-4 text-center w-36 border-0">Actions</th>
+                  <th className="py-3 px-3.5 w-14 text-center border-0">{t("jobs.sNo", "S.No")}</th>
+                  <th className="py-3 px-4 border-0">{t("review.report", "Report")}</th>
+                  <th className="py-3 px-3.5 min-w-[220px] border-0">{t("review.attachedTo", "Attached to")}</th>
+                  <th className="py-3 px-3.5 text-right w-24 border-0">{t("review.score", "Score")}</th>
+                  <th className="py-3 px-4 text-center w-36 border-0">{t("review.actions", "Actions")}</th>
                 </tr>
               </thead>
 
@@ -617,9 +615,9 @@ export default function Review() {
                             }}
                             disabled={busy}
                             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                            title="Keep report in current work item"
+                            title={t("review.keepTooltip", "Keep report in current work item")}
                           >
-                            Keep
+                            {t("review.keep", "Keep")}
                           </button>
                           <button
                             type="button"
@@ -629,9 +627,9 @@ export default function Review() {
                             }}
                             disabled={busy}
                             className="px-3 py-1.5 rounded-lg border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                            title="Move report to another work item"
+                            title={t("review.moveTooltip", "Move report to another work item")}
                           >
-                            Move…
+                            {t("review.move", "Move…")}
                           </button>
                         </div>
                       </td>
@@ -648,8 +646,11 @@ export default function Review() {
       {keepConfirmReport && (
         <Modal
           open={Boolean(keepConfirmReport)}
-          title="Confirm Keep"
-          description="Are you sure you want to keep this report in the current work item?"
+          title={t("review.confirmKeepTitle", "Confirm Keep")}
+          description={t(
+            "review.confirmKeepDesc",
+            "Are you sure you want to keep this report in the current work item?",
+          )}
           titleIcon={<i className="fas fa-check-circle text-emerald-600 text-lg" />}
           onClose={() => setKeepConfirmReport(null)}
           footer={
@@ -667,7 +668,7 @@ export default function Review() {
                 disabled={busy}
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer disabled:opacity-50"
               >
-                {busy ? "Keeping…" : "Confirm Keep"}
+                {busy ? t("review.keeping", "Keeping…") : t("review.confirmKeepBtn", "Confirm Keep")}
               </button>
             </div>
           }
@@ -675,7 +676,7 @@ export default function Review() {
           <div className="space-y-2 py-1 text-xs text-text-default">
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-border-base space-y-1.5">
               <div className="font-semibold text-text-default">
-                W/O Code:{" "}
+                {t("review.woCodeLabel", "W/O Code:")}{" "}
                 <span className="font-mono text-blue-600 dark:text-blue-400">
                   {keepConfirmReport.wo_code || `#${keepConfirmReport.report_id}`}
                 </span>
@@ -684,7 +685,7 @@ export default function Review() {
                 {keepConfirmReport.normalized_content}
               </div>
               <div className="text-[11px] text-text-subtlest">
-                Target Work Item:{" "}
+                {t("review.targetWorkItemLabel", "Target Work Item:")}{" "}
                 <span className="font-bold text-text-default">
                   {keepConfirmReport.rep_name || `#${keepConfirmReport.rep_work_id}`}
                 </span>
@@ -698,8 +699,11 @@ export default function Review() {
       {moveModalReport && (
         <Modal
           open={Boolean(moveModalReport)}
-          title="Move Report to Work Item"
-          description="Select a target work item to move this report to."
+          title={t("review.moveModalTitle", "Move Report to Work Item")}
+          description={t(
+            "review.moveModalDesc",
+            "Select a target work item to move this report to.",
+          )}
           titleIcon={<i className="fas fa-arrows-alt text-[#1745c2] text-lg" />}
           onClose={() => setMoveModalReport(null)}
           footer={
@@ -717,7 +721,7 @@ export default function Review() {
                 disabled={!selectedTargetId || busy}
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-[#1745c2] hover:bg-blue-700 text-white shadow-sm cursor-pointer disabled:opacity-50"
               >
-                Select & Proceed
+                {t("review.selectProceed", "Select & Proceed")}
               </button>
             </div>
           }
@@ -739,7 +743,7 @@ export default function Review() {
                 {moveModalReport.normalized_content}
               </p>
               <div className="text-[11px] text-text-subtlest pt-1 border-t border-border-base/50">
-                Currently attached to:{" "}
+                {t("review.currentlyAttachedTo", "Currently attached to:")}{" "}
                 <span className="font-semibold text-text-default">
                   {moveModalReport.rep_name || `#${moveModalReport.rep_work_id}`}
                 </span>
@@ -749,13 +753,16 @@ export default function Review() {
             {/* Target Work Item Search & Selection */}
             <div className="space-y-2">
               <label className="block font-bold text-text-default text-xs">
-                Select Destination Work Item:
+                {t("review.selectDestination", "Select Destination Work Item:")}
               </label>
               <div className="relative">
                 <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
                 <input
                   type="text"
-                  placeholder="Search destination work items by name or ID..."
+                  placeholder={t(
+                    "review.searchDestPlaceholder",
+                    "Search destination work items by name or ID...",
+                  )}
                   value={targetSearchQuery}
                   onChange={(e) => setTargetSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-border-base bg-surface-default text-text-default focus:outline-hidden focus:ring-1 focus:ring-blue-500"
@@ -767,8 +774,14 @@ export default function Review() {
                 {modalTargets.length === 0 ? (
                   <div className="p-4 text-center text-text-subtle text-xs italic">
                     {targetSearchQuery
-                      ? "No matching destination work items found."
-                      : "No other work items available in this process."}
+                      ? t(
+                          "review.noMatchDest",
+                          "No matching destination work items found.",
+                        )
+                      : t(
+                          "review.noOtherItems",
+                          "No other work items available in this process.",
+                        )}
                   </div>
                 ) : (
                   modalTargets.map((w) => {
@@ -796,11 +809,11 @@ export default function Review() {
 
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-text-subtle">
-                            {w.member_count || 0} members
+                            {w.member_count || 0} {t("review.members", "members")}
                           </span>
                           {w.status === "archived" && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium">
-                              archived
+                              {t("review.archived", "archived")}
                             </span>
                           )}
                           <div
@@ -827,8 +840,11 @@ export default function Review() {
       {moveConfirmState && (
         <Modal
           open={Boolean(moveConfirmState)}
-          title="Confirm Move"
-          description="Are you sure you want to move this report to the selected work item?"
+          title={t("review.confirmMoveTitle", "Confirm Move")}
+          description={t(
+            "review.confirmMoveDesc",
+            "Are you sure you want to move this report to the selected work item?",
+          )}
           titleIcon={<i className="fas fa-exchange-alt text-[#1745c2] text-lg" />}
           onClose={() => setMoveConfirmState(null)}
           footer={
@@ -846,7 +862,7 @@ export default function Review() {
                 disabled={busy}
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer disabled:opacity-50"
               >
-                {busy ? "Moving…" : "Confirm Move"}
+                {busy ? t("review.moving", "Moving…") : t("review.confirmMoveBtn", "Confirm Move")}
               </button>
             </div>
           }
@@ -854,7 +870,7 @@ export default function Review() {
           <div className="space-y-3 py-1 text-xs text-text-default">
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-border-base space-y-2">
               <div>
-                <span className="text-text-subtlest">Report: </span>
+                <span className="text-text-subtlest">{t("review.reportLabel", "Report:")} </span>
                 <span className="font-mono font-bold text-text-default">
                   {moveConfirmState.report.wo_code || `#${moveConfirmState.report.report_id}`}
                 </span>
@@ -864,7 +880,7 @@ export default function Review() {
               </div>
 
               <div className="pt-2 border-t border-border-base flex items-center justify-between text-xs">
-                <span className="text-text-subtle">Moving To:</span>
+                <span className="text-text-subtle">{t("review.movingToLabel", "Moving To:")}</span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">
                   {moveConfirmState.targetName} (#{moveConfirmState.targetId})
                 </span>
@@ -883,10 +899,13 @@ export default function Review() {
             </div>
             <div>
               <h3 className="text-sm font-bold text-text-default">
-                {busyMessage || "Processing Request..."}
+                {busyMessage || t("review.processing", "Processing Request...")}
               </h3>
               <p className="text-xs text-text-subtle mt-1.5 leading-relaxed">
-                Please wait while the changes are being applied and resynthesized.
+                {t(
+                  "review.waitMsg",
+                  "Please wait while the changes are being applied and resynthesized.",
+                )}
               </p>
             </div>
           </div>

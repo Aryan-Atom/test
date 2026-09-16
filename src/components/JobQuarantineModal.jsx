@@ -2,15 +2,44 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../i18n.jsx";
 
-const WHY = {
-  empty: "The report cell was blank, or held nothing but codes and dates.",
-  literal_noise: "The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).",
-  numeric_only: "The text was only digits.",
-  non_content: "The text was only punctuation or symbols.",
-  too_short: "Fewer than the minimum characters once codes and dates were removed.",
-  duplicate_row: "Duplicate row with matching content found in this process.",
-  missing_mandatory_field: "Missing mandatory fields in the uploaded file.",
-};
+function getWhyDescription(reasonKey, t) {
+  switch (reasonKey) {
+    case "empty":
+      return t(
+        "quarantine.whyEmpty",
+        "The report cell was blank, or held nothing but codes and dates.",
+      );
+    case "literal_noise":
+      return t(
+        "quarantine.whyLiteralNoise",
+        "The text matched a placeholder phrase (N/A, 없음, 확인중, TBD…).",
+      );
+    case "numeric_only":
+      return t("quarantine.whyNumericOnly", "The text was only digits.");
+    case "non_content":
+      return t(
+        "quarantine.whyNonContent",
+        "The text was only punctuation or symbols.",
+      );
+    case "too_short":
+      return t(
+        "quarantine.whyTooShort",
+        "Fewer than the minimum characters once codes and dates were removed.",
+      );
+    case "duplicate_row":
+      return t(
+        "quarantine.whyDuplicateRow",
+        "Duplicate row with matching content found in this process.",
+      );
+    case "missing_mandatory_field":
+      return t(
+        "quarantine.whyMissingMandatoryField",
+        "Missing mandatory fields in the uploaded file.",
+      );
+    default:
+      return reasonKey || t("quarantine.whyDefault", "Quarantined record");
+  }
+}
 
 function HighlightText({ text, query }) {
   if (text === undefined || text === null || text === "") return null;
@@ -216,7 +245,7 @@ export default function JobQuarantineModal({ job, onClose }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-text-default whitespace-nowrap">
-                  Quarantine Items
+                  {t("quarantine.items", "Quarantine Items")}
                 </h2>
                 <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 whitespace-nowrap">
                   Job #{job.id}
@@ -233,7 +262,10 @@ export default function JobQuarantineModal({ job, onClose }) {
                 ))}
               </div>
               <p className="text-xs text-text-subtle mt-0.5">
-                Rows flagged during processing that were kept for review without being exported.
+                {t(
+                  "quarantine.modalSubtitle",
+                  "Rows flagged during processing that were kept for review without being exported.",
+                )}
               </p>
             </div>
           </div>
@@ -241,7 +273,8 @@ export default function JobQuarantineModal({ job, onClose }) {
           <div className="flex items-center gap-3 shrink-0">
             {/* Total Count Badge */}
             <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-text-subtle border border-border-base whitespace-nowrap">
-              Total: <strong className="text-text-default">{total}</strong> records
+              {t("quarantine.total", "Total")}: <strong className="text-text-default">{total}</strong>{" "}
+              {t("quarantine.records", "records")}
             </span>
 
             {/* Close Button */}
@@ -249,8 +282,8 @@ export default function JobQuarantineModal({ job, onClose }) {
               type="button"
               onClick={onClose}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              title="Close (Esc)"
-              aria-label="Close"
+              title={t("app.close", "Close")}
+              aria-label={t("app.close", "Close")}
             >
               <i className="fas fa-times text-sm" />
             </button>
@@ -267,7 +300,10 @@ export default function JobQuarantineModal({ job, onClose }) {
                 type="text"
                 className="input-base text-xs w-full py-1.5"
                 style={{ paddingLeft: "2.25rem" }}
-                placeholder="Search W/O code, process, equipment, text..."
+                placeholder={t(
+                  "quarantine.searchModalPlaceholder",
+                  "Search W/O code, process, equipment, text...",
+                )}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -279,7 +315,7 @@ export default function JobQuarantineModal({ job, onClose }) {
               value={selectedReason}
               onChange={(e) => setSelectedReason(e.target.value)}
             >
-              <option value="">All reasons</option>
+              <option value="">{t("quarantine.allReasons", "All reasons")}</option>
               {Object.entries(reasonOptions).map(([rKey, count]) => (
                 <option key={rKey} value={rKey}>
                   {rKey} ({count})
@@ -289,7 +325,7 @@ export default function JobQuarantineModal({ job, onClose }) {
           </div>
 
           <div className="text-xs text-text-subtle font-mono whitespace-nowrap hidden md:block">
-            {filteredItems.length} records
+            {filteredItems.length} {t("quarantine.records", "records")}
           </div>
         </div>
 
@@ -310,18 +346,26 @@ export default function JobQuarantineModal({ job, onClose }) {
           {loading && items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-text-subtle">
               <i className="fas fa-spinner fa-spin text-3xl text-amber-600 mb-3" />
-              <p className="text-sm font-medium">Loading quarantine items for Job #{job.id}...</p>
+              <p className="text-sm font-medium">
+                {t("quarantine.loadingForJob", "Loading quarantine items for Job #{id}...").replace(
+                  "#{id}",
+                  `#${job.id}`,
+                )}
+              </p>
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-text-subtle">
               <i className="fas fa-shield-alt text-5xl opacity-30 mb-3 text-amber-500" />
               <h3 className="text-base font-semibold text-text-default mb-1">
-                No Quarantine Records Found
+                {t("quarantine.noRecordsFound", "No Quarantine Records Found")}
               </h3>
               <p className="text-xs text-text-subtle max-w-sm text-center">
                 {items.length === 0
-                  ? "This job has no quarantined records."
-                  : "No quarantined items match your current search and filter criteria."}
+                  ? t("quarantine.jobHasNoRecords", "This job has no quarantined records.")
+                  : t(
+                      "quarantine.noMatchesDesc",
+                      "No quarantined items match your current search and filter criteria.",
+                    )}
               </p>
             </div>
           ) : (
@@ -336,12 +380,12 @@ export default function JobQuarantineModal({ job, onClose }) {
               </colgroup>
               <thead className="bg-gray-100/90 dark:bg-gray-800 border-b border-border-base text-[11px] font-semibold text-text-subtle uppercase tracking-wider sticky top-0 z-20 shadow-2xs">
                 <tr>
-                  <th className="px-3 py-3 text-center">S.No</th>
-                  <th className="px-3 py-3 text-center">Row</th>
-                  <th className="px-3.5 py-3">W/O Code</th>
-                  <th className="px-3.5 py-3">Process · Equipment</th>
-                  <th className="px-3.5 py-3">What the cell held</th>
-                  <th className="px-3.5 py-3">Why</th>
+                  <th className="px-3 py-3 text-center">{t("jobs.sNo", "S.No")}</th>
+                  <th className="px-3 py-3 text-center">{t("quarantine.row", "Row")}</th>
+                  <th className="px-3.5 py-3">{t("quarantine.woCode", "W/O Code")}</th>
+                  <th className="px-3.5 py-3">{t("quarantine.processEquipment", "Process · Equipment")}</th>
+                  <th className="px-3.5 py-3">{t("quarantine.whatCellHeld", "What the cell held")}</th>
+                  <th className="px-3.5 py-3">{t("quarantine.why", "Why")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-base text-xs bg-white dark:bg-gray-900">
@@ -365,7 +409,7 @@ export default function JobQuarantineModal({ job, onClose }) {
                       {/* Row */}
                       <td className="px-3 py-2.5 font-mono text-center text-text-subtle font-medium">
                         <HighlightText
-                          text={`row ${r.source_row ?? "-"}`}
+                          text={`${t("quarantine.rowPrefix", "row")} ${r.source_row ?? "-"}`}
                           query={searchQuery}
                         />
                       </td>
@@ -421,7 +465,9 @@ export default function JobQuarantineModal({ job, onClose }) {
                             <HighlightText text={r.raw_content} query={searchQuery} />
                           </div>
                         ) : (
-                          <span className="text-gray-400 italic text-xs">(blank)</span>
+                          <span className="text-gray-400 italic text-xs">
+                            {t("quarantine.blank", "(blank)")}
+                          </span>
                         )}
                       </td>
 
@@ -436,7 +482,7 @@ export default function JobQuarantineModal({ job, onClose }) {
                             <span>{r.reason || "unknown"}</span>
                           </span>
                           <span className="text-[11px] text-text-subtle leading-tight line-clamp-2">
-                            {WHY[r.reason] || r.reason || "Quarantined record"}
+                            {getWhyDescription(r.reason, t)}
                           </span>
                         </div>
                       </td>
@@ -451,7 +497,7 @@ export default function JobQuarantineModal({ job, onClose }) {
           {loadingMore && (
             <div className="py-3 text-center text-xs text-amber-600 dark:text-amber-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
               <i className="fas fa-spinner fa-spin text-sm" />
-              <span>Loading next 50 records...</span>
+              <span>{t("quarantine.loadingNext50", "Loading next 50 records...")}</span>
             </div>
           )}
         </div>
@@ -459,10 +505,11 @@ export default function JobQuarantineModal({ job, onClose }) {
         {/* Modal Footer */}
         <div className="px-6 py-3 border-t border-border-base bg-gray-50/70 dark:bg-gray-800/60 flex items-center justify-between shrink-0">
           <div className="text-xs text-text-subtle font-mono">
-            Showing {filteredItems.length} of {total} records
+            {t("quarantine.showing", "Showing")} {filteredItems.length} {t("quarantine.of", "of")}{" "}
+            {total} {t("quarantine.records", "records")}
             {items.length < total && !loading && (
               <span className="ml-2 text-amber-600 dark:text-amber-400">
-                (Scroll down to load more)
+                {t("quarantine.scrollDownToLoadMore", "(Scroll down to load more)")}
               </span>
             )}
           </div>
@@ -471,7 +518,7 @@ export default function JobQuarantineModal({ job, onClose }) {
             className="btn-base btn-secondary text-xs px-4 py-1.5"
             onClick={onClose}
           >
-            Close
+            {t("app.close", "Close")}
           </button>
         </div>
       </div>

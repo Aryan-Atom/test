@@ -43,6 +43,7 @@ function HighlightText({ text, query }) {
 // people to ignore the colour. >0 is amber; red only when NOTHING was
 // ingested, which is the silent-success case this column exists to surface.
 function CountCell({ value, ingested, total, to, onClick }) {
+  const { t } = useI18n();
   if (value == null) {
     return (
       <td className="px-4 py-3 text-right">
@@ -60,8 +61,13 @@ function CountCell({ value, ingested, total, to, onClick }) {
   const allRejected = (total > 0 || value > 0) && ingested === 0;
   const tone = allRejected ? "crit" : "warn";
   const title = allRejected
-    ? "Every row was rejected — nothing from this file reached the corpus."
-    : `${(ingested ?? 0).toLocaleString()} of ${(total ?? value).toLocaleString()} rows were added.`;
+    ? t(
+        "jobs.allRejectedTip",
+        "Every row was rejected — nothing from this file reached the corpus.",
+      )
+    : t("jobs.rowsAddedTip", "{ingested} of {total} rows were added.")
+        .replace("{ingested}", (ingested ?? 0).toLocaleString())
+        .replace("{total}", (total ?? value).toLocaleString());
 
   if (onClick) {
     return (
@@ -297,12 +303,12 @@ export default function Jobs() {
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help"
             title={
               Array.isArray(j.uncertain_fields)
-                ? `Guessed: ${j.uncertain_fields.join(", ")}`
-                : "Columns guessed"
+                ? `${t("jobs.guessed", "Guessed")}: ${j.uncertain_fields.join(", ")}`
+                : t("jobs.columnsGuessed", "Columns guessed")
             }
           >
             <i className="fas fa-exclamation-triangle text-[10px]" />
-            columns guessed
+            {t("jobs.columnsGuessed", "columns guessed")}
           </span>
         )}
       </div>
@@ -503,10 +509,10 @@ export default function Jobs() {
                             }`}
                             title={
                               isRunning
-                                ? "Job is currently running"
+                                ? t("jobs.tipRunning", "Job is currently running")
                                 : isQuarantined
-                                  ? "Quarantined job cannot be previewed"
-                                  : "View Job Preview & Save"
+                                  ? t("jobs.tipQuarantinedNoPreview", "Quarantined job cannot be previewed")
+                                  : t("jobs.tipViewPreview", "View Job Preview & Save")
                             }
                             onClick={() => {
                               if (!isEyeDisabled) {
@@ -526,7 +532,11 @@ export default function Jobs() {
                                 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer"
                                 : "text-gray-400 dark:text-gray-500 opacity-50 cursor-not-allowed"
                             }`}
-                            title={j.has_quarantine ? "View Quarantine Data" : "No Quarantine Data"}
+                            title={
+                              j.has_quarantine
+                                ? t("jobs.tipViewQuarantine", "View Quarantine Data")
+                                : t("jobs.tipNoQuarantine", "No Quarantine Data")
+                            }
                             onClick={() => {
                               if (j.has_quarantine) {
                                 setQuarantineJob(j);
@@ -545,7 +555,7 @@ export default function Jobs() {
             {loadingMore && (
               <div className="py-2.5 text-center text-xs text-teal-600 dark:text-teal-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
                 <i className="fas fa-spinner fa-spin text-sm" />
-                <span>Loading next 50 jobs...</span>
+                <span>{t("jobs.loadingNext50", "Loading next 50 jobs...")}</span>
               </div>
             )}
           </div>
@@ -560,7 +570,7 @@ export default function Jobs() {
               <div className="p-4 border-b border-border-base flex items-center justify-between bg-gray-50 dark:bg-gray-800">
                 <h3 className="font-bold text-base flex items-center gap-2">
                   <i className="fas fa-eye text-teal-600" />
-                  <span>Job Details (#{selectedJob.id})</span>
+                  <span>{t("jobs.jobDetails", "Job Details")} (#{selectedJob.id})</span>
                 </h3>
                 <button
                   type="button"
@@ -573,11 +583,11 @@ export default function Jobs() {
 
               <div className="p-4 space-y-3 text-xs max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Job ID:</span>
+                  <span className="font-semibold text-text-subtle">{t("jobs.jobIdLabel", "Job ID:")}</span>
                   <span className="col-span-2 font-mono font-medium">{selectedJob.id}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Uploaded By:</span>
+                  <span className="font-semibold text-text-subtle">{t("jobs.uploadedByLabel", "Uploaded By:")}</span>
                   <span className="col-span-2 font-medium">
                     {selectedJob.createdBy ||
                       selectedJob.created_by_user ||
@@ -587,11 +597,11 @@ export default function Jobs() {
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Status:</span>
+                  <span className="font-semibold text-text-subtle">{t("jobs.statusLabel", "Status:")}</span>
                   <span className="col-span-2">{getStatusBadge(selectedJob)}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Files:</span>
+                  <span className="font-semibold text-text-subtle">{t("jobs.filesLabel", "Files:")}</span>
                   <span className="col-span-2 break-all">
                     {Array.isArray(selectedJob.files)
                       ? selectedJob.files.join(", ")
@@ -599,14 +609,14 @@ export default function Jobs() {
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                  <span className="font-semibold text-text-subtle">Started At:</span>
+                  <span className="font-semibold text-text-subtle">{t("jobs.startedAtLabel", "Started At:")}</span>
                   <span className="col-span-2 font-mono">
                     {selectedJob.created_at || selectedJob.createdAt || "-"}
                   </span>
                 </div>
                 {selectedJob.total_rows != null && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                    <span className="font-semibold text-text-subtle">Rows:</span>
+                    <span className="font-semibold text-text-subtle">{t("jobs.rowsLabel", "Rows:")}</span>
                     <span className="col-span-2 font-mono font-medium">
                       {selectedJob.total_rows.toLocaleString()}
                     </span>
@@ -614,7 +624,7 @@ export default function Jobs() {
                 )}
                 {selectedJob.ingested != null && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                    <span className="font-semibold text-text-subtle">Ingested:</span>
+                    <span className="font-semibold text-text-subtle">{t("jobs.ingestedLabel", "Ingested:")}</span>
                     <span className="col-span-2 font-mono font-medium text-emerald-600 dark:text-emerald-400">
                       {selectedJob.ingested.toLocaleString()}
                     </span>
@@ -622,7 +632,7 @@ export default function Jobs() {
                 )}
                 {selectedJob.quarantined != null && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                    <span className="font-semibold text-text-subtle">Quarantined:</span>
+                    <span className="font-semibold text-text-subtle">{t("jobs.quarantinedLabel", "Quarantined:")}</span>
                     <span className="col-span-2 font-mono font-medium text-amber-600 dark:text-amber-400">
                       {selectedJob.quarantined.toLocaleString()}
                     </span>
@@ -630,17 +640,17 @@ export default function Jobs() {
                 )}
                 {selectedJob.columns_uncertain && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
-                    <span className="font-semibold text-text-subtle">Uncertain Fields:</span>
+                    <span className="font-semibold text-text-subtle">{t("jobs.uncertainFieldsLabel", "Uncertain Fields:")}</span>
                     <span className="col-span-2 text-amber-600 dark:text-amber-400">
                       {Array.isArray(selectedJob.uncertain_fields)
                         ? selectedJob.uncertain_fields.join(", ")
-                        : "Yes"}
+                        : t("jobs.yes", "Yes")}
                     </span>
                   </div>
                 )}
                 {selectedJob.error && (
                   <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base text-red-600">
-                    <span className="font-semibold">Error:</span>
+                    <span className="font-semibold">{t("jobs.errorLabel", "Error:")}</span>
                     <span className="col-span-2">{selectedJob.error}</span>
                   </div>
                 )}
@@ -652,7 +662,7 @@ export default function Jobs() {
                   className="btn-secondary text-xs px-4 cursor-pointer"
                   onClick={() => setSelectedJob(null)}
                 >
-                  Close
+                  {t("app.close", "Close")}
                 </button>
               </div>
             </div>

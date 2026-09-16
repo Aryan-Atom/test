@@ -18,7 +18,9 @@ import Drawer from "../components/Drawer.jsx";
 // ─────────────────────────────────────────────────────────────────────────────
 // TableSkeleton
 // ─────────────────────────────────────────────────────────────────────────────
-function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t }) {
+function TableSkeleton({ columns = [], equipmentRows = [], mode = "date", t: propT }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   const rowsCount = equipmentRows.length > 0 ? equipmentRows.length : 8;
   const displayCols =
     columns.length > 0 ? columns : Array.from({ length: 6 }).map((_, i) => `Col ${i + 1}`);
@@ -108,10 +110,12 @@ function SearchableSelect({
   selectedValue,
   onChange,
   placeholder,
-  t,
+  t: propT,
   disabled,
   minWidth = "180px",
 }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
@@ -251,10 +255,12 @@ function MultiSelect({
   selectedValues,
   onChange,
   placeholder,
-  t,
+  t: propT,
   disabled,
   minWidth = "120px",
 }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 

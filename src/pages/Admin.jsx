@@ -30,7 +30,9 @@ const permissionSections = [
   },
 ];
 
-function PermissionStatus({ allowed, t }) {
+function PermissionStatus({ allowed, t: propT }) {
+  const { t: i18nT } = useI18n();
+  const t = propT || i18nT;
   return (
     <span
       className={`rbp-status ${allowed ? "allowed" : "denied"}`}

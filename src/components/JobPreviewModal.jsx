@@ -904,14 +904,16 @@ export default function JobPreviewModal({
   const isSaveDisabled = saving || loading || rows.length === 0 || !isFullyLoaded;
 
   const saveTooltip = !isFullyLoaded
-    ? `Please scroll down to load all records before saving (${rows.length}/${totalRows != null ? totalRows : rows.length} loaded)`
+    ? (language === "ko"
+        ? `저장하기 전에 모든 레코드를 로드해 주세요 (${rows.length}/${totalRows != null ? totalRows : rows.length}개 로드됨)`
+        : `Please scroll down to load all records before saving (${rows.length}/${totalRows != null ? totalRows : rows.length} loaded)`)
     : saving
-    ? "Saving data in progress..."
+    ? (language === "ko" ? "데이터 저장 진행 중..." : "Saving data in progress...")
     : loading
-    ? "Loading preview data..."
+    ? (language === "ko" ? "미리보기 데이터 불러오는 중..." : "Loading preview data...")
     : rows.length === 0
-    ? "No rows to save"
-    : `Save all ${rows.length} records`;
+    ? (language === "ko" ? "저장할 행이 없습니다" : "No rows to save")
+    : (language === "ko" ? `전체 ${rows.length}개 레코드 저장` : `Save all ${rows.length} records`);
 
   return createPortal(
     <div className="modal-overlay fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen z-[10000] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in">
@@ -970,11 +972,19 @@ export default function JobPreviewModal({
                 className="text-xs mt-0.5"
                 style={{ color: "var(--color-text-subtle, #6b7280)" }}
               >
-                Loaded <span className="font-semibold text-text-default">{rows.length}</span> of{" "}
-                <span className="font-semibold text-text-default">
-                  {totalRows != null ? totalRows : rows.length}
-                </span>{" "}
-                rows · {previewColumns.length + (isEditAndDeleteOptionIsRequired ? 1 : 0)} columns
+                {language === "ko" ? (
+                  <>
+                    총 <span className="font-semibold text-text-default">{totalRows != null ? totalRows : rows.length}</span>개 행 중 <span className="font-semibold text-text-default">{rows.length}</span>개 행 로드됨 · {previewColumns.length + (isEditAndDeleteOptionIsRequired ? 1 : 0)}개 열
+                  </>
+                ) : (
+                  <>
+                    Loaded <span className="font-semibold text-text-default">{rows.length}</span> of{" "}
+                    <span className="font-semibold text-text-default">
+                      {totalRows != null ? totalRows : rows.length}
+                    </span>{" "}
+                    rows · {previewColumns.length + (isEditAndDeleteOptionIsRequired ? 1 : 0)} columns
+                  </>
+                )}
                 {isEditAndDeleteOptionIsRequired &&
                   (language === "ko"
                     ? " · 셀을 더블 클릭하여 수정하세요"
@@ -1071,14 +1081,18 @@ export default function JobPreviewModal({
                   className="btn-base bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <i className="fas fa-trash-alt text-xs" />
-                  <span>Remove All Duplicates ({duplicateRowsCount})</span>
+                  <span>
+                    {language === "ko"
+                      ? `모든 중복 행 삭제 (${duplicateRowsCount})`
+                      : `Remove All Duplicates (${duplicateRowsCount})`}
+                  </span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setDuplicateAlert(null)}
                 className="text-red-400 hover:text-red-600 dark:hover:text-red-200 p-1 cursor-pointer"
-                title="Dismiss"
+                title={language === "ko" ? "닫기" : "Dismiss"}
               >
                 <i className="fas fa-times" />
               </button>
@@ -1094,7 +1108,7 @@ export default function JobPreviewModal({
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
               <i className="fas fa-spinner fa-spin text-3xl text-teal-600 mb-3" />
-              <p className="text-sm font-medium">Loading preview data...</p>
+              <p className="text-sm font-medium">{t("preview.loadingData", "Loading preview data...")}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-red-600">
@@ -1104,7 +1118,7 @@ export default function JobPreviewModal({
           ) : filteredRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-subtle">
               <i className="fas fa-inbox text-4xl opacity-30 mb-2" />
-              <p className="text-sm">No data available for preview.</p>
+              <p className="text-sm">{t("preview.noData", "No data available for preview.")}</p>
             </div>
           ) : (
             <table className="w-full text-xs text-left border-collapse">
@@ -1159,7 +1173,11 @@ export default function JobPreviewModal({
                                 ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 hover:bg-red-600 hover:text-white"
                                 : "text-gray-400 hover:text-red-600"
                             }`}
-                            title={isDup ? "Delete duplicate row" : "Delete row"}
+                            title={
+                              isDup
+                                ? (language === "ko" ? "중복 행 삭제" : "Delete duplicate row")
+                                : (language === "ko" ? "행 삭제" : "Delete row")
+                            }
                             onClick={() => handleDeleteRow(targetRowIdx)}
                           >
                             <i className="fas fa-trash-alt text-xs" />
@@ -1194,7 +1212,11 @@ export default function JobPreviewModal({
                                 ? () => handleCellDoubleClick(targetRowIdx, col.key, val)
                                 : undefined
                             }
-                            title={isDup ? `[Duplicate Record] ${String(val)}` : String(val)}
+                            title={
+                              isDup
+                                ? (language === "ko" ? `[중복 레코드] ${String(val)}` : `[Duplicate Record] ${String(val)}`)
+                                : String(val)
+                            }
                           >
                           {isEditing ? (
                             <div className="relative editing-cell-container" onClick={(e) => e.stopPropagation()}>
@@ -1241,7 +1263,7 @@ export default function JobPreviewModal({
                                     e.stopPropagation();
                                     handleCellSave(targetRowIdx, col.key, cellValue);
                                   }}
-                                  title="저장 (Enter)"
+                                  title={language === "ko" ? "저장 (Enter)" : "Save (Enter)"}
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",
@@ -1263,7 +1285,7 @@ export default function JobPreviewModal({
                                     e.stopPropagation();
                                     setEditingCell(null);
                                   }}
-                                  title="취소 (Esc)"
+                                  title={language === "ko" ? "취소 (Esc)" : "Cancel (Esc)"}
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",
@@ -1296,7 +1318,7 @@ export default function JobPreviewModal({
           {loadingMore && (
             <div className="py-2.5 text-center text-xs text-teal-600 dark:text-teal-400 bg-gray-50/80 dark:bg-gray-800/80 border-t border-border-base flex items-center justify-center gap-2">
               <i className="fas fa-spinner fa-spin text-sm" />
-              <span>Loading next 50 records...</span>
+              <span>{t("preview.loadingNext50", "Loading next 50 records...")}</span>
             </div>
           )}
         </div>
@@ -1314,9 +1336,7 @@ export default function JobPreviewModal({
               <p className="text-xs text-text-subtle flex items-center gap-1.5">
                 <i className="fas fa-info-circle text-gray-400" />
                 <span>
-                  {language === "ko"
-                    ? "셀을 더블 클릭하여 수정한 후, 저장 버튼을 클릭하세요."
-                    : "Double click on the field to edit, then click Save."}
+                  {t("preview.doubleClickHint", "Double click on the field to edit, then click Save.")}
                 </span>
               </p>
             )}
@@ -1330,7 +1350,7 @@ export default function JobPreviewModal({
               className="btn-base btn-secondary flex items-center gap-1.5 text-xs px-4 py-2 cursor-pointer"
             >
               <i className="fas fa-times" />
-              <span>{t("common.cancel", "Cancel")}</span>
+              <span>{t("app.cancel", "Cancel")}</span>
             </button>
             <div title={saveTooltip} className="inline-block">
               <button
@@ -1347,7 +1367,7 @@ export default function JobPreviewModal({
                 {saving ? (
                   <>
                     <i className="fas fa-spinner fa-spin" />
-                    <span>{t("common.saving", "Saving...")}</span>
+                    <span>{t("app.saving", "Saving...")}</span>
                   </>
                 ) : (
                   <>
