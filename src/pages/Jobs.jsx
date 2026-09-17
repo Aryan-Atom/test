@@ -625,7 +625,7 @@ export default function Jobs() {
                           type="button"
                           className="hover:underline cursor-pointer font-mono"
                           onClick={() => setSelectedJob(j)}
-                          title="View job details"
+                          title={t("jobs.viewJobDetails", "View job details")}
                         >
                           <HighlightText text={j.id} query={searchQuery} />
                         </button>

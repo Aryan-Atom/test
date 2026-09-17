@@ -229,7 +229,7 @@ export default function AiPipelinePromptModal({
             className="ai-prompt-close-btn"
             onClick={onClose}
             disabled={busy || isUploading}
-            aria-label="Close"
+            aria-label={t("app.close", "Close")}
           >
             <i className="fas fa-times" />
           </button>
@@ -295,7 +295,7 @@ export default function AiPipelinePromptModal({
               {t("app.dropSpreadsheet", "Drop a work-report spreadsheet")}
             </div>
             <div className="prompt-dropzone-subtitle">
-              or{" "}
+              {t("app.or", "or")}{" "}
               <span
                 className="prompt-dropzone-browse"
                 onClick={(e) => {
@@ -303,9 +303,9 @@ export default function AiPipelinePromptModal({
                   handleTriggerFileInput();
                 }}
               >
-                browse
+                {t("app.browse", "browse")}
               </span>{" "}
-              — .xlsx exported from the data portal
+              {t("app.dropzoneFormatHint", "— .xlsx exported from the data portal")}
             </div>
           </div>
 
@@ -333,12 +333,12 @@ export default function AiPipelinePromptModal({
               }}
             >
               <div className="prompt-toggle-left">
-                <b>{LABEL_BOLD}</b>{" "}
-                <span className="prompt-toggle-sub">{LABEL_MUTED}</span>
+                <b>{t("prompt.labelBold", LABEL_BOLD)}</b>{" "}
+                <span className="prompt-toggle-sub">{t("prompt.labelMuted", LABEL_MUTED)}</span>
               </div>
               <div className="prompt-toggle-right">
                 <span className={`prompt-pill ${isEdited ? "edited" : "original"}`}>
-                  {isEdited ? "edited" : "original"}
+                  {isEdited ? t("prompt.edited", "edited") : t("prompt.original", "original")}
                 </span>
                 <span className="prompt-chevron" aria-hidden="true">
                   {isExpanded ? "▲" : "▼"}
@@ -350,10 +350,10 @@ export default function AiPipelinePromptModal({
             {isExpanded && (
               <div className="prompt-expanded-content">
                 <div className="prompt-banner">
-                  <b>An edit applies to the next run only.</b> Nothing already
-                  loaded is reprocessed — existing work items keep the fields
-                  they have, so a change here will not correct output you are
-                  unhappy with.
+                  {t(
+                    "prompt.bannerText",
+                    "An edit applies to the next run only. Nothing already loaded is reprocessed — existing work items keep the fields they have, so a change here will not correct output you are unhappy with.",
+                  )}
                 </div>
 
                 {error && <div className="prompt-error">{error}</div>}
@@ -371,7 +371,7 @@ export default function AiPipelinePromptModal({
                   {loading && !prompt ? (
                     <div className="p-8 text-center text-sm text-text-subtle">
                       <i className="fas fa-spinner fa-spin mr-2 text-base text-[#1745c2]" />
-                      <span>Loading prompt from API...</span>
+                      <span>{t("prompt.loadingFromApi", "Loading prompt from API...")}</span>
                     </div>
                   ) : prompt ? (
                     prompt.segments.map((seg, i) =>
@@ -400,16 +400,16 @@ export default function AiPipelinePromptModal({
                           </div>
                           <textarea
                             className="prompt-textarea"
-                            value={drafts[i] ?? seg.text}
-                            onChange={(e) => setDraft(i, e.target.value)}
-                            rows={Math.min(
-                              10,
-                              Math.max(
-                                5,
-                                (drafts[i] ?? seg.text).split("\n").length + 1
-                              )
-                            )}
-                            spellCheck={false}
+                            value={
+                              drafts[i] !== undefined
+                                ? drafts[i]
+                                : seg.text
+                            }
+                            onChange={(e) =>
+                              setDraft(i, e.target.value)
+                            }
+                            placeholder="Prompt instructions for this segment..."
+                            rows={8}
                           />
                         </div>
                       )
@@ -424,7 +424,7 @@ export default function AiPipelinePromptModal({
                         className="prompt-btn"
                         onClick={loadPrompts}
                       >
-                        <i className="fas fa-redo mr-1" /> Retry
+                        <i className="fas fa-redo mr-1" /> {t("prompt.retry", "Retry")}
                       </button>
                     </div>
                   )}
@@ -445,7 +445,7 @@ export default function AiPipelinePromptModal({
                         disabled={busy || !isEdited || isUploading}
                       >
                         <i className="fas fa-undo text-xs" />
-                        <span>Reset to original</span>
+                        <span>{t("prompt.resetOriginal", "Reset to original")}</span>
                       </button>
                       <button
                         type="button"
@@ -456,12 +456,12 @@ export default function AiPipelinePromptModal({
                         {busy ? (
                           <>
                             <i className="fas fa-spinner fa-spin text-xs" />
-                            <span>Saving…</span>
+                            <span>{t("prompt.saving", "Saving…")}</span>
                           </>
                         ) : (
                           <>
                             <i className="fas fa-save text-xs" />
-                            <span>Save wording</span>
+                            <span>{t("prompt.saveWording", "Save wording")}</span>
                           </>
                         )}
                       </button>

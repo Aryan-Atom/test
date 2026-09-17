@@ -2472,7 +2472,7 @@ export default function MPListManagement({ data = [], searchText = "", isActive 
                             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                               <button
                                 type="button"
-                                title="수정"
+                                title={t("app.edit", "수정")}
                                 onClick={() => {
                                   setEditingConsultIndex(i);
                                   setNewConsultDate(c.date ? c.date.split("T")[0] : "2026-07-27");
@@ -2490,7 +2490,7 @@ export default function MPListManagement({ data = [], searchText = "", isActive 
                               </button>
                               <button
                                 type="button"
-                                title="삭제"
+                                title={t("app.delete", "삭제")}
                                 onClick={() => {
                                   setEditConsultations(
                                     editConsultations.filter((_, idx) => idx !== i),
@@ -2528,7 +2528,7 @@ export default function MPListManagement({ data = [], searchText = "", isActive 
                   <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
                     <div className="w-full md:w-44 shrink-0">
                       <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                        날짜
+                        {t("field.date", "날짜")}
                       </label>
                       <input
                         type="date"
@@ -2539,11 +2539,11 @@ export default function MPListManagement({ data = [], searchText = "", isActive 
                     </div>
                     <div className="w-full md:flex-1 min-w-[200px]">
                       <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                        제목 <span className="text-red-500">*</span>
+                        {t("field.title", "제목")} <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        placeholder="제목 입력"
+                        placeholder={t("placeholder.enterTitle", "제목 입력")}
                         value={newConsultTitle}
                         onChange={(e) => {
                           setNewConsultTitle(e.target.value);
@@ -2558,11 +2558,11 @@ export default function MPListManagement({ data = [], searchText = "", isActive 
                     </div>
                     <div className="w-full md:flex-1 min-w-[240px]">
                       <label className="modal-field-label !text-[10px] !mb-1 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                        참석자 (콤마 구분) <span className="text-red-500">*</span>
+                        {t("field.attendeesWithComma", "참석자 (콤마 구분)")} <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        placeholder="참석자 입력"
+                        placeholder={t("placeholder.enterAttendees", "참석자 입력")}
                         value={newConsultAttendees}
                         onChange={(e) => {
                           setNewConsultAttendees(e.target.value);

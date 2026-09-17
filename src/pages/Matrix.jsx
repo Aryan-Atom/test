@@ -447,7 +447,24 @@ function getColValue(row, col) {
     return row.change_history_id ?? row.change_history_id ?? row["change_history_id"] ?? "";
   }
   if (col === "work") {
-    return row.work ?? row.work_name ?? row.purpose ?? row["작업 목적"] ?? row["작업목적"] ?? "";
+    return (
+      row.work ??
+      row.work_description ??
+      row.workDescription ??
+      row["작업 내용"] ??
+      row["작업내용"] ??
+      ""
+    );
+  }
+  if (col === "purpose") {
+    return (
+      row.purpose ??
+      row.work_purpose ??
+      row.workPurpose ??
+      row["작업 목적"] ??
+      row["작업목적"] ??
+      ""
+    );
   }
   if (col === "situation") {
     return row.situation ?? row["문제 현상"] ?? "";
@@ -764,8 +781,8 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
     if (!row) return;
     setEditRowData({
       representativeWork: getColValue(row, "representativeWork"),
-      work: getColValue(row, "work"),
-      purpose: getColValue(row, "purpose") || getColValue(row, "work"),
+      work: row.work ?? getColValue(row, "work") ?? "",
+      purpose: row.purpose ?? getColValue(row, "purpose") ?? "",
       report: getColValue(row, "report"),
       situation: getColValue(row, "situation"),
       cause: getColValue(row, "cause"),
@@ -927,6 +944,7 @@ export default function Matrix({ data, onOpenDetail, onUpload, searchText, isAct
         ) || 0,
       equipmentId: Number(editRowData.equipmentId ?? editRowData.equipment_id ?? 0) || 0,
       reportContent: editRowData.reportContent || editRowData.report || "",
+      work: isEditMode ? (editRowData.work ?? "") : "",
       workName:
         editRowData.representativeWork || editRowData.workName || editRowData.work_name || "",
       purpose: editRowData.purpose || editRowData.workPurpose || editRowData.work || "",

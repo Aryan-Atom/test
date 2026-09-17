@@ -25,21 +25,6 @@ import {
   isStaticDataMode,
 } from "../utils/staticDataMode.js";
 
-const pageNames = {
-  home: "홈",
-  "dm-change": "데이터 관리 > 변경 이력",
-  "dm-spec": "데이터 관리 > 사양 데이터",
-  "mx-matrix": "변경 매트릭스 > 매트릭스 조회",
-  "mx-mplist": "변경 매트릭스 > MP List",
-  "mx-mplist-mgmt": "변경 매트릭스 > MP List 관리",
-  "ai-jobs": "AI 파이프라인 > 작업",
-  "ai-review": "AI 파이프라인 > 검토",
-  "ai-quarantine": "AI 파이프라인 > 격리",
-  spec: "사양 매트릭스",
-  board: "게시판",
-  admin: "권한 관리",
-};
-
 const showOnlyFourPages =
   String(import.meta.env.VITE_SHOW_ONLY_FOUR_PAGES ?? "")
     .trim()

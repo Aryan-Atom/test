@@ -38,13 +38,16 @@ function HighlightText({ text, query }) {
   );
 }
 
-function resynthesisNote(r) {
+function resynthesisNote(r, t) {
   if (!r) return null;
   if (r.status === "ok" || r.rep_name) {
-    return { text: `New synthesis generated: "${r.rep_name}".`, bad: false };
+    const raw = t ? t("review.newSynthesisGenerated", `New synthesis generated: "${r.rep_name}".`) : `New synthesis generated: "${r.rep_name}".`;
+    return { text: raw.replace("{repName}", r.rep_name), bad: false };
   }
   if (r.status === "failed") {
-    return { text: `Resynthesis failed: ${r.error || "unknown error"}.`, bad: true };
+    const errMsg = r.error || "unknown error";
+    const raw = t ? t("review.resynthesisFailed", `Resynthesis failed: ${errMsg}.`) : `Resynthesis failed: ${errMsg}.`;
+    return { text: raw.replace("{error}", errMsg), bad: true };
   }
   return null;
 }
@@ -397,9 +400,9 @@ export default function Review() {
       return; // Do NOT call any cursor or sync API if move failed!
     }
 
-    const outcome = resynthesisNote(moveResp?.resynthesis?.[targetId]);
+    const outcome = resynthesisNote(moveResp?.resynthesis?.[targetId], t);
     const archived = moveResp?.archived_source
-      ? " This work item had no reports left and was archived."
+      ? t("review.archivedNotice", " This work item had no reports left and was archived.")
       : "";
 
     // Step 2: On successful move, execute cursor and changes sync pipeline
@@ -585,17 +588,29 @@ export default function Review() {
         );
       }
 
+      const successTemplate = t(
+        "review.moveSuccessNotice",
+        "Moved report {woCode} to {targetName}.{archived}{outcome} Changes synchronized successfully.",
+      );
       setNote({
-        text: `Moved report ${report.wo_code || `#${report.report_id}`} to ${targetName}.${archived}${
-          outcome ? " " + outcome.text : ""
-        } Changes synchronized successfully.`,
+        text: successTemplate
+          .replace("{woCode}", report.wo_code || `#${report.report_id}`)
+          .replace("{targetName}", targetName)
+          .replace("{archived}", archived)
+          .replace("{outcome}", outcome ? " " + outcome.text : ""),
         bad: outcome?.bad ?? false,
       });
       window.dispatchEvent(new Event("refreshChangeHistoryData"));
     } catch (syncErr) {
       console.error("Sync error after move:", syncErr);
-      setError(
+      const failTemplate = t(
+        "review.moveSyncFailed",
         `Moved report to ${targetName}, but sync failed: ${syncErr.message || "Unknown sync error"}`,
+      );
+      setError(
+        failTemplate
+          .replace("{targetName}", targetName)
+          .replace("{error}", syncErr.message || "Unknown sync error"),
       );
     } finally {
       setBusy(false);
@@ -605,9 +620,18 @@ export default function Review() {
     }
   };
 
-  const counts = data?.counts || { borderline: 0 };
-  const nothing = counts.borderline === 0;
-  const chk = data?.checked || {};
+  const counts = data?.counts || {};
+  const chk = data?.checked || { matched_reports: data?.matched_reports ?? 0 };
+  const isSearchOrFilterActive = Boolean(
+    searchQuery.trim() || selectedProcess !== "all",
+  );
+  // There is nothing for review if rawRows is empty, counts.borderline is 0,
+  // or filteredRows is empty when no search/process filter is applied.
+  const nothing =
+    !isSearchOrFilterActive &&
+    (rawRows.length === 0 ||
+      counts.borderline === 0 ||
+      filteredRows.length === 0);
 
   // Targets for Move Modal
   const modalTargets = useMemo(() => {
@@ -764,7 +788,7 @@ export default function Review() {
               <li className="flex items-start gap-2">
                 <i className="fas fa-circle text-[6px] mt-1.5 text-blue-500" />
                 <span>
-                  {chk.matched_reports > 0 ? (
+                  {Number(chk.matched_reports) > 0 ? (
                     t(
                       "review.borderlineChecked",
                       "Borderline matches — {count} report(s) were scored against existing groups, none landed near the boundary.",
@@ -778,6 +802,21 @@ export default function Review() {
                 </span>
               </li>
             </ul>
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="p-8 text-center space-y-2">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center">
+              <i className="fas fa-search text-base" />
+            </div>
+            <h3 className="text-xs font-bold text-text-default">
+              {t("empty.noMatch", "No data matches the conditions.")}
+            </h3>
+            <p className="text-[11px] text-text-subtle">
+              {t(
+                "empty.hint",
+                "Please select a process and maintenance group or enter a search query to check the data.",
+              )}
+            </p>
           </div>
         ) : (
           <div className="flex-1 overflow-auto">

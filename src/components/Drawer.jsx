@@ -1122,7 +1122,7 @@ export default function Drawer({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="modal-field-label">BOM</label>
+                  <label className="modal-field-label">{t("field.bom", "BOM")}</label>
                   <input
                     type="text"
                     placeholder={t("placeholder.enterBom", "BOM 입력")}

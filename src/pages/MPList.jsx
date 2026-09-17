@@ -291,6 +291,7 @@ const TOAST_STYLES = {
 };
 
 function FilterToast({ isVisible, status, message, autoClose, onClose }) {
+  const { t } = useI18n();
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -341,7 +342,7 @@ function FilterToast({ isVisible, status, message, autoClose, onClose }) {
           padding: "0 2px",
           fontSize: "14px",
         }}
-        aria-label="닫기"
+        aria-label={t("app.close", "닫기")}
       >
         <i className="fas fa-times" />
       </button>
@@ -471,11 +472,18 @@ function getColValue(row, col, context = {}) {
   if (col === "work") {
     return (
       row.work ??
-      row.purpose ??
-      row.work_name ??
-      row.workName ??
+      row.work_description ??
+      row.workDescription ??
       row["작업 내용"] ??
       row["작업내용"] ??
+      ""
+    );
+  }
+  if (col === "purpose") {
+    return (
+      row.purpose ??
+      row.work_purpose ??
+      row.workPurpose ??
       row["작업 목적"] ??
       row["작업목적"] ??
       ""
@@ -1005,10 +1013,9 @@ export default function MPList({
       ? filterPayload.category
       : [
           { id: 1, categoryName: "보전성" },
-          { id: 2, categoryName: "품질" },
-          { id: 3, categoryName: "생산성" },
-          { id: 4, categoryName: "정보 없음" },
-          { id: 5, categoryName: "기타" },
+          { id: 2, categoryName: "기타" },
+          { id: 3, categoryName: "품질" },
+          { id: 4, categoryName: "생산성" },
         ];
   }, [filterPayload]);
 
@@ -1018,7 +1025,6 @@ export default function MPList({
       : [
           { id: 1, priorityName: "일반" },
           { id: 2, priorityName: "중요" },
-          { id: 3, priorityName: "정보 없음" },
         ];
   }, [filterPayload]);
 
@@ -1562,12 +1568,13 @@ export default function MPList({
     return String(raw);
   }
 
-  // ── Inline Editor for Priority / Category ──────────────────────────────────
+  // ── Inline Editor for Priority / Category (Immediately calls SaveVoc) ───────
   const handleInlineChange = (row, field, value) => {
     const proc = getColValue(row, "process");
     const part = getColValue(row, "maintGroup");
     const repWork = String(getColValue(row, "representativeWork")).trim();
 
+    // 1. Immediately update all matching records in local state
     setAllRecords((prev) => {
       return prev.map((r) => {
         const matchProc = getColValue(r, "process") === proc;
@@ -1584,22 +1591,197 @@ export default function MPList({
           if (field === "priority") {
             updated.priority = value;
             updated["중요도"] = value;
+            const pObj = priorityList.find((p) => p.priorityName === value || p.name === value);
+            if (pObj?.id) {
+              updated.priorityId = pObj.id;
+              updated.priority_id = pObj.id;
+            }
           } else if (field === "category") {
             updated.category = value;
             updated["효과 유형"] = value;
             updated["효과유형"] = value;
+            const cObj = categoryList.find((c) => c.categoryName === value || c.name === value);
+            if (cObj?.id) {
+              updated.categoryId = cObj.id;
+              updated.category_id = cObj.id;
+            }
           }
           return updated;
         }
         return r;
       });
     });
-    setIsDirty(true);
-    setOperationStatus({
-      isVisible: true,
-      status: "success",
-      message: t("toast.valueUpdatedHint", "값이 변경되었습니다 (저장 필요)."),
-      autoClose: true,
+
+    if (isStaticDataMode) {
+      const msg =
+        field === "priority"
+          ? t("toast.prioritySaved", "Priority saved successfully.")
+          : t("toast.categorySaved", "Category saved successfully.");
+      setOperationStatus({
+        isVisible: true,
+        status: "success",
+        message: msg,
+        autoClose: true,
+      });
+      return;
+    }
+
+    // 2. Build vocItem and call SaveVoc API
+    const rowIdVal = Number(
+      row.id ||
+        row.changeHistoryId ||
+        row.change_history_id ||
+        row.mpListId ||
+        0,
+    );
+
+    const newPriority = field === "priority" ? value : (getColValue(row, "priority") || "일반");
+    const newCategory = field === "category" ? value : (getColValue(row, "category") || "보전성");
+
+    const priorityObj = (priorityList || []).find(
+      (p) =>
+        p.priorityName === newPriority ||
+        p.name === newPriority ||
+        (newPriority === "중요" && p.priorityName === "Important") ||
+        (newPriority === "Important" && p.priorityName === "중요") ||
+        (newPriority === "일반" && p.priorityName === "Normal") ||
+        (newPriority === "Normal" && p.priorityName === "일반"),
+    );
+    const priorityIdVal =
+      priorityObj?.id ??
+      (Number(row.priorityId || row.priority_id) ||
+        (newPriority === "중요" || newPriority === "Important" ? 2 : 1));
+    const priorityNameVal = priorityObj?.priorityName || newPriority;
+
+    const categoryObj = (categoryList || []).find(
+      (c) =>
+        c.categoryName === newCategory ||
+        c.name === newCategory ||
+        c.displayName === newCategory,
+    );
+    const categoryIdVal =
+      categoryObj?.id ??
+      (Number(row.categoryId || row.category_id) || 1);
+    const categoryNameVal = categoryObj?.categoryName || newCategory;
+
+    const rowProc = getColValue(row, "process");
+    const procObj = (processList || []).find(
+      (p) => p.processName === rowProc || Number(p.id) === Number(row.processId || row.process_id),
+    );
+    const processIdVal = Number(
+      row.processId || row.process_id || procObj?.id || selectedProcessId || 1,
+    );
+
+    const rowMaint = getColValue(row, "maintGroup");
+    const eqTypeObj = (equipmentTypeList || []).find(
+      (e) =>
+        e.equipmentTypeName === rowMaint ||
+        Number(e.id) === Number(row.equipmentTypeId || row.equipment_type_id),
+    );
+    const equipmentTypeIdVal = Number(
+      row.equipmentTypeId || row.equipment_type_id || eqTypeObj?.id || selectedEquipmentTypeId || 107,
+    );
+
+    const rowSite = getColValue(row, "site");
+    const siteObj = (siteList || []).find(
+      (s) => s.siteName === rowSite || Number(s.id) === Number(row.siteId || row.site_id),
+    );
+    const siteIdVal = Number(
+      row.siteId || row.site_id || siteObj?.id || selectedSiteId || 1,
+    );
+
+    const formatValidDateIso = (rawDate) => {
+      if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
+        return new Date().toISOString();
+      }
+      const p = new Date(rawDate);
+      if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
+        return new Date().toISOString();
+      }
+      return p.toISOString();
+    };
+
+    const vocItem = {
+      id: rowIdVal,
+      changeHistoryId: rowIdVal,
+      change_history_id: rowIdVal,
+      repWorkId: Number(row.repWorkId ?? row.rep_work_id ?? 0) || 0,
+      repMappingId: Number(row.repWorkId ?? row.rep_work_id ?? row.repMappingId ?? 0) || 0,
+      workOrderId:
+        Number(row.workOrderId ?? row.work_order_type_id ?? row.woTypeId ?? 0) || 0,
+      equipmentId: Number(row.equipmentId ?? row.equipment_id ?? 0) || 0,
+      reportContent: row.reportContent || row.report || getColValue(row, "report") || "",
+      work: row.work ?? getColValue(row, "work") ?? "",
+      workName:
+        row.representativeWork ||
+        row.workName ||
+        row.work_name ||
+        getColValue(row, "representativeWork") ||
+        "",
+      purpose:
+        row.purpose ||
+        row.workPurpose ||
+        getColValue(row, "purpose") ||
+        getColValue(row, "work") ||
+        "",
+      situation: row.situation || getColValue(row, "situation") || "",
+      cause: row.cause || getColValue(row, "cause") || "",
+      hwWas: row.hwWas || row.hwAsWas || row.hw_was || getColValue(row, "hwAsWas") || "",
+      hwIs: row.hwIs || row.hwAsIs || row.hw_is || getColValue(row, "hwAsIs") || "",
+      swWas: row.swWas || row.swAsWas || row.sw_was || getColValue(row, "swAsWas") || "",
+      swIs: row.swIs || row.swAsIs || row.sw_is || getColValue(row, "swAsIs") || "",
+      bom: row.bom || "",
+      sparePart: row.sparePart || row.spare_part || getColValue(row, "sparePart") || "",
+      equipmentCode: row.equipmentCode || row.equipment_code || "-",
+      equipmentName: row.equipmentName || row.equipment_name || " Common",
+      woCode: row.woCode || row.wOCode || row.wo_code || getColValue(row, "wOCode") || "",
+      workDate: formatValidDateIso(
+        row.workedOn || row.workDate || row.work_date || getColValue(row, "workedOn"),
+      ),
+      categoryName: categoryNameVal,
+      priorityName: priorityNameVal,
+      priorityId: priorityIdVal,
+      categoryId: categoryIdVal,
+      processName: row.processName || rowProc || "P1",
+      siteName: row.siteName || rowSite || "site 1",
+      maintenanceGroupName: row.maintenanceGroupName || rowMaint || "EQ type 1",
+      equipmentTypeName: row.equipmentTypeName || rowMaint || "EQ type 1",
+      processId: processIdVal,
+      siteId: siteIdVal,
+      equipmentTypeId: equipmentTypeIdVal,
+      createdBy: row.createdBy || row.created_by || getUserInfo()?.name || "Chirati Harish",
+    };
+
+    const payload = {
+      vocData: [vocItem],
+      isVoc: false,
+    };
+
+    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
+      if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
+        const successMsg =
+          field === "priority"
+            ? t("toast.prioritySaved", "Priority saved successfully.")
+            : t("toast.categorySaved", "Category saved successfully.");
+        setOperationStatus({
+          isVisible: true,
+          status: "success",
+          message: successMsg,
+          autoClose: true,
+        });
+      } else {
+        const errorMsg =
+          responseData?.message ||
+          (field === "priority"
+            ? t("toast.prioritySaveError", "Failed to save priority.")
+            : t("toast.categorySaveError", "Failed to save category."));
+        setOperationStatus({
+          isVisible: true,
+          status: "error",
+          message: errorMsg,
+          autoClose: true,
+        });
+      }
     });
   };
 
@@ -1673,7 +1855,8 @@ export default function MPList({
     onOpenDetail?.(null);
     setNewRow({
       representativeWork: getColValue(row, "representativeWork"),
-      work: getColValue(row, "work"),
+      work: row.work ?? getColValue(row, "work") ?? "",
+      purpose: row.purpose ?? getColValue(row, "purpose") ?? "",
       report: getColValue(row, "report"),
       situation: getColValue(row, "situation"),
       cause: getColValue(row, "cause"),
@@ -1976,6 +2159,7 @@ export default function MPList({
         Number(newRow.workOrderId ?? newRow.work_order_type_id ?? newRow.woTypeId ?? 0) || 0,
       equipmentId: Number(newRow.equipmentId ?? newRow.equipment_id ?? 0) || 0,
       reportContent: newRow.reportContent || newRow.report || "",
+      work: isEditMode ? (newRow.work || "") : "",
       workName: newRow.representativeWork || newRow.workName || newRow.work_name || "",
       purpose: newRow.purpose || newRow.workPurpose || newRow.work || "",
       situation: newRow.situation || newRow.problemSymptom || "",
@@ -3721,43 +3905,73 @@ export default function MPList({
                               );
                             }
                             if (col === "priority") {
-                              const val = getColValue(row, "priority") || "일반";
+                              const rawVal = getColValue(row, "priority") || "일반";
+                              const matchP = priorityList.find(
+                                (p) =>
+                                  p.priorityName === rawVal ||
+                                  p.name === rawVal ||
+                                  (rawVal === "Important" && p.priorityName === "중요") ||
+                                  (rawVal === "중요" && p.priorityName === "Important") ||
+                                  (rawVal === "Normal" && p.priorityName === "일반") ||
+                                  (rawVal === "일반" && p.priorityName === "Normal"),
+                              );
+                              const selectedVal = matchP?.priorityName || rawVal;
                               return (
                                 <td key={col} className="px-3 py-2">
                                   <select
                                     className="mp-inline-select"
-                                    value={val}
+                                    value={selectedVal}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) =>
                                       handleInlineChange(row, "priority", e.target.value)
                                     }
                                   >
-                                    <option value="중요">{t("priority.high", "중요")}</option>
-                                    <option value="일반">{t("priority.normal", "일반")}</option>
+                                    {priorityList.map((p) => {
+                                      const pName = p.priorityName || p.name;
+                                      return (
+                                        <option key={p.id || pName} value={pName}>
+                                          {getPriorityLabel(pName, t)}
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </td>
                               );
                             }
                             if (col === "category") {
-                              const val = getColValue(row, "category") || "기타";
+                              const rawVal = getColValue(row, "category") || "보전성";
+                              const matchC = categoryList.find(
+                                (c) =>
+                                  c.categoryName === rawVal ||
+                                  c.name === rawVal ||
+                                  (rawVal === "Productivity" && c.categoryName === "생산성") ||
+                                  (rawVal === "생산성" && c.categoryName === "Productivity") ||
+                                  (rawVal === "Quality" && c.categoryName === "품질") ||
+                                  (rawVal === "품질" && c.categoryName === "Quality") ||
+                                  (rawVal === "Maintenance" && c.categoryName === "보전성") ||
+                                  (rawVal === "보전성" && c.categoryName === "Maintenance") ||
+                                  (rawVal === "Others" && c.categoryName === "기타") ||
+                                  (rawVal === "기타" && c.categoryName === "Others"),
+                              );
+                              const selectedVal = matchC?.categoryName || rawVal;
                               return (
                                 <td key={col} className="px-3 py-2">
                                   <select
                                     className="mp-inline-select"
-                                    value={val}
+                                    value={selectedVal}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) =>
                                       handleInlineChange(row, "category", e.target.value)
                                     }
                                   >
-                                    <option value="생산성">
-                                      {t("category.productivity", "생산성")}
-                                    </option>
-                                    <option value="품질">{t("category.quality", "품질")}</option>
-                                    <option value="보전성">
-                                      {t("category.maintenance", "보전성")}
-                                    </option>
-                                    <option value="기타">{t("category.etc", "기타")}</option>
+                                    {categoryList.map((c) => {
+                                      const cName = c.categoryName || c.name;
+                                      return (
+                                        <option key={c.id || cName} value={cName}>
+                                          {getCategoryLabel(cName, t)}
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </td>
                               );
@@ -4900,9 +5114,9 @@ export default function MPList({
                               <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                                 {r.workedOn || "—"}
                               </td>
-                              <td className="px-2.5 py-1.5 text-center">{r.priority || "일반"}</td>
+                              <td className="px-2.5 py-1.5 text-center">{r.priority || t("field.general", "일반")}</td>
                               <td className="px-2.5 py-1.5 text-center">
-                                {r.category || "보전성"}
+                                {r.category || t("field.maintainability", "보전성")}
                               </td>
                               <td className="px-2.5 py-1.5 text-center font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                 {r.woType || "CM(개량)"}

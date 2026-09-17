@@ -286,6 +286,7 @@ const matrixResponseToRowMap = {
   spare_part: "sparePart",
   wo_code: "wOCode",
   work: "work",
+  work_description: "work",
   created_by: "createdBy",
   updated_by: "modifiedBy",
   equipment_code: "equipmentCode",
@@ -1081,7 +1082,7 @@ function EditableModalRow({
                 <button
                   type="button"
                   onClick={handleSave}
-                  title="저장 (Enter)"
+                  title={t("common.saveEnter", "저장 (Enter)")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -1100,7 +1101,7 @@ function EditableModalRow({
                 <button
                   type="button"
                   onClick={handleCancel}
-                  title="취소 (Esc)"
+                  title={t("common.cancelEsc", "취소 (Esc)")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -2661,7 +2662,7 @@ function RowEditModal({
                 <label className="modal-field-label mb-1.5">{t("field.bom", "BOM")}</label>
                 <input
                   type="text"
-                  placeholder="Enter BOM (new line allowed)"
+                  placeholder={t("placeholder.enterBom", "Enter BOM (new line allowed)")}
                   value={draft.bom ?? ""}
                   onChange={(e) => handleFieldChange("bom", e.target.value)}
                   className="modal-input"
@@ -2673,7 +2674,7 @@ function RowEditModal({
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter material name (new line allowed)"
+                  placeholder={t("placeholder.enterMaterial", "Enter material name (new line allowed)")}
                   value={draft.sparePart ?? ""}
                   onChange={(e) => handleFieldChange("sparePart", e.target.value)}
                   className="modal-input"
@@ -4076,6 +4077,7 @@ export default function ChangeHistory({
           ) || 0,
         equipmentId: Number(mergedRow.equipmentId ?? mergedRow.equipment_id ?? 0) || 0,
         reportContent: mergedRow.reportContent || mergedRow.report || "",
+        work: mergedRow.work || mergedRow["work description"] || "",
         workName: mergedRow.representativeWork || mergedRow.workName || mergedRow.work_name || "",
         purpose: mergedRow.purpose || mergedRow.workPurpose || mergedRow.work || "",
         situation: mergedRow.situation || mergedRow.problemSymptom || "",
@@ -5831,7 +5833,7 @@ export default function ChangeHistory({
               />
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-1">Importing Data...</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">{t("app.importingData", "Importing Data...")}</h3>
             {importFileName && (
               <p
                 className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full"
@@ -5841,7 +5843,7 @@ export default function ChangeHistory({
               </p>
             )}
             <p className="text-sm text-slate-500 text-center animate-pulse">
-              Parsing file and loading table records. Please wait.
+              {t("common.pleaseWait", "Parsing file and loading table records. Please wait.")}
             </p>
           </div>
         </div>

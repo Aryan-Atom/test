@@ -2893,7 +2893,7 @@ export default function SpecData({ data, onUpload, onExport, searchText, isActiv
               />
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-1">Importing Data...</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">{t("app.importingData", "Importing Data...")}</h3>
             {importFileName && (
               <p
                 className="text-sm font-semibold text-blue-600 mb-2 truncate max-w-full"
@@ -2902,7 +2902,7 @@ export default function SpecData({ data, onUpload, onExport, searchText, isActiv
                 {importFileName}
               </p>
             )}
-            <p className="text-sm text-slate-500 text-center animate-pulse">Please wait.</p>
+            <p className="text-sm text-slate-500 text-center animate-pulse">{t("common.pleaseWait", "Please wait.")}</p>
           </div>
         </div>
       )}
