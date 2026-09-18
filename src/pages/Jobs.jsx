@@ -104,6 +104,85 @@ function CountCell({ value, ingested, total, to, onClick }) {
   );
 }
 
+export function formatJobDateTime(raw) {
+  if (!raw) return "—";
+  const str = String(raw).trim();
+  if (!str || str === "-" || str === "—") return "—";
+
+  // Match YYYY-MM-DD and HH:mm:ss directly to preserve clean date & time
+  const match = str.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
+  if (match) {
+    return `${match[1]} ${match[2]}`;
+  }
+
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  const pad = (n) => String(n).padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const mins = pad(d.getMinutes());
+  const secs = pad(d.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
+}
+
+export function parseJobTimestamp(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  const str = String(val).trim();
+  if (!str || str === "-" || str === "—") return null;
+
+  // If timestamp has no timezone offset (Z or +/-HH:mm), parse as UTC
+  const hasTz = /([Zz]|[+-]\d{2}(:?\d{2})?)$/.test(str);
+  if (!hasTz) {
+    const utcDate = new Date(str.replace(" ", "T") + "Z");
+    if (!isNaN(utcDate.getTime())) return utcDate;
+  }
+  const d = new Date(str.replace(" ", "T"));
+  if (!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+export function calculateJobDuration(createdAtRaw, finishedAtRaw, status) {
+  const statusLower = String(status || "").toLowerCase();
+  if (statusLower === "queued" || statusLower === "running") {
+    return "—";
+  }
+
+  const start = parseJobTimestamp(createdAtRaw);
+  const end = parseJobTimestamp(finishedAtRaw);
+  if (!start || !end) return "—";
+
+  let diffMs = end.getTime() - start.getTime();
+  if (diffMs < 0) {
+    // Check if finished_at was recorded in local time instead of UTC
+    const localEnd = new Date(String(finishedAtRaw).trim().replace(" ", "T"));
+    if (!isNaN(localEnd.getTime())) {
+      const altDiff = localEnd.getTime() - start.getTime();
+      if (altDiff >= 0) {
+        diffMs = altDiff;
+      }
+    }
+  }
+
+  if (diffMs < 0) return "—";
+
+  const totalSec = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
+}
+
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -311,6 +390,11 @@ export default function Jobs() {
       statusMatches = String(j.status || "").toLowerCase() === statusFilter.toLowerCase();
     }
 
+    const createdAt = j.created_at || j.createdAt || "";
+    const formattedDate = formatJobDateTime(createdAt);
+    const finishedAt = j.finished_at || j.finishedAt || "";
+    const duration = calculateJobDuration(createdAt, finishedAt, j.status);
+
     const matchesSearch =
       !searchQuery.trim() ||
       String(j.id || "")
@@ -328,6 +412,8 @@ export default function Jobs() {
       String(j.status || "")
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
+      formattedDate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      duration.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (isQuarantined && "quarantined".includes(searchQuery.toLowerCase()));
 
     return statusMatches && matchesSearch;
@@ -571,6 +657,7 @@ export default function Jobs() {
                   <th className="px-4 py-3 text-right">{t("jobs.quarantined", "Quarantined")}</th>
                   <th className="px-4 py-3">{t("jobs.status", "Status")}</th>
                   <th className="px-4 py-3">{t("jobs.started", "Started")}</th>
+                  <th className="px-4 py-3">{t("jobs.duration", "Duration")}</th>
                   <th className="px-4 py-3 text-center">{t("jobs.actions", "Actions")}</th>
                 </tr>
               </thead>
@@ -582,6 +669,9 @@ export default function Jobs() {
                   const uploadedBy =
                     j.createdBy || j.created_by_user || j.uploadedBy || j.created_by || "-";
                   const createdAt = j.created_at || j.createdAt || "-";
+                  const finishedAt = j.finished_at || j.finishedAt || null;
+                  const formattedCreatedAt = formatJobDateTime(createdAt);
+                  const duration = calculateJobDuration(createdAt, finishedAt, j.status);
                   const totalRows =
                     j.total_rows != null ? j.total_rows : (j.totalRows ?? j.rows_count ?? j.rows ?? null);
                   const quarantined =
@@ -658,7 +748,10 @@ export default function Jobs() {
                       />
                       <td className="px-4 py-3">{getStatusBadge(j)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-subtle font-mono">
-                        <HighlightText text={createdAt} query={searchQuery} />
+                        <HighlightText text={formattedCreatedAt} query={searchQuery} />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-subtle font-mono">
+                        <HighlightText text={duration} query={searchQuery} />
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1.5">
@@ -799,7 +892,25 @@ export default function Jobs() {
                 <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
                   <span className="font-semibold text-text-subtle">{t("jobs.startedAtLabel", "Started At:")}</span>
                   <span className="col-span-2 font-mono">
-                    {selectedJob.created_at || selectedJob.createdAt || "-"}
+                    {formatJobDateTime(selectedJob.created_at || selectedJob.createdAt)}
+                  </span>
+                </div>
+                {(selectedJob.finished_at || selectedJob.finishedAt) && (
+                  <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                    <span className="font-semibold text-text-subtle">{t("jobs.finishedAtLabel", "Finished At:")}</span>
+                    <span className="col-span-2 font-mono">
+                      {formatJobDateTime(selectedJob.finished_at || selectedJob.finishedAt)}
+                    </span>
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-2 py-1 border-b border-border-base">
+                  <span className="font-semibold text-text-subtle">{t("jobs.durationLabel", "Duration:")}</span>
+                  <span className="col-span-2 font-mono font-medium">
+                    {calculateJobDuration(
+                      selectedJob.created_at || selectedJob.createdAt,
+                      selectedJob.finished_at || selectedJob.finishedAt,
+                      selectedJob.status,
+                    )}
                   </span>
                 </div>
                 {selectedJob.total_rows != null && (

@@ -1568,18 +1568,62 @@ export default function MPList({
     return String(raw);
   }
 
-  // ── Inline Editor for Priority / Category (Immediately calls SaveVoc) ───────
+  // ── Inline Editor for Priority / Category (Calls UpdateRepresentativeWork) ──
   const handleInlineChange = (row, field, value) => {
     const proc = getColValue(row, "process");
     const part = getColValue(row, "maintGroup");
-    const repWork = String(getColValue(row, "representativeWork")).trim();
+    const repWork = String(
+      getColValue(row, "representativeWork") ||
+        row.representativeWork ||
+        row.workName ||
+        "",
+    ).trim();
+
+    const newPriority = field === "priority" ? value : (getColValue(row, "priority") || row.priority || "일반");
+    const newCategory = field === "category" ? value : (getColValue(row, "category") || row.category || "보전성");
+
+    const priorityObj = (priorityList || []).find(
+      (p) =>
+        p.priorityName === newPriority ||
+        p.name === newPriority ||
+        String(p.id) === String(newPriority) ||
+        (newPriority === "중요" && p.priorityName === "Important") ||
+        (newPriority === "Important" && p.priorityName === "중요") ||
+        (newPriority === "일반" && p.priorityName === "Normal") ||
+        (newPriority === "Normal" && p.priorityName === "일반"),
+    );
+    const priorityIdVal = priorityObj?.id != null
+      ? Number(priorityObj.id)
+      : (Number(row.priorityId || row.priority_id) || (newPriority === "중요" ? 1 : 2));
+    const priorityNameVal = priorityObj?.priorityName || newPriority;
+
+    const categoryObj = (categoryList || []).find(
+      (c) =>
+        c.categoryName === newCategory ||
+        c.name === newCategory ||
+        c.displayName === newCategory ||
+        String(c.id) === String(newCategory) ||
+        (newCategory === "품질" && (c.categoryName === "Quality" || c.name === "Quality")) ||
+        (newCategory === "보전성" && (c.categoryName === "Maintenance" || c.name === "Maintenance")) ||
+        (newCategory === "생산성" && (c.categoryName === "Productivity" || c.name === "Productivity")) ||
+        (newCategory === "기타" && (c.categoryName === "Others" || c.name === "Others")),
+    );
+    const categoryIdVal = categoryObj?.id != null
+      ? Number(categoryObj.id)
+      : (Number(row.categoryId || row.category_id) || 4);
+    const categoryNameVal = categoryObj?.categoryName || newCategory;
 
     // 1. Immediately update all matching records in local state
     setAllRecords((prev) => {
       return prev.map((r) => {
         const matchProc = getColValue(r, "process") === proc;
         const matchPart = getColValue(r, "maintGroup") === part;
-        const matchRep = String(getColValue(r, "representativeWork")).trim() === repWork;
+        const matchRep = String(
+          getColValue(r, "representativeWork") ||
+            r.representativeWork ||
+            r.workName ||
+            "",
+        ).trim() === repWork;
 
         const isTarget =
           matchProc &&
@@ -1589,22 +1633,16 @@ export default function MPList({
         if (isTarget) {
           const updated = { ...r };
           if (field === "priority") {
-            updated.priority = value;
-            updated["중요도"] = value;
-            const pObj = priorityList.find((p) => p.priorityName === value || p.name === value);
-            if (pObj?.id) {
-              updated.priorityId = pObj.id;
-              updated.priority_id = pObj.id;
-            }
+            updated.priority = priorityNameVal;
+            updated["중요도"] = priorityNameVal;
+            updated.priorityId = priorityIdVal;
+            updated.priority_id = priorityIdVal;
           } else if (field === "category") {
-            updated.category = value;
-            updated["효과 유형"] = value;
-            updated["효과유형"] = value;
-            const cObj = categoryList.find((c) => c.categoryName === value || c.name === value);
-            if (cObj?.id) {
-              updated.categoryId = cObj.id;
-              updated.category_id = cObj.id;
-            }
+            updated.category = categoryNameVal;
+            updated["효과 유형"] = categoryNameVal;
+            updated["효과유형"] = categoryNameVal;
+            updated.categoryId = categoryIdVal;
+            updated.category_id = categoryIdVal;
           }
           return updated;
         }
@@ -1626,163 +1664,121 @@ export default function MPList({
       return;
     }
 
-    // 2. Build vocItem and call SaveVoc API
-    const rowIdVal = Number(
-      row.id ||
-        row.changeHistoryId ||
-        row.change_history_id ||
-        row.mpListId ||
+    // 2. Resolve representative work ID
+    let repWorkIdVal = Number(
+      row.repWorkId ??
+        row.rep_work_id ??
+        row.repo_Work_Id ??
+        row.representativeWorkId ??
+        row.representative_work_id ??
+        row.repMappingId ??
         0,
     );
 
-    const newPriority = field === "priority" ? value : (getColValue(row, "priority") || "일반");
-    const newCategory = field === "category" ? value : (getColValue(row, "category") || "보전성");
-
-    const priorityObj = (priorityList || []).find(
-      (p) =>
-        p.priorityName === newPriority ||
-        p.name === newPriority ||
-        (newPriority === "중요" && p.priorityName === "Important") ||
-        (newPriority === "Important" && p.priorityName === "중요") ||
-        (newPriority === "일반" && p.priorityName === "Normal") ||
-        (newPriority === "Normal" && p.priorityName === "일반"),
-    );
-    const priorityIdVal =
-      priorityObj?.id ??
-      (Number(row.priorityId || row.priority_id) ||
-        (newPriority === "중요" || newPriority === "Important" ? 2 : 1));
-    const priorityNameVal = priorityObj?.priorityName || newPriority;
-
-    const categoryObj = (categoryList || []).find(
-      (c) =>
-        c.categoryName === newCategory ||
-        c.name === newCategory ||
-        c.displayName === newCategory,
-    );
-    const categoryIdVal =
-      categoryObj?.id ??
-      (Number(row.categoryId || row.category_id) || 1);
-    const categoryNameVal = categoryObj?.categoryName || newCategory;
-
-    const rowProc = getColValue(row, "process");
-    const procObj = (processList || []).find(
-      (p) => p.processName === rowProc || Number(p.id) === Number(row.processId || row.process_id),
-    );
-    const processIdVal = Number(
-      row.processId || row.process_id || procObj?.id || selectedProcessId || 1,
-    );
-
-    const rowMaint = getColValue(row, "maintGroup");
-    const eqTypeObj = (equipmentTypeList || []).find(
-      (e) =>
-        e.equipmentTypeName === rowMaint ||
-        Number(e.id) === Number(row.equipmentTypeId || row.equipment_type_id),
-    );
-    const equipmentTypeIdVal = Number(
-      row.equipmentTypeId || row.equipment_type_id || eqTypeObj?.id || selectedEquipmentTypeId || 107,
-    );
-
-    const rowSite = getColValue(row, "site");
-    const siteObj = (siteList || []).find(
-      (s) => s.siteName === rowSite || Number(s.id) === Number(row.siteId || row.site_id),
-    );
-    const siteIdVal = Number(
-      row.siteId || row.site_id || siteObj?.id || selectedSiteId || 1,
-    );
-
-    const formatValidDateIso = (rawDate) => {
-      if (!rawDate || String(rawDate).startsWith("0000") || String(rawDate).startsWith("0001")) {
-        return new Date().toISOString();
+    if (!repWorkIdVal && repWork && filterPayload?.representations) {
+      const matchRep = (filterPayload.representations || []).find((r) => {
+        const rName = String(
+          r.representativeWorkName || r.name || r.workName || "",
+        ).trim();
+        return rName === repWork;
+      });
+      if (matchRep && matchRep.id) {
+        repWorkIdVal = Number(matchRep.id);
       }
-      const p = new Date(rawDate);
-      if (isNaN(p.getTime()) || p.getFullYear() < 2000) {
-        return new Date().toISOString();
-      }
-      return p.toISOString();
-    };
+    }
 
-    const vocItem = {
-      id: rowIdVal,
-      changeHistoryId: rowIdVal,
-      change_history_id: rowIdVal,
-      repWorkId: Number(row.repWorkId ?? row.rep_work_id ?? 0) || 0,
-      repMappingId: Number(row.repWorkId ?? row.rep_work_id ?? row.repMappingId ?? 0) || 0,
-      workOrderId:
-        Number(row.workOrderId ?? row.work_order_type_id ?? row.woTypeId ?? 0) || 0,
-      equipmentId: Number(row.equipmentId ?? row.equipment_id ?? 0) || 0,
-      reportContent: row.reportContent || row.report || getColValue(row, "report") || "",
-      work: row.work ?? getColValue(row, "work") ?? "",
-      workName:
-        row.representativeWork ||
-        row.workName ||
-        row.work_name ||
+    if (!repWorkIdVal && repWork && allRecords) {
+      const matchRow = (allRecords || []).find((r) => {
+        const rName = String(
+          getColValue(r, "representativeWork") ||
+            r.representativeWork ||
+            r.workName ||
+            "",
+        ).trim();
+        const idVal = Number(
+          r.repWorkId ?? r.rep_work_id ?? r.representativeWorkId ?? 0,
+        );
+        return rName === repWork && idVal > 0;
+      });
+      if (matchRow) {
+        repWorkIdVal = Number(
+          matchRow.repWorkId ??
+            matchRow.rep_work_id ??
+            matchRow.representativeWorkId,
+        );
+      }
+    }
+
+    if (!repWorkIdVal && row.id) {
+      repWorkIdVal = Number(row.id);
+    }
+
+    // 3. Build payload and call UpdateRepresentativeWork API
+    const updatePayload = {
+      id: repWorkIdVal,
+      name:
+        repWork ||
         getColValue(row, "representativeWork") ||
+        row.representativeWork ||
         "",
-      purpose:
-        row.purpose ||
-        row.workPurpose ||
-        getColValue(row, "purpose") ||
-        getColValue(row, "work") ||
-        "",
-      situation: row.situation || getColValue(row, "situation") || "",
-      cause: row.cause || getColValue(row, "cause") || "",
-      hwWas: row.hwWas || row.hwAsWas || row.hw_was || getColValue(row, "hwAsWas") || "",
-      hwIs: row.hwIs || row.hwAsIs || row.hw_is || getColValue(row, "hwAsIs") || "",
-      swWas: row.swWas || row.swAsWas || row.sw_was || getColValue(row, "swAsWas") || "",
-      swIs: row.swIs || row.swAsIs || row.sw_is || getColValue(row, "swAsIs") || "",
-      bom: row.bom || "",
-      sparePart: row.sparePart || row.spare_part || getColValue(row, "sparePart") || "",
-      equipmentCode: row.equipmentCode || row.equipment_code || "-",
-      equipmentName: row.equipmentName || row.equipment_name || " Common",
-      woCode: row.woCode || row.wOCode || row.wo_code || getColValue(row, "wOCode") || "",
-      workDate: formatValidDateIso(
-        row.workedOn || row.workDate || row.work_date || getColValue(row, "workedOn"),
-      ),
-      categoryName: categoryNameVal,
-      priorityName: priorityNameVal,
       priorityId: priorityIdVal,
       categoryId: categoryIdVal,
-      processName: row.processName || rowProc || "P1",
-      siteName: row.siteName || rowSite || "site 1",
-      maintenanceGroupName: row.maintenanceGroupName || rowMaint || "EQ type 1",
-      equipmentTypeName: row.equipmentTypeName || rowMaint || "EQ type 1",
-      processId: processIdVal,
-      siteId: siteIdVal,
-      equipmentTypeId: equipmentTypeIdVal,
-      createdBy: row.createdBy || row.created_by || getUserInfo()?.name || "Chirati Harish",
     };
 
-    const payload = {
-      vocData: [vocItem],
-      isVoc: false,
-    };
+    APIcallPost(
+      pocEndPoints.UPDATE_REPRESENTATIVE_WORK,
+      updatePayload,
+      {},
+      (responseData, status) => {
+        if (
+          status >= 200 &&
+          status < 300 &&
+          responseData?.statusCode !== 400 &&
+          responseData?.statusCode !== 500
+        ) {
+          const successMsg =
+            field === "priority"
+              ? t("toast.prioritySaved", "Priority saved successfully.")
+              : t("toast.categorySaved", "Category saved successfully.");
+          setOperationStatus({
+            isVisible: true,
+            status: "success",
+            message: successMsg,
+            autoClose: true,
+          });
 
-    APIcallPost(pocEndPoints.SAVE_VOC, payload, {}, (responseData, status) => {
-      if (status >= 200 && status < 300 && responseData?.statusCode !== 409) {
-        const successMsg =
-          field === "priority"
-            ? t("toast.prioritySaved", "Priority saved successfully.")
-            : t("toast.categorySaved", "Category saved successfully.");
-        setOperationStatus({
-          isVisible: true,
-          status: "success",
-          message: successMsg,
-          autoClose: true,
-        });
-      } else {
-        const errorMsg =
-          responseData?.message ||
-          (field === "priority"
-            ? t("toast.prioritySaveError", "Failed to save priority.")
-            : t("toast.categorySaveError", "Failed to save category."));
-        setOperationStatus({
-          isVisible: true,
-          status: "error",
-          message: errorMsg,
-          autoClose: true,
-        });
-      }
-    });
+          // Sync filterPayload representations if present
+          if (filterPayload?.representations && repWorkIdVal) {
+            setFilterPayload((prev) => {
+              if (!prev || !Array.isArray(prev.representations)) return prev;
+              const updatedReps = prev.representations.map((rep) => {
+                if (Number(rep.id) === repWorkIdVal) {
+                  return {
+                    ...rep,
+                    priorityId: priorityIdVal,
+                    categoryId: categoryIdVal,
+                  };
+                }
+                return rep;
+              });
+              return { ...prev, representations: updatedReps };
+            });
+          }
+        } else {
+          const errorMsg =
+            responseData?.message ||
+            (field === "priority"
+              ? t("toast.prioritySaveError", "Failed to save priority.")
+              : t("toast.categorySaveError", "Failed to save category."));
+          setOperationStatus({
+            isVisible: true,
+            status: "error",
+            message: errorMsg,
+            autoClose: true,
+          });
+        }
+      },
+    );
   };
 
   // ── Delete a row ───────────────────────────────────────────────────────────
@@ -3905,11 +3901,12 @@ export default function MPList({
                               );
                             }
                             if (col === "priority") {
-                              const rawVal = getColValue(row, "priority") || "일반";
+                              const rawVal = getColValue(row, "priority") || row.priority || "일반";
                               const matchP = priorityList.find(
                                 (p) =>
                                   p.priorityName === rawVal ||
                                   p.name === rawVal ||
+                                  (row.priorityId != null && Number(p.id) === Number(row.priorityId)) ||
                                   (rawVal === "Important" && p.priorityName === "중요") ||
                                   (rawVal === "중요" && p.priorityName === "Important") ||
                                   (rawVal === "Normal" && p.priorityName === "일반") ||
@@ -3930,7 +3927,7 @@ export default function MPList({
                                       const pName = p.priorityName || p.name;
                                       return (
                                         <option key={p.id || pName} value={pName}>
-                                          {getPriorityLabel(pName, t)}
+                                          {pName}
                                         </option>
                                       );
                                     })}
@@ -3939,11 +3936,12 @@ export default function MPList({
                               );
                             }
                             if (col === "category") {
-                              const rawVal = getColValue(row, "category") || "보전성";
+                              const rawVal = getColValue(row, "category") || row.category || "보전성";
                               const matchC = categoryList.find(
                                 (c) =>
                                   c.categoryName === rawVal ||
                                   c.name === rawVal ||
+                                  (row.categoryId != null && Number(c.id) === Number(row.categoryId)) ||
                                   (rawVal === "Productivity" && c.categoryName === "생산성") ||
                                   (rawVal === "생산성" && c.categoryName === "Productivity") ||
                                   (rawVal === "Quality" && c.categoryName === "품질") ||
@@ -3968,7 +3966,7 @@ export default function MPList({
                                       const cName = c.categoryName || c.name;
                                       return (
                                         <option key={c.id || cName} value={cName}>
-                                          {getCategoryLabel(cName, t)}
+                                          {cName}
                                         </option>
                                       );
                                     })}
