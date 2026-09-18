@@ -517,16 +517,25 @@ function getColValue(row, col, context = {}) {
     return row.sw_is ?? row.swAsIs ?? row.swAfter ?? row["SW 변경 후"] ?? row["SW변경후"] ?? "";
   }
   if (col === "priority") {
+    const priId = row.priority_id ?? row.priorityId;
+    if (priId != null && filterPayload && Array.isArray(filterPayload.priority)) {
+      const found = filterPayload.priority.find((p) => Number(p.id) === Number(priId));
+      if (found) return found.priorityName || found.name || (Number(priId) === 1 ? "중요" : "일반");
+    }
     const val = row.priority_name ?? row.priorityName ?? row.priority ?? row["중요도"];
     if (val) return val;
-    const priId = row.priority_id ?? row.priorityId;
-    if (priId && filterPayload && Array.isArray(filterPayload.priority)) {
-      const found = filterPayload.priority.find((p) => Number(p.id) === Number(priId));
-      if (found) return found.priorityName || found.name || "일반";
+    if (priId != null) {
+      if (Number(priId) === 1) return "중요";
+      if (Number(priId) === 2) return "일반";
     }
     return "일반";
   }
   if (col === "category") {
+    const catId = row.category_id ?? row.categoryId;
+    if (catId != null && filterPayload && Array.isArray(filterPayload.category)) {
+      const found = filterPayload.category.find((c) => Number(c.id) === Number(catId));
+      if (found) return found.categoryName || found.name || (Number(catId) === 1 ? "품질" : Number(catId) === 2 ? "기타" : Number(catId) === 3 ? "생산성" : "보전성");
+    }
     const val =
       row.category_name ??
       row.categoryName ??
@@ -536,10 +545,11 @@ function getColValue(row, col, context = {}) {
       row["효과 유형"] ??
       row["효과유형"];
     if (val) return val;
-    const catId = row.category_id ?? row.categoryId;
-    if (catId && filterPayload && Array.isArray(filterPayload.category)) {
-      const found = filterPayload.category.find((c) => Number(c.id) === Number(catId));
-      if (found) return found.categoryName || found.name || "보전성";
+    if (catId != null) {
+      if (Number(catId) === 1) return "품질";
+      if (Number(catId) === 2) return "기타";
+      if (Number(catId) === 3) return "생산성";
+      if (Number(catId) === 4) return "보전성";
     }
     return "보전성";
   }
@@ -1012,10 +1022,10 @@ export default function MPList({
     return (filterPayload?.category || []).length > 0
       ? filterPayload.category
       : [
-          { id: 1, categoryName: "보전성" },
+          { id: 1, categoryName: "품질" },
           { id: 2, categoryName: "기타" },
-          { id: 3, categoryName: "품질" },
-          { id: 4, categoryName: "생산성" },
+          { id: 3, categoryName: "생산성" },
+          { id: 4, categoryName: "보전성" },
         ];
   }, [filterPayload]);
 
@@ -1023,8 +1033,8 @@ export default function MPList({
     return (filterPayload?.priority || []).length > 0
       ? filterPayload.priority
       : [
-          { id: 1, priorityName: "일반" },
-          { id: 2, priorityName: "중요" },
+          { id: 1, priorityName: "중요" },
+          { id: 2, priorityName: "일반" },
         ];
   }, [filterPayload]);
 
@@ -1282,7 +1292,46 @@ export default function MPList({
       } else if (Array.isArray(responseData?.mpList)) {
         records = responseData.mpList;
       }
-      setAllRecords(records);
+      const normalizedRecords = (records || []).map((r) => {
+        const priorityId = r.priority_id ?? r.priorityId;
+        const categoryId = r.category_id ?? r.categoryId;
+        const matchedPri = (priorityList || []).find((p) => Number(p.id) === Number(priorityId));
+        const matchedCat = (categoryList || []).find((c) => Number(c.id) === Number(categoryId));
+        const pName = matchedPri?.priorityName || matchedPri?.name || (Number(priorityId) === 1 ? "중요" : "일반");
+        const cName = matchedCat?.categoryName || matchedCat?.name || (Number(categoryId) === 1 ? "품질" : Number(categoryId) === 2 ? "기타" : Number(categoryId) === 3 ? "생산성" : "보전성");
+        return {
+          ...r,
+          priority_id: priorityId,
+          priorityId: priorityId,
+          priority: r.priority || pName,
+          category_id: categoryId,
+          categoryId: categoryId,
+          category: r.category || cName,
+          work_name: r.work_name ?? r.workName ?? r.representativeWork,
+          workName: r.work_name ?? r.workName ?? r.representativeWork,
+          representativeWork: r.work_name ?? r.workName ?? r.representativeWork,
+          workedOn: r.work_date ?? r.workDate ?? r.workedOn,
+          workDate: r.work_date ?? r.workDate ?? r.workedOn,
+          reportContent: r.report_content ?? r.reportContent ?? r.report,
+          report: r.report_content ?? r.reportContent ?? r.report,
+          hwAsWas: r.hw_was ?? r.hwAsWas,
+          hwAsIs: r.hw_is ?? r.hwAsIs,
+          swAsWas: r.sw_was ?? r.swAsWas,
+          swAsIs: r.sw_is ?? r.swAsIs,
+          siteName: r.site_name ?? r.siteName,
+          siteId: r.site_id ?? r.siteId,
+          site_id: r.site_id ?? r.siteId,
+          processId: r.process_id ?? r.processId,
+          process_id: r.process_id ?? r.processId,
+          equipmentTypeId: r.equipment_type_id ?? r.equipmentTypeId,
+          equipment_type_id: r.equipment_type_id ?? r.equipmentTypeId,
+          equipmentId: r.equipment_id ?? r.equipmentId,
+          equipment_id: r.equipment_id ?? r.equipmentId,
+          repWorkId: r.rep_work_id ?? r.repWorkId,
+          rep_work_id: r.rep_work_id ?? r.repWorkId,
+        };
+      });
+      setAllRecords(normalizedRecords);
     } else {
       console.warn("[MPList] GetMPList API failed:", status, responseData);
     }
@@ -1297,6 +1346,8 @@ export default function MPList({
   selectedCategories,
   dateFrom,
   dateTo,
+  priorityList,
+  categoryList,
 ]);
 
   useEffect(() => {
@@ -3901,18 +3952,24 @@ export default function MPList({
                               );
                             }
                             if (col === "priority") {
-                              const rawVal = getColValue(row, "priority") || row.priority || "일반";
-                              const matchP = priorityList.find(
-                                (p) =>
-                                  p.priorityName === rawVal ||
-                                  p.name === rawVal ||
-                                  (row.priorityId != null && Number(p.id) === Number(row.priorityId)) ||
-                                  (rawVal === "Important" && p.priorityName === "중요") ||
-                                  (rawVal === "중요" && p.priorityName === "Important") ||
-                                  (rawVal === "Normal" && p.priorityName === "일반") ||
-                                  (rawVal === "일반" && p.priorityName === "Normal"),
-                              );
-                              const selectedVal = matchP?.priorityName || rawVal;
+                              const priId = row.priority_id ?? row.priorityId;
+                              let matchP = null;
+                              if (priId != null) {
+                                matchP = priorityList.find((p) => Number(p.id) === Number(priId));
+                              }
+                              if (!matchP && row.priority) {
+                                matchP = priorityList.find(
+                                  (p) =>
+                                    p.priorityName === row.priority ||
+                                    (p.name && p.name === row.priority) ||
+                                    (row.priority === "Important" && p.priorityName === "중요") ||
+                                    (row.priority === "중요" && p.priorityName === "Important") ||
+                                    (row.priority === "Normal" && p.priorityName === "일반") ||
+                                    (row.priority === "일반" && p.priorityName === "Normal"),
+                                );
+                              }
+                              const fallbackPri = priId != null ? (Number(priId) === 1 ? "중요" : "일반") : (getColValue(row, "priority", { filterPayload }) || row.priority || "일반");
+                              const selectedVal = matchP?.priorityName || matchP?.name || fallbackPri;
                               return (
                                 <td key={col} className="px-3 py-2">
                                   <select
@@ -3936,22 +3993,28 @@ export default function MPList({
                               );
                             }
                             if (col === "category") {
-                              const rawVal = getColValue(row, "category") || row.category || "보전성";
-                              const matchC = categoryList.find(
-                                (c) =>
-                                  c.categoryName === rawVal ||
-                                  c.name === rawVal ||
-                                  (row.categoryId != null && Number(c.id) === Number(row.categoryId)) ||
-                                  (rawVal === "Productivity" && c.categoryName === "생산성") ||
-                                  (rawVal === "생산성" && c.categoryName === "Productivity") ||
-                                  (rawVal === "Quality" && c.categoryName === "품질") ||
-                                  (rawVal === "품질" && c.categoryName === "Quality") ||
-                                  (rawVal === "Maintenance" && c.categoryName === "보전성") ||
-                                  (rawVal === "보전성" && c.categoryName === "Maintenance") ||
-                                  (rawVal === "Others" && c.categoryName === "기타") ||
-                                  (rawVal === "기타" && c.categoryName === "Others"),
-                              );
-                              const selectedVal = matchC?.categoryName || rawVal;
+                              const catId = row.category_id ?? row.categoryId;
+                              let matchC = null;
+                              if (catId != null) {
+                                matchC = categoryList.find((c) => Number(c.id) === Number(catId));
+                              }
+                              if (!matchC && row.category) {
+                                matchC = categoryList.find(
+                                  (c) =>
+                                    c.categoryName === row.category ||
+                                    (c.name && c.name === row.category) ||
+                                    (row.category === "Productivity" && c.categoryName === "생산성") ||
+                                    (row.category === "생산성" && c.categoryName === "Productivity") ||
+                                    (row.category === "Quality" && c.categoryName === "품질") ||
+                                    (row.category === "품질" && c.categoryName === "Quality") ||
+                                    (row.category === "Maintenance" && c.categoryName === "보전성") ||
+                                    (row.category === "보전성" && c.categoryName === "Maintenance") ||
+                                    (row.category === "Others" && c.categoryName === "기타") ||
+                                    (row.category === "기타" && c.categoryName === "Others"),
+                                );
+                              }
+                              const fallbackCat = catId != null ? (Number(catId) === 1 ? "품질" : Number(catId) === 2 ? "기타" : Number(catId) === 3 ? "생산성" : Number(catId) === 4 ? "보전성" : "기타") : (getColValue(row, "category", { filterPayload }) || row.category || "보전성");
+                              const selectedVal = matchC?.categoryName || matchC?.name || fallbackCat;
                               return (
                                 <td key={col} className="px-3 py-2">
                                   <select

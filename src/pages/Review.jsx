@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { pocEndPoints } from "../axios/endPoints.js";
 import { APIcallGet, APIcallPost } from "../axios/apiCall.js";
 import { useI18n } from "../i18n.jsx";
@@ -227,6 +227,70 @@ export default function Review() {
     );
   }, []);
 
+  const hasInitCursorRef = useRef(false);
+
+  const initCursorIfNull = useCallback(async () => {
+    try {
+      // Step 1: Call GetCursor (api/ChangeData/GetCursor)
+      const cursorResponse = await new Promise((resolve) => {
+        APIcallGet(pocEndPoints.GET_CURSOR, {}, (resData, status) => {
+          resolve({ resData, status });
+        });
+      });
+
+      const resData = cursorResponse.resData;
+      const status = cursorResponse.status;
+
+      // Condition: if data = null and statusCode : 200
+      const isNullData =
+        resData?.data === null ||
+        resData === null ||
+        (resData && typeof resData === "object" && resData.data === null);
+      const isSuccess = status === 200 || resData?.statusCode === 200;
+
+      if (isNullData && isSuccess) {
+        // Step 2: Call FastAPI exports/changes: /api/exports/changes?limit=500&offset=0
+        const baseChangesUrl =
+          pocEndPoints.AI_PIPELINE_GET_CHANGES ||
+          `${aiServer}/api/exports/changes`;
+        const changesUrl = new URL(baseChangesUrl);
+        changesUrl.searchParams.set("limit", "500");
+        changesUrl.searchParams.set("offset", "0");
+
+        const fastApiRes = await fetch(changesUrl.toString(), {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        });
+
+        if (fastApiRes.ok) {
+          const fastApiData = await fastApiRes.json();
+          const newCursor =
+            fastApiData?.cursor ??
+            fastApiData?.next_cursor ??
+            fastApiData?.snapshot;
+
+          if (newCursor) {
+            // Step 3: Save cursor (api/ChangeData/SaveCursor)
+            await new Promise((resolve) => {
+              APIcallPost(
+                pocEndPoints.SAVE_CURSOR,
+                { cursor: String(newCursor) },
+                {},
+                (saveRes, saveStatus) => {
+                  resolve({ saveRes, saveStatus });
+                },
+              );
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error initializing cursor on load:", err);
+    }
+  }, [aiServer]);
+
   const load = async () => {
     try {
       setLoading(true);
@@ -243,6 +307,10 @@ export default function Review() {
   };
 
   useEffect(() => {
+    if (!hasInitCursorRef.current) {
+      hasInitCursorRef.current = true;
+      initCursorIfNull();
+    }
     load();
     api
       .workItems({ limit: 1000, sort: "members", includeArchived: true })
@@ -254,7 +322,7 @@ export default function Review() {
         console.error("Work items fetch error:", e);
         setItemsError(e.message || "Failed to load destination work items");
       });
-  }, [api, fetchValidWoCodes]);
+  }, [api, fetchValidWoCodes, initCursorIfNull]);
 
   // Filter legal target work items within same partition / process
   function targetsFor(report) {
