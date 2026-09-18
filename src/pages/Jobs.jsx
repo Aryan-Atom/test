@@ -477,7 +477,6 @@ export default function Jobs() {
             <option value="failed">{t("jobs.statusFailed", "Failed")}</option>
             <option value="quarantined">{t("jobs.statusQuarantined", "Quarantined")}</option>
             <option value="cancelled">{t("jobs.statusCancelled", "Cancelled")}</option>
-            <option value="idle">{t("jobs.statusIdle", "Idle")}</option>
           </select>
         </div>
       </header>
@@ -714,9 +713,8 @@ export default function Jobs() {
                             <i className="fas fa-shield-alt text-sm" />
                           </button>
 
-                          {/* Cancel icon for queued or running jobs */}
-                          {(String(j.status || "").toLowerCase() === "queued" ||
-                            String(j.status || "").toLowerCase() === "running") && (
+                          {/* Cancel icon for queued jobs only */}
+                          {String(j.status || "").toLowerCase() === "queued" && (
                             <button
                               type="button"
                               disabled={busyJobId === j.id}
@@ -724,9 +722,7 @@ export default function Jobs() {
                               title={
                                 busyJobId === j.id
                                   ? t("jobs.cancelling", "Cancelling…")
-                                  : String(j.status || "").toLowerCase() === "queued"
-                                  ? t("jobs.cancelJobQueued", "Cancel queued job")
-                                  : t("jobs.cancelJob", "Cancel job")
+                                  : t("jobs.cancelJobQueued", "Cancel queued job")
                               }
                               onClick={() => handleCancelJob(j)}
                             >
@@ -849,8 +845,7 @@ export default function Jobs() {
               </div>
 
               <div className="p-4 border-t border-border-base flex justify-end gap-2 bg-gray-50 dark:bg-gray-800">
-                {(String(selectedJob.status || "").toLowerCase() === "queued" ||
-                  String(selectedJob.status || "").toLowerCase() === "running") && (
+                {String(selectedJob.status || "").toLowerCase() === "queued" && (
                   <button
                     type="button"
                     disabled={busyJobId === selectedJob.id}
@@ -868,7 +863,7 @@ export default function Jobs() {
                     <span>
                       {busyJobId === selectedJob.id
                         ? t("jobs.cancelling", "Cancelling…")
-                        : t("jobs.cancelJob", "Cancel Job")}
+                        : t("jobs.cancelJobQueued", "Cancel Queued Job")}
                     </span>
                   </button>
                 )}
